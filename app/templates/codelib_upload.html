@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}코드 등록 – Catchy Lab SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="rfp-page py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-10">
+
+        <div class="mb-4">
+          <a href="/codelib" class="btn btn-ghost mb-3">
+            <i class="fa-solid fa-arrow-left me-1"></i> 라이브러리로
+          </a>
+          <h2 class="rfp-title">ABAP 코드 등록</h2>
+          <p class="text-muted">
+            실제 프로젝트 ABAP 소스를 등록하면 Hannah가 프로그램을 분석합니다.<br/>
+            <span class="text-warning small">
+              <i class="fa-solid fa-clock me-1"></i>분석에는 약 10~30초가 소요됩니다.
+            </span>
+          </p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger mb-4">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="/codelib/upload" id="upload-form">
+
+          <!-- Section 1: 프로그램 정보 & 분류 -->
+          <div class="rfp-section">
+            <div class="rfp-section-header">
+              <span class="rfp-section-num">01</span>
+              <div>
+                <h4 class="mb-0">프로그램 정보 &amp; 분류</h4>
+                <small class="text-muted">모듈과 개발유형을 정확히 선택할수록 분석 품질이 높아집니다.</small>
+              </div>
+            </div>
+
+            <!-- 프로그램 ID & 트랜잭션 코드 -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">
+                  프로그램 ID <small class="text-muted fw-normal">(선택)</small>
+                </label>
+                <input type="text" name="program_id" id="program_id" class="form-control"
+                       maxlength="40" placeholder="예: ZRSDD6A120"/>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                  트랜잭션 코드 <small class="text-muted fw-normal">(선택)</small>
+                </label>
+                <input type="text" name="transaction_code" id="transaction_code" class="form-control"
+                       maxlength="20" placeholder="예: ZSD_TRACK"/>
+              </div>
+            </div>
+
+            <!-- 프로그램 설명 (필수) -->
+            <div class="mb-4">
+              <label class="form-label fw-semibold">프로그램 설명 <span class="text-danger">*</span></label>
+              <input type="text" name="title" class="form-control form-control-lg" required
+                     placeholder="예) Sales Order 수주 이행 추적 리포트"/>
+            </div>
+
+            <!-- SAP 모듈 -->
+            <div class="mb-4">
+              <label class="form-label fw-semibold">SAP 모듈 <span class="text-danger">*</span></label>
+              <div class="chip-group">
+                {% for mod in modules %}
+                <label class="chip-label">
+                  <input type="checkbox" name="sap_modules" value="{{ mod.code }}" class="chip-input"/>
+                  <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- 개발 유형 -->
+            <div class="mb-0">
+              <label class="form-label fw-semibold">개발 유형 <span class="text-danger">*</span></label>
+              <div class="chip-group">
+                {% for dt in devtypes %}
+                <label class="chip-label">
+                  <input type="checkbox" name="dev_types" value="{{ dt.code }}" class="chip-input"/>
+                  <span class="chip">{{ dt.label_ko }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: ABAP 소스 코드 -->
+          <div class="rfp-section">
+            <div class="rfp-section-header">
+              <span class="rfp-section-num">02</span>
+              <div>
+                <h4 class="mb-0">ABAP 소스 코드</h4>
+                <small class="text-muted">
+                  프로그램 구조에 맞게 섹션을 분리하여 입력하세요.
+                  분석에는 <strong>TOP / Selection Screen / Form Subroutines</strong>가 핵심입니다.
+                </small>
+              </div>
+            </div>
+
+            <!-- 코드 복사 가이드 -->
+            <div class="se80-guide mb-4">
+              <div class="se80-guide-title">
+                <i class="fa-solid fa-circle-info me-2 text-info"></i>
+                코드 복사 권장 순서
+              </div>
+              <div class="se80-guide-items">
+                <div class="se80-item essential">
+                  <span class="se80-badge essential-badge">필수</span>
+                  <span>메인 프로그램</span>
+                  <span class="se80-desc">REPORT 구문 + INCLUDE 목록</span>
+                </div>
+                <div class="se80-item essential">
+                  <span class="se80-badge essential-badge">필수</span>
+                  <span>TOP Include</span>
+                  <span class="se80-desc">Types, Data 선언부 (전역변수)</span>
+                </div>
+                <div class="se80-item essential">
+                  <span class="se80-badge essential-badge">필수</span>
+                  <span>Selection Screen Include</span>
+                  <span class="se80-desc">PARAMETERS / SELECT-OPTIONS</span>
+                </div>
+                <div class="se80-item essential">
+                  <span class="se80-badge essential-badge">필수</span>
+                  <span>Form Subroutines (F01, F02...)</span>
+                  <span class="se80-desc">핵심 로직 / BAPI 호출부</span>
+                </div>
+                <div class="se80-item optional">
+                  <span class="se80-badge optional-badge">선택</span>
+                  <span>PBO / PAI 모듈</span>
+                  <span class="se80-desc">Dialog 프로그램인 경우에만</span>
+                </div>
+                <div class="se80-item skip">
+                  <span class="se80-badge skip-badge">생략</span>
+                  <span>GUI Status / GUI Titles</span>
+                  <span class="se80-desc">분석에 불필요</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 숨김 필드 -->
+            <input type="hidden" name="source_code" id="source-code-combined"/>
+
+            <!-- 섹션 컨테이너 -->
+            <div id="sections-container">
+              <div class="code-section" data-section-id="0">
+                <div class="code-section-header">
+                  <div class="d-flex align-items-center gap-2 flex-grow-1">
+                    <div class="section-drag-handle"><i class="fa-solid fa-grip-vertical"></i></div>
+                    <select class="form-select form-select-sm section-type-select" style="max-width:220px">
+                      <option value="메인 프로그램" selected>메인 프로그램</option>
+                      <option value="TOP Include">TOP Include</option>
+                      <option value="Selection Screen">Selection Screen Include</option>
+                      <option value="Form Subroutines">Form Subroutines (F01...)</option>
+                      <option value="PBO Modules">PBO Modules</option>
+                      <option value="PAI Modules">PAI Modules</option>
+                      <option value="Class">Class / Interface</option>
+                      <option value="기타 Include">기타 Include</option>
+                    </select>
+                    <input type="text" class="form-control form-control-sm section-name-input"
+                           style="max-width:200px" placeholder="Include명 (예: ZXXX_TOP)"/>
+                    <span class="ms-auto small text-muted section-stat">0줄</span>
+                  </div>
+                  <div class="section-actions ms-3">
+                    <button type="button" class="btn btn-ghost btn-sm text-danger remove-section-btn" disabled>
+                      <i class="fa-solid fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+                <textarea class="form-control section-code" rows="12"
+                          placeholder="여기에 ABAP 소스를 붙여넣으세요 (REPORT 구문부터)..."></textarea>
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-outline-primary w-100 mt-3" id="add-section-btn">
+              <i class="fa-solid fa-plus me-2"></i>Include / 섹션 추가
+            </button>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <small class="text-muted">
+                <i class="fa-solid fa-layer-group me-1"></i>
+                <span id="section-count">1</span>개 섹션
+              </small>
+              <small class="text-muted">
+                합계: <span id="total-lines">0</span>줄 / <span id="total-chars">0</span>자
+              </small>
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <div class="rfp-section rfp-section-last">
+            <div class="d-flex gap-3 justify-content-end">
+              <a href="/codelib" class="btn btn-outline-secondary px-4">취소</a>
+              <button type="submit" name="is_draft_btn" value="0" class="btn btn-outline-secondary px-4" id="draft-btn"
+                      onclick="document.getElementById('is-draft-field').value='1'">
+                <i class="fa-solid fa-floppy-disk me-2"></i>임시 저장
+              </button>
+              <button type="submit" class="btn btn-primary btn-lg px-5" id="submit-btn">
+                <i class="fa-solid fa-upload me-2"></i>등록 &amp; 분석 시작
+              </button>
+            </div>
+            <input type="hidden" name="is_draft" id="is-draft-field" value="0"/>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 프로그램 ID 자동 대문자
+document.getElementById('program_id').addEventListener('input', function() {
+  this.value = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+});
+document.getElementById('transaction_code').addEventListener('input', function() {
+  this.value = this.value.replace(/[^A-Za-z0-9_]/g, '').toUpperCase();
+});
+
+let sectionCount = 1;
+const container = document.getElementById('sections-container');
+
+document.getElementById('add-section-btn').addEventListener('click', () => {
+  const id = sectionCount++;
+  const div = document.createElement('div');
+  div.className = 'code-section';
+  div.dataset.sectionId = id;
+  div.innerHTML = `
+    <div class="code-section-header">
+      <div class="d-flex align-items-center gap-2 flex-grow-1">
+        <div class="section-drag-handle"><i class="fa-solid fa-grip-vertical"></i></div>
+        <select class="form-select form-select-sm section-type-select" style="max-width:220px">
+          <option value="TOP Include">TOP Include</option>
+          <option value="Selection Screen">Selection Screen Include</option>
+          <option value="Form Subroutines" selected>Form Subroutines (F01...)</option>
+          <option value="PBO Modules">PBO Modules</option>
+          <option value="PAI Modules">PAI Modules</option>
+          <option value="Class">Class / Interface</option>
+          <option value="기타 Include">기타 Include</option>
+        </select>
+        <input type="text" class="form-control form-control-sm section-name-input"
+               style="max-width:200px" placeholder="Include명 (예: ZXXX_F01)"/>
+        <span class="ms-auto small text-muted section-stat">0줄</span>
+      </div>
+      <div class="section-actions ms-3">
+        <button type="button" class="btn btn-ghost btn-sm text-danger remove-section-btn">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <textarea class="form-control section-code" rows="10"
+              placeholder="여기에 Include 소스를 붙여넣으세요..."></textarea>`;
+  container.appendChild(div);
+  bindSection(div);
+  updateStats();
+});
+
+function bindSection(div) {
+  const ta = div.querySelector('.section-code');
+  const stat = div.querySelector('.section-stat');
+  const removeBtn = div.querySelector('.remove-section-btn');
+  ta.addEventListener('input', () => {
+    stat.textContent = ta.value.split('\n').length.toLocaleString() + '줄';
+    updateStats();
+  });
+  if (removeBtn && !removeBtn.disabled) {
+    removeBtn.addEventListener('click', () => { div.remove(); updateStats(); });
+  }
+}
+
+function updateStats() {
+  const sections = container.querySelectorAll('.code-section');
+  let totalLines = 0, totalChars = 0;
+  sections.forEach(s => {
+    const ta = s.querySelector('.section-code');
+    if (ta.value) { totalLines += ta.value.split('\n').length; totalChars += ta.value.length; }
+  });
+  document.getElementById('section-count').textContent = sections.length;
+  document.getElementById('total-lines').textContent = totalLines.toLocaleString();
+  document.getElementById('total-chars').textContent = totalChars.toLocaleString();
+}
+
+document.getElementById('upload-form').addEventListener('submit', (e) => {
+  const sections = container.querySelectorAll('.code-section');
+  let combined = '';
+  sections.forEach((sec, idx) => {
+    const type = sec.querySelector('.section-type-select').value;
+    const name = sec.querySelector('.section-name-input').value.trim();
+    const code = sec.querySelector('.section-code').value.trim();
+    if (!code) return;
+    const label = name ? `${type} – ${name}` : type;
+    combined += `*&======================================================\n`;
+    combined += `*& [${idx + 1}] ${label}\n`;
+    combined += `*&======================================================\n`;
+    combined += code + '\n\n';
+  });
+
+  if (combined.trim().length < 50) {
+    e.preventDefault();
+    alert('최소 한 개 섹션에 ABAP 소스를 입력해 주세요.');
+    return;
+  }
+
+  document.getElementById('source-code-combined').value = combined;
+  const isDraft = document.getElementById('is-draft-field').value === '1';
+  const btn = document.getElementById('submit-btn');
+  if (!isDraft) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Hannah 분석 중... (10~30초 소요)';
+  }
+});
+
+container.querySelectorAll('.code-section').forEach(bindSection);
+updateStats();
+</script>
+{% endblock %}

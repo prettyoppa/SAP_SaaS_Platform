@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}개발 유형 관리 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="admin-page-header mb-4">
+    <div class="container">
+      <a href="/admin" class="btn btn-ghost btn-sm mb-2">
+        <i class="fa-solid fa-arrow-left me-1"></i>Admin 홈
+      </a>
+      <h3 class="mb-1"><i class="fa-solid fa-code me-2 text-warning"></i>개발 유형 관리</h3>
+      <p class="text-muted mb-0">ABAP 개발 유형 목록을 관리합니다.</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row g-4">
+      <!-- 목록 -->
+      <div class="col-lg-8">
+        <div class="rfp-section mb-0">
+          <h5 class="mb-3">현재 개발 유형 목록</h5>
+          {% if devtypes %}
+          <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle admin-table">
+              <thead>
+                <tr>
+                  <th style="width:60px">순서</th>
+                  <th>코드</th>
+                  <th>한국어 라벨</th>
+                  <th>영문 라벨</th>
+                  <th>상태</th>
+                  <th style="width:140px">액션</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for dt in devtypes %}
+                <tr class="{% if not dt.is_active %}opacity-50{% endif %}">
+                  <td class="text-muted small">{{ dt.sort_order + 1 }}</td>
+                  <td><span class="badge-devtype">{{ dt.code }}</span></td>
+                  <td>{{ dt.label_ko }}</td>
+                  <td class="text-muted small">{{ dt.label_en }}</td>
+                  <td>
+                    {% if dt.is_active %}
+                    <span class="badge" style="background:rgba(34,197,94,.2);color:#4ade80">활성</span>
+                    {% else %}
+                    <span class="badge bg-secondary">비활성</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <form method="post" action="/admin/devtypes/{{ dt.id }}/toggle" style="display:inline">
+                      <button type="submit" class="btn btn-sm {% if dt.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                        <i class="fa-solid {% if dt.is_active %}fa-toggle-on{% else %}fa-toggle-off{% endif %}"></i>
+                      </button>
+                    </form>
+                    <form method="post" action="/admin/devtypes/{{ dt.id }}/delete" style="display:inline"
+                          onsubmit="return confirm('{{ dt.code }} 개발유형을 삭제할까요?')">
+                      <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted">등록된 개발 유형이 없습니다.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 추가 -->
+      <div class="col-lg-4">
+        <div class="rfp-section mb-0">
+          <h5 class="mb-3">새 개발 유형 추가</h5>
+          <form method="post" action="/admin/devtypes/add">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">코드 <span class="text-danger">*</span></label>
+              <input type="text" name="code" class="form-control" required
+                     placeholder="예: Report_ALV, Dialog"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">한국어 라벨 <span class="text-danger">*</span></label>
+              <input type="text" name="label_ko" class="form-control" required
+                     placeholder="예: ALV 리포트"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">영문 라벨 <span class="text-danger">*</span></label>
+              <input type="text" name="label_en" class="form-control" required
+                     placeholder="예: ALV Report"/>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fa-solid fa-plus me-2"></i>유형 추가
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

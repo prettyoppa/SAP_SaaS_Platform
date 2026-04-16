@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Login – SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-5 col-lg-4">
+        <div class="auth-card">
+          <div class="auth-logo">
+            <i class="fa-solid fa-cube"></i>
+          </div>
+          <h2 class="auth-title" data-i18n="login.title">Welcome Back</h2>
+          <p class="auth-sub text-muted" data-i18n="login.sub">Sign in to your SAP Dev Hub account</p>
+
+          {% if error %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span data-i18n="login.error">Invalid email or password.</span>
+          </div>
+          {% endif %}
+
+          <form method="post" action="/login">
+            <div class="mb-3">
+              <label class="form-label" data-i18n="login.email">Email</label>
+              <div class="input-icon-wrap">
+                <i class="fa-solid fa-envelope input-icon"></i>
+                <input type="email" name="email" class="form-control input-with-icon" required
+                       placeholder="you@company.com" autocomplete="email"/>
+              </div>
+            </div>
+            <div class="mb-4">
+              <label class="form-label" data-i18n="login.password">Password</label>
+              <div class="input-icon-wrap">
+                <i class="fa-solid fa-lock input-icon"></i>
+                <input type="password" name="password" class="form-control input-with-icon" required
+                       placeholder="••••••••" autocomplete="current-password"/>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 btn-lg">
+              <span data-i18n="login.btn">Sign In</span>
+              <i class="fa-solid fa-arrow-right ms-2"></i>
+            </button>
+          </form>
+
+          <hr class="my-4"/>
+          <p class="text-center text-muted mb-0">
+            <span data-i18n="login.noAccount">Don't have an account?</span>
+            <a href="/register" class="ms-1" data-i18n="login.signupLink">Sign up free</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Request Submitted – SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="success-page py-6">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-7 text-center">
+        <div class="success-icon-wrap mb-4">
+          <div class="success-icon">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+        <h2 class="mb-2" data-i18n="success.title">Request Submitted!</h2>
+        <p class="text-muted mb-5" data-i18n="success.sub">Your development request has been received. Our AI is analyzing your requirements.</p>
+
+        <div class="success-card mb-5">
+          <div class="success-row">
+            <span class="success-label" data-i18n="success.title2">Request Title</span>
+            <span class="success-value fw-semibold">{{ rfp.title }}</span>
+          </div>
+          {% if rfp.sap_modules %}
+          <div class="success-row">
+            <span class="success-label" data-i18n="success.modules">SAP Modules</span>
+            <span class="success-value">
+              {% for m in rfp.sap_modules.split(',') %}
+              <span class="badge-module">{{ m }}</span>
+              {% endfor %}
+            </span>
+          </div>
+          {% endif %}
+          {% if rfp.dev_types %}
+          <div class="success-row">
+            <span class="success-label" data-i18n="success.types">Dev Types</span>
+            <span class="success-value">
+              {% for d in rfp.dev_types.split(',') %}
+              <span class="badge-devtype">{{ d.replace('_', ' ') }}</span>
+              {% endfor %}
+            </span>
+          </div>
+          {% endif %}
+          <div class="success-row">
+            <span class="success-label" data-i18n="success.status">Status</span>
+            <span class="success-value"><span class="rfp-status-badge status-badge-submitted" data-i18n="status.submitted">Submitted</span></span>
+          </div>
+        </div>
+
+        <!-- What happens next -->
+        <div class="next-steps mb-5">
+          <h5 class="mb-4" data-i18n="success.nextTitle">What happens next?</h5>
+          <div class="next-step-item">
+            <div class="next-step-icon"><i class="fa-solid fa-robot"></i></div>
+            <div class="text-start">
+              <div class="fw-semibold" data-i18n="success.next1.title">AI Analysis</div>
+              <div class="text-muted small" data-i18n="success.next1.desc">Our AI parses your requirements and generates a structured Development Proposal.</div>
+            </div>
+          </div>
+          <div class="next-step-item">
+            <div class="next-step-icon"><i class="fa-solid fa-user-tie"></i></div>
+            <div class="text-start">
+              <div class="fw-semibold" data-i18n="success.next2.title">Expert Review</div>
+              <div class="text-muted small" data-i18n="success.next2.desc">An SAP consultant reviews and enriches the proposal with professional insights.</div>
+            </div>
+          </div>
+          <div class="next-step-item">
+            <div class="next-step-icon"><i class="fa-solid fa-envelope"></i></div>
+            <div class="text-start">
+              <div class="fw-semibold" data-i18n="success.next3.title">Proposal Delivered</div>
+              <div class="text-muted small" data-i18n="success.next3.desc">You'll receive your free Development Proposal within 24 hours via email.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3 justify-content-center flex-wrap">
+          <a href="/dashboard" class="btn btn-outline-secondary px-4">
+            <i class="fa-solid fa-gauge me-2"></i>
+            <span data-i18n="success.dashboard">Go to Dashboard</span>
+          </a>
+          <a href="/rfp/{{ rfp.id }}/interview" class="btn btn-primary btn-lg px-5">
+            <i class="fa-solid fa-robot me-2"></i>
+            AI 인터뷰 시작하기
+            <span class="badge bg-success ms-2 small">무료</span>
+          </a>
+        </div>
+        <p class="text-muted small mt-3">
+          <i class="fa-solid fa-info-circle me-1"></i>
+          AI가 3~9개의 질문으로 요구사항을 구체화하고 Development Proposal을 자동 생성합니다.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

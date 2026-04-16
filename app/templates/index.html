@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Catchy Lab - SAP 개발 Hub{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="hero-section hero-compact">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-5">
+        <h1 class="hero-title">
+          {{ settings.get('home_headline_ko', 'SAP 개발을 AI로 혁신하세요') }}<br/>
+          <span class="text-gradient">with AI Power</span>
+        </h1>
+        <p class="hero-sub">
+          {{ settings.get('home_subtitle_ko', '개발 요구사항을 제출하면 AI 에이전트가 심층 인터뷰를 진행하고 전문 수준의 개발 제안서를 무료로 제공합니다.') }}
+        </p>
+        <div class="d-flex gap-3 flex-wrap">
+          {% if user %}
+          <a href="/rfp/new" class="btn btn-primary btn-lg px-4">
+            <i class="fa-solid fa-plus me-2"></i>
+            <span data-i18n="hero.cta.new">신규 요청하기</span>
+          </a>
+          <a href="/dashboard" class="btn btn-outline-secondary btn-lg px-4">
+            <span data-i18n="hero.cta.dashboard">내 대시보드</span>
+          </a>
+          {% else %}
+          <a href="/register" class="btn btn-primary btn-lg px-4">
+            <i class="fa-solid fa-rocket me-2"></i>
+            <span data-i18n="hero.cta.start">무료로 시작하기</span>
+          </a>
+          <a href="#how-it-works" class="btn btn-outline-secondary btn-lg px-4">
+            <span data-i18n="hero.cta.how">이용 방법</span>
+            <i class="fa-solid fa-arrow-down ms-2"></i>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 우측 탭 패널 -->
+      <div class="col-lg-7">
+        <div class="home-tabs-card">
+          <ul class="nav nav-tabs home-nav-tabs" id="homeTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-notice" type="button">
+                <i class="fa-solid fa-bullhorn me-1"></i>
+                <span data-i18n="home.tab.notice">공지사항</span>
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-faq" type="button">
+                <i class="fa-solid fa-circle-question me-1"></i>FAQ
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-review" type="button">
+                <i class="fa-solid fa-star me-1"></i>
+                <span data-i18n="home.tab.review">이용후기</span>
+              </button>
+            </li>
+          </ul>
+          <div class="tab-content home-tab-content p-3">
+            <!-- 공지사항 -->
+            <div class="tab-pane fade show active" id="tab-notice">
+              {% if notices %}
+                {% for n in notices %}
+                <div class="notice-item">
+                  <span class="notice-badge">공지</span>
+                  <span class="notice-title">{{ n.title }}</span>
+                  <span class="notice-date text-muted small">{{ n.created_at.strftime('%Y.%m.%d') }}</span>
+                </div>
+                {% endfor %}
+              {% else %}
+              <div class="empty-tab-msg">
+                <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
+                <p class="text-muted small" data-i18n="home.notice.empty">등록된 공지사항이 없습니다.</p>
+              </div>
+              {% endif %}
+            </div>
+            <!-- FAQ -->
+            <div class="tab-pane fade" id="tab-faq">
+              {% if faqs %}
+              <div class="accordion accordion-flush" id="faqAccordion">
+                {% for faq in faqs %}
+                <div class="accordion-item bg-transparent">
+                  <h2 class="accordion-header">
+                    <button class="accordion-button collapsed bg-transparent text-light" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#faq-{{ loop.index }}">
+                      {{ faq.question }}
+                    </button>
+                  </h2>
+                  <div id="faq-{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body text-muted small">{{ faq.answer }}</div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="empty-tab-msg">
+                <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
+                <p class="text-muted small" data-i18n="home.faq.empty">등록된 FAQ가 없습니다.</p>
+              </div>
+              {% endif %}
+            </div>
+            <!-- 이용후기 -->
+            <div class="tab-pane fade" id="tab-reviews">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted">고객 이용후기</small>
+                {% if user %}
+                <a href="/reviews" class="btn btn-xs btn-outline-primary">
+                  <i class="fa-solid fa-pen-to-square me-1"></i>후기 작성
+                </a>
+                {% else %}
+                <a href="/register" class="btn btn-xs btn-outline-secondary">
+                  <i class="fa-solid fa-user-plus me-1"></i>로그인 후 작성
+                </a>
+                {% endif %}
+              </div>
+              {% if reviews %}
+              <div class="review-list">
+                {% for r in reviews %}
+                <div class="review-item-card">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <div class="review-avatar">{{ r.author.full_name[0] if r.author else '?' }}</div>
+                    <strong class="small">{{ r.author.full_name if r.author else '익명' }}</strong>
+                    <div class="ms-auto">
+                      {% for i in range(r.rating) %}<i class="fa-solid fa-star text-warning" style="font-size:.7rem"></i>{% endfor %}
+                      {% for i in range(5 - r.rating) %}<i class="fa-regular fa-star text-muted" style="font-size:.7rem"></i>{% endfor %}
+                    </div>
+                  </div>
+                  <p class="small text-muted mb-0">{{ r.content }}</p>
+                  <small class="text-muted" style="font-size:.7rem">{{ r.created_at.strftime('%Y.%m.%d') }}</small>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="empty-tab-msg">
+                <i class="fa-solid fa-star fa-2x text-muted mb-2"></i>
+                <p class="text-muted small">아직 등록된 이용후기가 없습니다.</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 이용 방법 Diagram -->
+<section id="how-it-works" class="section-light py-5">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="section-title" data-i18n="how.title">이용 방법</h2>
+      <p class="section-sub text-muted" data-i18n="how.subtitle">요구사항 제출부터 최종 납품까지 3단계</p>
+    </div>
+
+    <!-- Flow Diagram -->
+    <div class="flow-diagram">
+      <!-- Step 1 -->
+      <div class="flow-step free-step">
+        <div class="flow-step-header">
+          <span class="flow-badge free-badge">FREE</span>
+          <div class="flow-step-num">01</div>
+        </div>
+        <div class="flow-icon"><i class="fa-solid fa-file-pen"></i></div>
+        <h5 data-i18n="how.step1.title">RFP 제출</h5>
+        <ul class="flow-list text-muted small">
+          <li data-i18n="how.step1.a">SAP 모듈 &amp; 개발 유형 선택</li>
+          <li data-i18n="how.step1.b">요구사항 자유 기술</li>
+          <li data-i18n="how.step1.c">참고 파일 첨부 (선택)</li>
+        </ul>
+      </div>
+
+      <div class="flow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+      <!-- Step 2 -->
+      <div class="flow-step free-step highlight-step">
+        <div class="flow-step-header">
+          <span class="flow-badge free-badge">FREE</span>
+          <div class="flow-step-num">02</div>
+        </div>
+        <div class="flow-icon"><i class="fa-solid fa-robot"></i></div>
+        <h5 data-i18n="how.step2.title">AI 인터뷰 &amp; 제안서</h5>
+        <ul class="flow-list small">
+          <li data-i18n="how.step2.a">Hannah – RFP 분석</li>
+          <li data-i18n="how.step2.b">Mia – 3라운드 심층 인터뷰</li>
+          <li data-i18n="how.step2.c">Jun – 개발 제안서 초안</li>
+          <li data-i18n="how.step2.d">Sara – 제안서 품질 검토</li>
+        </ul>
+      </div>
+
+      <div class="flow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+      <!-- Step 3 -->
+      <div class="flow-step paid-step">
+        <div class="flow-step-header">
+          <span class="flow-badge paid-badge">PAID</span>
+          <div class="flow-step-num">03</div>
+        </div>
+        <div class="flow-icon"><i class="fa-solid fa-code"></i></div>
+        <h5 data-i18n="how.step3.title">최종 FS &amp; ABAP 코드</h5>
+        <ul class="flow-list text-muted small">
+          <li data-i18n="how.step3.a">David – 상세 기능 명세서 작성</li>
+          <li data-i18n="how.step3.b">Kevin – ABAP 코드 생성</li>
+          <li data-i18n="how.step3.c">Young – 코드 리뷰 &amp; 완성도 향상</li>
+          <li data-i18n="how.step3.d">Brian – 단위 테스트 시나리오</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section py-5">
+  <div class="container text-center">
+    <h2 class="mb-3" data-i18n="cta.title">SAP 개발 자동화를 지금 시작하세요</h2>
+    <p class="text-muted mb-4" data-i18n="cta.sub">무료로 계정을 만들고 첫 번째 요청을 제출해 보세요.</p>
+    {% if user %}
+    <a href="/rfp/new" class="btn btn-primary btn-lg px-5">
+      <i class="fa-solid fa-plus me-2"></i>
+      <span data-i18n="cta.btn.loggedin">신규 요청하기</span>
+    </a>
+    {% else %}
+    <a href="/register" class="btn btn-primary btn-lg px-5">
+      <i class="fa-solid fa-user-plus me-2"></i>
+      <span data-i18n="cta.btn">무료 시작하기</span>
+    </a>
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}

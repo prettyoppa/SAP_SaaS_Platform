@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}FAQ 관리 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="admin-page-header mb-4">
+    <div class="container">
+      <div class="d-flex align-items-center gap-3">
+        <a href="/admin" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>관리자 메뉴</a>
+        <div>
+          <h4 class="mb-0"><i class="fa-solid fa-circle-question me-2 text-warning"></i>FAQ 관리</h4>
+          <small class="text-muted">홈 화면 FAQ 탭에 표시될 항목을 관리합니다. (sort_order 오름차순 정렬)</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- 추가 폼 -->
+    <div class="admin-content-card mb-4">
+      <h6 class="mb-3 text-warning"><i class="fa-solid fa-plus me-2"></i>새 FAQ 추가</h6>
+      <form method="post" action="/admin/faqs/add">
+        <div class="row g-3">
+          <div class="col-md-5">
+            <label class="form-label small">질문</label>
+            <input type="text" name="question" class="form-control" placeholder="자주 묻는 질문을 입력하세요" required/>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label small">답변</label>
+            <input type="text" name="answer" class="form-control" placeholder="답변을 입력하세요" required/>
+          </div>
+          <div class="col-md-1">
+            <label class="form-label small">순서</label>
+            <input type="number" name="sort_order" class="form-control" value="0" min="0"/>
+          </div>
+          <div class="col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 목록 -->
+    {% if faqs %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle">
+        <thead>
+          <tr>
+            <th style="width:50px">순서</th>
+            <th>질문</th>
+            <th>답변</th>
+            <th>상태</th>
+            <th class="text-end">관리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in faqs %}
+          <tr class="{% if not f.is_active %}text-muted{% endif %}">
+            <td class="text-center">{{ f.sort_order }}</td>
+            <td class="small"><strong>{{ f.question }}</strong></td>
+            <td class="small text-muted">{{ f.answer[:80] + '...' if f.answer|length > 80 else f.answer }}</td>
+            <td>
+              {% if f.is_active %}
+              <span class="badge bg-success">활성</span>
+              {% else %}
+              <span class="badge bg-secondary">비활성</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <form method="post" action="/admin/faqs/{{ f.id }}/toggle" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-warning">
+                  {% if f.is_active %}<i class="fa-solid fa-eye-slash"></i>{% else %}<i class="fa-solid fa-eye"></i>{% endif %}
+                </button>
+              </form>
+              <form method="post" action="/admin/faqs/{{ f.id }}/delete" class="d-inline"
+                    onsubmit="return confirm('이 FAQ를 삭제할까요?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-circle-question empty-icon"></i>
+      <p class="text-muted mt-2">등록된 FAQ가 없습니다.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

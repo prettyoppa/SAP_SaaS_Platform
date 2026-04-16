@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}사이트 설정 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="admin-page-header mb-4">
+    <div class="container">
+      <div class="d-flex align-items-center gap-3">
+        <a href="/admin" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>관리자 메뉴</a>
+        <div>
+          <h4 class="mb-0"><i class="fa-solid fa-paintbrush me-2 text-warning"></i>사이트 설정</h4>
+          <small class="text-muted">홈 화면 텍스트, 이용약관, 개인정보처리방침, 개발 요청 작성 팁을 설정합니다.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    {% if request.query_params.get('saved') %}
+    <div class="alert alert-success d-flex align-items-center mb-4">
+      <i class="fa-solid fa-circle-check me-2"></i> 설정이 저장되었습니다.
+    </div>
+    {% endif %}
+
+    <form method="post" action="/admin/settings">
+      <div class="row g-4">
+
+        <!-- 홈 헤드라인 -->
+        <div class="col-12">
+          <div class="admin-content-card">
+            <h6 class="mb-3 text-warning"><i class="fa-solid fa-house me-2"></i>홈 화면 텍스트</h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small">홈 헤드라인 (한국어)</label>
+                <input type="text" name="home_headline_ko" class="form-control"
+                       value="{{ settings.get('home_headline_ko', '') }}"
+                       placeholder="SAP 개발, AI로 더 빠르게"/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">홈 헤드라인 (English)</label>
+                <input type="text" name="home_headline_en" class="form-control"
+                       value="{{ settings.get('home_headline_en', '') }}"
+                       placeholder="SAP Development, Faster with AI"/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">홈 부제목 (한국어)</label>
+                <input type="text" name="home_subtitle_ko" class="form-control"
+                       value="{{ settings.get('home_subtitle_ko', '') }}"
+                       placeholder="AI 에이전트가 요구사항을 분석하여 개발 제안서를 생성합니다."/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">홈 부제목 (English)</label>
+                <input type="text" name="home_subtitle_en" class="form-control"
+                       value="{{ settings.get('home_subtitle_en', '') }}"
+                       placeholder="AI agents analyze your requirements and generate a development proposal."/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 개발 요청 작성 팁 -->
+        <div class="col-12">
+          <div class="admin-content-card">
+            <h6 class="mb-3 text-warning"><i class="fa-solid fa-lightbulb me-2"></i>개발 요청 작성 팁</h6>
+            <label class="form-label small">신규 요청 폼 하단에 표시되는 작성 도움말</label>
+            <textarea name="rfp_writing_tip" class="form-control" rows="5"
+                      placeholder="요구사항을 상세하게 작성할수록 더 정확한 Proposal을 받을 수 있습니다...">{{ settings.get('rfp_writing_tip', '') }}</textarea>
+          </div>
+        </div>
+
+        <!-- 이용약관 -->
+        <div class="col-md-6">
+          <div class="admin-content-card h-100">
+            <h6 class="mb-3 text-warning"><i class="fa-solid fa-file-contract me-2"></i>이용약관</h6>
+            <label class="form-label small">회원가입 시 표시됩니다 (Markdown 또는 Plain Text)</label>
+            <textarea name="terms_of_service" class="form-control" rows="12"
+                      placeholder="제1조 (목적)...">{{ settings.get('terms_of_service', '') }}</textarea>
+          </div>
+        </div>
+
+        <!-- 개인정보처리방침 -->
+        <div class="col-md-6">
+          <div class="admin-content-card h-100">
+            <h6 class="mb-3 text-warning"><i class="fa-solid fa-shield-halved me-2"></i>개인정보처리방침</h6>
+            <label class="form-label small">회원가입 시 표시됩니다 (Markdown 또는 Plain Text)</label>
+            <textarea name="privacy_policy" class="form-control" rows="12"
+                      placeholder="1. 개인정보의 처리 목적...">{{ settings.get('privacy_policy', '') }}</textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="mt-4 pb-4 text-end">
+        <a href="/admin" class="btn btn-ghost me-2">취소</a>
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="fa-solid fa-floppy-disk me-2"></i>설정 저장
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

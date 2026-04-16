@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}회원가입 – Catchy Lab SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="auth-card">
+          <div class="auth-logo">
+            <i class="fa-solid fa-cube"></i>
+          </div>
+          <h2 class="auth-title">
+            <span class="nav-ko">회원가입</span>
+            <span class="nav-en">Create Account</span>
+          </h2>
+          <p class="auth-sub text-muted">
+            <span class="nav-ko">SAP 개발 자동화를 지금 시작하세요</span>
+            <span class="nav-en">Start automating your SAP development today</span>
+          </p>
+
+          {% if error == 'duplicate' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>이미 등록된 이메일입니다. / This email is already registered.</span>
+          </div>
+          {% elif error == 'invalid_email' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>올바른 이메일 형식이 아닙니다.</span>
+          </div>
+          {% endif %}
+
+          <form method="post" action="/register" id="registerForm" novalidate>
+            <!-- 이름 -->
+            <div class="mb-3">
+              <label class="form-label">
+                <span class="nav-ko">이름</span><span class="nav-en">Full Name</span>
+              </label>
+              <div class="input-icon-wrap">
+                <i class="fa-solid fa-user input-icon"></i>
+                <input type="text" name="full_name" class="form-control input-with-icon" required
+                       placeholder="홍길동" autocomplete="name"/>
+              </div>
+            </div>
+
+            <!-- 이메일 -->
+            <div class="mb-3">
+              <label class="form-label">
+                <span class="nav-ko">이메일</span><span class="nav-en">Email</span>
+              </label>
+              <div class="input-icon-wrap">
+                <i class="fa-solid fa-envelope input-icon"></i>
+                <input type="email" name="email" id="emailInput" class="form-control input-with-icon"
+                       required placeholder="you@company.com" autocomplete="email"/>
+              </div>
+              <div class="invalid-feedback" id="emailFeedback" style="display:none">
+                올바른 이메일 형식을 입력해주세요.
+              </div>
+            </div>
+
+            <!-- 회사명 (자동완성) -->
+            <div class="mb-3">
+              <label class="form-label">
+                <span class="nav-ko">회사명</span><span class="nav-en">Company</span>
+                <span class="text-muted small ms-1">
+                  <span class="nav-ko">(선택)</span><span class="nav-en">(Optional)</span>
+                </span>
+              </label>
+              <div class="input-icon-wrap position-relative">
+                <i class="fa-solid fa-building input-icon"></i>
+                <input type="text" name="company" id="companyInput"
+                       class="form-control input-with-icon"
+                       placeholder="회사명을 입력하세요" autocomplete="off"/>
+                <ul class="company-autocomplete-list" id="companyDropdown"></ul>
+              </div>
+            </div>
+
+            <!-- 비밀번호 -->
+            <div class="mb-3">
+              <label class="form-label">
+                <span class="nav-ko">비밀번호</span><span class="nav-en">Password</span>
+              </label>
+              <div class="input-icon-wrap">
+                <i class="fa-solid fa-lock input-icon"></i>
+                <input type="password" name="password" id="password"
+                       class="form-control input-with-icon" required
+                       placeholder="최소 8자 이상" autocomplete="new-password" minlength="8"/>
+                <button type="button" class="btn-pw-toggle" id="pwToggle"
+                        onclick="togglePw('password','pwToggleIcon')">
+                  <i class="fa-solid fa-eye" id="pwToggleIcon"></i>
+                </button>
+              </div>
+              <div class="password-strength mt-2" id="pwd-strength"></div>
+            </div>
+
+            <!-- 이용약관 동의 -->
+            <div class="mb-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="terms" required>
+                <label class="form-check-label small text-muted" for="terms">
+                  <span class="nav-ko">다음에 동의합니다:</span>
+                  <span class="nav-en">I agree to the</span>
+                  {% if settings.get('terms_of_service') %}
+                  <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">
+                    <span class="nav-ko">이용약관</span><span class="nav-en">Terms of Service</span>
+                  </a>
+                  {% else %}
+                  <span class="nav-ko">이용약관</span><span class="nav-en">Terms of Service</span>
+                  {% endif %}
+                  <span class="nav-ko"> 및 </span><span class="nav-en"> and </span>
+                  {% if settings.get('privacy_policy') %}
+                  <a href="#" data-bs-toggle="modal" data-bs-target="#privacyModal">
+                    <span class="nav-ko">개인정보처리방침</span><span class="nav-en">Privacy Policy</span>
+                  </a>
+                  {% else %}
+                  <span class="nav-ko">개인정보처리방침</span><span class="nav-en">Privacy Policy</span>
+                  {% endif %}
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 btn-lg">
+              <span class="nav-ko">계정 만들기</span>
+              <span class="nav-en">Create Account</span>
+              <i class="fa-solid fa-arrow-right ms-2"></i>
+            </button>
+          </form>
+
+          <hr class="my-4"/>
+          <p class="text-center text-muted mb-0">
+            <span class="nav-ko">이미 계정이 있으신가요?</span>
+            <span class="nav-en">Already have an account?</span>
+            <a href="/login" class="ms-1">
+              <span class="nav-ko">로그인</span><span class="nav-en">Sign in</span>
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 이용약관 모달 -->
+{% if settings.get('terms_of_service') %}
+<div class="modal fade" id="termsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content bg-dark-card">
+      <div class="modal-header">
+        <h5 class="modal-title">이용약관</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="white-space:pre-wrap;font-size:0.9rem">{{ settings.terms_of_service }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- 개인정보처리방침 모달 -->
+{% if settings.get('privacy_policy') %}
+<div class="modal fade" id="privacyModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content bg-dark-card">
+      <div class="modal-header">
+        <h5 class="modal-title">개인정보처리방침</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="white-space:pre-wrap;font-size:0.9rem">{{ settings.privacy_policy }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 비밀번호 강도 체크
+document.getElementById('password').addEventListener('input', function() {
+  const v = this.value;
+  const el = document.getElementById('pwd-strength');
+  if (!v) { el.innerHTML = ''; return; }
+  let score = 0;
+  if (v.length >= 8) score++;
+  if (/[A-Z]/.test(v)) score++;
+  if (/[0-9]/.test(v)) score++;
+  if (/[^A-Za-z0-9]/.test(v)) score++;
+  const labels = [
+    { text: '취약 / Weak', cls: 'danger' },
+    { text: '보통 / Fair', cls: 'warning' },
+    { text: '양호 / Good', cls: 'info' },
+    { text: '강력 / Strong', cls: 'success' },
+  ];
+  const l = labels[Math.min(score - 1, 3)] || labels[0];
+  el.innerHTML = `<small class="text-${l.cls}"><i class="fa-solid fa-shield me-1"></i>${l.text}</small>`;
+});
+
+// 비밀번호 보기/숨기기
+function togglePw(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById(iconId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.replace('fa-eye', 'fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.replace('fa-eye-slash', 'fa-eye');
+  }
+}
+
+// 이메일 유효성 체크
+const emailInput = document.getElementById('emailInput');
+const emailFeedback = document.getElementById('emailFeedback');
+emailInput.addEventListener('blur', function() {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (this.value && !re.test(this.value)) {
+    this.classList.add('is-invalid');
+    emailFeedback.style.display = 'block';
+  } else {
+    this.classList.remove('is-invalid');
+    emailFeedback.style.display = 'none';
+  }
+});
+
+// 회사명 자동완성
+let companyTimer = null;
+const companyInput = document.getElementById('companyInput');
+const companyDropdown = document.getElementById('companyDropdown');
+
+companyInput.addEventListener('input', function() {
+  clearTimeout(companyTimer);
+  const q = this.value.trim();
+  if (!q) { companyDropdown.innerHTML = ''; companyDropdown.style.display = 'none'; return; }
+  companyTimer = setTimeout(() => {
+    fetch('/api/companies?q=' + encodeURIComponent(q))
+      .then(r => r.json())
+      .then(list => {
+        if (!list.length) { companyDropdown.style.display = 'none'; return; }
+        companyDropdown.innerHTML = list.map(c =>
+          `<li onclick="selectCompany('${c.replace(/'/g,"\\'")}')"><i class="fa-solid fa-building me-2 small text-muted"></i>${c}</li>`
+        ).join('');
+        companyDropdown.style.display = 'block';
+      });
+  }, 250);
+});
+
+function selectCompany(name) {
+  companyInput.value = name;
+  companyDropdown.style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+  if (!companyInput.contains(e.target) && !companyDropdown.contains(e.target)) {
+    companyDropdown.style.display = 'none';
+  }
+});
+
+// 폼 제출 유효성 검사
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!re.test(emailInput.value)) {
+    e.preventDefault();
+    emailInput.classList.add('is-invalid');
+    emailFeedback.style.display = 'block';
+    emailInput.focus();
+  }
+});
+</script>
+<style>
+.btn-pw-toggle {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 6px;
+  z-index: 10;
+}
+.btn-pw-toggle:hover { color: #e2e8f0; }
+.input-with-icon { padding-right: 2.6rem; }
+.company-autocomplete-list {
+  display: none; position: absolute; top: 100%; left: 0; right: 0;
+  background: #1e2a38; border: 1px solid #3d5166; border-radius: 0.4rem;
+  list-style: none; padding: 0.25rem 0; margin: 0; z-index: 100;
+  max-height: 200px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.company-autocomplete-list li {
+  padding: 0.5rem 1rem; cursor: pointer; font-size: 0.9rem; color: #e2e8f0;
+}
+.company-autocomplete-list li:hover { background: #2d3f54; }
+.dashboard-search-bar .form-control,
+.dashboard-search-bar .form-select {
+  background: #1e2a38; border-color: #3d5166; color: #e2e8f0;
+}
+</style>
+{% endblock %}

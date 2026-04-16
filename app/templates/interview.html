@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}AI 인터뷰 – SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="interview-page py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+
+        <!-- Header -->
+        <div class="mb-4">
+          <a href="/dashboard" class="btn btn-ghost mb-3">
+            <i class="fa-solid fa-arrow-left me-1"></i> 대시보드로
+          </a>
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="interview-ai-icon">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div>
+              <h2 class="mb-0">AI 인터뷰</h2>
+              <p class="text-muted mb-0 small">SAP 컨설턴트 AI가 요구사항을 분석하고 있습니다</p>
+            </div>
+          </div>
+
+          <!-- RFP Summary -->
+          <div class="rfp-summary-bar">
+            <span class="text-muted small me-2">요청:</span>
+            <strong>{{ rfp.title }}</strong>
+            {% if rfp.sap_modules %}
+              {% for m in rfp.sap_modules.split(',') %}
+              <span class="badge-module ms-2">{{ m }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="interview-progress mb-5">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-muted">인터뷰 진행도</span>
+            <span class="small fw-semibold text-primary-light">{{ current_round }} / {{ max_rounds }} 라운드</span>
+          </div>
+          <div class="progress" style="height:6px; background:var(--surface2); border-radius:3px;">
+            <div class="progress-bar" role="progressbar"
+                 style="width:{{ ((current_round - 1) / max_rounds * 100)|int }}%; background:var(--primary); border-radius:3px;"
+                 aria-valuenow="{{ current_round - 1 }}" aria-valuemin="0" aria-valuemax="{{ max_rounds }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Message -->
+        {% if error %}
+        <div class="alert alert-danger mb-4">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          {{ error }}
+          <div class="mt-2 small">
+            SAP_SaaS_Platform 폴더의 <code>.env</code> 파일에 <code>GOOGLE_API_KEY=키값</code>을 설정했는지 확인하세요.
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Answered Rounds (이전 Q&A 기록) -->
+        {% if answered_messages %}
+        <div class="answered-rounds mb-4">
+          {% for msg in answered_messages %}
+          <div class="answered-round-card">
+            <div class="round-badge">{{ msg.round_number }}라운드</div>
+            <div class="round-qa">
+              {% for q in msg.questions %}
+              <div class="round-question">
+                <i class="fa-solid fa-robot text-primary-light me-2 small"></i>
+                {{ q }}
+              </div>
+              {% endfor %}
+              {% if msg.answers_text %}
+              <div class="round-answer">
+                <i class="fa-solid fa-user text-success me-2 small"></i>
+                {{ msg.answers_text }}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Current Round Questions -->
+        {% if current_message and not error %}
+        <div class="current-round-card">
+          <div class="current-round-header">
+            <div class="ai-avatar">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div>
+              <div class="fw-semibold">SAP 컨설턴트 AI</div>
+              <div class="text-muted small">
+                {{ current_round }}라운드 질문
+                {% if question_source and '코드 라이브러리' in question_source %}
+                &nbsp;·&nbsp;
+                <span style="color:#4ade80">
+                  <i class="fa-solid fa-database me-1"></i>실제 프로젝트 코드 기반
+                </span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="current-questions mb-4">
+            <p class="text-muted small mb-3">
+              아래 질문들에 답변해 주세요. 하나의 텍스트박스에 모든 답변을 자유롭게 작성하시면 됩니다.
+            </p>
+            {% for q in current_questions %}
+            <div class="question-item">
+              <div class="question-num">Q{{ loop.index }}</div>
+              <div class="question-text">{{ q }}</div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <form method="post" action="/rfp/{{ rfp.id }}/interview/answer">
+            <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">답변 입력</label>
+              <textarea name="answers_text" class="form-control rfp-textarea" rows="8" required
+                placeholder="예시:
+Q1. 오더 타입은 표준 OR입니다.
+Q2. 판매조직과 유통경로는 엑셀에서 받을 예정입니다. 부문은 고정값(10)으로 처리해도 됩니다.
+Q3. 중복 체크는 고객 PO 번호 기준으로 하면 되고, 동일한 PO번호가 있으면 생성을 막아야 합니다."></textarea>
+              <div class="d-flex justify-content-between mt-1">
+                <small class="text-muted">각 질문 번호(Q1, Q2...)를 명시하지 않아도 됩니다. 자유롭게 답변하세요.</small>
+                <small class="text-muted"><span id="char-count-iv">0</span>자</small>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-primary btn-lg px-5" id="answer-btn">
+                <i class="fa-solid fa-paper-plane me-2"></i>
+                {% if current_round >= max_rounds %}
+                  답변 제출 후 Proposal 생성
+                {% else %}
+                  답변 제출
+                {% endif %}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {% elif not error %}
+        <!-- 로딩 상태 (다음 질문 생성 중) -->
+        <div class="loading-card text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="fw-semibold">AI가 다음 질문을 생성하고 있습니다...</p>
+          <p class="text-muted small">잠시만 기다려 주세요</p>
+        </div>
+        {% endif %}
+
+        <!-- Tip -->
+        <div class="interview-tip mt-4">
+          <i class="fa-solid fa-lightbulb text-warning me-2"></i>
+          <span class="small text-muted">
+            답변이 구체적일수록 더 정확한 Proposal이 생성됩니다.
+            SAP T-Code, 필드명, 수치 등을 포함하면 더욱 좋습니다.
+          </span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ta = document.querySelector('textarea[name="answers_text"]');
+if (ta) {
+  ta.addEventListener('input', () => {
+    document.getElementById('char-count-iv').textContent = ta.value.length;
+  });
+}
+const form = document.querySelector('form');
+const btn = document.getElementById('answer-btn');
+if (form && btn) {
+  form.addEventListener('submit', () => {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>제출 중...';
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}코드 라이브러리 – Catchy Lab SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="dashboard-page py-4">
+  <div class="container">
+
+    <div class="dashboard-header mb-4">
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="mb-1">
+            <i class="fa-solid fa-database me-2 text-primary-light"></i>
+            ABAP 코드 라이브러리
+          </h2>
+          <p class="text-muted mb-0">실제 프로젝트 ABAP 소스를 등록하고 Hannah가 분석합니다.</p>
+        </div>
+        <div class="col-auto">
+          <a href="/codelib/upload" class="btn btn-primary">
+            <i class="fa-solid fa-plus me-2"></i>코드 등록
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats (3개 타일: 전체/분석완료/임시저장) -->
+    <div class="row g-3 mb-4">
+      <div class="col-sm-4">
+        <div class="stat-card stat-card-sm">
+          <div class="stat-card-icon" style="background:rgba(99,102,241,.15);color:#6366f1">
+            <i class="fa-solid fa-code"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{{ counts.total }}</div>
+            <div class="stat-card-label">전체 코드</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="stat-card stat-card-sm">
+          <div class="stat-card-icon" style="background:rgba(34,197,94,.15);color:#22c55e">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{{ counts.analyzed }}</div>
+            <div class="stat-card-label">분석 완료</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="stat-card stat-card-sm">
+          <div class="stat-card-icon" style="background:rgba(234,179,8,.15);color:#eab308">
+            <i class="fa-solid fa-floppy-disk"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{{ counts.draft }}</div>
+            <div class="stat-card-label">임시 저장</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 검색 -->
+    <form method="get" action="/codelib" class="mb-4">
+      <div class="input-group input-group-sm" style="max-width:400px">
+        <input type="text" name="q" class="form-control" placeholder="프로그램명, 모듈로 검색..." value="{{ q }}"/>
+        <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+        {% if q %}<a href="/codelib" class="btn btn-outline-secondary">초기화</a>{% endif %}
+      </div>
+    </form>
+
+    <!-- 코드 목록 -->
+    {% if codes %}
+    <div class="row g-3">
+      {% for code in codes %}
+      <div class="col-12">
+        <div class="rfp-list-card">
+          <div class="rfp-list-left">
+            <div class="rfp-list-status {% if code.is_draft %}status-draft{% elif code.is_analyzed %}status-completed{% else %}status-submitted{% endif %}">
+              <i class="fa-solid {% if code.is_draft %}fa-floppy-disk{% elif code.is_analyzed %}fa-circle-check{% else %}fa-clock{% endif %}"></i>
+            </div>
+            <div>
+              <div class="rfp-list-title">
+                {{ code.title }}
+                {% if code.program_id %}
+                <span class="text-muted small ms-2 font-monospace">{{ code.program_id }}</span>
+                {% endif %}
+              </div>
+              <div class="rfp-list-meta">
+                {% for m in code.sap_modules.split(',') %}
+                <span class="badge-module">{{ m }}</span>
+                {% endfor %}
+                {% for d in code.dev_types.split(',') %}
+                <span class="badge-devtype">{{ d.replace('_',' ') }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <div class="rfp-list-right gap-2">
+            {% if code.is_draft %}
+            <span class="rfp-status-badge" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
+            {% elif code.is_analyzed %}
+            <span class="rfp-status-badge status-badge-completed">분석완료</span>
+            {% else %}
+            <span class="rfp-status-badge status-badge-submitted">미분석</span>
+            {% endif %}
+            <span class="text-muted small">{{ code.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            <a href="/codelib/{{ code.id }}" class="btn btn-sm btn-outline-secondary">
+              <i class="fa-solid fa-eye me-1"></i>상세
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-database empty-icon"></i>
+      <h5>등록된 코드가 없습니다</h5>
+      <p class="text-muted">
+        실제 프로젝트에서 개발한 ABAP 소스를 등록하면<br/>
+        Hannah가 분석하여 인터뷰 질문 생성에 활용됩니다.
+      </p>
+      <a href="/codelib/upload" class="btn btn-primary mt-2">
+        <i class="fa-solid fa-plus me-2"></i>첫 번째 코드 등록
+      </a>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

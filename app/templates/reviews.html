@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}이용후기 – Catchy Lab SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-7">
+
+        <div class="mb-4">
+          <a href="/" class="btn btn-ghost btn-sm mb-3">
+            <i class="fa-solid fa-arrow-left me-1"></i>홈으로
+          </a>
+          <h3><i class="fa-solid fa-star text-warning me-2"></i>이용후기</h3>
+          <p class="text-muted">서비스를 이용하신 소감을 남겨주세요. 관리자 승인 후 홈 화면에 표시됩니다.</p>
+        </div>
+
+        {% if request.query_params.get('submitted') %}
+        <div class="alert alert-success mb-4">
+          <i class="fa-solid fa-circle-check me-2"></i>
+          이용후기가 제출되었습니다. 관리자 검토 후 홈 화면에 공개됩니다.
+        </div>
+        {% endif %}
+
+        <!-- 작성 폼 -->
+        <div class="admin-content-card mb-5">
+          <h6 class="mb-3 text-warning"><i class="fa-solid fa-pen-to-square me-2"></i>후기 작성</h6>
+          <form method="post" action="/reviews/write">
+            <div class="mb-3">
+              <label class="form-label small">평점</label>
+              <div class="d-flex gap-2" id="ratingStars">
+                {% for i in range(1, 6) %}
+                <button type="button" class="star-btn" data-value="{{ i }}" onclick="setRating({{ i }})">
+                  <i class="fa-regular fa-star" id="star{{ i }}"></i>
+                </button>
+                {% endfor %}
+              </div>
+              <input type="hidden" name="rating" id="ratingInput" value="5"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">내용</label>
+              <textarea name="content" class="form-control" rows="4" required
+                        placeholder="서비스 이용 경험을 자유롭게 작성해주세요 (최소 20자 이상 권장)"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-paper-plane me-2"></i>후기 제출
+            </button>
+          </form>
+        </div>
+
+        <!-- 내 후기 목록 -->
+        {% if my_reviews %}
+        <h6 class="mb-3">내가 작성한 후기 ({{ my_reviews|length }})</h6>
+        {% for r in my_reviews %}
+        <div class="review-card mb-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              {% for i in range(r.rating) %}
+              <i class="fa-solid fa-star text-warning" style="font-size:.85rem"></i>
+              {% endfor %}
+              {% for i in range(5 - r.rating) %}
+              <i class="fa-regular fa-star text-muted" style="font-size:.85rem"></i>
+              {% endfor %}
+              <span class="text-muted small ms-2">{{ r.created_at.strftime('%Y-%m-%d') }}</span>
+            </div>
+            <div>
+              {% if r.is_public %}
+              <span class="badge bg-success me-2">홈 공개 중</span>
+              {% else %}
+              <span class="badge bg-secondary me-2">검토 중</span>
+              {% endif %}
+              <form method="post" action="/reviews/{{ r.id }}/delete" class="d-inline"
+                    onsubmit="return confirm('후기를 삭제할까요?')">
+                <button type="submit" class="btn btn-xs btn-outline-danger">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          <p class="mt-2 mb-0 small">{{ r.content }}</p>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state py-4">
+          <i class="fa-regular fa-star empty-icon" style="font-size:2.5rem"></i>
+          <p class="text-muted mt-2">아직 작성한 후기가 없습니다.</p>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setRating(val) {
+  document.getElementById('ratingInput').value = val;
+  for (let i = 1; i <= 5; i++) {
+    const icon = document.getElementById('star' + i);
+    if (i <= val) {
+      icon.className = 'fa-solid fa-star';
+    } else {
+      icon.className = 'fa-regular fa-star';
+    }
+  }
+}
+// 기본 5점으로 초기화
+setRating(5);
+</script>
+<style>
+.star-btn {
+  background: none; border: none; color: #eab308;
+  font-size: 1.5rem; cursor: pointer; padding: 0 3px;
+  transition: transform 0.1s;
+}
+.star-btn:hover { transform: scale(1.2); }
+.review-card {
+  background: #1e2a38; border: 1px solid #3d5166;
+  border-radius: 0.5rem; padding: 1rem;
+}
+.btn-xs { padding: 0.15rem 0.5rem; font-size: 0.75rem; }
+</style>
+{% endblock %}

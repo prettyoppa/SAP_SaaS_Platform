@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Development Proposal – SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="proposal-page py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+
+        <!-- Header -->
+        <div class="mb-4">
+          <a href="/dashboard" class="btn btn-ghost mb-3">
+            <i class="fa-solid fa-arrow-left me-1"></i> 대시보드로
+          </a>
+
+          <div class="proposal-header">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="proposal-icon">
+                <i class="fa-solid fa-file-circle-check"></i>
+              </div>
+              <div>
+                <div class="badge free-tag mb-1">FREE PROPOSAL</div>
+                <h2 class="mb-0">Development Proposal</h2>
+                <p class="text-muted mb-0 small">AI + SAP 전문 컨설턴트가 생성한 개발 제안서</p>
+              </div>
+            </div>
+
+            <div class="rfp-summary-bar mb-3">
+              <span class="text-muted small me-2">요청:</span>
+              <strong>{{ rfp.title }}</strong>
+              {% if rfp.sap_modules %}
+                {% for m in rfp.sap_modules.split(',') %}
+                <span class="badge-module ms-2">{{ m }}</span>
+                {% endfor %}
+              {% endif %}
+              {% if rfp.dev_types %}
+                {% for d in rfp.dev_types.split(',') %}
+                <span class="badge-devtype ms-1">{{ d.replace('_',' ') }}</span>
+                {% endfor %}
+              {% endif %}
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2 flex-wrap">
+              <a href="/rfp/{{ rfp.id }}/proposal/download" class="btn btn-outline-primary">
+                <i class="fa-solid fa-download me-2"></i>Markdown 다운로드
+              </a>
+              <button class="btn btn-outline-warning" id="toggleEditAnswers" onclick="toggleAnswerEdit()">
+                <i class="fa-solid fa-pen-to-square me-2"></i>답변 수정
+              </button>
+              <form method="post" action="/rfp/{{ rfp.id }}/proposal/regenerate" id="regenForm">
+                <button type="submit" class="btn btn-warning" id="regenBtn" disabled
+                        title="답변 수정 후 활성화됩니다">
+                  <i class="fa-solid fa-rotate me-2"></i>Proposal 재생성
+                </button>
+              </form>
+              <a href="/rfp/new" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-plus me-2"></i>새 요청 만들기
+              </a>
+              <div class="ms-auto">
+                <span class="paid-cta-badge">
+                  <i class="fa-solid fa-lock me-1"></i>
+                  최종 FS &amp; ABAP 코드는 유료 서비스로 제공됩니다
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Proposal Content -->
+        <div class="proposal-card">
+          <div class="proposal-body">
+            {{ proposal_html | safe }}
+          </div>
+        </div>
+
+        <!-- Interview Summary / Edit -->
+        {% if messages %}
+        <div class="mt-4" id="interviewSection">
+          <div class="interview-edit-notice alert alert-info d-none" id="editNotice">
+            <i class="fa-solid fa-circle-info me-2"></i>
+            답변을 수정한 후 <strong>저장</strong>하고, <strong>Proposal 재생성</strong> 버튼을 눌러 새 Proposal을 받아보세요.
+          </div>
+          <details class="interview-summary-toggle" open id="interviewDetails">
+            <summary class="interview-summary-header">
+              <i class="fa-solid fa-comments me-2"></i>
+              인터뷰 내용 ({{ messages|length }}라운드)
+            </summary>
+            <div class="interview-summary-body mt-3">
+              {% for msg in messages %}
+              <div class="answered-round-card mb-3" data-round="{{ msg.round_number }}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div class="round-badge">{{ msg.round_number }}라운드</div>
+                  <button type="button" class="btn btn-xs btn-outline-secondary edit-btn d-none"
+                          onclick="openEdit({{ loop.index }})">
+                    <i class="fa-solid fa-pen me-1"></i>수정
+                  </button>
+                </div>
+                <div class="round-qa">
+                  {% for q in msg.questions %}
+                  <div class="round-question">
+                    <i class="fa-solid fa-robot text-primary-light me-2 small"></i>{{ q }}
+                  </div>
+                  {% endfor %}
+
+                  <!-- 읽기 모드 -->
+                  <div class="round-answer view-mode" id="view-{{ loop.index }}">
+                    <i class="fa-solid fa-user text-success me-2 small"></i>
+                    <span>{{ msg.answers_text or "(답변 없음)" }}</span>
+                  </div>
+
+                  <!-- 편집 모드 -->
+                  <form method="post" action="/rfp/{{ rfp.id }}/interview/edit-answer"
+                        class="edit-mode d-none mt-2" id="edit-{{ loop.index }}">
+                    <input type="hidden" name="message_id" value="{{ msg.id }}"/>
+                    <textarea name="answers_text" class="form-control mb-2 answer-edit-area"
+                              rows="4">{{ msg.answers_text or "" }}</textarea>
+                    <div class="d-flex gap-2">
+                      <button type="submit" class="btn btn-sm btn-success">
+                        <i class="fa-solid fa-check me-1"></i>저장
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary"
+                              onclick="cancelEdit({{ loop.index }})">취소</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </details>
+        </div>
+        {% endif %}
+
+        <!-- Next Step CTA -->
+        <div class="next-step-cta mt-5">
+          <div class="row align-items-center">
+            <div class="col-md-8">
+              <h5 class="mb-1">다음 단계: 최종 FS &amp; ABAP 코드 개발</h5>
+              <p class="text-muted mb-0 small">
+                위 Proposal을 확인하셨다면 유료 서비스를 통해 실제 운영 가능한 최종 FS와
+                검증된 ABAP 코드를 받아보세요. SAP 전문가가 직접 검토하고 납품합니다.
+              </p>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+              <button class="btn btn-primary px-4" disabled title="준비 중">
+                <i class="fa-solid fa-cart-shopping me-2"></i>개발 의뢰하기
+                <span class="badge bg-warning text-dark ms-1 small">준비 중</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let editMode = false;
+
+function toggleAnswerEdit() {
+  editMode = !editMode;
+  const btn = document.getElementById('toggleEditAnswers');
+  const notice = document.getElementById('editNotice');
+  const editBtns = document.querySelectorAll('.edit-btn');
+  const regenBtn = document.getElementById('regenBtn');
+
+  if (editMode) {
+    btn.innerHTML = '<i class="fa-solid fa-eye me-2"></i>보기 모드';
+    btn.classList.replace('btn-outline-warning', 'btn-warning');
+    notice.classList.remove('d-none');
+    editBtns.forEach(b => b.classList.remove('d-none'));
+    regenBtn.disabled = false;
+    document.getElementById('interviewDetails').open = true;
+  } else {
+    btn.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i>답변 수정';
+    btn.classList.replace('btn-warning', 'btn-outline-warning');
+    notice.classList.add('d-none');
+    editBtns.forEach(b => b.classList.add('d-none'));
+    regenBtn.disabled = true;
+    document.querySelectorAll('.edit-mode').forEach(f => f.classList.add('d-none'));
+    document.querySelectorAll('.view-mode').forEach(v => v.classList.remove('d-none'));
+  }
+}
+
+function openEdit(idx) {
+  document.getElementById('view-' + idx).classList.add('d-none');
+  document.getElementById('edit-' + idx).classList.remove('d-none');
+}
+
+function cancelEdit(idx) {
+  document.getElementById('edit-' + idx).classList.add('d-none');
+  document.getElementById('view-' + idx).classList.remove('d-none');
+}
+</script>
+<style>
+.btn-xs { padding: 0.15rem 0.5rem; font-size: 0.75rem; }
+.answer-edit-area { background: #1e2a38; color: #e2e8f0; border-color: #3d5166; }
+.answer-edit-area:focus { border-color: #4a90d9; box-shadow: 0 0 0 0.2rem rgba(74,144,217,.25); }
+</style>
+{% endblock %}

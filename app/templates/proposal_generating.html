@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Proposal 생성 중 – SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:640px">
+  <div class="text-center py-5">
+
+    <!-- 스피너 -->
+    <div class="mb-4">
+      <div style="width:80px;height:80px;margin:0 auto;position:relative;">
+        <div class="spinner-border text-primary" role="status"
+             style="width:80px;height:80px;border-width:6px;">
+        </div>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.6rem;">
+          🤖
+        </div>
+      </div>
+    </div>
+
+    <h3 class="mb-2">Development Proposal 작성 중</h3>
+    <p class="text-muted mb-1">
+      <strong>Hannah</strong>가 요구사항을 분석하고,
+      <strong>Jun</strong>이 제안서를 작성하며,
+      <strong>Sara</strong>가 품질을 검토하고 있습니다.
+    </p>
+    <p class="text-muted small mb-4">
+      AI 에이전트 3명이 순차적으로 작업 중입니다. 약 1~3분 소요됩니다.
+    </p>
+
+    <!-- 진행 단계 표시 -->
+    <div class="d-flex justify-content-center gap-3 mb-5">
+      <div class="text-center generating-step active" id="step-hannah">
+        <div class="step-icon">🔍</div>
+        <div class="step-label small">Hannah<br>요구사항 분석</div>
+      </div>
+      <div class="text-center text-muted" style="padding-top:12px">→</div>
+      <div class="text-center generating-step" id="step-jun">
+        <div class="step-icon">✍️</div>
+        <div class="step-label small">Jun<br>제안서 작성</div>
+      </div>
+      <div class="text-center text-muted" style="padding-top:12px">→</div>
+      <div class="text-center generating-step" id="step-sara">
+        <div class="step-icon">✅</div>
+        <div class="step-label small">Sara<br>품질 검토</div>
+      </div>
+    </div>
+
+    <div class="text-muted small">
+      <i class="fa-solid fa-file-lines me-1"></i>
+      요청: <strong>{{ rfp.title }}</strong>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.generating-step { opacity: 0.35; transition: opacity 0.5s; }
+.generating-step.active { opacity: 1; }
+.step-icon { font-size: 2rem; margin-bottom: 4px; }
+.step-label { color: var(--bs-body-color); }
+</style>
+
+<script>
+const rfpId = {{ rfp.id }};
+let elapsed = 0;
+const steps = ['step-hannah', 'step-jun', 'step-sara'];
+let stepIdx = 0;
+
+// 단계 애니메이션 (25초 간격으로 다음 단계로)
+const stepTimer = setInterval(() => {
+  elapsed += 1;
+  if (elapsed % 25 === 0 && stepIdx < steps.length - 1) {
+    document.getElementById(steps[stepIdx]).classList.remove('active');
+    stepIdx++;
+    document.getElementById(steps[stepIdx]).classList.add('active');
+  }
+}, 1000);
+
+// 5초마다 완료 여부 폴링
+const pollTimer = setInterval(async () => {
+  try {
+    const res = await fetch(`/rfp/${rfpId}/proposal/status`);
+    const data = await res.json();
+    if (data.status === 'completed') {
+      clearInterval(pollTimer);
+      clearInterval(stepTimer);
+      window.location.href = `/rfp/${rfpId}/proposal`;
+    }
+  } catch (e) { /* 네트워크 오류 무시 */ }
+}, 5000);
+</script>
+{% endblock %}

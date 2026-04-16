@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}대시보드 – Catchy Lab SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="dashboard-page py-4">
+  <div class="container">
+
+    <!-- 헤더 -->
+    <div class="dashboard-header mb-4">
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="mb-1">
+            <span data-i18n="dash.welcome">환영합니다,</span>
+            <span class="text-gradient">{{ user.full_name }}</span>
+          </h2>
+          <p class="text-muted mb-0">
+            {% if user.company %}<i class="fa-solid fa-building me-1"></i>{{ user.company }} &nbsp;·&nbsp;{% endif %}
+            <i class="fa-solid fa-envelope me-1"></i>{{ user.email }}
+          </p>
+        </div>
+        <div class="col-auto">
+          <a href="/rfp/new" class="btn btn-primary">
+            <i class="fa-solid fa-plus me-2"></i>
+            <span data-i18n="dash.newRequest">신규 요청</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 현황 타일 (클릭 시 해당 목록만 필터) -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-lg-3">
+        <a href="/dashboard" class="stat-card stat-card-link {% if not status_filter %}active-tile{% endif %}">
+          <div class="stat-card-icon" style="background:rgba(99,102,241,.15);color:#6366f1">
+            <i class="fa-solid fa-file-lines"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{{ counts.total }}</div>
+            <div class="stat-card-label" data-i18n="dash.totalRequests">전체</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="/dashboard?status_filter=completed" class="stat-card stat-card-link {% if status_filter == 'completed' %}active-tile{% endif %}">
+          <div class="stat-card-icon" style="background:rgba(34,197,94,.15);color:#22c55e">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{{ counts.completed }}</div>
+            <div class="stat-card-label" data-i18n="dash.completed">완료</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="/dashboard?status_filter=in_review" class="stat-card stat-card-link {% if status_filter == 'in_review' %}active-tile{% endif %}">
+          <div class="stat-card-icon" style="background:rgba(234,179,8,.15);color:#eab308">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{{ counts.in_review }}</div>
+            <div class="stat-card-label" data-i18n="dash.inReview">검토 중</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="/dashboard?status_filter=submitted" class="stat-card stat-card-link {% if status_filter == 'submitted' %}active-tile{% endif %}">
+          <div class="stat-card-icon" style="background:rgba(56,189,248,.15);color:#38bdf8">
+            <i class="fa-solid fa-hourglass-half"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{{ counts.submitted }}</div>
+            <div class="stat-card-label" data-i18n="dash.submitted">제출됨</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- 검색 / 정렬 바 -->
+    <form method="get" action="/dashboard" class="dashboard-search-bar mb-3">
+      <input type="hidden" name="status_filter" value="{{ status_filter }}"/>
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-sm-4 col-md-3">
+          <label class="form-label small text-muted mb-1">시작일</label>
+          <input type="date" name="date_from" class="form-control form-control-sm"
+                 value="{{ date_from }}" max="{{ date_to or '' }}"/>
+        </div>
+        <div class="col-12 col-sm-4 col-md-3">
+          <label class="form-label small text-muted mb-1">종료일</label>
+          <input type="date" name="date_to" class="form-control form-control-sm"
+                 value="{{ date_to }}" min="{{ date_from or '' }}"/>
+        </div>
+        <div class="col-12 col-sm-4 col-md-3">
+          <label class="form-label small text-muted mb-1">정렬</label>
+          <select name="sort_by" class="form-select form-select-sm">
+            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>최신순</option>
+            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>오래된순</option>
+            <option value="status" {% if sort_by == 'status' %}selected{% endif %}>상태순</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-primary">
+            <i class="fa-solid fa-magnifying-glass me-1"></i>검색
+          </button>
+          <a href="/dashboard{% if status_filter %}?status_filter={{ status_filter }}{% endif %}" class="btn btn-sm btn-ghost ms-1">
+            <i class="fa-solid fa-rotate-left me-1"></i>초기화
+          </a>
+        </div>
+      </div>
+    </form>
+
+    <!-- 필터 안내 -->
+    {% if status_filter or date_from or date_to %}
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="text-muted small">
+        <i class="fa-solid fa-filter me-1"></i>
+        {% if status_filter == 'completed' %}완료된 요청
+        {% elif status_filter == 'in_review' %}검토 중인 요청
+        {% elif status_filter == 'submitted' %}제출된 요청
+        {% else %}전체{% endif %}
+        {% if date_from or date_to %}
+          &nbsp;({{ date_from or '~' }} ~ {{ date_to or '현재' }})
+        {% endif %}
+        — <strong>{{ rfps|length }}건</strong> 표시
+      </span>
+      <a href="/dashboard" class="btn btn-sm btn-ghost">
+        <i class="fa-solid fa-xmark me-1"></i>초기화
+      </a>
+    </div>
+    {% endif %}
+
+    <!-- 개발 요청 목록 -->
+    <div class="rfp-list-section">
+      <h4 class="mb-3" data-i18n="dash.myRequests">나의 개발 요청 목록</h4>
+
+      {% if rfps %}
+      <div class="row g-3">
+        {% for rfp in rfps %}
+        <div class="col-12">
+          <div class="rfp-list-card rfp-list-card-v2">
+            <!-- 왼쪽: 상태 아이콘 + 제목 + 메타 -->
+            <div class="rfp-list-left">
+              <div class="rfp-list-status
+                {% if rfp.interview_status == 'completed' %}status-completed
+                {% elif rfp.interview_status in ['in_progress', 'generating_proposal'] %}status-in_review
+                {% else %}status-submitted{% endif %}">
+                {% if rfp.interview_status == 'completed' %}<i class="fa-solid fa-circle-check"></i>
+                {% elif rfp.interview_status in ['in_progress', 'generating_proposal'] %}<i class="fa-solid fa-robot"></i>
+                {% else %}<i class="fa-solid fa-hourglass-half"></i>{% endif %}
+              </div>
+              <div class="rfp-list-info">
+                <div class="rfp-list-title">
+                  {{ rfp.title }}
+                  {% if rfp.program_id %}
+                  <span class="text-muted small ms-2 font-monospace">{{ rfp.program_id }}</span>
+                  {% endif %}
+                </div>
+                <div class="rfp-list-meta">
+                  {% if rfp.sap_modules %}
+                    {% for m in rfp.sap_modules.split(',') %}{% if m %}<span class="badge-module">{{ m }}</span>{% endif %}{% endfor %}
+                  {% endif %}
+                  {% if rfp.dev_types %}
+                    {% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}
+                  {% endif %}
+                </div>
+                <!-- 날짜 -->
+                <div class="rfp-list-dates">
+                  <span class="text-muted small">
+                    <i class="fa-solid fa-calendar-plus me-1"></i>
+                    <span data-i18n="dash.createdAt">제출일</span>: {{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }}
+                  </span>
+                  {% if rfp.proposal_generated_at %}
+                  <span class="text-muted small ms-3">
+                    <i class="fa-solid fa-file-circle-check me-1 text-success"></i>
+                    <span data-i18n="dash.proposalAt">제안서</span>: {{ rfp.proposal_generated_at.strftime('%Y-%m-%d %H:%M') }}
+                  </span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- 오른쪽: 상태 배지 + 버튼들 -->
+            <div class="rfp-list-right rfp-list-actions">
+              <!-- 상태 배지 -->
+              <div class="mb-2 text-end">
+                {% if rfp.interview_status == 'completed' %}
+                <span class="rfp-status-badge status-badge-completed">완료</span>
+                {% elif rfp.interview_status == 'generating_proposal' %}
+                <span class="rfp-status-badge" style="background:rgba(99,102,241,.15);color:#a5b4fc;border-color:rgba(99,102,241,.3)">생성 중...</span>
+                {% elif rfp.interview_status == 'in_progress' %}
+                <span class="rfp-status-badge status-badge-in_review">검토 중</span>
+                {% else %}
+                <span class="rfp-status-badge status-badge-submitted">제출됨</span>
+                {% endif %}
+              </div>
+
+              <!-- 액션 버튼들 -->
+              <div class="d-flex flex-wrap gap-1 justify-content-end">
+                <!-- Proposal 완료 상태 -->
+                {% if rfp.interview_status == 'completed' and rfp.proposal_text %}
+                <a href="/rfp/{{ rfp.id }}/proposal" class="btn btn-sm btn-outline-success">
+                  <i class="fa-solid fa-file-circle-check me-1"></i>Proposal 보기
+                </a>
+                <a href="/rfp/{{ rfp.id }}/interview" class="btn btn-sm btn-outline-secondary" title="인터뷰 답변 수정 / Proposal 재생성">
+                  <i class="fa-solid fa-pencil me-1"></i>수정
+                </a>
+
+                <!-- 인터뷰 진행 중 -->
+                {% elif rfp.interview_status == 'in_progress' %}
+                <a href="/rfp/{{ rfp.id }}/interview" class="btn btn-sm btn-primary">
+                  <i class="fa-solid fa-robot me-1"></i>인터뷰 계속
+                </a>
+
+                <!-- 제안서 생성 중 -->
+                {% elif rfp.interview_status == 'generating_proposal' %}
+                <a href="/rfp/{{ rfp.id }}/proposal/generating" class="btn btn-sm btn-outline-secondary">
+                  <i class="fa-solid fa-spinner fa-spin me-1"></i>진행 확인
+                </a>
+
+                <!-- 인터뷰 미시작 -->
+                {% elif rfp.status == 'submitted' %}
+                <a href="/rfp/{{ rfp.id }}/interview" class="btn btn-sm btn-primary">
+                  <i class="fa-solid fa-robot me-1"></i>AI 인터뷰 시작
+                </a>
+                {% endif %}
+
+                <!-- RFP 수정 (항상 표시) -->
+                <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-outline-secondary" title="RFP 수정">
+                  <i class="fa-solid fa-file-pen"></i>
+                </a>
+
+                <!-- 인터뷰 재시작 -->
+                {% if rfp.interview_status in ['in_progress', 'completed'] %}
+                <form method="post" action="/rfp/{{ rfp.id }}/interview/reset" class="d-inline"
+                      onsubmit="return confirm('인터뷰를 처음부터 다시 시작할까요? 기존 인터뷰 내역과 Proposal이 삭제됩니다.')">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="인터뷰 재시작">
+                    <i class="fa-solid fa-rotate-left"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% else %}
+      <div class="empty-state">
+        <i class="fa-solid fa-inbox empty-icon"></i>
+        <h5 data-i18n="dash.emptyTitle">아직 요청이 없습니다</h5>
+        <p class="text-muted" data-i18n="dash.emptyDesc">첫 번째 개발 요청을 제출하고 무료 AI 개발 제안서를 받아보세요.</p>
+        <a href="/rfp/new" class="btn btn-primary mt-2">
+          <i class="fa-solid fa-plus me-2"></i>
+          <span data-i18n="dash.emptyBtn">첫 번째 요청 만들기</span>
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}이용후기 관리 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="admin-page-header mb-4">
+    <div class="container">
+      <div class="d-flex align-items-center gap-3">
+        <a href="/admin" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>관리자 메뉴</a>
+        <div>
+          <h4 class="mb-0"><i class="fa-solid fa-star me-2 text-warning"></i>이용후기 관리</h4>
+          <small class="text-muted">회원이 작성한 이용후기를 검토하고 홈 화면 공개 여부를 설정합니다.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    {% if reviews %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>작성자</th>
+            <th>내용</th>
+            <th>평점</th>
+            <th>작성일</th>
+            <th>공개</th>
+            <th class="text-end">관리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reviews %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td class="small">
+              {% if r.author %}
+              <strong>{{ r.author.full_name }}</strong><br>
+              <span class="text-muted">{{ r.author.email }}</span>
+              {% else %}
+              <span class="text-muted">(탈퇴 회원)</span>
+              {% endif %}
+            </td>
+            <td class="small">{{ r.content[:100] + '...' if r.content|length > 100 else r.content }}</td>
+            <td>
+              {% for i in range(r.rating) %}<i class="fa-solid fa-star text-warning" style="font-size:.8rem"></i>{% endfor %}
+              {% for i in range(5 - r.rating) %}<i class="fa-regular fa-star text-muted" style="font-size:.8rem"></i>{% endfor %}
+            </td>
+            <td class="small">{{ r.created_at.strftime('%Y-%m-%d') }}</td>
+            <td>
+              {% if r.is_public %}
+              <span class="badge bg-success">공개</span>
+              {% else %}
+              <span class="badge bg-secondary">비공개</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <form method="post" action="/admin/reviews/{{ r.id }}/toggle" class="d-inline">
+                <button type="submit" class="btn btn-sm {% if r.is_public %}btn-outline-secondary{% else %}btn-outline-success{% endif %}">
+                  {% if r.is_public %}<i class="fa-solid fa-eye-slash"></i> 숨기기
+                  {% else %}<i class="fa-solid fa-check"></i> 공개{% endif %}
+                </button>
+              </form>
+              <form method="post" action="/admin/reviews/{{ r.id }}/delete" class="d-inline"
+                    onsubmit="return confirm('이 이용후기를 삭제할까요?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-star empty-icon"></i>
+      <p class="text-muted mt-2">작성된 이용후기가 없습니다.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
