@@ -1,3 +1,5 @@
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -5,14 +7,13 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
-from .database import engine, SessionLocal
+from .database import SessionLocal, db_target_log_line, engine
 from . import models
 from .routers import auth_router, rfp_router, interview_router, codelib_router
 from .routers import admin_router, review_router
 from .templates_config import templates
 
-# 기존 테이블 생성 (없는 테이블만 생성)
-models.Base.metadata.create_all(bind=engine)
+_log = logging.getLogger("uvicorn.error")
 
 
 def _run_migrations():
@@ -126,11 +127,35 @@ def _sync_admins():
         db.close()
 
 
-_run_migrations()
-_seed_modules_and_devtypes()
-_sync_admins()
+def _bootstrap_database():
+    """테이블 생성·마이그레이션·시드. 실패 시 로그에 전체 traceback이 남습니다."""
+    _log.info("[DB] connecting: %s", db_target_log_line())
+    models.Base.metadata.create_all(bind=engine)
+    _run_migrations()
+    _seed_modules_and_devtypes()
+    _sync_admins()
+    _log.info("[DB] bootstrap complete")
 
-app = FastAPI(title="Catchy Lab - SAP Dev Hub", docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        _bootstrap_database()
+    except Exception:
+        _log.exception(
+            "[DB] Bootstrap failed (create_all / migrations). "
+            "확인: web 서비스의 DATABASE_URL이 Postgres와 동일한지, 비밀번호 regenerate 후 값을 다시 넣었는지."
+        )
+        raise
+    yield
+
+
+app = FastAPI(
+    title="Catchy Lab - SAP Dev Hub",
+    docs_url=None,
+    redoc_url=None,
+    lifespan=lifespan,
+)
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 

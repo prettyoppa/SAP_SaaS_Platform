@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlparse
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -26,6 +27,7 @@ def _resolve_database_url() -> str:
     """Railway 등 PaaS에서는 cwd가 달라질 수 있어 SQLite 경로를 명시합니다."""
     url = os.environ.get("DATABASE_URL")
     if url:
+        url = url.strip().strip('"').strip("'")
         # Railway/Heroku style postgres:// → SQLAlchemy postgresql://
         if url.startswith("postgres://"):
             url = "postgresql://" + url[len("postgres://") :]
@@ -37,10 +39,33 @@ def _resolve_database_url() -> str:
 
 DATABASE_URL = _resolve_database_url()
 
+
+def _postgres_connect_args() -> dict:
+    return {"connect_timeout": 20}
+
+
+def db_target_log_line() -> str:
+    """비밀번호 없이 연결 대상만 로그용으로 반환합니다."""
+    if DATABASE_URL.startswith("sqlite"):
+        return f"database=sqlite path={DATABASE_URL}"
+    try:
+        p = urlparse(DATABASE_URL)
+        host = p.hostname or "?"
+        port = f":{p.port}" if p.port else ""
+        db = (p.path or "/").lstrip("/") or "?"
+        return f"database=postgresql host={host}{port} dbname={db}"
+    except Exception:
+        return "database=postgresql (parse error)"
+
+
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        connect_args=_postgres_connect_args(),
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
