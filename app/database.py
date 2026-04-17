@@ -24,8 +24,14 @@ def _ensure_postgres_sslmode(url: str) -> str:
 
 
 def _resolve_database_url() -> str:
-    """Railway 등 PaaS에서는 cwd가 달라질 수 있어 SQLite 경로를 명시합니다."""
-    url = os.environ.get("DATABASE_URL")
+    """Railway 등 PaaS에서는 cwd가 달라질 수 있어 SQLite 경로를 명시합니다.
+
+    Railway Postgres의 DATABASE_URL은 종종 host=postgres.railway.internal 인데,
+    웹 서비스가 사설 DNS에 붙지 않으면 "could not translate host name" 이 납니다.
+    그럴 때는 Postgres의 공개 접속 URL을 DATABASE_PUBLIC_URL 로 넣으세요(웹 서비스 Variables).
+    """
+    # 공개 프록시(*.rlwy.net 등)가 있으면 internal DNS 문제를 피할 수 있음
+    url = os.environ.get("DATABASE_PUBLIC_URL") or os.environ.get("DATABASE_URL")
     if url:
         url = url.strip().strip('"').strip("'")
         # Railway/Heroku style postgres:// → SQLAlchemy postgresql://

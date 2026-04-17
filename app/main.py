@@ -144,7 +144,9 @@ async def lifespan(app: FastAPI):
     except Exception:
         _log.exception(
             "[DB] Bootstrap failed (create_all / migrations). "
-            "확인: web 서비스의 DATABASE_URL이 Postgres와 동일한지, 비밀번호 regenerate 후 값을 다시 넣었는지."
+            "확인: DATABASE_URL / Postgres 비밀번호. "
+            "host가 postgres.railway.internal 인데 'could not translate host name'이면 "
+            "Postgres 공개 TCP URL을 웹 서비스 변수 DATABASE_PUBLIC_URL 로 넣으세요."
         )
         raise
     yield
