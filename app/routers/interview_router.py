@@ -5,10 +5,16 @@ from sqlalchemy.orm import Session
 from .. import models, auth
 from ..database import get_db
 from ..templates_config import templates
-from ..agents import free_crew
 from ..agents.agent_tools import get_code_library_context
 
 router = APIRouter()
+
+
+def _fc():
+    """CrewAI는 import 비용이 커서 홈/대시보드 등에서는 로드하지 않습니다."""
+    from ..agents import free_crew
+
+    return free_crew
 
 
 # ── 헬퍼 ─────────────────────────────────────────────
@@ -48,7 +54,7 @@ def _run_proposal_background(rfp_id: int, rfp_dict: dict, conv: list[dict]):
         if not rfp:
             return
         try:
-            proposal = free_crew.generate_proposal(rfp_dict, conv)
+            proposal = _fc().generate_proposal(rfp_dict, conv)
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
         rfp.proposal_text = proposal
@@ -97,7 +103,7 @@ def interview_page(rfp_id: int, request: Request,
             "current_message": current_msg,
             "current_questions": current_questions,
             "current_round": current_msg.round_number,
-            "max_rounds": free_crew.MAX_ROUNDS,
+            "max_rounds": _fc().MAX_ROUNDS,
             "question_source": current_msg.source_label or "AI 에이전트 생성",
             "error": None,
         })
@@ -107,7 +113,7 @@ def interview_page(rfp_id: int, request: Request,
     conv = _messages_to_list(rfp.messages)
     next_round = len(rfp.messages) + 1
 
-    if next_round > free_crew.MAX_ROUNDS or (answered and len(answered) >= free_crew.MAX_ROUNDS):
+    if next_round > _fc().MAX_ROUNDS or (answered and len(answered) >= _fc().MAX_ROUNDS):
         rfp.interview_status = "generating_proposal"
         db.commit()
         background_tasks.add_task(_run_proposal_background, rfp.id, rfp_dict, conv)
@@ -122,7 +128,7 @@ def interview_page(rfp_id: int, request: Request,
         rfp_dict.get("dev_types", []),
     )
     try:
-        result = free_crew.generate_round_questions(
+        result = _fc().generate_round_questions(
             rfp_data=rfp_dict,
             conversation=conv,
             round_num=next_round,
@@ -135,7 +141,7 @@ def interview_page(rfp_id: int, request: Request,
             "current_message": None,
             "current_questions": [],
             "current_round": next_round,
-            "max_rounds": free_crew.MAX_ROUNDS,
+            "max_rounds": _fc().MAX_ROUNDS,
             "error": str(e),
         })
 
@@ -158,7 +164,7 @@ def interview_page(rfp_id: int, request: Request,
         "current_message": new_msg,
         "current_questions": result["questions"],
         "current_round": next_round,
-        "max_rounds": free_crew.MAX_ROUNDS,
+        "max_rounds": _fc().MAX_ROUNDS,
         "question_source": result.get("source", "AI 에이전트 생성"),
         "error": None,
     })

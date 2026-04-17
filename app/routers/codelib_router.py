@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from .. import models, auth
-from ..agents.free_crew import analyze_code_for_library
 from ..database import get_db
 from ..templates_config import templates
 
@@ -143,6 +142,8 @@ def codelib_upload(
     analyzed = False
     if not save_as_draft:
         try:
+            from ..agents.free_crew import analyze_code_for_library
+
             analysis = analyze_code_for_library(
                 source_code=source_code,
                 title=title,
@@ -218,6 +219,8 @@ def codelib_reanalyze(code_id: int, request: Request, db: Session = Depends(get_
         return RedirectResponse(url="/codelib", status_code=302)
 
     try:
+        from ..agents.free_crew import analyze_code_for_library
+
         analysis = analyze_code_for_library(
             source_code=code.source_code,
             title=code.title,
