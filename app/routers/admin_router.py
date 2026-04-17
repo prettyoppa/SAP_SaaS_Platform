@@ -22,7 +22,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    return templates.TemplateResponse("admin/dashboard.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "admin/dashboard.html", {"request": request, "user": user})
 
 
 # ── SAP 모듈 관리 ──────────────────────────────────────
@@ -33,7 +33,7 @@ def admin_modules(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     modules = db.query(models.SAPModule).order_by(models.SAPModule.sort_order).all()
-    return templates.TemplateResponse("admin/modules.html", {"request": request, "user": user, "modules": modules})
+    return templates.TemplateResponse(request, "admin/modules.html", {"request": request, "user": user, "modules": modules})
 
 
 @router.post("/modules/add")
@@ -87,7 +87,7 @@ def admin_devtypes(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     devtypes = db.query(models.DevType).order_by(models.DevType.sort_order).all()
-    return templates.TemplateResponse("admin/devtypes.html", {"request": request, "user": user, "devtypes": devtypes})
+    return templates.TemplateResponse(request, "admin/devtypes.html", {"request": request, "user": user, "devtypes": devtypes})
 
 
 @router.post("/devtypes/add")
@@ -152,7 +152,7 @@ def admin_settings(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    return templates.TemplateResponse("admin/settings.html", {
+    return templates.TemplateResponse(request, "admin/settings.html", {
         "request": request, "user": user,
         "settings": raw, "setting_keys": SITE_SETTING_KEYS,
     })
@@ -183,7 +183,7 @@ def admin_notices(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     notices = db.query(models.Notice).order_by(models.Notice.created_at.desc()).all()
-    return templates.TemplateResponse("admin/notices.html", {
+    return templates.TemplateResponse(request, "admin/notices.html", {
         "request": request, "user": user, "notices": notices,
     })
 
@@ -235,7 +235,7 @@ def admin_faqs(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     faqs = db.query(models.FAQ).order_by(models.FAQ.sort_order).all()
-    return templates.TemplateResponse("admin/faqs.html", {
+    return templates.TemplateResponse(request, "admin/faqs.html", {
         "request": request, "user": user, "faqs": faqs,
     })
 
@@ -288,7 +288,7 @@ def admin_reviews(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     reviews = db.query(models.Review).order_by(models.Review.created_at.desc()).all()
-    return templates.TemplateResponse("admin/reviews.html", {
+    return templates.TemplateResponse(request, "admin/reviews.html", {
         "request": request, "user": user, "reviews": reviews,
     })
 

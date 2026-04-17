@@ -155,7 +155,7 @@ def index(request: Request):
                    .limit(10).all())
     finally:
         _db.close()
-    return templates.TemplateResponse("index.html", {
+    return templates.TemplateResponse(request, "index.html", {
         "request": request,
         "user": user,
         "settings": settings,

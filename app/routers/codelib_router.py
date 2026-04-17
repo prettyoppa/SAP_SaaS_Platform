@@ -77,7 +77,7 @@ def codelib_list(request: Request, q: str = "", db: Session = Depends(get_db)):
     analyzed = sum(1 for c in codes if c.is_analyzed)
     draft = sum(1 for c in codes if c.is_draft)
 
-    return templates.TemplateResponse("codelib_list.html", {
+    return templates.TemplateResponse(request, "codelib_list.html", {
         "request": request,
         "user": user,
         "codes": codes,
@@ -94,7 +94,7 @@ def codelib_upload_form(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/login", status_code=302)
 
     modules, devtypes = _get_modules_devtypes(db)
-    return templates.TemplateResponse("codelib_upload.html", {
+    return templates.TemplateResponse(request, "codelib_upload.html", {
         "request": request,
         "user": user,
         "modules": modules,
@@ -123,14 +123,14 @@ def codelib_upload(
     modules, devtypes = _get_modules_devtypes(db)
 
     if not sap_modules or not dev_types:
-        return templates.TemplateResponse("codelib_upload.html", {
+        return templates.TemplateResponse(request, "codelib_upload.html", {
             "request": request, "user": user,
             "modules": modules, "devtypes": devtypes,
             "error": "SAP 모듈과 개발 유형을 하나 이상 선택해 주세요.",
         })
 
     if len(source_code.strip()) < 50:
-        return templates.TemplateResponse("codelib_upload.html", {
+        return templates.TemplateResponse(request, "codelib_upload.html", {
             "request": request, "user": user,
             "modules": modules, "devtypes": devtypes,
             "error": "ABAP 소스 코드가 너무 짧습니다.",
@@ -194,7 +194,7 @@ def codelib_detail(code_id: int, request: Request, db: Session = Depends(get_db)
         except Exception:
             pass
 
-    return templates.TemplateResponse("codelib_detail.html", {
+    return templates.TemplateResponse(request, "codelib_detail.html", {
         "request": request,
         "user": user,
         "code": code,

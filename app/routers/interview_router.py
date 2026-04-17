@@ -80,7 +80,7 @@ def interview_page(rfp_id: int, request: Request,
 
     # Proposal 생성 중 → 로딩 페이지
     if rfp.interview_status == "generating_proposal":
-        return templates.TemplateResponse("proposal_generating.html", {
+        return templates.TemplateResponse(request, "proposal_generating.html", {
             "request": request, "user": user, "rfp": rfp,
         })
 
@@ -91,7 +91,7 @@ def interview_page(rfp_id: int, request: Request,
     if unanswered:
         current_msg = unanswered[0]
         current_questions = json.loads(current_msg.questions_json)
-        return templates.TemplateResponse("interview.html", {
+        return templates.TemplateResponse(request, "interview.html", {
             "request": request, "user": user, "rfp": rfp,
             "answered_messages": _messages_to_list(answered),
             "current_message": current_msg,
@@ -111,7 +111,7 @@ def interview_page(rfp_id: int, request: Request,
         rfp.interview_status = "generating_proposal"
         db.commit()
         background_tasks.add_task(_run_proposal_background, rfp.id, rfp_dict, conv)
-        return templates.TemplateResponse("proposal_generating.html", {
+        return templates.TemplateResponse(request, "proposal_generating.html", {
             "request": request, "user": user, "rfp": rfp,
         })
 
@@ -129,7 +129,7 @@ def interview_page(rfp_id: int, request: Request,
             code_library_context=code_ctx,
         )
     except RuntimeError as e:
-        return templates.TemplateResponse("interview.html", {
+        return templates.TemplateResponse(request, "interview.html", {
             "request": request, "user": user, "rfp": rfp,
             "answered_messages": _messages_to_list(rfp.messages),
             "current_message": None,
@@ -152,7 +152,7 @@ def interview_page(rfp_id: int, request: Request,
     db.commit()
     db.refresh(new_msg)
 
-    return templates.TemplateResponse("interview.html", {
+    return templates.TemplateResponse(request, "interview.html", {
         "request": request, "user": user, "rfp": rfp,
         "answered_messages": _messages_to_list(answered),
         "current_message": new_msg,
@@ -236,14 +236,14 @@ def proposal_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/dashboard", status_code=302)
 
     if rfp.interview_status == "generating_proposal":
-        return templates.TemplateResponse("proposal_generating.html", {
+        return templates.TemplateResponse(request, "proposal_generating.html", {
             "request": request, "user": user, "rfp": rfp,
         })
 
     if not rfp.proposal_text:
         return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
 
-    return templates.TemplateResponse("proposal.html", {
+    return templates.TemplateResponse(request, "proposal.html", {
         "request": request, "user": user, "rfp": rfp,
         "proposal_html": _markdown_to_html(rfp.proposal_text),
         "messages": _messages_to_list(rfp.messages),
@@ -314,7 +314,7 @@ def proposal_generating_page(rfp_id: int, request: Request, db: Session = Depend
         return RedirectResponse(url="/dashboard", status_code=302)
     if rfp.interview_status == "completed" and rfp.proposal_text:
         return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
-    return templates.TemplateResponse("proposal_generating.html", {
+    return templates.TemplateResponse(request, "proposal_generating.html", {
         "request": request, "user": user, "rfp": rfp,
     })
 

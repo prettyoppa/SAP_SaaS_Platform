@@ -34,7 +34,7 @@ def rfp_form(request: Request, db: Session = Depends(get_db)):
     modules, devtypes = _get_modules_devtypes(db)
     writing_tip_setting = db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
-    return templates.TemplateResponse("rfp_form.html", {
+    return templates.TemplateResponse(request, "rfp_form.html", {
         "request": request,
         "user": user,
         "modules": modules,
@@ -66,8 +66,9 @@ async def submit_rfp(
     # 최대 3개 초과 검증
     if len(sap_modules) > 3 or len(dev_types) > 3:
         return templates.TemplateResponse(
+            request,
             "rfp_form.html",
-            {"request": request, "user": user, "modules": modules, "devtypes": devtypes,
+            {"user": user, "modules": modules, "devtypes": devtypes,
              "writing_tip": writing_tip, "error": "max_selection"},
             status_code=400,
         )
@@ -78,8 +79,9 @@ async def submit_rfp(
         ext = os.path.splitext(attachment.filename)[1].lower()
         if ext not in ALLOWED_EXTENSIONS:
             return templates.TemplateResponse(
+                request,
                 "rfp_form.html",
-                {"request": request, "user": user, "modules": modules, "devtypes": devtypes,
+                {"user": user, "modules": modules, "devtypes": devtypes,
                  "writing_tip": writing_tip, "error": "invalid_file"},
                 status_code=400,
             )
@@ -117,7 +119,7 @@ def rfp_success(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
     if not rfp:
         return RedirectResponse(url="/dashboard", status_code=302)
-    return templates.TemplateResponse("rfp_success.html", {"request": request, "user": user, "rfp": rfp})
+    return templates.TemplateResponse(request, "rfp_success.html", {"user": user, "rfp": rfp})
 
 
 @router.get("/rfp/{rfp_id}/edit", response_class=HTMLResponse)
@@ -131,7 +133,7 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     modules, devtypes = _get_modules_devtypes(db)
     writing_tip_setting = db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
-    return templates.TemplateResponse("rfp_form.html", {
+    return templates.TemplateResponse(request, "rfp_form.html", {
         "request": request, "user": user, "rfp": rfp,
         "modules": modules, "devtypes": devtypes, "writing_tip": writing_tip,
         "edit_mode": True,
@@ -162,8 +164,9 @@ async def rfp_edit_submit(
 
     if len(sap_modules) > 3 or len(dev_types) > 3:
         return templates.TemplateResponse(
+            request,
             "rfp_form.html",
-            {"request": request, "user": user, "rfp": rfp, "modules": modules,
+            {"user": user, "rfp": rfp, "modules": modules,
              "devtypes": devtypes, "error": "max_selection", "edit_mode": True},
             status_code=400,
         )
@@ -252,7 +255,7 @@ def dashboard(
     else:  # newest (default)
         rfps = sorted(rfps, key=lambda r: r.created_at, reverse=True)
 
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse(request, "dashboard.html", {
         "request": request,
         "user": user,
         "rfps": rfps,

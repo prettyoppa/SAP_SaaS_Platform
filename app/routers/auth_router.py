@@ -14,7 +14,7 @@ def login_page(request: Request):
     user = auth.get_current_user(request, next(get_db()))
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html", {})
 
 
 @router.post("/login")
@@ -27,8 +27,9 @@ def login(
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user or not auth.verify_password(password, user.hashed_password):
         return templates.TemplateResponse(
+            request,
             "login.html",
-            {"request": request, "error": True},
+            {"error": True},
             status_code=400,
         )
     token = auth.create_access_token({"sub": user.email})
@@ -50,7 +51,7 @@ def get_companies(q: str = "", db: Session = Depends(get_db)):
 @router.get("/register", response_class=HTMLResponse)
 def register_page(request: Request, db: Session = Depends(get_db)):
     settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    return templates.TemplateResponse("register.html", {"request": request, "settings": settings})
+    return templates.TemplateResponse(request, "register.html", {"settings": settings})
 
 
 @router.post("/register")
@@ -64,9 +65,11 @@ def register(
 ):
     existing = db.query(models.User).filter(models.User.email == email).first()
     if existing:
+        settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
         return templates.TemplateResponse(
+            request,
             "register.html",
-            {"request": request, "error": "duplicate"},
+            {"error": "duplicate", "settings": settings},
             status_code=400,
         )
     new_user = models.User(

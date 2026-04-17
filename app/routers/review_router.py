@@ -17,7 +17,7 @@ def reviews_page(request: Request, db: Session = Depends(get_db)):
                   .filter(models.Review.user_id == user.id)
                   .order_by(models.Review.created_at.desc())
                   .all())
-    return templates.TemplateResponse("reviews.html", {
+    return templates.TemplateResponse(request, "reviews.html", {
         "request": request, "user": user, "my_reviews": my_reviews,
     })
 
