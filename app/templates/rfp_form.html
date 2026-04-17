@@ -52,6 +52,12 @@
           <span>첨부 파일은 최대 20MB까지 업로드할 수 있습니다.</span>
         </div>
         {% endif %}
+        {% if error == 'empty_attachment' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>첨부 파일이 비어 있습니다. 파일을 다시 선택하거나, 드래그 대신 <strong>클릭해서 파일 선택</strong>으로 올려 보세요.</span>
+        </div>
+        {% endif %}
         {% if error == 'max_selection' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>

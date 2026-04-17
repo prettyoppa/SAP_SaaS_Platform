@@ -141,6 +141,14 @@ async def submit_rfp(
                  "writing_tip": writing_tip, "error": "file_too_large"},
                 status_code=400,
             )
+        if len(raw) == 0:
+            return templates.TemplateResponse(
+                request,
+                "rfp_form.html",
+                {"user": user, "modules": modules, "devtypes": devtypes,
+                 "writing_tip": writing_tip, "error": "empty_attachment"},
+                status_code=400,
+            )
         file_path, file_name = _store_rfp_file(user.id, ext, raw, attachment.filename)
 
     rfp = models.RFP(
@@ -265,6 +273,18 @@ async def rfp_edit_submit(
                     "rfp_form.html",
                     {"user": user, "rfp": rfp, "modules": modules, "devtypes": devtypes,
                      "writing_tip": writing_tip, "error": "file_too_large", "edit_mode": True},
+                    status_code=400,
+                )
+            if len(raw) == 0:
+                writing_tip_setting = db.query(models.SiteSettings).filter(
+                    models.SiteSettings.key == "rfp_writing_tip"
+                ).first()
+                writing_tip = writing_tip_setting.value if writing_tip_setting else ""
+                return templates.TemplateResponse(
+                    request,
+                    "rfp_form.html",
+                    {"user": user, "rfp": rfp, "modules": modules, "devtypes": devtypes,
+                     "writing_tip": writing_tip, "error": "empty_attachment", "edit_mode": True},
                     status_code=400,
                 )
             _remove_stored_file(rfp.file_path)
