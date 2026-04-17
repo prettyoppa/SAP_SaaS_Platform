@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -119,7 +121,8 @@ _seed_modules_and_devtypes()
 _sync_admins()
 
 app = FastAPI(title="Catchy Lab - SAP Dev Hub", docs_url=None, redoc_url=None)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+_STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 app.include_router(auth_router.router)
 app.include_router(rfp_router.router)

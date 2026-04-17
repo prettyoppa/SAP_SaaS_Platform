@@ -10,7 +10,12 @@ from ..templates_config import templates
 
 router = APIRouter()
 
-UPLOAD_DIR = "uploads"
+# Railway 등에서는 상대 경로 uploads 쓰기 실패할 수 있어 /tmp 사용
+UPLOAD_DIR = (
+    "/tmp/sap_uploads"
+    if (os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+    else "uploads"
+)
 ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg"}
 MAX_FILE_SIZE_MB = 20
 
