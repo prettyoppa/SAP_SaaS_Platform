@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from .database import engine, SessionLocal
 from . import models
@@ -16,27 +16,37 @@ models.Base.metadata.create_all(bind=engine)
 
 
 def _run_migrations():
-    """신규 컬럼이 기존 DB에 없을 경우 자동으로 추가합니다."""
+    """신규 컬럼이 기존 DB에 없을 경우 자동으로 추가합니다 (SQLite / PostgreSQL)."""
+    dialect = engine.dialect.name
+    insp = inspect(engine)
+    # (table, column, sqlite_def, postgres_def)
     migrations = [
-        ("rfps",         "interview_status",     "VARCHAR DEFAULT 'pending'"),
-        ("rfps",         "proposal_text",        "TEXT"),
-        ("rfps",         "program_id",           "VARCHAR"),
-        ("rfps",         "transaction_code",     "VARCHAR"),
-        ("rfps",         "proposal_generated_at","DATETIME"),
-        ("users",        "is_admin",             "BOOLEAN DEFAULT 0"),
-        ("rfp_messages", "source_label",         "VARCHAR"),
-        ("rfp_messages", "updated_at",           "DATETIME"),
-        ("abap_codes",   "program_id",           "VARCHAR"),
-        ("abap_codes",   "transaction_code",     "VARCHAR"),
-        ("abap_codes",   "is_draft",             "BOOLEAN DEFAULT 0"),
+        ("rfps", "interview_status", "VARCHAR DEFAULT 'pending'", "VARCHAR DEFAULT 'pending'"),
+        ("rfps", "proposal_text", "TEXT", "TEXT"),
+        ("rfps", "program_id", "VARCHAR", "VARCHAR"),
+        ("rfps", "transaction_code", "VARCHAR", "VARCHAR"),
+        ("rfps", "proposal_generated_at", "DATETIME", "TIMESTAMP"),
+        ("users", "is_admin", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("rfp_messages", "source_label", "VARCHAR", "VARCHAR"),
+        ("rfp_messages", "updated_at", "DATETIME", "TIMESTAMP"),
+        ("abap_codes", "program_id", "VARCHAR", "VARCHAR"),
+        ("abap_codes", "transaction_code", "VARCHAR", "VARCHAR"),
+        ("abap_codes", "is_draft", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
     ]
     with engine.connect() as conn:
-        for table, column, col_def in migrations:
+        for table, column, sqlite_def, pg_def in migrations:
+            try:
+                existing = [c["name"] for c in insp.get_columns(table)]
+            except Exception:
+                continue
+            if column in existing:
+                continue
+            col_def = pg_def if dialect == "postgresql" else sqlite_def
             try:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
                 conn.commit()
             except Exception:
-                pass
+                conn.rollback()
 
 
 def _seed_modules_and_devtypes():

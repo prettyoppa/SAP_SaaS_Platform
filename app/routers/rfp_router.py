@@ -1,10 +1,11 @@
+import mimetypes
 import os
-import shutil
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from .. import models, auth
+from typing import List, Optional, Tuple
+
+from .. import models, auth, r2_storage
 from ..database import get_db
 from ..templates_config import templates
 
@@ -18,6 +19,51 @@ UPLOAD_DIR = (
 )
 ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg"}
 MAX_FILE_SIZE_MB = 20
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+
+async def _read_upload_limited(upload: UploadFile) -> bytes:
+    chunks: List[bytes] = []
+    total = 0
+    while True:
+        chunk = await upload.read(64 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_FILE_SIZE_BYTES:
+            raise ValueError("file_too_large")
+    return b"".join(chunks)
+
+
+def _save_attachment_local(user_id: int, ext: str, data: bytes) -> str:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    safe_name = f"rfp_{user_id}_{int(__import__('time').time())}{ext}"
+    dest = os.path.join(UPLOAD_DIR, safe_name)
+    with open(dest, "wb") as f:
+        f.write(data)
+    return dest
+
+
+def _store_rfp_file(user_id: int, ext: str, data: bytes, original_filename: str) -> Tuple[str, str]:
+    """Persist bytes to R2 (if configured) or local UPLOAD_DIR; returns (file_path, file_name)."""
+    ct = mimetypes.guess_type(original_filename)[0] or "application/octet-stream"
+    if r2_storage.is_configured():
+        uri = r2_storage.upload_bytes(user_id, ext, data, ct)
+        return uri, original_filename
+    return _save_attachment_local(user_id, ext, data), original_filename
+
+
+def _remove_stored_file(file_path: Optional[str]) -> None:
+    if not file_path:
+        return
+    r2_storage.delete_if_r2_uri(file_path)
+    if file_path.startswith(r2_storage.R2_PREFIX):
+        return
+    try:
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    except OSError:
+        pass
 
 
 def _get_modules_devtypes(db: Session):
@@ -85,13 +131,17 @@ async def submit_rfp(
                  "writing_tip": writing_tip, "error": "invalid_file"},
                 status_code=400,
             )
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        safe_name = f"rfp_{user.id}_{int(__import__('time').time())}{ext}"
-        dest = os.path.join(UPLOAD_DIR, safe_name)
-        with open(dest, "wb") as f:
-            shutil.copyfileobj(attachment.file, f)
-        file_path = dest
-        file_name = attachment.filename
+        try:
+            raw = await _read_upload_limited(attachment)
+        except ValueError:
+            return templates.TemplateResponse(
+                request,
+                "rfp_form.html",
+                {"user": user, "modules": modules, "devtypes": devtypes,
+                 "writing_tip": writing_tip, "error": "file_too_large"},
+                status_code=400,
+            )
+        file_path, file_name = _store_rfp_file(user.id, ext, raw, attachment.filename)
 
     rfp = models.RFP(
         user_id=user.id,
@@ -120,6 +170,28 @@ def rfp_success(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     if not rfp:
         return RedirectResponse(url="/dashboard", status_code=302)
     return templates.TemplateResponse(request, "rfp_success.html", {"user": user, "rfp": rfp})
+
+
+@router.get("/rfp/{rfp_id}/attachment")
+def rfp_download_attachment(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    q = db.query(models.RFP).filter(models.RFP.id == rfp_id)
+    if not user.is_admin:
+        q = q.filter(models.RFP.user_id == user.id)
+    rfp = q.first()
+    if not rfp or not rfp.file_path:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    kind, ref = r2_storage.parse_storage_ref(rfp.file_path)
+    if kind == "r2":
+        if not r2_storage.is_configured():
+            return RedirectResponse(url="/dashboard", status_code=302)
+        url = r2_storage.presigned_get_url(ref, rfp.file_name or "attachment")
+        return RedirectResponse(url=url, status_code=302)
+    if not os.path.isfile(ref):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    return FileResponse(ref, filename=rfp.file_name or os.path.basename(ref))
 
 
 @router.get("/rfp/{rfp_id}/edit", response_class=HTMLResponse)
@@ -181,13 +253,22 @@ async def rfp_edit_submit(
     if attachment and attachment.filename:
         ext = os.path.splitext(attachment.filename)[1].lower()
         if ext in ALLOWED_EXTENSIONS:
-            os.makedirs(UPLOAD_DIR, exist_ok=True)
-            safe_name = f"rfp_{user.id}_{int(__import__('time').time())}{ext}"
-            dest = os.path.join(UPLOAD_DIR, safe_name)
-            with open(dest, "wb") as f:
-                shutil.copyfileobj(attachment.file, f)
-            rfp.file_path = dest
-            rfp.file_name = attachment.filename
+            try:
+                raw = await _read_upload_limited(attachment)
+            except ValueError:
+                writing_tip_setting = db.query(models.SiteSettings).filter(
+                    models.SiteSettings.key == "rfp_writing_tip"
+                ).first()
+                writing_tip = writing_tip_setting.value if writing_tip_setting else ""
+                return templates.TemplateResponse(
+                    request,
+                    "rfp_form.html",
+                    {"user": user, "rfp": rfp, "modules": modules, "devtypes": devtypes,
+                     "writing_tip": writing_tip, "error": "file_too_large", "edit_mode": True},
+                    status_code=400,
+                )
+            _remove_stored_file(rfp.file_path)
+            rfp.file_path, rfp.file_name = _store_rfp_file(user.id, ext, raw, attachment.filename)
 
     db.commit()
     return RedirectResponse(url="/dashboard", status_code=302)

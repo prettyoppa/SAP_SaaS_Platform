@@ -161,6 +161,11 @@
                   {% if rfp.dev_types %}
                     {% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}
                   {% endif %}
+                  {% if rfp.file_name %}
+                  <a href="/rfp/{{ rfp.id }}/attachment" class="text-muted small ms-2 text-decoration-none" title="첨부 다운로드">
+                    <i class="fa-solid fa-paperclip"></i>
+                  </a>
+                  {% endif %}
                 </div>
                 <!-- 날짜 -->
                 <div class="rfp-list-dates">

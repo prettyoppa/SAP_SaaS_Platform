@@ -43,6 +43,14 @@
             <span class="success-label" data-i18n="success.status">Status</span>
             <span class="success-value"><span class="rfp-status-badge status-badge-submitted" data-i18n="status.submitted">Submitted</span></span>
           </div>
+          {% if rfp.file_name %}
+          <div class="success-row">
+            <span class="success-label">첨부</span>
+            <span class="success-value">
+              <a href="/rfp/{{ rfp.id }}/attachment"><i class="fa-solid fa-paperclip me-1"></i>{{ rfp.file_name }}</a>
+            </span>
+          </div>
+          {% endif %}
         </div>
 
         <!-- What happens next -->
