@@ -391,19 +391,11 @@ def analyze_code_for_library(
 ) -> dict:
     """
     ABAP 소스를 Hannah(기술 분석)→ Mia(범용 질문 추출) 2단계로 분석합니다.
-    code_analyzer.analyze_abap_code()와 동일한 dict 형식을 반환합니다.
+    반환 dict는 DB `analysis_json`에 저장되며, 상세 화면은 `codelib_detail.html`에서 표시한다.
 
     Returns:
-        {
-            "program_purpose": str,
-            "key_bapis": [...],
-            "key_fms": [...],
-            "input_fields": [...],
-            "output_type": str,
-            "key_logics": [...],
-            "questions": [...],
-            "error": None | str
-        }
+        program_purpose, screens[], validations, key_bapis, key_fms, applied_techniques, questions, error
+        (+ 구 JSON 호환용 selection_screen, result_screen 키는 비어 있거나 LLM이 채울 수 있음)
     """
     llm = _get_llm()
     f_analyst, f_questioner, _, _ = _make_agents(llm)
@@ -424,19 +416,30 @@ def analyze_code_for_library(
 [ABAP 소스]
 {code_excerpt}
 
-다음 항목을 분석하여 반드시 아래 JSON 형식으로만 출력하세요.
-한국어로 작성하되, 기술 용어(BAPI명, FM명, 필드명 등)는 영문 그대로 사용하세요.
+다음 규칙을 지켜 반드시 아래 JSON 형식으로만 출력하세요.
+한국어로 작성하되, 기술 용어(BAPI명, FM명, 필드명, 화면 번호 등)는 영문 그대로 사용하세요.
+
+★ 스크린 분석 (매우 중요)
+- "실행 조건 화면 / 실행 결과 화면" 같은 고정 2분류를 쓰지 마세요. 프로그램마다 UI가 다릅니다.
+- 소스에서 식별되는 사용자에게 보이는 모든 스크린·UI 면을 나열하세요. 예:
+  SELECTION-SCREEN, 각 dynpro(SCREEN 0100 등), ALV/리스트/그리드 화면, 팝업(CALL SCREEN, POPUP),
+  다이얼로그, OO ALV 컨테이너, Web Dynpro 화면(있다면) 등.
+- 스크린이 논리적으로 하나뿐이면(예: 순수 배치) screens 배열에 항목 1개만 두고 title에 그 성격을 적으세요.
+- 각 스크린마다:
+  - screen_key: 소스에서 구분할 수 있는 짧은 식별(예: "0100", "SELECTION-SCREEN", "POPUP_VENDOR")
+  - title: 그 스크린을 한 줄로 요약한 제목(타이틀 느낌, 80자 이내 권장)
+  - summary_bullets: 그 스크린의 주요 기능·동작만 불릿으로 2~6개. 각 문자열은 한 문장 이내 요약.
+    서술형 장문 넣지 말고, 읽기 좋게 핵심만.
 
 {{
   "program_purpose": "프로그램 목적과 기능을 2~3문장으로 설명",
-  "selection_screen": {{
-    "layout": "조건 화면 레이아웃 설명 (예: 상단에 회사코드/플랜트 필수 입력, 날짜 범위, 기타 조건 등)",
-    "fields": ["필드명1 (SAP필드명, 필수/선택)", "필드명2 ..."]
-  }},
-  "result_screen": {{
-    "layout": "결과 화면 레이아웃 설명 (예: ALV Grid로 출력, 합계행 포함, 색상 강조 등)",
-    "columns": ["컬럼명1", "컬럼명2 ..."]
-  }},
+  "screens": [
+    {{
+      "screen_key": "식별자",
+      "title": "스크린 한 줄 요약 제목",
+      "summary_bullets": ["기능 요약 1", "기능 요약 2"]
+    }}
+  ],
   "validations": ["Validation 로직 1", "Validation 로직 2"],
   "key_bapis": ["BAPI_명1"],
   "key_fms": ["FM명1"],
@@ -502,26 +505,57 @@ def analyze_code_for_library(
         analysis_data = _parse_json_block(analysis_raw, default={})
         question_data = _parse_json_block(question_raw, default={"questions": []})
 
+        screens = _normalize_library_screens(analysis_data.get("screens"))
+
         return {
             "program_purpose": analysis_data.get("program_purpose", title),
-            "selection_screen": analysis_data.get("selection_screen", {}),
-            "result_screen": analysis_data.get("result_screen", {}),
+            "screens": screens,
+            "selection_screen": analysis_data.get("selection_screen") or {},
+            "result_screen": analysis_data.get("result_screen") or {},
             "validations": analysis_data.get("validations", []),
-            "key_bapis":   analysis_data.get("key_bapis", []),
-            "key_fms":     analysis_data.get("key_fms", []),
+            "key_bapis": analysis_data.get("key_bapis", []),
+            "key_fms": analysis_data.get("key_fms", []),
             "applied_techniques": analysis_data.get("applied_techniques", []),
-            "questions":   question_data.get("questions", []),
-            "error":       None,
+            "questions": question_data.get("questions", []),
+            "error": None,
         }
 
     except Exception as e:
         return {
             "program_purpose": title,
-            "selection_screen": {}, "result_screen": {},
-            "validations": [], "key_bapis": [], "key_fms": [],
-            "applied_techniques": [], "questions": [],
+            "screens": [],
+            "selection_screen": {},
+            "result_screen": {},
+            "validations": [],
+            "key_bapis": [],
+            "key_fms": [],
+            "applied_techniques": [],
+            "questions": [],
             "error": str(e),
         }
+
+
+def _normalize_library_screens(raw) -> list:
+    """LLM이 반환한 screens 배열을 dict 목록으로 정리합니다."""
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        key = (item.get("screen_key") or item.get("id") or "").strip() or "—"
+        title = (item.get("title") or "").strip()
+        bullets = item.get("summary_bullets") or item.get("bullets") or item.get("details")
+        if isinstance(bullets, str):
+            bullets = [b.strip().lstrip("-• ").strip() for b in bullets.split("\n") if b.strip()]
+        elif not isinstance(bullets, list):
+            bullets = []
+        else:
+            bullets = [str(b).strip().lstrip("-• ").strip() for b in bullets if str(b).strip()]
+        if not title and not bullets:
+            continue
+        out.append({"screen_key": key, "title": title or key, "summary_bullets": bullets})
+    return out
 
 
 def _trim_code(source_code: str, max_lines: int = 300) -> str:
@@ -533,6 +567,7 @@ def _trim_code(source_code: str, max_lines: int = 300) -> str:
     head = lines[:50]
     keywords = [
         "SELECTION-SCREEN", "PARAMETERS", "SELECT-OPTIONS",
+        "SCREEN ", "MODULE ", "CALL SCREEN",
         "CALL FUNCTION", "BAPI_", "BAPI ",
         "FORM ", "ENDFORM", "LOOP AT", "READ TABLE",
         "MESSAGE", "RETURN",

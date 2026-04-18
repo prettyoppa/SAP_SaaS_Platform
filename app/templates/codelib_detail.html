@@ -84,10 +84,38 @@
             </div>
             {% endif %}
 
-            <!-- 실행 조건 화면 -->
+            <!-- 스크린별 분석 (신규 형식) -->
+            {% set screen_list = analysis.get('screens', []) %}
+            {% if screen_list and screen_list|length > 0 %}
+            <div class="mb-3 small text-muted">
+              <i class="fa-solid fa-display me-1"></i>소스에서 식별된 스크린·UI별 요약입니다.
+            </div>
+            {% for scr in screen_list %}
+            <div class="analysis-block mb-4">
+              <div class="analysis-block-title d-flex flex-wrap align-items-baseline gap-2">
+                <i class="fa-solid fa-window-maximize me-2 text-warning"></i>
+                <span class="font-monospace text-muted small">{{ scr.get('screen_key', '—') }}</span>
+                <span>{{ scr.get('title', '') }}</span>
+              </div>
+              <div class="analysis-block-body">
+                {% set bullets = scr.get('summary_bullets', []) %}
+                {% if bullets and bullets|length > 0 %}
+                <ul class="analysis-list mb-0">
+                  {% for b in bullets %}
+                  <li>{{ b }}</li>
+                  {% endfor %}
+                </ul>
+                {% else %}
+                <p class="mb-0 text-muted small">상세 불릿이 없습니다. 재분석해 보세요.</p>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <!-- 구버전 분석 JSON 호환 (selection_screen / result_screen) -->
             {% if analysis.selection_screen %}
             <div class="analysis-block mb-4">
-              <div class="analysis-block-title"><i class="fa-solid fa-sliders me-2 text-warning"></i>실행 조건 화면</div>
+              <div class="analysis-block-title"><i class="fa-solid fa-sliders me-2 text-warning"></i>실행 조건 화면 (이전 형식)</div>
               <div class="analysis-block-body">
                 {% if analysis.selection_screen.layout %}
                 <p class="mb-2">{{ analysis.selection_screen.layout }}</p>
@@ -102,11 +130,9 @@
               </div>
             </div>
             {% endif %}
-
-            <!-- 실행 결과 화면 -->
             {% if analysis.result_screen %}
             <div class="analysis-block mb-4">
-              <div class="analysis-block-title"><i class="fa-solid fa-table me-2 text-success"></i>실행 결과 화면</div>
+              <div class="analysis-block-title"><i class="fa-solid fa-table me-2 text-success"></i>실행 결과 화면 (이전 형식)</div>
               <div class="analysis-block-body">
                 {% if analysis.result_screen.layout %}
                 <p class="mb-2">{{ analysis.result_screen.layout }}</p>
@@ -120,6 +146,7 @@
                 {% endif %}
               </div>
             </div>
+            {% endif %}
             {% endif %}
 
             <!-- Validation 로직 + BAPI/FM + 적용 기법 -->
