@@ -104,6 +104,11 @@
             <span class="rfp-status-badge status-badge-submitted">미분석</span>
             {% endif %}
             <span class="text-muted small">{{ code.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            {% if code.is_draft %}
+            <a href="/codelib/{{ code.id }}/edit" class="btn btn-sm btn-outline-primary">
+              <i class="fa-solid fa-pen me-1"></i>수정
+            </a>
+            {% endif %}
             <a href="/codelib/{{ code.id }}" class="btn btn-sm btn-outline-secondary">
               <i class="fa-solid fa-eye me-1"></i>상세
             </a>

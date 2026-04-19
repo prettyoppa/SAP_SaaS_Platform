@@ -38,6 +38,11 @@
             </div>
 
             <div class="d-flex gap-2 flex-wrap">
+              {% if code.is_draft %}
+              <a href="/codelib/{{ code.id }}/edit" class="btn btn-outline-secondary btn-sm">
+                <i class="fa-solid fa-pen me-1"></i>수정
+              </a>
+              {% endif %}
               <form method="post" action="/codelib/{{ code.id }}/reanalyze" style="display:inline">
                 <button type="submit" class="btn btn-outline-primary btn-sm">
                   <i class="fa-solid fa-rotate me-1"></i>재분석
@@ -209,11 +214,14 @@
 
         <!-- 소스 코드 -->
         <details class="interview-summary-toggle">
-          <summary class="interview-summary-header">
-            <i class="fa-solid fa-code me-2"></i>원본 ABAP 소스 코드 보기
+          <summary class="interview-summary-header d-flex flex-wrap align-items-center gap-2 w-100">
+            <span><i class="fa-solid fa-code me-2"></i>원본 ABAP 소스 코드 보기
             <span class="ms-2 small text-muted">
               ({{ source_sections | length }}개 섹션 · {{ code.source_code.splitlines()|length }}줄)
-            </span>
+            </span></span>
+            <a href="/codelib/{{ code.id }}/download" class="btn btn-sm btn-outline-primary ms-auto" onclick="event.stopPropagation()">
+              <i class="fa-solid fa-download me-1"></i>다운로드
+            </a>
           </summary>
           <div class="interview-summary-body p-0">
 
@@ -237,13 +245,13 @@
               {% for sec in source_sections %}
               <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
                    id="src-tab-{{ loop.index }}">
-                <pre style="background:var(--surface2);border-radius:0;padding:1.25rem;font-size:.82rem;overflow-x:auto;color:#cdd6f4;max-height:500px;overflow-y:auto;margin:0"><code>{{ sec.code }}</code></pre>
+                <pre class="codelib-source-pre rounded-0 mb-0"><code>{{ sec.code }}</code></pre>
               </div>
               {% endfor %}
             </div>
 
             {% else %}
-            <pre style="background:var(--surface2);border-radius:0 0 var(--radius-sm) var(--radius-sm);padding:1.25rem;font-size:.82rem;overflow-x:auto;color:#cdd6f4;max-height:500px;overflow-y:auto;margin:0"><code>{{ source_sections[0].code }}</code></pre>
+            <pre class="codelib-source-pre" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)"><code>{{ source_sections[0].code }}</code></pre>
             {% endif %}
 
           </div>

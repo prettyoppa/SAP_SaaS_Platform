@@ -5,8 +5,11 @@ Code Library Router – SAP Dev Hub
 """
 
 import json
+import re
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from .. import models, auth
 from ..database import get_db
@@ -43,6 +46,57 @@ def _parse_source_sections(source_code: str) -> list[dict]:
             sections.append({"label": current_label or "섹션", "code": code_text})
 
     return sections if sections else [{"label": "전체 소스", "code": source_code}]
+
+
+def _normalize_section_type_for_edit(typ: str) -> str:
+    """역파싱된 유형 문자열을 폼 select value 와 맞춥니다."""
+    t = (typ or "").strip()
+    if t.startswith("Form Subroutines"):
+        return "Form Subroutines"
+    if "Selection Screen" in t:
+        return "Selection Screen"
+    if t.startswith("Class"):
+        return "Class"
+    return t
+
+
+def _parse_upload_sections_for_edit(source_code: str) -> list[dict]:
+    """
+    업로드 폼 JS가 만든 *&==== / *& [n] 라벨 / *&==== / 코드 블록 형식을
+    편집 화면용 {type, name, code} 목록으로 역파싱합니다.
+    """
+    lines = source_code.replace("\r\n", "\n").split("\n")
+    sections: list[dict] = []
+    i, n = 0, len(lines)
+    while i < n:
+        if lines[i].strip().startswith("*&===="):
+            i += 1
+            if i >= n:
+                break
+            hdr = lines[i].strip()
+            if hdr.startswith("*& ["):
+                inner = hdr[3:].strip()
+                i += 1
+                if i < n and lines[i].strip().startswith("*&===="):
+                    i += 1
+                body: list[str] = []
+                while i < n and not lines[i].strip().startswith("*&===="):
+                    body.append(lines[i])
+                    i += 1
+                m = re.match(r"^\[\d+\]\s*(.+)$", inner)
+                label_rest = (m.group(1).strip() if m else inner)
+                if " – " in label_rest:
+                    typ, name = label_rest.split(" – ", 1)
+                    typ, name = typ.strip(), name.strip()
+                else:
+                    typ, name = label_rest, ""
+                typ = _normalize_section_type_for_edit(typ)
+                sections.append({"type": typ, "name": name, "code": "\n".join(body).rstrip("\n")})
+                continue
+        i += 1
+    if not sections:
+        return [{"type": "메인 프로그램", "name": "", "code": source_code.strip()}]
+    return sections
 
 
 def _get_modules_devtypes(db: Session):
@@ -99,6 +153,10 @@ def codelib_upload_form(request: Request, db: Session = Depends(get_db)):
         "modules": modules,
         "devtypes": devtypes,
         "error": None,
+        "edit_code": None,
+        "edit_sections": None,
+        "selected_modules": [],
+        "selected_devtypes": [],
     })
 
 
@@ -126,6 +184,10 @@ def codelib_upload(
             "request": request, "user": user,
             "modules": modules, "devtypes": devtypes,
             "error": "SAP 모듈과 개발 유형을 하나 이상 선택해 주세요.",
+            "edit_code": None,
+            "edit_sections": None,
+            "selected_modules": [],
+            "selected_devtypes": [],
         })
 
     if len(source_code.strip()) < 50:
@@ -133,6 +195,10 @@ def codelib_upload(
             "request": request, "user": user,
             "modules": modules, "devtypes": devtypes,
             "error": "ABAP 소스 코드가 너무 짧습니다.",
+            "edit_code": None,
+            "edit_sections": None,
+            "selected_modules": [],
+            "selected_devtypes": [],
         })
 
     save_as_draft = (is_draft == "1")
@@ -171,6 +237,146 @@ def codelib_upload(
     db.commit()
     db.refresh(code)
     return RedirectResponse(url=f"/codelib/{code.id}", status_code=302)
+
+
+# ── 임시저장 항목 수정 ───────────────────────────────────────────
+@router.get("/codelib/{code_id}/edit", response_class=HTMLResponse)
+def codelib_edit_form(code_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
+    if not user.is_admin:
+        query = query.filter(models.ABAPCode.uploaded_by == user.id)
+    code = query.first()
+    if not code or not code.is_draft:
+        return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
+
+    modules, devtypes = _get_modules_devtypes(db)
+    sections = _parse_upload_sections_for_edit(code.source_code or "")
+    return templates.TemplateResponse(request, "codelib_upload.html", {
+        "request": request,
+        "user": user,
+        "modules": modules,
+        "devtypes": devtypes,
+        "error": None,
+        "edit_code": code,
+        "edit_sections": sections,
+        "selected_modules": [x.strip() for x in code.sap_modules.split(",") if x.strip()],
+        "selected_devtypes": [x.strip() for x in code.dev_types.split(",") if x.strip()],
+    })
+
+
+@router.post("/codelib/{code_id}/edit")
+def codelib_edit_save(
+    code_id: int,
+    request: Request,
+    program_id: str = Form(""),
+    transaction_code: str = Form(""),
+    title: str = Form(...),
+    sap_modules: list[str] = Form(default=[]),
+    dev_types: list[str] = Form(default=[]),
+    source_code: str = Form(...),
+    is_draft: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
+    if not user.is_admin:
+        query = query.filter(models.ABAPCode.uploaded_by == user.id)
+    code = query.first()
+    if not code or not code.is_draft:
+        return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
+
+    modules, devtypes = _get_modules_devtypes(db)
+
+    if not sap_modules or not dev_types:
+        return templates.TemplateResponse(request, "codelib_upload.html", {
+            "request": request, "user": user,
+            "modules": modules, "devtypes": devtypes,
+            "error": "SAP 모듈과 개발 유형을 하나 이상 선택해 주세요.",
+            "edit_code": code,
+            "edit_sections": _parse_upload_sections_for_edit(source_code),
+            "selected_modules": list(sap_modules),
+            "selected_devtypes": list(dev_types),
+        })
+
+    if len(source_code.strip()) < 50:
+        return templates.TemplateResponse(request, "codelib_upload.html", {
+            "request": request, "user": user,
+            "modules": modules, "devtypes": devtypes,
+            "error": "ABAP 소스 코드가 너무 짧습니다.",
+            "edit_code": code,
+            "edit_sections": _parse_upload_sections_for_edit(source_code),
+            "selected_modules": list(sap_modules),
+            "selected_devtypes": list(dev_types),
+        })
+
+    save_as_draft = (is_draft == "1")
+
+    code.program_id = program_id.strip().upper() if program_id else None
+    code.transaction_code = transaction_code.strip().upper() if transaction_code else None
+    code.title = title
+    code.sap_modules = ",".join(sap_modules)
+    code.dev_types = ",".join(dev_types)
+    code.source_code = source_code
+
+    if save_as_draft:
+        code.is_draft = True
+        code.is_analyzed = False
+        code.analysis_json = None
+    else:
+        try:
+            from ..agents.free_crew import analyze_code_for_library
+
+            analysis = analyze_code_for_library(
+                source_code=source_code,
+                title=title,
+                modules=sap_modules,
+                dev_types=dev_types,
+            )
+            code.analysis_json = json.dumps(analysis, ensure_ascii=False) if analysis else None
+            code.is_analyzed = not bool(analysis.get("error")) if analysis else False
+        except Exception as e:
+            code.analysis_json = json.dumps({"error": str(e)}, ensure_ascii=False)
+            code.is_analyzed = False
+        code.is_draft = False
+
+    db.commit()
+    return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
+
+
+# ── 원본 소스 다운로드 ───────────────────────────────────────────
+@router.get("/codelib/{code_id}/download")
+def codelib_download(code_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
+    if not user.is_admin:
+        query = query.filter(models.ABAPCode.uploaded_by == user.id)
+    code = query.first()
+    if not code:
+        return RedirectResponse(url="/codelib", status_code=302)
+
+    base = (code.program_id or f"SOURCE_{code_id}").strip().replace("/", "_")
+    if not base.lower().endswith(".abap"):
+        filename = f"{base}.abap"
+    else:
+        filename = base
+    body = code.source_code or ""
+    ascii_name = filename.encode("ascii", "ignore").decode() or f"{code_id}.abap"
+    cd = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(filename)}'
+    return Response(
+        content=body.encode("utf-8"),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": cd},
+    )
 
 
 # ── 상세 보기 ──────────────────────────────────────────────────

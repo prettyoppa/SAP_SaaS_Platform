@@ -453,6 +453,29 @@ html[data-theme="light"] .theme-switch-icon-wrap--right { color: #ea580c; opacit
 .code-body .str { color: #a6e3a1; }
 .code-body .cm  { color: #6c7086; }
 
+/* 코드 라이브러리 상세 — 원본 ABAP (라이트 모드 가독성) */
+.codelib-source-pre {
+  background: var(--surface2);
+  margin: 0;
+  padding: 1.25rem;
+  font-size: .82rem;
+  line-height: 1.65;
+  overflow-x: auto;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  color: var(--code-text);
+}
+.codelib-source-pre code {
+  color: inherit;
+  font-family: ui-monospace, Consolas, "Segoe UI Mono", monospace;
+}
+html[data-theme="light"] .codelib-source-pre {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
 /* ── Sections ──────────────────────────────── */
 .section-light { background: var(--surface); }
 .section-dark  { background: var(--surface2); }
