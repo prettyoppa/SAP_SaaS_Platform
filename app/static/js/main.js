@@ -1,14 +1,10 @@
 /* SAP Dev Hub – main.js */
 
-/* ── 테마 토글 ──────────────────────────────── */
-function _applyThemeIcon(theme) {
-  const icon = document.getElementById('themeIcon');
-  if (!icon) return;
-  if (theme === 'light') {
-    icon.className = 'fa-solid fa-sun';
-  } else {
-    icon.className = 'fa-solid fa-moon';
-  }
+/* ── 테마 토글 (슬라이드 스위치 + role="switch") ──────────────────────────────── */
+function _syncThemeSwitchAria(theme) {
+  const btn = document.getElementById('themeToggleBtn');
+  if (!btn) return;
+  btn.setAttribute('aria-checked', theme === 'light' ? 'true' : 'false');
 }
 
 function toggleTheme() {
@@ -17,14 +13,13 @@ function toggleTheme() {
   const next = current === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
-  _applyThemeIcon(next);
+  _syncThemeSwitchAria(next);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  /* 저장된 테마 적용 (아이콘 동기화) */
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
-  _applyThemeIcon(savedTheme);
+  _syncThemeSwitchAria(savedTheme);
 
   /* Drag-over highlight on file drop zone */
   const dz = document.getElementById('drop-zone');
