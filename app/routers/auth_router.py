@@ -2,11 +2,25 @@ import re
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
+
 from .. import models, auth
 from ..database import get_db
 from ..templates_config import templates
 
 router = APIRouter()
+
+
+def _access_token_cookie_args(request: Request, token: str) -> dict:
+    """브라우저별 세션 쿠키. path/samesite/secure 명시로 예측 가능하게 둠."""
+    return {
+        "key": "access_token",
+        "value": token,
+        "httponly": True,
+        "max_age": 86400,
+        "path": "/",
+        "samesite": "lax",
+        "secure": request.url.scheme == "https",
+    }
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -34,7 +48,7 @@ def login(
         )
     token = auth.create_access_token({"sub": user.email})
     response = RedirectResponse(url="/dashboard", status_code=302)
-    response.set_cookie("access_token", token, httponly=True, max_age=86400)
+    response.set_cookie(**_access_token_cookie_args(request, token))
     return response
 
 
@@ -82,12 +96,17 @@ def register(
     db.commit()
     token = auth.create_access_token({"sub": new_user.email})
     response = RedirectResponse(url="/dashboard", status_code=302)
-    response.set_cookie("access_token", token, httponly=True, max_age=86400)
+    response.set_cookie(**_access_token_cookie_args(request, token))
     return response
 
 
 @router.get("/logout")
-def logout():
+def logout(request: Request):
     response = RedirectResponse(url="/", status_code=302)
-    response.delete_cookie("access_token")
+    response.delete_cookie(
+        "access_token",
+        path="/",
+        samesite="lax",
+        secure=request.url.scheme == "https",
+    )
     return response

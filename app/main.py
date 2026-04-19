@@ -158,6 +158,20 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def no_store_html_for_logged_in_views(request: Request, call_next):
+    """HTML이 Cookie별(로그인 사용자별)로 캐시되면 다른 계정 화면이 섞여 보일 수 있어 비활성화."""
+    response = await call_next(request)
+    ct = (response.headers.get("content-type") or "").lower()
+    if "text/html" in ct:
+        response.headers["Cache-Control"] = "private, no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Vary"] = "Cookie"
+    return response
+
+
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 

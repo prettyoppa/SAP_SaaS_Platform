@@ -11,8 +11,9 @@
   --surface:      #1a1d27;
   --surface2:     #242736;
   --border:       #2e3147;
-  --text:         #e2e8f0;
-  --muted:        #94a3b8;
+  --text:         #e8edf5;
+  --muted:        #aeb8c6;
+  --label:        #cbd5e1;
   --success:      #22c55e;
   --warning:      #eab308;
   --danger:       #ef4444;
@@ -36,7 +37,8 @@ html[data-theme="light"] {
   --surface2:     #f8fafc;
   --border:       #e2e8f0;
   --text:         #0f172a;
-  --muted:        #64748b;
+  --muted:        #475569;
+  --label:        #334155;
   --success:      #16a34a;
   --warning:      #d97706;
   --danger:       #dc2626;
@@ -52,6 +54,34 @@ html[data-theme="light"] {
 /* ── 라이트 테마 컴포넌트 오버라이드 ─────────── */
 html[data-theme="light"] body {
   color: var(--text);
+}
+
+/* 보조 텍스트·라벨: 배경과 대비 (Bootstrap .text-muted 포함) */
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] .small.text-muted {
+  color: #cbd5e1 !important;
+}
+html[data-theme="light"] .text-muted,
+html[data-theme="light"] .small.text-muted {
+  color: #475569 !important;
+}
+html[data-theme="dark"] .form-label,
+html[data-theme="dark"] .form-label.small,
+html[data-theme="dark"] label.small {
+  color: var(--label) !important;
+}
+html[data-theme="light"] .form-label,
+html[data-theme="light"] .form-label.small,
+html[data-theme="light"] label.small {
+  color: var(--label) !important;
+}
+html[data-theme="dark"] .form-label.text-muted,
+html[data-theme="dark"] .form-label.small.text-muted {
+  color: var(--label) !important;
+}
+html[data-theme="light"] .form-label.text-muted,
+html[data-theme="light"] .form-label.small.text-muted {
+  color: var(--label) !important;
 }
 html[data-theme="light"] .navbar-custom {
   background: var(--navbar-bg);
@@ -103,7 +133,6 @@ html[data-theme="light"] .form-select:focus {
   background: var(--input-bg); color: var(--text);
 }
 html[data-theme="light"] .form-control::placeholder { color: var(--muted); }
-html[data-theme="light"] .form-label { color: var(--text); }
 html[data-theme="light"] .input-icon { color: var(--muted); }
 
 html[data-theme="light"] .dropdown-menu {
@@ -337,24 +366,26 @@ html[data-theme="light"] .theme-switch-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.2rem;
+  height: 1.2rem;
   color: var(--muted);
   pointer-events: none;
   transition: color .2s, opacity .2s;
-  font-size: 0.68rem;
+  font-size: 0.78rem;
+  filter: drop-shadow(0 0 0.5px rgba(0,0,0,.35));
 }
-.theme-switch-icon-wrap--left { left: 7px; }
-.theme-switch-icon-wrap--right { right: 7px; }
+.theme-switch-icon-wrap--left { left: 6px; }
+.theme-switch-icon-wrap--right { right: 6px; }
 .theme-sun-icon {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   display: block;
+  filter: drop-shadow(0 0 0.4px rgba(0,0,0,.4));
 }
-html[data-theme="dark"] .theme-switch-icon-wrap--left { color: #c7d2fe; opacity: 1; }
-html[data-theme="dark"] .theme-switch-icon-wrap--right { color: var(--muted); opacity: 0.4; }
-html[data-theme="light"] .theme-switch-icon-wrap--left { color: var(--muted); opacity: 0.4; }
-html[data-theme="light"] .theme-switch-icon-wrap--right { color: #d97706; opacity: 1; }
+html[data-theme="dark"] .theme-switch-icon-wrap--left { color: #e0e7ff; opacity: 1; }
+html[data-theme="dark"] .theme-switch-icon-wrap--right { color: #fde68a; opacity: 0.82; }
+html[data-theme="light"] .theme-switch-icon-wrap--left { color: #6366f1; opacity: 0.82; }
+html[data-theme="light"] .theme-switch-icon-wrap--right { color: #ea580c; opacity: 1; }
 
 /* Buttons */
 .btn-primary {
@@ -495,7 +526,7 @@ html[data-theme="light"] .theme-switch-icon-wrap--right { color: #d97706; opacit
   color: var(--text); box-shadow: 0 0 0 3px rgba(99,102,241,.2);
 }
 .form-control::placeholder { color: var(--muted); }
-.form-label { font-size: .9rem; font-weight: 500; color: var(--text); margin-bottom: .4rem; }
+.form-label { font-size: .9rem; font-weight: 500; color: var(--label); margin-bottom: .4rem; }
 .form-check-input:checked { background-color: var(--primary); border-color: var(--primary); }
 
 /* ── RFP Form ──────────────────────────────── */
