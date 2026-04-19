@@ -20,6 +20,8 @@ from pathlib import Path
 from crewai import Agent, Task, Crew, Process, LLM
 from dotenv import load_dotenv
 
+from ..gemini_model import get_gemini_model_id
+
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 MAX_ROUNDS = 3
@@ -62,7 +64,8 @@ def _get_llm() -> LLM:
     if not api_key:
         raise RuntimeError("GOOGLE_API_KEY가 설정되지 않았습니다.")
     os.environ.setdefault("GEMINI_API_KEY", api_key)
-    return LLM(model="gemini/gemini-2.0-flash", api_key=api_key)
+    mid = get_gemini_model_id()
+    return LLM(model=f"gemini/{mid}", api_key=api_key)
 
 
 # ── 에이전트 팩토리 ───────────────────────────────────

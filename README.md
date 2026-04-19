@@ -106,9 +106,9 @@ Hannah(최종 분석) → Jun(Proposal 작성) → Sara(품질 검토·승인)
 
 | 분류 | 기술 |
 |---|---|
-| Backend | FastAPI 0.135, SQLAlchemy 2.0, SQLite |
+| Backend | FastAPI 0.135, SQLAlchemy 2.0, SQLite(로컬) / PostgreSQL(Railway 등) |
 | Frontend | Jinja2, Bootstrap 5, Vanilla JS |
-| AI 에이전트 | CrewAI 1.14, Google Gemini 2.0 Flash |
+| AI 에이전트 | CrewAI 1.14, Google Gemini (기본 `gemini-2.5-flash`, `GEMINI_MODEL`로 변경) |
 | 인증 | JWT (python-jose), Argon2 (passlib) |
 
 ---
@@ -130,6 +130,73 @@ python -m uvicorn app.main:app --reload --port 8000
 ```
 
 브라우저에서 **http://127.0.0.1:8000** 접속
+
+---
+
+## 배포 환경 (Railway + PostgreSQL + R2)
+
+프로덕션은 **Railway**에 웹 서비스를 두고, **PostgreSQL**을 DB로 쓰며, RFP 첨부 파일은 **Cloudflare R2**(S3 호환 API)에 올리도록 구성할 수 있다. 아래는 실제 세팅 시 겪은 이슈와 변수 정리다.
+
+### Railway – 웹 서비스
+
+- **빌드/실행**: `requirements.txt`, Nixpacks, `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **PostgreSQL 드라이버**: `psycopg2-binary` 필수. 없으면 `ModuleNotFoundError: No module named 'psycopg2'` 로 기동 실패.
+
+### Railway – PostgreSQL 연결 문자열
+
+Postgres 플러그인이 주는 `DATABASE_URL`은 종종 호스트가 **`postgres.railway.internal`** 이다. 웹 컨테이너에서 사설 DNS가 풀리지 않으면 아래 오류가 난다.
+
+`psycopg2.OperationalError: could not translate host name "postgres.railway.internal" to address: Name or service not known`
+
+**대응 (웹 서비스 Variables)**
+
+| 변수 | 용도 |
+|------|------|
+| `DATABASE_URL` | Postgres가 발급한 **전체** URL(내부 호스트 포함)을 그대로 유지해도 된다. |
+| `DATABASE_PUBLIC_URL` | **공개 TCP 프록시**용 URL. `*.proxy.rlwy.net` 등 **전체** `postgresql://user:pass@host:port/dbname` 형태를 넣는다. |
+
+앱(`app/database.py`) 동작 요약:
+
+- `DATABASE_PUBLIC_URL`이 있으면 **우선** 사용한다.
+- 값이 **`postgresql://`로 시작하는 전체 URL**이면 그대로 쓰고, 공개 호스트(`.rlwy.net` 등)에는 **`sslmode=require`** 를 자동으로 붙인다.
+- 값이 **`host:port`만**이면, 같은 서비스에 있는 **`DATABASE_URL`의 사용자·비밀번호·DB 경로**와 합쳐 한 줄 URL로 만든다. (이때 `DATABASE_URL`도 반드시 있어야 한다.)
+- **`DATABASE_PUBLIC_URL`에 `host:port`만 넣고 전체 URL이 아닌 경우**, SQLAlchemy가 파싱하지 못해 `ArgumentError: Could not parse SQLAlchemy URL` 이 날 수 있으므로, **전체 `postgresql://...` 를 넣거나** 위 **host:port 병합** 규칙을 지킨다.
+
+비밀번호 **regenerate** 후에는 Postgres와 웹 양쪽의 URL을 **다시 맞춘 뒤** 재배포한다.
+
+### Cloudflare R2 – 객체 저장 (RFP 첨부)
+
+앱은 `boto3`로 R2 S3 API에 붙는다 (`app/r2_storage.py`). Railway **웹** 서비스에 아래 네 변수를 넣는다.
+
+| 변수 | 설명 |
+|------|------|
+| `R2_ACCOUNT_ID` | Cloudflare **Account ID** (R2/대시보드에서 확인) |
+| `R2_ACCESS_KEY_ID` | R2 전용 **Access Key ID** |
+| `R2_SECRET_ACCESS_KEY` | 위와 쌍인 **Secret Access Key** (생성 직후 한 번만 표시) |
+| `R2_BUCKET_NAME` | R2 버킷 이름 |
+
+**주의:** **My Profile → Account API Tokens** 에서 만든 **일반 API 토큰(문자열 한 줄)** 은 이 경로에 쓰이지 않는다. 반드시 **R2** 화면의 **Create Account API Token**(또는 **Manage R2 API Tokens** 등 S3 호환 키 발급 UI)에서 **Access Key ID + Secret** 쌍을 발급한다.
+
+토큰 생성 시:
+
+- **권한**: 업로드·다운로드·삭제가 필요하면 **`Object Read & Write`** (가능하면 특정 버킷만). 처음엔 넓게 **`Admin Read & Write`** 로 시작해도 된다.
+- **Client IP 필터**: Railway 출구 IP가 고정이 아니므로 **비우는 것**을 권장한다.
+- **TTL**: `Forever` 로 시작 가능. 운영 시에는 주기적 갱신을 검토.
+
+R2 구독/결제 수단 연결은 Cloudflare 정책에 따라 활성화 단계에서 요구될 수 있다(무료 한도 내 사용은 요금 페이지 기준).
+
+### 동작 확인 체크리스트
+
+1. Railway 웹 서비스가 **시간이 지나도 Crashed로 바뀌지 않는지**
+2. RFP에 파일 첨부 후 제출 → Cloudflare R2 버킷에 **`rfp_attachments/...`** 객체가 생기는지
+3. (별도) AI 인터뷰·Proposal: Railway에 **`GOOGLE_API_KEY`** 등이 설정되어 있는지 — R2와 무관하지만 기능상 필요하다.
+
+### 참고 파일
+
+- `app/database.py` — DB URL 해석, `DATABASE_PUBLIC_URL` 병합, 공개 호스트 SSL
+- `app/r2_storage.py` — R2 업로드·presigned URL·`r2://` 키 접두사
+- `app/routers/rfp_router.py` — 첨부 저장 시 R2 또는 로컬/`/tmp`
+- `.env.example` — 변수 이름 요약
 
 ---
 

@@ -17,6 +17,8 @@ from pathlib import Path
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+from .gemini_model import get_gemini_model_id
+
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 
@@ -25,7 +27,7 @@ def _get_model() -> genai.GenerativeModel:
     if not api_key:
         raise RuntimeError("GOOGLE_API_KEY가 설정되지 않았습니다.")
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-2.0-flash")
+    return genai.GenerativeModel(get_gemini_model_id())
 
 
 def analyze_abap_code(source_code: str, title: str, modules: list[str], dev_types: list[str]) -> dict:

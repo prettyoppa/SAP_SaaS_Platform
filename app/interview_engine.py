@@ -3,7 +3,7 @@ Interview Engine – SAP Dev Hub
 RFP 제출 내용을 분석하여 단계적 질문을 생성하고,
 충분한 정보가 수집되면 Development Proposal을 작성합니다.
 
-LLM: Google Gemini 2.0 Flash (SAP_AI_Agent와 동일 모델)
+LLM: Google Gemini (기본 gemini-2.5-flash, GEMINI_MODEL로 변경 가능)
 최대 라운드: 3  / 라운드당 질문: 3개
 """
 
@@ -14,6 +14,8 @@ from typing import Optional
 
 import google.generativeai as genai
 from dotenv import load_dotenv
+
+from .gemini_model import get_gemini_model_id
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -56,7 +58,7 @@ def _get_model() -> genai.GenerativeModel:
             "SAP_SaaS_Platform/.env 파일에 GOOGLE_API_KEY를 추가하세요."
         )
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-2.0-flash")
+    return genai.GenerativeModel(get_gemini_model_id())
 
 
 def _format_rfp_context(rfp_data: dict) -> str:
