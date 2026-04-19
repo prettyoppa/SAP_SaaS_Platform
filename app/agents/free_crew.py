@@ -420,6 +420,9 @@ def analyze_code_for_library(
 {code_excerpt}
 
 다음 규칙을 지켜 반드시 아래 JSON 형식으로만 출력하세요.
+- 출력은 유효한 JSON 객체 하나뿐입니다. JSON 앞뒤에 서론·결론·마크다운 제목을 쓰지 마세요.
+- "program_purpose"에 위 [프로그램 정보]의 제목만 그대로 넣지 마세요. 소스 분석에 근거한 목적·역할을 2~3문장으로 서술하세요.
+- "screens" 배열에는 이 프로그램에서 식별한 UI·실행 면을 최소 1개 포함하세요. (순수 배치면 그 성격을 한 항목으로 명시)
 한국어로 작성하되, 기술 용어(BAPI명, FM명, 필드명, 화면 번호 등)는 영문 그대로 사용하세요.
 
 ★ 스크린 분석 (매우 중요)
@@ -501,12 +504,52 @@ def analyze_code_for_library(
     try:
         crew.kickoff()
 
-        # TaskOutput.raw 로 각 task 결과 텍스트 추출
-        analysis_raw = (analysis_task.output.raw or "") if analysis_task.output else ""
-        question_raw = (question_task.output.raw or "") if question_task.output else ""
+        analysis_raw = _crew_task_output_text(analysis_task)
+        question_raw = _crew_task_output_text(question_task)
 
         analysis_data = _parse_json_block(analysis_raw, default={})
         question_data = _parse_json_block(question_raw, default={"questions": []})
+
+        incomplete = (not analysis_data) or (
+            not _analysis_looks_complete(analysis_data, title)
+        )
+        raw_ok = bool((analysis_raw or "").strip())
+
+        if incomplete:
+            base = {
+                "program_purpose": title,
+                "screens": [],
+                "selection_screen": {},
+                "result_screen": {},
+                "validations": [],
+                "key_bapis": [],
+                "key_fms": [],
+                "applied_techniques": [],
+                "questions": question_data.get("questions", []),
+            }
+            if not raw_ok:
+                return {
+                    **base,
+                    "error": (
+                        "Hannah 분석 응답 텍스트를 찾지 못했습니다. "
+                        "CrewAI 출력 필드가 비어 있거나 형식이 바뀌었을 수 있습니다."
+                    ),
+                }
+            if not analysis_data:
+                return {
+                    **base,
+                    "error": (
+                        "Hannah 분석 응답을 JSON으로 읽지 못했습니다. "
+                        "잠시 후 재분석하거나, 서버 로그에서 Crew 출력을 확인해 주세요."
+                    ),
+                }
+            return {
+                **base,
+                "error": (
+                    "분석 JSON에 화면·검증·인터페이스 등 구조화된 항목이 없습니다. "
+                    "모델이 요청한 스키마를 따르지 않았을 수 있으니 재분석해 주세요."
+                ),
+            }
 
         screens = _normalize_library_screens(analysis_data.get("screens"))
 
@@ -561,6 +604,61 @@ def _normalize_library_screens(raw) -> list:
     return out
 
 
+def _crew_task_output_text(task) -> str:
+    """CrewAI 버전에 따라 Task 출력이 raw / result 등 다른 속성에 있을 수 있어 문자열을 뽑습니다."""
+    out = getattr(task, "output", None)
+    if out is None:
+        return ""
+    if isinstance(out, str):
+        return out
+    raw = getattr(out, "raw", None)
+    if isinstance(raw, str) and raw.strip():
+        return raw
+    for attr in ("exported_output", "result", "final_output"):
+        v = getattr(out, attr, None)
+        if isinstance(v, str) and v.strip():
+            return v
+    pyd = getattr(out, "pydantic", None)
+    if pyd is not None:
+        try:
+            if hasattr(pyd, "model_dump"):
+                d = pyd.model_dump()
+            else:
+                d = dict(pyd) if hasattr(pyd, "__iter__") else {}
+            for k in ("raw", "description", "final_output", "output"):
+                v = d.get(k) if isinstance(d, dict) else None
+                if isinstance(v, str) and v.strip():
+                    return v
+        except Exception:
+            pass
+    s = str(out)
+    return s if s and s != "None" else ""
+
+
+def _analysis_looks_complete(data: dict, upload_title: str = "") -> bool:
+    """스키마상 최소 의미 있는 분석인지(제목 한 줄만 반복된 경우 제외)."""
+    if not isinstance(data, dict):
+        return False
+    if isinstance(data.get("screens"), list) and len(data.get("screens") or []) > 0:
+        return True
+    for k in ("validations", "key_bapis", "key_fms", "applied_techniques"):
+        v = data.get(k)
+        if isinstance(v, list) and len(v) > 0:
+            return True
+    ss, rs = data.get("selection_screen") or {}, data.get("result_screen") or {}
+    if isinstance(ss, dict) and len(ss) > 0:
+        return True
+    if isinstance(rs, dict) and len(rs) > 0:
+        return True
+    purpose = (data.get("program_purpose") or "").strip()
+    ut = (upload_title or "").strip()
+    if ut and purpose.lower() == ut.lower():
+        return False
+    if purpose and len(purpose) > len(ut) + 40:
+        return True
+    return False
+
+
 def _trim_code(source_code: str, max_lines: int = 300) -> str:
     """코드가 길 경우 핵심 섹션(선언부 + 주요 로직)만 추출합니다."""
     lines = source_code.splitlines()
@@ -586,15 +684,28 @@ def _trim_code(source_code: str, max_lines: int = 300) -> str:
 
 
 def _parse_json_block(text: str, default) -> dict:
-    """텍스트에서 JSON 블록을 추출합니다."""
+    """텍스트에서 첫 번째 유효한 JSON 객체(dict)를 파싱합니다. 중첩·코드펜스·앞뒤 잡음에 강합니다."""
+    if not text or not str(text).strip():
+        return default
+    text = str(text).strip()
     if "```" in text:
-        m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+        m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text, re.IGNORECASE)
         if m:
             text = m.group(1).strip()
+    dec = json.JSONDecoder()
+    for i, ch in enumerate(text):
+        if ch != "{":
+            continue
+        try:
+            obj, _ = dec.raw_decode(text, i)
+            if isinstance(obj, dict):
+                return obj
+        except json.JSONDecodeError:
+            continue
     try:
-        m = re.search(r"\{[\s\S]*\}", text)
-        if m:
-            return json.loads(m.group())
+        parsed = json.loads(text)
+        if isinstance(parsed, dict):
+            return parsed
     except Exception:
         pass
     return default
