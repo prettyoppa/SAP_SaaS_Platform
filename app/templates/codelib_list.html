@@ -92,6 +92,12 @@
                 {% for d in code.dev_types.split(',') %}
                 <span class="badge-devtype">{{ d.replace('_',' ') }}</span>
                 {% endfor %}
+                {% if user.is_admin and code.uploader %}
+                <div class="w-100 mt-1 small text-muted">
+                  <i class="fa-solid fa-user me-1"></i>{{ code.uploader.full_name }}
+                  {% if code.uploader.company %}<span class="ms-1">· {{ code.uploader.company }}</span>{% endif %}
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>

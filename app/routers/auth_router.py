@@ -102,6 +102,10 @@ def register(
 
 @router.get("/logout")
 def logout(request: Request):
+    try:
+        request.session.clear()
+    except Exception:
+        pass
     response = RedirectResponse(url="/", status_code=302)
     response.delete_cookie(
         "access_token",

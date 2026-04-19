@@ -1,14 +1,16 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from .database import SessionLocal, db_target_log_line, engine
-from . import models
+from . import auth, models
 from .routers import auth_router, rfp_router, interview_router, codelib_router
 from .routers import admin_router, review_router
 from .templates_config import templates
@@ -159,6 +161,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# 서버 사이드 세션(코드 라이브러리 2차 확인 등). SESSION_SECRET 미설정 시 JWT 시크릿과 동일(운영에서는 분리 권장).
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.environ.get("SESSION_SECRET", auth.SECRET_KEY),
+    max_age=86400 * 7,
+    same_site="lax",
+)
+
 
 @app.middleware("http")
 async def no_store_html_for_logged_in_views(request: Request, call_next):
@@ -185,7 +195,6 @@ app.include_router(review_router.router)
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    from . import auth
     from .database import SessionLocal as _SL
     _db = _SL()
     try:

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}코드 라이브러리 확인 – Catchy Lab SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="auth-page py-5">
+  <div class="container" style="max-width: 440px;">
+    <div class="text-center mb-4">
+      <div class="mb-3" style="font-size:2.5rem;color:var(--primary-light)"><i class="fa-solid fa-lock"></i></div>
+      <h2 class="h4 mb-2">코드 라이브러리 접근 확인</h2>
+      <p class="text-muted small mb-0">
+        등록된 ABAP 소스는 본인만 열람할 수 있습니다.<br/>
+        계속하려면 <strong>로그인 비밀번호</strong>를 한 번 더 입력해 주세요.
+      </p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger small mb-3">
+      <i class="fa-solid fa-triangle-exclamation me-2"></i>{{ error }}
+    </div>
+    {% endif %}
+
+    <div class="card border" style="background:var(--surface);border-color:var(--border)!important;">
+      <div class="card-body p-4">
+        <form method="post" action="/codelib/unlock">
+          <input type="hidden" name="next" value="{{ next }}"/>
+          <div class="mb-3">
+            <label class="form-label small">비밀번호</label>
+            <input type="password" name="password" class="form-control" required autocomplete="current-password" autofocus/>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fa-solid fa-unlock me-2"></i>확인 후 이동
+          </button>
+        </form>
+        <div class="text-center mt-3">
+          <a href="/" class="btn btn-link btn-sm text-muted">취소하고 홈으로</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

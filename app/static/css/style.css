@@ -476,6 +476,29 @@ html[data-theme="light"] .codelib-source-pre {
   border-color: #cbd5e1;
 }
 
+/* 코드 라이브러리 — 분석 결과 접기/펼치기 */
+.analysis-fold {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+}
+.analysis-fold-summary {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+  list-style: none;
+}
+.analysis-fold-summary::-webkit-details-marker { display: none; }
+.analysis-fold[open] > .analysis-fold-summary {
+  border-bottom: 1px solid var(--border);
+}
+.analysis-fold-body {
+  padding: 1rem 1.15rem;
+  color: var(--text);
+  line-height: 1.65;
+}
+
 /* ── Sections ──────────────────────────────── */
 .section-light { background: var(--surface); }
 .section-dark  { background: var(--surface2); }

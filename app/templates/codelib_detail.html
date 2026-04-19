@@ -34,6 +34,14 @@
                   {% endfor %}
                   <span class="ms-2 small text-muted">{{ code.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
                 </div>
+                {% if user.is_admin and code.uploader %}
+                <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
+                  <i class="fa-solid fa-user-shield me-1 text-warning"></i>
+                  업로드: <strong>{{ code.uploader.full_name }}</strong>
+                  {% if code.uploader.company %}<span class="text-muted"> · {{ code.uploader.company }}</span>{% endif %}
+                  <span class="text-muted font-monospace"> · {{ code.uploader.email }}</span>
+                </div>
+                {% endif %}
               </div>
             </div>
 
@@ -80,29 +88,30 @@
             <h4 style="border-left:3px solid var(--primary);padding-left:.75rem;margin-top:0;margin-bottom:1.25rem">
               <i class="fa-solid fa-robot me-2 text-primary-light"></i>Hannah 코드 분석 결과
             </h4>
+            <p class="small text-muted mb-3"><i class="fa-solid fa-chevron-down me-1"></i>각 항목을 눌러 펼치거나 접을 수 있습니다.</p>
 
-            <!-- 프로그램 개요 -->
             {% if analysis.program_purpose %}
-            <div class="analysis-block mb-4">
-              <div class="analysis-block-title"><i class="fa-solid fa-book me-2 text-info"></i>프로그램 개요</div>
-              <div class="analysis-block-body">{{ analysis.program_purpose }}</div>
-            </div>
+            <details class="analysis-fold mb-3" open>
+              <summary class="analysis-fold-summary">
+                <i class="fa-solid fa-book me-2 text-info"></i>프로그램 개요
+              </summary>
+              <div class="analysis-fold-body">{{ analysis.program_purpose }}</div>
+            </details>
             {% endif %}
 
-            <!-- 스크린별 분석 (신규 형식) -->
             {% set screen_list = analysis.get('screens', []) %}
             {% if screen_list and screen_list|length > 0 %}
-            <div class="mb-3 small text-muted">
+            <div class="mb-2 small text-muted">
               <i class="fa-solid fa-display me-1"></i>소스에서 식별된 스크린·UI별 요약입니다.
             </div>
             {% for scr in screen_list %}
-            <div class="analysis-block mb-4">
-              <div class="analysis-block-title d-flex flex-wrap align-items-baseline gap-2">
+            <details class="analysis-fold mb-3">
+              <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2">
                 <i class="fa-solid fa-window-maximize me-2 text-warning"></i>
                 <span class="font-monospace text-muted small">{{ scr.get('screen_key', '—') }}</span>
                 <span>{{ scr.get('title', '') }}</span>
-              </div>
-              <div class="analysis-block-body">
+              </summary>
+              <div class="analysis-fold-body">
                 {% set bullets = scr.get('summary_bullets', []) %}
                 {% if bullets and bullets|length > 0 %}
                 <ul class="analysis-list mb-0">
@@ -114,14 +123,13 @@
                 <p class="mb-0 text-muted small">상세 불릿이 없습니다. 재분석해 보세요.</p>
                 {% endif %}
               </div>
-            </div>
+            </details>
             {% endfor %}
             {% else %}
-            <!-- 구버전 분석 JSON 호환 (selection_screen / result_screen) -->
             {% if analysis.selection_screen %}
-            <div class="analysis-block mb-4">
-              <div class="analysis-block-title"><i class="fa-solid fa-sliders me-2 text-warning"></i>실행 조건 화면 (이전 형식)</div>
-              <div class="analysis-block-body">
+            <details class="analysis-fold mb-3">
+              <summary class="analysis-fold-summary"><i class="fa-solid fa-sliders me-2 text-warning"></i>실행 조건 화면 (이전 형식)</summary>
+              <div class="analysis-fold-body">
                 {% if analysis.selection_screen.layout %}
                 <p class="mb-2">{{ analysis.selection_screen.layout }}</p>
                 {% endif %}
@@ -133,12 +141,12 @@
                 </div>
                 {% endif %}
               </div>
-            </div>
+            </details>
             {% endif %}
             {% if analysis.result_screen %}
-            <div class="analysis-block mb-4">
-              <div class="analysis-block-title"><i class="fa-solid fa-table me-2 text-success"></i>실행 결과 화면 (이전 형식)</div>
-              <div class="analysis-block-body">
+            <details class="analysis-fold mb-3">
+              <summary class="analysis-fold-summary"><i class="fa-solid fa-table me-2 text-success"></i>실행 결과 화면 (이전 형식)</summary>
+              <div class="analysis-fold-body">
                 {% if analysis.result_screen.layout %}
                 <p class="mb-2">{{ analysis.result_screen.layout }}</p>
                 {% endif %}
@@ -150,55 +158,60 @@
                 </div>
                 {% endif %}
               </div>
-            </div>
+            </details>
             {% endif %}
             {% endif %}
 
-            <!-- Validation 로직 + BAPI/FM + 적용 기법 -->
             <div class="row g-3">
               {% if analysis.validations %}
               <div class="col-md-6">
-                <div class="analysis-mini-block">
-                  <div class="analysis-mini-title"><i class="fa-solid fa-shield-halved me-2 text-danger"></i>Validation 로직</div>
-                  <ul class="analysis-list">
-                    {% for v in analysis.validations %}
-                    <li>{{ v }}</li>
-                    {% endfor %}
-                  </ul>
-                </div>
+                <details class="analysis-fold h-100">
+                  <summary class="analysis-fold-summary"><i class="fa-solid fa-shield-halved me-2 text-danger"></i>Validation 로직</summary>
+                  <div class="analysis-fold-body">
+                    <ul class="analysis-list mb-0">
+                      {% for v in analysis.validations %}
+                      <li>{{ v }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                </details>
               </div>
               {% endif %}
 
               {% if analysis.key_bapis or analysis.key_fms %}
               <div class="col-md-6">
-                <div class="analysis-mini-block">
-                  <div class="analysis-mini-title"><i class="fa-solid fa-plug me-2 text-primary-light"></i>사용 BAPI / FM</div>
-                  {% if analysis.key_bapis %}
-                  <div class="mb-2">
-                    {% for b in analysis.key_bapis %}
-                    <span class="badge-module me-1 mb-1 font-monospace" style="font-size:.78rem">{{ b }}</span>
+                <details class="analysis-fold h-100">
+                  <summary class="analysis-fold-summary"><i class="fa-solid fa-plug me-2 text-primary-light"></i>사용 BAPI / FM</summary>
+                  <div class="analysis-fold-body">
+                    {% if analysis.key_bapis %}
+                    <div class="mb-2">
+                      {% for b in analysis.key_bapis %}
+                      <span class="badge-module me-1 mb-1 font-monospace" style="font-size:.78rem">{{ b }}</span>
+                      {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if analysis.key_fms %}
+                    {% for f in analysis.key_fms %}
+                    <span class="badge-devtype me-1 mb-1 font-monospace" style="font-size:.78rem">{{ f }}</span>
                     {% endfor %}
+                    {% endif %}
                   </div>
-                  {% endif %}
-                  {% if analysis.key_fms %}
-                  {% for f in analysis.key_fms %}
-                  <span class="badge-devtype me-1 mb-1 font-monospace" style="font-size:.78rem">{{ f }}</span>
-                  {% endfor %}
-                  {% endif %}
-                </div>
+                </details>
               </div>
               {% endif %}
 
               {% if analysis.applied_techniques %}
               <div class="col-12">
-                <div class="analysis-mini-block">
-                  <div class="analysis-mini-title"><i class="fa-solid fa-wand-magic-sparkles me-2 text-warning"></i>적용된 기법</div>
-                  <ul class="analysis-list">
-                    {% for t in analysis.applied_techniques %}
-                    <li>{{ t }}</li>
-                    {% endfor %}
-                  </ul>
-                </div>
+                <details class="analysis-fold">
+                  <summary class="analysis-fold-summary"><i class="fa-solid fa-wand-magic-sparkles me-2 text-warning"></i>적용된 기법</summary>
+                  <div class="analysis-fold-body">
+                    <ul class="analysis-list mb-0">
+                      {% for t in analysis.applied_techniques %}
+                      <li>{{ t }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                </details>
               </div>
               {% endif %}
             </div>
@@ -214,14 +227,11 @@
 
         <!-- 소스 코드 -->
         <details class="interview-summary-toggle">
-          <summary class="interview-summary-header d-flex flex-wrap align-items-center gap-2 w-100">
-            <span><i class="fa-solid fa-code me-2"></i>원본 ABAP 소스 코드 보기
+          <summary class="interview-summary-header w-100">
+            <i class="fa-solid fa-code me-2"></i>원본 ABAP 소스 코드 보기
             <span class="ms-2 small text-muted">
               ({{ source_sections | length }}개 섹션 · {{ code.source_code.splitlines()|length }}줄)
-            </span></span>
-            <a href="/codelib/{{ code.id }}/download" class="btn btn-sm btn-outline-primary ms-auto" onclick="event.stopPropagation()">
-              <i class="fa-solid fa-download me-1"></i>다운로드
-            </a>
+            </span>
           </summary>
           <div class="interview-summary-body p-0">
 
@@ -229,7 +239,7 @@
             <ul class="nav nav-tabs px-3 pt-2" role="tablist"
                 style="background:var(--surface2);border-bottom:1px solid var(--border)">
               {% for sec in source_sections %}
-              <li class="nav-item" role="presentation">
+              <li class="nav-item d-flex align-items-center gap-1" role="presentation">
                 <button class="nav-link {% if loop.first %}active{% endif %} small py-1 px-3"
                         data-bs-toggle="tab"
                         data-bs-target="#src-tab-{{ loop.index }}"
@@ -238,6 +248,9 @@
                   {{ sec.label }}
                   <span class="ms-1 opacity-50" style="font-size:.75em">({{ sec.code.splitlines()|length }}줄)</span>
                 </button>
+                <a href="/codelib/{{ code.id }}/download?section={{ loop.index0 }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="이 섹션만 다운로드">
+                  <i class="fa-solid fa-download"></i>
+                </a>
               </li>
               {% endfor %}
             </ul>
@@ -251,6 +264,11 @@
             </div>
 
             {% else %}
+            <div class="d-flex justify-content-end px-3 pt-2 pb-0" style="background:var(--surface2);border-bottom:1px solid var(--border)">
+              <a href="/codelib/{{ code.id }}/download?section=0" class="btn btn-sm btn-outline-primary mb-2">
+                <i class="fa-solid fa-download me-1"></i>이 소스 다운로드
+              </a>
+            </div>
             <pre class="codelib-source-pre" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)"><code>{{ source_sections[0].code }}</code></pre>
             {% endif %}
 

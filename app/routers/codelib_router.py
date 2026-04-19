@@ -2,20 +2,76 @@
 Code Library Router – SAP Dev Hub
 회원이 ABAP 소스를 업로드하고, Hannah+Mia 에이전트가 분석합니다.
 회원은 본인 코드만, Admin은 전체를 볼 수 있습니다.
+비관리자는 코드 라이브러리 진입 시 비밀번호 재확인(세션)이 필요합니다.
 """
 
 import json
 import re
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import APIRouter, Depends, Request, Form, HTTPException, status, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .. import models, auth
 from ..database import get_db
 from ..templates_config import templates
 
 router = APIRouter()
+
+# 서버 세션 키( SessionMiddleware 필요 )
+SESSION_KEY_CODELIB = "codelib_unlocked"
+
+
+def _safe_next_url(next_raw: str | None) -> str:
+    """오픈 리다이렉트 방지: 동일 사이트 상대 경로만 허용."""
+    if not next_raw or not isinstance(next_raw, str):
+        return "/codelib"
+    n = next_raw.strip()
+    if not n.startswith("/") or n.startswith("//"):
+        return "/codelib"
+    return n
+
+
+def require_code_library_access(request: Request, db: Session = Depends(get_db)) -> models.User:
+    """
+    로그인 + (관리자 제외) 코드 라이브러리용 비밀번호 재확인 세션.
+    """
+    user = auth.get_current_user(request, db)
+    if not user:
+        nu = quote(request.url.path + ("?" + request.url.query if request.url.query else ""), safe="")
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            headers={"Location": f"/login?next={nu}"},
+        )
+    if user.is_admin:
+        return user
+    if request.session.get(SESSION_KEY_CODELIB):
+        return user
+    nu = quote(request.url.path + ("?" + request.url.query if request.url.query else ""), safe="")
+    raise HTTPException(
+        status_code=status.HTTP_303_SEE_OTHER,
+        headers={"Location": f"/codelib/unlock?next={nu}"},
+    )
+
+
+def _enforce_code_access(user: models.User, code: models.ABAPCode | None) -> bool:
+    """쿼리 필터 외 이중 확인: 타인 행 접근 차단."""
+    if not code:
+        return False
+    if user.is_admin:
+        return True
+    return code.uploaded_by == user.id
+
+
+def _abap_download_filename(program_id: str | None, code_id: int, section_idx: int, n_sections: int) -> str:
+    """프로그램 ID 기반 파일명. 멀티 섹션은 _S1, _S2 접미사."""
+    raw = (program_id or "").strip().upper() or f"SOURCE_{code_id}"
+    safe = re.sub(r"[^\w\-.]", "_", raw).strip("_") or f"SOURCE_{code_id}"
+    if len(safe) > 80:
+        safe = safe[:80]
+    if n_sections <= 1:
+        return f"{safe}.abap"
+    return f"{safe}_S{section_idx + 1}.abap"
 
 
 def _parse_source_sections(source_code: str) -> list[dict]:
@@ -105,14 +161,58 @@ def _get_modules_devtypes(db: Session):
     return modules, devtypes
 
 
-# ── 목록 ──────────────────────────────────────────────────────
-@router.get("/codelib", response_class=HTMLResponse)
-def codelib_list(request: Request, q: str = "", db: Session = Depends(get_db)):
+# ── 코드 라이브러리 2차 확인 (일반 회원) ─────────────────────────
+@router.get("/codelib/unlock", response_class=HTMLResponse)
+def codelib_unlock_page(request: Request, next: str = "/codelib", db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        nu = quote(f"/codelib/unlock?next={_safe_next_url(next)}", safe="")
+        return RedirectResponse(url=f"/login?next={nu}", status_code=302)
+    if user.is_admin:
+        return RedirectResponse(url=_safe_next_url(next), status_code=302)
+    if request.session.get(SESSION_KEY_CODELIB):
+        return RedirectResponse(url=_safe_next_url(next), status_code=302)
+    return templates.TemplateResponse(request, "codelib_unlock.html", {
+        "request": request,
+        "user": user,
+        "next": _safe_next_url(next),
+        "error": None,
+    })
+
+
+@router.post("/codelib/unlock")
+def codelib_unlock_post(
+    request: Request,
+    password: str = Form(...),
+    next: str = Form("/codelib"),
+    db: Session = Depends(get_db),
+):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
+    if user.is_admin:
+        return RedirectResponse(url=_safe_next_url(next), status_code=302)
+    safe = _safe_next_url(next)
+    if not auth.verify_password(password, user.hashed_password):
+        return templates.TemplateResponse(request, "codelib_unlock.html", {
+            "request": request,
+            "user": user,
+            "next": safe,
+            "error": "비밀번호가 일치하지 않습니다.",
+        }, status_code=400)
+    request.session[SESSION_KEY_CODELIB] = True
+    return RedirectResponse(url=safe, status_code=302)
 
-    query = db.query(models.ABAPCode)
+
+# ── 목록 ──────────────────────────────────────────────────────
+@router.get("/codelib", response_class=HTMLResponse)
+def codelib_list(
+    request: Request,
+    q: str = "",
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+):
+    query = db.query(models.ABAPCode).options(joinedload(models.ABAPCode.uploader))
     if not user.is_admin:
         query = query.filter(models.ABAPCode.uploaded_by == user.id)
 
@@ -141,11 +241,11 @@ def codelib_list(request: Request, q: str = "", db: Session = Depends(get_db)):
 
 # ── 업로드 폼 ──────────────────────────────────────────────────
 @router.get("/codelib/upload", response_class=HTMLResponse)
-def codelib_upload_form(request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
+def codelib_upload_form(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+):
     modules, devtypes = _get_modules_devtypes(db)
     return templates.TemplateResponse(request, "codelib_upload.html", {
         "request": request,
@@ -172,11 +272,8 @@ def codelib_upload(
     source_code: str = Form(...),
     is_draft: str = Form(""),
     db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
 ):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
     modules, devtypes = _get_modules_devtypes(db)
 
     if not sap_modules or not dev_types:
@@ -203,7 +300,6 @@ def codelib_upload(
 
     save_as_draft = (is_draft == "1")
 
-    # 임시 저장이 아닐 경우 Hannah + Mia 에이전트 분석 실행
     analysis = {}
     analyzed = False
     if not save_as_draft:
@@ -241,16 +337,17 @@ def codelib_upload(
 
 # ── 임시저장 항목 수정 ───────────────────────────────────────────
 @router.get("/codelib/{code_id}/edit", response_class=HTMLResponse)
-def codelib_edit_form(code_id: int, request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
+def codelib_edit_form(
+    code_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+):
     query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
     if not user.is_admin:
         query = query.filter(models.ABAPCode.uploaded_by == user.id)
     code = query.first()
-    if not code or not code.is_draft:
+    if not code or not _enforce_code_access(user, code) or not code.is_draft:
         return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
 
     modules, devtypes = _get_modules_devtypes(db)
@@ -280,16 +377,13 @@ def codelib_edit_save(
     source_code: str = Form(...),
     is_draft: str = Form(""),
     db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
 ):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
     query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
     if not user.is_admin:
         query = query.filter(models.ABAPCode.uploaded_by == user.id)
     code = query.first()
-    if not code or not code.is_draft:
+    if not code or not _enforce_code_access(user, code) or not code.is_draft:
         return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
 
     modules, devtypes = _get_modules_devtypes(db)
@@ -350,26 +444,29 @@ def codelib_edit_save(
     return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
 
 
-# ── 원본 소스 다운로드 ───────────────────────────────────────────
+# ── 원본 소스 다운로드 (섹션별) ─────────────────────────────────
 @router.get("/codelib/{code_id}/download")
-def codelib_download(code_id: int, request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
+def codelib_download(
+    code_id: int,
+    request: Request,
+    section: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+):
     query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
     if not user.is_admin:
         query = query.filter(models.ABAPCode.uploaded_by == user.id)
     code = query.first()
-    if not code:
+    if not code or not _enforce_code_access(user, code):
         return RedirectResponse(url="/codelib", status_code=302)
 
-    base = (code.program_id or f"SOURCE_{code_id}").strip().replace("/", "_")
-    if not base.lower().endswith(".abap"):
-        filename = f"{base}.abap"
-    else:
-        filename = base
-    body = code.source_code or ""
+    sections = _parse_source_sections(code.source_code or "")
+    n = len(sections)
+    if section >= n:
+        return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
+
+    body = sections[section]["code"]
+    filename = _abap_download_filename(code.program_id, code_id, section, n)
     ascii_name = filename.encode("ascii", "ignore").decode() or f"{code_id}.abap"
     cd = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(filename)}'
     return Response(
@@ -381,17 +478,22 @@ def codelib_download(code_id: int, request: Request, db: Session = Depends(get_d
 
 # ── 상세 보기 ──────────────────────────────────────────────────
 @router.get("/codelib/{code_id}", response_class=HTMLResponse)
-def codelib_detail(code_id: int, request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
-    query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
+def codelib_detail(
+    code_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+):
+    query = (
+        db.query(models.ABAPCode)
+        .options(joinedload(models.ABAPCode.uploader))
+        .filter(models.ABAPCode.id == code_id)
+    )
     if not user.is_admin:
         query = query.filter(models.ABAPCode.uploaded_by == user.id)
 
     code = query.first()
-    if not code:
+    if not code or not _enforce_code_access(user, code):
         return RedirectResponse(url="/codelib", status_code=302)
 
     analysis = {}
@@ -412,16 +514,17 @@ def codelib_detail(code_id: int, request: Request, db: Session = Depends(get_db)
 
 # ── 재분석 ─────────────────────────────────────────────────────
 @router.post("/codelib/{code_id}/reanalyze")
-def codelib_reanalyze(code_id: int, request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
+def codelib_reanalyze(
+    code_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+):
     query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
     if not user.is_admin:
         query = query.filter(models.ABAPCode.uploaded_by == user.id)
     code = query.first()
-    if not code:
+    if not code or not _enforce_code_access(user, code):
         return RedirectResponse(url="/codelib", status_code=302)
 
     try:
@@ -446,16 +549,17 @@ def codelib_reanalyze(code_id: int, request: Request, db: Session = Depends(get_
 
 # ── 삭제 ───────────────────────────────────────────────────────
 @router.post("/codelib/{code_id}/delete")
-def codelib_delete(code_id: int, request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
+def codelib_delete(
+    code_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+):
     query = db.query(models.ABAPCode).filter(models.ABAPCode.id == code_id)
     if not user.is_admin:
         query = query.filter(models.ABAPCode.uploaded_by == user.id)
     code = query.first()
-    if code:
+    if code and _enforce_code_access(user, code):
         db.delete(code)
         db.commit()
     return RedirectResponse(url="/codelib", status_code=302)
