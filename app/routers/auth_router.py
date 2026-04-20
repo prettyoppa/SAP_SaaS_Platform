@@ -3,7 +3,7 @@ import os
 from urllib.parse import quote
 
 from email_validator import EmailNotValidError, validate_email
-from fastapi import APIRouter, Depends, Request, Form, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,15 @@ from ..templates_config import templates
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _send_verification_email_bg(to_addr: str, verify_url: str) -> None:
+    """HTTP 응답을 막지 않기 위해 백그라운드에서 발송. 실패 시 로그만 남김(재발송으로 복구)."""
+    try:
+        send_verification_email(to_addr, verify_url)
+        logger.info("Verification email sent to %s", to_addr)
+    except Exception:
+        logger.exception("Verification email failed for %s", to_addr)
 
 
 def _normalize_email_strict(raw: str) -> str | None:
@@ -126,6 +135,7 @@ def register_check_email_page(request: Request, resent: str | None = None):
 @router.post("/register")
 def register(
     request: Request,
+    background_tasks: BackgroundTasks,
     email: str = Form(...),
     full_name: str = Form(...),
     company: str = Form(""),
@@ -174,23 +184,8 @@ def register(
         vtoken = auth.create_email_verification_token(email_norm)
         base = _public_base_url(request)
         link = f"{base}/verify-email?token={quote(vtoken, safe='')}"
-        try:
-            send_verification_email(email_norm, link)
-        except Exception as e:
-            logger.exception("send_verification_email failed: %s", e)
-            db.rollback()
-            settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-            return templates.TemplateResponse(
-                request,
-                "register.html",
-                {
-                    "error": "email_send_failed",
-                    "settings": settings,
-                    "email_verification": True,
-                },
-                status_code=500,
-            )
         db.commit()
+        background_tasks.add_task(_send_verification_email_bg, email_norm, link)
         return RedirectResponse(url="/register/check-email", status_code=302)
 
     db.commit()
@@ -218,6 +213,7 @@ def verify_email(token: str = "", db: Session = Depends(get_db)):
 @router.post("/resend-verification")
 def resend_verification(
     request: Request,
+    background_tasks: BackgroundTasks,
     email: str = Form(...),
     db: Session = Depends(get_db),
 ):
@@ -232,10 +228,7 @@ def resend_verification(
         vtoken = auth.create_email_verification_token(email_norm)
         base = _public_base_url(request)
         link = f"{base}/verify-email?token={quote(vtoken, safe='')}"
-        try:
-            send_verification_email(email_norm, link)
-        except Exception as e:
-            logger.exception("resend_verification: %s", e)
+        background_tasks.add_task(_send_verification_email_bg, email_norm, link)
     return RedirectResponse(url="/register/check-email?resent=1", status_code=302)
 
 

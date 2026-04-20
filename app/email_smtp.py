@@ -15,6 +15,18 @@ def smtp_verification_enabled() -> bool:
     return bool(host and mail_from)
 
 
+def _smtp_timeout_sec() -> float:
+    try:
+        return float(os.environ.get("SMTP_TIMEOUT_SEC") or "30")
+    except ValueError:
+        return 30.0
+
+
+def _smtp_ehlo_hostname() -> str | None:
+    h = (os.environ.get("SMTP_EHLO_HOSTNAME") or "").strip()
+    return h or None
+
+
 def _smtp_params() -> dict:
     return {
         "host": (os.environ.get("SMTP_HOST") or "").strip(),
@@ -41,14 +53,19 @@ def send_verification_email(to_addr: str, verify_url: str) -> None:
     msg["To"] = to_addr
     msg.set_content(body)
 
+    timeout = _smtp_timeout_sec()
+    ehlo = _smtp_ehlo_hostname()
+
     if p["port"] == 465:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(p["host"], p["port"], context=context) as smtp:
+        with smtplib.SMTP_SSL(
+            p["host"], p["port"], timeout=timeout, context=context, local_hostname=ehlo
+        ) as smtp:
             if p["user"]:
                 smtp.login(p["user"], p["password"])
             smtp.send_message(msg)
     else:
-        with smtplib.SMTP(p["host"], p["port"]) as smtp:
+        with smtplib.SMTP(p["host"], p["port"], timeout=timeout, local_hostname=ehlo) as smtp:
             smtp.ehlo()
             smtp.starttls(context=ssl.create_default_context())
             smtp.ehlo()
