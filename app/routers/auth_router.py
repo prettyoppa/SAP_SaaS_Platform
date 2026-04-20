@@ -1,9 +1,10 @@
 import logging
 import os
+import threading
 from urllib.parse import quote
 
 from email_validator import EmailNotValidError, validate_email
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, HTTPException
+from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 
@@ -17,12 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 def _send_verification_email_bg(to_addr: str, verify_url: str) -> None:
-    """HTTP 응답을 막지 않기 위해 백그라운드에서 발송. 실패 시 로그만 남김(재발송으로 복구)."""
+    """HTTP 응답을 막지 않기 위해 별도 스레드에서 발송. 실패 시 로그만 남김(재발송으로 복구)."""
     try:
         send_verification_email(to_addr, verify_url)
         logger.info("Verification email sent to %s", to_addr)
     except Exception:
         logger.exception("Verification email failed for %s", to_addr)
+
+
+def _schedule_verification_email(to_addr: str, verify_url: str) -> None:
+    threading.Thread(
+        target=_send_verification_email_bg, args=(to_addr, verify_url), daemon=True
+    ).start()
 
 
 def _normalize_email_strict(raw: str) -> str | None:
@@ -135,7 +142,6 @@ def register_check_email_page(request: Request, resent: str | None = None):
 @router.post("/register")
 def register(
     request: Request,
-    background_tasks: BackgroundTasks,
     email: str = Form(...),
     full_name: str = Form(...),
     company: str = Form(""),
@@ -185,7 +191,7 @@ def register(
         base = _public_base_url(request)
         link = f"{base}/verify-email?token={quote(vtoken, safe='')}"
         db.commit()
-        background_tasks.add_task(_send_verification_email_bg, email_norm, link)
+        _schedule_verification_email(email_norm, link)
         return RedirectResponse(url="/register/check-email", status_code=302)
 
     db.commit()
@@ -213,7 +219,6 @@ def verify_email(token: str = "", db: Session = Depends(get_db)):
 @router.post("/resend-verification")
 def resend_verification(
     request: Request,
-    background_tasks: BackgroundTasks,
     email: str = Form(...),
     db: Session = Depends(get_db),
 ):
@@ -228,7 +233,7 @@ def resend_verification(
         vtoken = auth.create_email_verification_token(email_norm)
         base = _public_base_url(request)
         link = f"{base}/verify-email?token={quote(vtoken, safe='')}"
-        background_tasks.add_task(_send_verification_email_bg, email_norm, link)
+        _schedule_verification_email(email_norm, link)
     return RedirectResponse(url="/register/check-email?resent=1", status_code=302)
 
 

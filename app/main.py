@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from .database import SessionLocal, db_target_log_line, engine
+from .email_smtp import log_smtp_startup_checks
 from . import auth, models
 from .routers import auth_router, rfp_router, interview_router, codelib_router
 from .routers import admin_router, review_router
@@ -153,6 +154,7 @@ async def lifespan(app: FastAPI):
             "Postgres 공개 TCP URL을 웹 서비스 변수 DATABASE_PUBLIC_URL 로 넣으세요."
         )
         raise
+    log_smtp_startup_checks(_log)
     yield
 
 
