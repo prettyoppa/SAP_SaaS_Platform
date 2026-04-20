@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request
@@ -10,6 +11,23 @@ from .database import get_db
 SECRET_KEY = "sap-saas-platform-secret-key-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+EMAIL_VERIFY_SALT = "email-verify-v1"
+EMAIL_VERIFY_MAX_AGE_SEC = 3 * 86400  # 3일
+
+
+def create_email_verification_token(email: str) -> str:
+    s = URLSafeTimedSerializer(SECRET_KEY, salt=EMAIL_VERIFY_SALT)
+    return s.dumps({"email": email})
+
+
+def parse_email_verification_token(token: str, max_age_sec: int = EMAIL_VERIFY_MAX_AGE_SEC) -> Optional[str]:
+    s = URLSafeTimedSerializer(SECRET_KEY, salt=EMAIL_VERIFY_SALT)
+    try:
+        data = s.loads(token, max_age=max_age_sec)
+        e = data.get("email")
+        return e if isinstance(e, str) else None
+    except (BadSignature, SignatureExpired):
+        return None
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 

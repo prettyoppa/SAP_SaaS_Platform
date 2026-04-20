@@ -1,3 +1,7 @@
+import logging
+import os
+from urllib.parse import quote
+
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -5,9 +9,11 @@ from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
+from ..email_smtp import send_verification_email, smtp_verification_enabled
 from ..templates_config import templates
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _normalize_email_strict(raw: str) -> str | None:
@@ -17,6 +23,13 @@ def _normalize_email_strict(raw: str) -> str | None:
         return validated.normalized
     except EmailNotValidError:
         return None
+
+
+def _public_base_url(request: Request) -> str:
+    env = (os.environ.get("PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if env:
+        return env
+    return str(request.base_url).rstrip("/")
 
 
 def _access_token_cookie_args(request: Request, token: str) -> dict:
@@ -33,11 +46,16 @@ def _access_token_cookie_args(request: Request, token: str) -> dict:
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request):
+def login_page(request: Request, verified: str | None = None, verify: str | None = None):
     user = auth.get_current_user(request, next(get_db()))
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
-    return templates.TemplateResponse(request, "login.html", {})
+    ctx = {}
+    if verified == "1":
+        ctx["verified_ok"] = True
+    if verify == "invalid":
+        ctx["verify_invalid"] = True
+    return templates.TemplateResponse(request, "login.html", ctx)
 
 
 @router.post("/login")
@@ -63,6 +81,13 @@ def login(
             {"error": True},
             status_code=400,
         )
+    if smtp_verification_enabled() and not user.email_verified:
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "email_not_verified", "email": email_norm},
+            status_code=400,
+        )
     token = auth.create_access_token({"sub": user.email})
     response = RedirectResponse(url="/dashboard", status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
@@ -82,7 +107,20 @@ def get_companies(q: str = "", db: Session = Depends(get_db)):
 @router.get("/register", response_class=HTMLResponse)
 def register_page(request: Request, db: Session = Depends(get_db)):
     settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    return templates.TemplateResponse(request, "register.html", {"settings": settings})
+    return templates.TemplateResponse(
+        request,
+        "register.html",
+        {"settings": settings, "email_verification": smtp_verification_enabled()},
+    )
+
+
+@router.get("/register/check-email", response_class=HTMLResponse)
+def register_check_email_page(request: Request, resent: str | None = None):
+    return templates.TemplateResponse(
+        request,
+        "register_check_email.html",
+        {"resent_ok": resent == "1"},
+    )
 
 
 @router.post("/register")
@@ -100,7 +138,11 @@ def register(
         return templates.TemplateResponse(
             request,
             "register.html",
-            {"error": "invalid_email", "settings": settings},
+            {
+                "error": "invalid_email",
+                "settings": settings,
+                "email_verification": smtp_verification_enabled(),
+            },
             status_code=400,
         )
 
@@ -110,21 +152,91 @@ def register(
         return templates.TemplateResponse(
             request,
             "register.html",
-            {"error": "duplicate", "settings": settings},
+            {
+                "error": "duplicate",
+                "settings": settings,
+                "email_verification": smtp_verification_enabled(),
+            },
             status_code=400,
         )
+    want_verify = smtp_verification_enabled()
     new_user = models.User(
         email=email_norm,
         full_name=full_name,
         company=company or None,
         hashed_password=auth.hash_password(password),
+        email_verified=not want_verify,
     )
     db.add(new_user)
+    db.flush()
+
+    if want_verify:
+        vtoken = auth.create_email_verification_token(email_norm)
+        base = _public_base_url(request)
+        link = f"{base}/verify-email?token={quote(vtoken, safe='')}"
+        try:
+            send_verification_email(email_norm, link)
+        except Exception as e:
+            logger.exception("send_verification_email failed: %s", e)
+            db.rollback()
+            settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "email_send_failed",
+                    "settings": settings,
+                    "email_verification": True,
+                },
+                status_code=500,
+            )
+        db.commit()
+        return RedirectResponse(url="/register/check-email", status_code=302)
+
     db.commit()
     token = auth.create_access_token({"sub": new_user.email})
     response = RedirectResponse(url="/dashboard", status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
     return response
+
+
+@router.get("/verify-email")
+def verify_email(token: str = "", db: Session = Depends(get_db)):
+    email = auth.parse_email_verification_token(token)
+    if not email:
+        return RedirectResponse(url="/login?verify=invalid", status_code=302)
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        return RedirectResponse(url="/login?verify=invalid", status_code=302)
+    if user.email_verified:
+        return RedirectResponse(url="/login", status_code=302)
+    user.email_verified = True
+    db.commit()
+    return RedirectResponse(url="/login?verified=1", status_code=302)
+
+
+@router.post("/resend-verification")
+def resend_verification(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """미인증 계정에 한해 인증 메일 재발송. 존재 여부는 응답에 노출하지 않음."""
+    if not smtp_verification_enabled():
+        return RedirectResponse(url="/login", status_code=302)
+    email_norm = _normalize_email_strict(email)
+    if not email_norm:
+        return RedirectResponse(url="/register/check-email?resent=1", status_code=302)
+    user = db.query(models.User).filter(models.User.email == email_norm).first()
+    if user and not user.email_verified:
+        vtoken = auth.create_email_verification_token(email_norm)
+        base = _public_base_url(request)
+        link = f"{base}/verify-email?token={quote(vtoken, safe='')}"
+        try:
+            send_verification_email(email_norm, link)
+        except Exception as e:
+            logger.exception("resend_verification: %s", e)
+    return RedirectResponse(url="/register/check-email?resent=1", status_code=302)
 
 
 @router.get("/logout")

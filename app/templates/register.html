@@ -29,6 +29,18 @@
             <i class="fa-solid fa-circle-exclamation me-2"></i>
             <span>올바른 이메일 형식이 아닙니다.</span>
           </div>
+          {% elif error == 'email_send_failed' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>인증 메일을 보내지 못했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.</span>
+          </div>
+          {% endif %}
+
+          {% if email_verification %}
+          <div class="alert alert-info small d-flex align-items-start" role="alert">
+            <i class="fa-solid fa-envelope me-2 mt-1"></i>
+            <span>가입 후 이메일로 인증 링크가 발송됩니다. 링크를 눌러 인증을 완료한 뒤 로그인할 수 있습니다.</span>
+          </div>
           {% endif %}
 
           <form method="post" action="/register" id="registerForm" novalidate>

@@ -87,48 +87,93 @@ def _normalize_program_id_stored(program_id: str | None) -> str | None:
     return s if s else None
 
 
-def _abap_download_filename(program_id: str | None, code_id: int, section_idx: int, n_sections: int) -> str:
-    """다운로드 파일명: 등록한 프로그램 ID를 그대로 반영. Windows 금지 문자만 치환."""
-    raw = _normalize_program_id_stored(program_id) or f"SOURCE_{code_id}"
-    # <>:"/\|?* 및 제어문자만 제거·치환 (한글·기호·언더스코어 유지)
+def _sanitize_abap_filename_base(raw: str, code_id: int) -> str:
+    """Windows 금지 문자만 치환."""
     safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", raw).strip()
     if not safe:
         safe = f"SOURCE_{code_id}"
     if len(safe) > 120:
         safe = safe[:120]
-    if n_sections <= 1:
-        return f"{safe}.abap"
-    return f"{safe}_S{section_idx + 1}.abap"
+    return safe
+
+
+def _extract_include_name_from_section_label(inner: str) -> str | None:
+    """
+    '*& [1] 메인 프로그램 – ZXXX_TOP' 라인에서 Include명(– 뒤)만 추출.
+    업로드 폼의 section-name-input 값.
+    """
+    s = inner.strip()
+    m = re.match(r"^\[\d+\]\s*(.+)$", s)
+    if not m:
+        return None
+    rest = m.group(1).strip()
+    for sep in (" – ", " — ", " - "):
+        if sep in rest:
+            right = rest.split(sep, 1)[1].strip()
+            return right if right else None
+    return None
+
+
+def _abap_download_filename(
+    top_program_id: str | None,
+    section_include_name: str | None,
+    code_id: int,
+    section_idx: int,
+    n_sections: int,
+) -> str:
+    """
+    섹션별 Include명(등록 시 각 박스 위 입력)이 있으면 그 이름으로 저장.
+    없으면 상단 프로그램 ID + 멀티 섹션일 때만 _Sn 접미사.
+    """
+    per = _normalize_program_id_stored(section_include_name)
+    top = _normalize_program_id_stored(top_program_id)
+    if per:
+        base = _sanitize_abap_filename_base(per, code_id)
+        return f"{base}.abap"
+    raw = top or f"SOURCE_{code_id}"
+    if n_sections > 1:
+        raw = f"{raw}_S{section_idx + 1}"
+    base = _sanitize_abap_filename_base(raw, code_id)
+    return f"{base}.abap"
 
 
 def _parse_source_sections(source_code: str) -> list[dict]:
-    """*&==== 구분자로 업로드된 멀티섹션 소스를 파싱합니다."""
-    if "*&====" not in source_code:
-        return [{"label": "전체 소스", "code": source_code}]
+    """
+    업로드 JS가 만든 *&==== / *& [n] 유형 – Include명 / *&==== / 코드 형식을 파싱합니다.
+    기존 한 줄 파서는 두 번째 *&====에서 라벨이 지워져 '섹션'만 남던 버그가 있었습니다.
+    """
+    text = (source_code or "").replace("\r\n", "\n")
+    if "*& [" not in text:
+        c = text.strip()
+        return [{"label": "전체 소스", "code": c, "include_name": None}]
 
-    sections = []
-    current_label = ""
-    current_lines = []
+    lines = text.split("\n")
+    sections: list[dict] = []
+    i, n = 0, len(lines)
 
-    for line in source_code.splitlines():
-        if line.startswith("*&===="):
-            if current_lines:
-                code_text = "\n".join(current_lines).strip()
-                if code_text:
-                    sections.append({"label": current_label or "섹션", "code": code_text})
-            current_lines = []
-            current_label = ""
-        elif line.startswith("*& ["):
-            current_label = line[3:].strip()
-        else:
-            current_lines.append(line)
-
-    if current_lines:
-        code_text = "\n".join(current_lines).strip()
+    while i < n:
+        st = lines[i].strip()
+        if not (st.startswith("*& [") and "]" in st):
+            i += 1
+            continue
+        inner = st[3:].strip() if st.startswith("*& ") else st
+        i += 1
+        if i < n and "*&=" in lines[i] and "====" in lines[i]:
+            i += 1
+        body: list[str] = []
+        while i < n:
+            t = lines[i].strip()
+            if t.startswith("*& [") and "]" in t:
+                break
+            if t.startswith("*&") and "====" in t:
+                break
+            body.append(lines[i])
+            i += 1
+        code_text = "\n".join(body).strip()
         if code_text:
-            sections.append({"label": current_label or "섹션", "code": code_text})
-
-    return sections if sections else [{"label": "전체 소스", "code": source_code}]
+            inc = _extract_include_name_from_section_label(inner)
+            sections.append({"label": inner, "code": code_text, "include_name": inc})
+    return sections if sections else [{"label": "전체 소스", "code": text.strip(), "include_name": None}]
 
 
 def _normalize_section_type_for_edit(typ: str) -> str:
@@ -547,7 +592,8 @@ def codelib_download(
         return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
 
     body = sections[section]["code"]
-    filename = _abap_download_filename(code.program_id, code_id, section, n)
+    inc = sections[section].get("include_name")
+    filename = _abap_download_filename(code.program_id, inc, code_id, section, n)
     ascii_name = filename.encode("ascii", "ignore").decode() or f"{code_id}.abap"
     cd = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(filename)}'
     return Response(

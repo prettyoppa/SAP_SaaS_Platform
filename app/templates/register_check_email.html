@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}이메일 확인 – Catchy Lab SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="auth-card">
+          <div class="auth-logo">
+            <i class="fa-solid fa-envelope-circle-check"></i>
+          </div>
+          <h2 class="auth-title">이메일을 확인해 주세요</h2>
+          <p class="auth-sub text-muted mb-4">
+            가입하신 주소로 인증 링크를 보냈습니다. 메일함(스팸함 포함)에서 링크를 눌러 인증을 완료한 뒤 로그인해 주세요.
+          </p>
+          {% if resent_ok %}
+          <div class="alert alert-info d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-paper-plane me-2"></i>
+            <span>요청하신 경우 인증 메일을 다시 보냈습니다.</span>
+          </div>
+          {% endif %}
+          <form method="post" action="/resend-verification" class="mb-3">
+            <label class="form-label small text-muted">인증 메일을 받지 못하셨나요? 이메일 주소를 입력하고 재발송하세요.</label>
+            <div class="input-group">
+              <input type="email" name="email" class="form-control" required placeholder="you@company.com" autocomplete="email"/>
+              <button type="submit" class="btn btn-outline-primary">재발송</button>
+            </div>
+          </form>
+          <p class="text-center text-muted mb-0">
+            <a href="/login">로그인으로</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

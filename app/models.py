@@ -14,6 +14,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    email_verified = Column(Boolean, default=True)  # 기존 행은 마이그레이션에서 true
     created_at = Column(DateTime, default=datetime.utcnow)
 
     rfps = relationship("RFP", back_populates="owner")

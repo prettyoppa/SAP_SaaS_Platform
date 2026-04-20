@@ -229,26 +229,26 @@
         {% set tab_base = (code.program_id or code.title or 'SOURCE') | trim %}
         <details class="interview-summary-toggle codelib-source-details">
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            {% if source_sections | length > 1 %}
-            <a id="codelib-dl-link" href="/codelib/{{ code.id }}/download?section=0"
-               class="btn btn-sm btn-outline-primary"
-               onclick="event.stopPropagation()">
-              <i class="fa-solid fa-download me-1"></i>다운로드
-            </a>
-            {% else %}
-            <a href="/codelib/{{ code.id }}/download?section=0"
-               class="btn btn-sm btn-outline-primary"
-               onclick="event.stopPropagation()">
-              <i class="fa-solid fa-download me-1"></i>다운로드
-            </a>
-            {% endif %}
-            <span class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
-              <i class="fa-solid fa-code me-1"></i>
+            <span class="d-flex flex-wrap align-items-center gap-2 flex-grow-1 min-w-0">
+              <i class="fa-solid fa-code me-1 flex-shrink-0"></i>
               <span>원본 ABAP 소스 코드 보기</span>
               <span class="small text-muted">
                 ({{ source_sections | length }}개 섹션 · {{ code.source_code.splitlines()|length }}줄)
               </span>
             </span>
+            {% if source_sections | length > 1 %}
+            <a id="codelib-dl-link" href="/codelib/{{ code.id }}/download?section=0"
+               class="btn btn-sm btn-outline-primary ms-auto flex-shrink-0"
+               onclick="event.stopPropagation()">
+              <i class="fa-solid fa-download me-1"></i>다운로드
+            </a>
+            {% else %}
+            <a href="/codelib/{{ code.id }}/download?section=0"
+               class="btn btn-sm btn-outline-primary ms-auto flex-shrink-0"
+               onclick="event.stopPropagation()">
+              <i class="fa-solid fa-download me-1"></i>다운로드
+            </a>
+            {% endif %}
           </summary>
           <div class="interview-summary-body p-0">
 
@@ -264,7 +264,7 @@
                         data-section-idx="{{ loop.index0 }}"
                         type="button" role="tab">
                   <i class="fa-solid fa-file-code me-1 codelib-tab-ic"></i>
-                  <span class="font-monospace">{{ tab_base }}{% if source_sections | length > 1 %}_S{{ loop.index }}{% endif %}</span>
+                  <span class="font-monospace">{% if sec.include_name %}{{ sec.include_name }}{% elif source_sections | length > 1 %}{{ tab_base }}_S{{ loop.index }}{% else %}{{ tab_base }}{% endif %}</span>
                   <span class="ms-1 codelib-tab-meta">({{ sec.code.splitlines()|length }}줄)</span>
                 </button>
               </li>
