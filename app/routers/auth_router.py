@@ -1,4 +1,4 @@
-import re
+from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -8,6 +8,15 @@ from ..database import get_db
 from ..templates_config import templates
 
 router = APIRouter()
+
+
+def _normalize_email_strict(raw: str) -> str | None:
+    """RFC 기반 구문 검증(가장 흔한 방식). DNS MX 조회는 배포 환경에 따라 생략."""
+    try:
+        validated = validate_email(raw.strip(), check_deliverability=False)
+        return validated.normalized
+    except EmailNotValidError:
+        return None
 
 
 def _access_token_cookie_args(request: Request, token: str) -> dict:
@@ -38,7 +47,15 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user = db.query(models.User).filter(models.User.email == email).first()
+    email_norm = _normalize_email_strict(email)
+    if not email_norm:
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": True},
+            status_code=400,
+        )
+    user = db.query(models.User).filter(models.User.email == email_norm).first()
     if not user or not auth.verify_password(password, user.hashed_password):
         return templates.TemplateResponse(
             request,
@@ -77,7 +94,17 @@ def register(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    existing = db.query(models.User).filter(models.User.email == email).first()
+    email_norm = _normalize_email_strict(email)
+    if not email_norm:
+        settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {"error": "invalid_email", "settings": settings},
+            status_code=400,
+        )
+
+    existing = db.query(models.User).filter(models.User.email == email_norm).first()
     if existing:
         settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
         return templates.TemplateResponse(
@@ -87,7 +114,7 @@ def register(
             status_code=400,
         )
     new_user = models.User(
-        email=email,
+        email=email_norm,
         full_name=full_name,
         company=company or None,
         hashed_password=auth.hash_password(password),

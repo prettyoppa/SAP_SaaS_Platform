@@ -8,11 +8,14 @@ document.addEventListener('DOMContentLoaded', () => {
     desc.addEventListener('input', () => { counter.textContent = desc.value.length; });
   }
 
-  /* File input change */
-  const fileInput = document.getElementById('attachment');
+  /* File input change (다중 첨부) */
+  const fileInput = document.getElementById('attachments') || document.getElementById('attachment');
   if (fileInput) {
     fileInput.addEventListener('change', () => {
-      if (fileInput.files[0]) showFileSelected(fileInput.files[0].name);
+      if (fileInput.files && fileInput.files.length) {
+        const names = Array.from(fileInput.files).map(f => f.name).slice(0, 5);
+        showFileSelected(names.join(', '));
+      }
     });
   }
 
@@ -40,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function updateReview() {
   const modules = [...document.querySelectorAll('input[name="sap_modules"]:checked')].map(el => el.value);
   const types   = [...document.querySelectorAll('input[name="dev_types"]:checked')].map(el => el.value);
-  const fileInput = document.getElementById('attachment');
+  const fileInput = document.getElementById('attachments') || document.getElementById('attachment');
 
   const noSel  = currentLang === 'ko' ? '선택 없음' : 'None selected';
   const noFile = currentLang === 'ko' ? '파일 없음'  : 'No file attached';
@@ -57,9 +60,14 @@ function updateReview() {
     ? types.map(d => `<span class="badge-devtype">${d.replace(/_/g,' ')}</span>`).join('')
     : `<em class="text-muted">${noSel}</em>`;
 
-  if (rfEl) rfEl.innerHTML = (fileInput && fileInput.files[0])
-    ? `<i class="fa-solid fa-file me-1"></i>${fileInput.files[0].name}`
-    : `<em class="text-muted">${noFile}</em>`;
+  if (rfEl) {
+    if (fileInput && fileInput.files && fileInput.files.length) {
+      const names = Array.from(fileInput.files).map(f => f.name);
+      rfEl.innerHTML = `<i class="fa-solid fa-file me-1"></i>${names.join(', ')}`;
+    } else {
+      rfEl.innerHTML = `<em class="text-muted">${noFile}</em>`;
+    }
+  }
 }
 
 function activateProgressOnScroll() {

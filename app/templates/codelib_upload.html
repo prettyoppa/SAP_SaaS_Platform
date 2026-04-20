@@ -50,7 +50,8 @@
                 </label>
                 <input type="text" name="program_id" id="program_id" class="form-control"
                        maxlength="40" placeholder="예: ZRSDD6A120"
-                       value="{% if edit_code %}{{ edit_code.program_id or '' }}{% endif %}"/>
+                       value="{% if form_program_id is defined %}{{ form_program_id }}{% elif edit_code %}{{ edit_code.program_id or '' }}{% endif %}"/>
+                <div class="small mt-1 text-warning" id="codelib-program-id-feedback" style="min-height:1.25rem"></div>
               </div>
               <div class="col-md-3">
                 <label class="form-label fw-semibold">
@@ -58,7 +59,8 @@
                 </label>
                 <input type="text" name="transaction_code" id="transaction_code" class="form-control"
                        maxlength="20" placeholder="예: ZSD_TRACK"
-                       value="{% if edit_code %}{{ edit_code.transaction_code or '' }}{% endif %}"/>
+                       value="{% if form_transaction_code is defined %}{{ form_transaction_code }}{% elif edit_code %}{{ edit_code.transaction_code or '' }}{% endif %}"/>
+                <div class="small mt-1 text-warning" id="codelib-tcode-feedback" style="min-height:1.25rem"></div>
               </div>
             </div>
 
@@ -257,13 +259,39 @@
 
 {% block extra_js %}
 <script>
-// 프로그램 ID 자동 대문자
-document.getElementById('program_id').addEventListener('input', function() {
-  this.value = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-});
-document.getElementById('transaction_code').addEventListener('input', function() {
-  this.value = this.value.replace(/[^A-Za-z0-9_]/g, '').toUpperCase();
-});
+// 프로그램 ID / 트랜잭션: IME 시 안내 (입력 강제 제거 없음)
+(function () {
+  var CJK = /[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]/;
+  var printable = /^[!-~]*$/;
+  function hintPid() {
+    var el = document.getElementById('program_id');
+    var fb = document.getElementById('codelib-program-id-feedback');
+    if (!el || !fb) return;
+    var v = el.value.trim();
+    if (!v) { fb.textContent = ''; return; }
+    if (v.length > 40) { fb.textContent = '40자 이내로 입력해 주세요.'; return; }
+    if (CJK.test(v)) { fb.textContent = '한글 등 IME 입력은 사용할 수 없습니다. 영문·숫자·기호(공백 제외)만 입력해 주세요.'; return; }
+    if (!printable.test(el.value)) { fb.textContent = '허용되지 않는 문자가 있습니다.'; return; }
+    fb.textContent = '';
+  }
+  function hintTc() {
+    var el = document.getElementById('transaction_code');
+    var fb = document.getElementById('codelib-tcode-feedback');
+    if (!el || !fb) return;
+    var v = el.value.trim();
+    if (!v) { fb.textContent = ''; return; }
+    if (v.length > 20) { fb.textContent = '20자 이내로 입력해 주세요.'; return; }
+    if (CJK.test(v)) { fb.textContent = '한글 등 IME 입력은 사용할 수 없습니다.'; return; }
+    if (!printable.test(el.value)) { fb.textContent = '허용되지 않는 문자가 있습니다.'; return; }
+    fb.textContent = '';
+  }
+  var pid = document.getElementById('program_id');
+  var tc = document.getElementById('transaction_code');
+  if (pid) pid.addEventListener('input', hintPid);
+  if (tc) tc.addEventListener('input', hintTc);
+  hintPid();
+  hintTc();
+})();
 
 const container = document.getElementById('sections-container');
 let sectionCount = container.querySelectorAll('.code-section').length || 1;

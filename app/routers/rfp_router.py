@@ -1,3 +1,4 @@
+import json
 import mimetypes
 import os
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
@@ -5,7 +6,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional, Tuple
 
-from .. import models, auth, r2_storage
+from .. import models, auth, r2_storage, sap_fields
 from ..database import get_db
 from ..templates_config import templates
 
@@ -20,6 +21,34 @@ UPLOAD_DIR = (
 ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg"}
 MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+MAX_RFP_ATTACHMENTS = 5
+
+
+async def _build_attachment_entries_from_uploads(
+    user_id: int,
+    uploads: List[UploadFile],
+    notes: list[str],
+) -> tuple[list[dict] | None, str | None]:
+    """업로드 파일 목록을 저장하고 entries 생성. (None, err_key) 오류 시."""
+    entries: list[dict] = []
+    for i, up in enumerate(uploads):
+        if not up.filename:
+            continue
+        if len(entries) >= MAX_RFP_ATTACHMENTS:
+            return None, "too_many_attachments"
+        ext = os.path.splitext(up.filename)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            return None, "invalid_file"
+        try:
+            raw = await _read_upload_limited(up)
+        except ValueError:
+            return None, "file_too_large"
+        if len(raw) == 0:
+            return None, "empty_attachment"
+        path, fname = _store_rfp_file(user_id, ext, raw, up.filename)
+        note = (notes[i] if i < len(notes) else "") or ""
+        entries.append({"path": path, "filename": fname, "note": note.strip()})
+    return entries, None
 
 
 async def _read_upload_limited(upload: UploadFile) -> bytes:
@@ -53,6 +82,36 @@ def _store_rfp_file(user_id: int, ext: str, data: bytes, original_filename: str)
     return _save_attachment_local(user_id, ext, data), original_filename
 
 
+def _rfp_attachment_entries(rfp: models.RFP) -> list[dict]:
+    """attachments_json 우선, 없으면 레거시 단일 file_path."""
+    if getattr(rfp, "attachments_json", None):
+        try:
+            data = json.loads(rfp.attachments_json)
+            if isinstance(data, list) and data:
+                return [x for x in data if isinstance(x, dict) and x.get("path")]
+        except Exception:
+            pass
+    if rfp.file_path:
+        return [{
+            "path": rfp.file_path,
+            "filename": rfp.file_name or os.path.basename(rfp.file_path),
+            "note": "",
+        }]
+    return []
+
+
+def _set_rfp_attachments(rfp: models.RFP, entries: list[dict]) -> None:
+    """레거시 file_path/file_name은 첫 번째 첨부와 동기화."""
+    if not entries:
+        rfp.attachments_json = None
+        rfp.file_path = None
+        rfp.file_name = None
+        return
+    rfp.attachments_json = json.dumps(entries, ensure_ascii=False)
+    rfp.file_path = entries[0]["path"]
+    rfp.file_name = entries[0]["filename"]
+
+
 def _remove_stored_file(file_path: Optional[str]) -> None:
     if not file_path:
         return
@@ -64,6 +123,38 @@ def _remove_stored_file(file_path: Optional[str]) -> None:
             os.remove(file_path)
     except OSError:
         pass
+
+
+def _rfp_form_ctx(
+    request: Request,
+    user,
+    modules,
+    devtypes,
+    writing_tip: str,
+    error: str | None = None,
+    form: dict | None = None,
+    rfp=None,
+    edit_mode: bool = False,
+    attachment_entries: list | None = None,
+):
+    ctx = {
+        "request": request,
+        "user": user,
+        "modules": modules,
+        "devtypes": devtypes,
+        "writing_tip": writing_tip,
+        "error": error,
+        "form": form,
+        "rfp": rfp,
+        "edit_mode": edit_mode,
+    }
+    if attachment_entries is not None:
+        ctx["attachment_entries"] = attachment_entries
+    elif rfp is not None:
+        ctx["attachment_entries"] = _rfp_attachment_entries(rfp)
+    else:
+        ctx["attachment_entries"] = []
+    return ctx
 
 
 def _get_modules_devtypes(db: Session):
@@ -86,6 +177,7 @@ def rfp_form(request: Request, db: Session = Depends(get_db)):
         "modules": modules,
         "devtypes": devtypes,
         "writing_tip": writing_tip,
+        "attachment_entries": [],
     })
 
 
@@ -98,74 +190,144 @@ async def submit_rfp(
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
     description: str = Form(""),
-    attachment: Optional[UploadFile] = File(None),
+    attachments: List[UploadFile] = File(default=[]),
+    note_0: str = Form(""),
+    note_1: str = Form(""),
+    note_2: str = Form(""),
+    note_3: str = Form(""),
+    note_4: str = Form(""),
+    save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
+    is_draft = (save_action.strip().lower() == "draft")
+    notes_in = [note_0, note_1, note_2, note_3, note_4]
+
     modules, devtypes = _get_modules_devtypes(db)
     writing_tip_setting = db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
+
+    def _form_dict():
+        return {
+            "program_id": program_id,
+            "transaction_code": transaction_code,
+            "title": title,
+            "description": description,
+            "sap_modules": sap_modules,
+            "dev_types": dev_types,
+            "notes": notes_in,
+        }
 
     # 최대 3개 초과 검증
     if len(sap_modules) > 3 or len(dev_types) > 3:
         return templates.TemplateResponse(
             request,
             "rfp_form.html",
-            {"user": user, "modules": modules, "devtypes": devtypes,
-             "writing_tip": writing_tip, "error": "max_selection"},
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="max_selection",
+                form=_form_dict(),
+            ),
             status_code=400,
         )
 
-    file_path = None
-    file_name = None
-    if attachment and attachment.filename:
-        ext = os.path.splitext(attachment.filename)[1].lower()
-        if ext not in ALLOWED_EXTENSIONS:
+    if not is_draft and (not sap_modules or not dev_types):
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="need_modules",
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
+
+    pid, perr = sap_fields.validate_program_id(program_id, required=(not is_draft))
+    if perr:
+        err_key = {
+            "required": "program_id_required",
+            "too_long": "program_id_too_long",
+            "no_ime_chars": "program_id_ime",
+            "invalid_chars": "program_id_chars",
+        }[perr]
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error=err_key,
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
+
+    tc, terr = sap_fields.validate_transaction_code(transaction_code)
+    if terr:
+        err_key = {
+            "too_long": "transaction_code_too_long",
+            "no_ime_chars": "transaction_code_ime",
+            "invalid_chars": "transaction_code_chars",
+        }[terr]
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error=err_key,
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
+
+    n_uploads = sum(1 for f in attachments if f.filename)
+    if n_uploads > MAX_RFP_ATTACHMENTS:
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="too_many_attachments",
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
+
+    att_entries: list[dict] = []
+    if n_uploads:
+        att_entries, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
+        if err_a:
             return templates.TemplateResponse(
                 request,
                 "rfp_form.html",
-                {"user": user, "modules": modules, "devtypes": devtypes,
-                 "writing_tip": writing_tip, "error": "invalid_file"},
+                _rfp_form_ctx(
+                    request, user, modules, devtypes, writing_tip,
+                    error=err_a,
+                    form=_form_dict(),
+                ),
                 status_code=400,
             )
-        try:
-            raw = await _read_upload_limited(attachment)
-        except ValueError:
-            return templates.TemplateResponse(
-                request,
-                "rfp_form.html",
-                {"user": user, "modules": modules, "devtypes": devtypes,
-                 "writing_tip": writing_tip, "error": "file_too_large"},
-                status_code=400,
-            )
-        if len(raw) == 0:
-            return templates.TemplateResponse(
-                request,
-                "rfp_form.html",
-                {"user": user, "modules": modules, "devtypes": devtypes,
-                 "writing_tip": writing_tip, "error": "empty_attachment"},
-                status_code=400,
-            )
-        file_path, file_name = _store_rfp_file(user.id, ext, raw, attachment.filename)
 
     rfp = models.RFP(
         user_id=user.id,
-        program_id=program_id.strip().upper() if program_id else None,
-        transaction_code=transaction_code.strip().upper() if transaction_code else None,
-        title=title,
-        sap_modules=",".join(sap_modules),
-        dev_types=",".join(dev_types),
+        program_id=pid,
+        transaction_code=tc,
+        title=title.strip(),
+        sap_modules=",".join(sap_modules) if sap_modules else "",
+        dev_types=",".join(dev_types) if dev_types else "",
         description=description,
-        file_path=file_path,
-        file_name=file_name,
-        status="submitted",
+        status="draft" if is_draft else "submitted",
+        interview_status="pending",
     )
+    _set_rfp_attachments(rfp, att_entries)
     db.add(rfp)
     db.commit()
     db.refresh(rfp)
+    if is_draft:
+        return RedirectResponse(url=f"/rfp/{rfp.id}/edit", status_code=302)
     return RedirectResponse(url=f"/rfp/{rfp.id}/success", status_code=302)
 
 
@@ -181,7 +343,12 @@ def rfp_success(rfp_id: int, request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/rfp/{rfp_id}/attachment")
-def rfp_download_attachment(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+def rfp_download_attachment(
+    rfp_id: int,
+    request: Request,
+    idx: int = 0,
+    db: Session = Depends(get_db),
+):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -189,17 +356,25 @@ def rfp_download_attachment(rfp_id: int, request: Request, db: Session = Depends
     if not user.is_admin:
         q = q.filter(models.RFP.user_id == user.id)
     rfp = q.first()
-    if not rfp or not rfp.file_path:
+    if not rfp:
         return RedirectResponse(url="/dashboard", status_code=302)
-    kind, ref = r2_storage.parse_storage_ref(rfp.file_path)
+    entries = _rfp_attachment_entries(rfp)
+    if idx < 0 or idx >= len(entries):
+        return RedirectResponse(url="/dashboard", status_code=302)
+    ent = entries[idx]
+    path = ent.get("path")
+    fname = ent.get("filename") or "attachment"
+    if not path:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    kind, ref = r2_storage.parse_storage_ref(path)
     if kind == "r2":
         if not r2_storage.is_configured():
             return RedirectResponse(url="/dashboard", status_code=302)
-        url = r2_storage.presigned_get_url(ref, rfp.file_name or "attachment")
+        url = r2_storage.presigned_get_url(ref, fname)
         return RedirectResponse(url=url, status_code=302)
     if not os.path.isfile(ref):
         return RedirectResponse(url="/dashboard", status_code=302)
-    return FileResponse(ref, filename=rfp.file_name or os.path.basename(ref))
+    return FileResponse(ref, filename=fname)
 
 
 @router.get("/rfp/{rfp_id}/edit", response_class=HTMLResponse)
@@ -217,6 +392,7 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         "request": request, "user": user, "rfp": rfp,
         "modules": modules, "devtypes": devtypes, "writing_tip": writing_tip,
         "edit_mode": True,
+        "attachment_entries": _rfp_attachment_entries(rfp),
     })
 
 
@@ -230,7 +406,23 @@ async def rfp_edit_submit(
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
     description: str = Form(""),
-    attachment: Optional[UploadFile] = File(None),
+    attachments: List[UploadFile] = File(default=[]),
+    note_0: str = Form(""),
+    note_1: str = Form(""),
+    note_2: str = Form(""),
+    note_3: str = Form(""),
+    note_4: str = Form(""),
+    note_orig_0: str = Form(""),
+    note_orig_1: str = Form(""),
+    note_orig_2: str = Form(""),
+    note_orig_3: str = Form(""),
+    note_orig_4: str = Form(""),
+    delete_0: str = Form(""),
+    delete_1: str = Form(""),
+    delete_2: str = Form(""),
+    delete_3: str = Form(""),
+    delete_4: str = Form(""),
+    save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -240,57 +432,175 @@ async def rfp_edit_submit(
     if not rfp:
         return RedirectResponse(url="/dashboard", status_code=302)
 
+    is_draft = (save_action.strip().lower() == "draft")
+    if rfp.status != "draft":
+        is_draft = False
+
+    notes_in = [note_0, note_1, note_2, note_3, note_4]
+    notes_orig = [note_orig_0, note_orig_1, note_orig_2, note_orig_3, note_orig_4]
+    del_flags = [bool(delete_0), bool(delete_1), bool(delete_2), bool(delete_3), bool(delete_4)]
+
     modules, devtypes = _get_modules_devtypes(db)
+    writing_tip_setting = db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
+    writing_tip = writing_tip_setting.value if writing_tip_setting else ""
+
+    def _form_dict():
+        return {
+            "program_id": program_id,
+            "transaction_code": transaction_code,
+            "title": title,
+            "description": description,
+            "sap_modules": sap_modules,
+            "dev_types": dev_types,
+            "notes": notes_in,
+        }
 
     if len(sap_modules) > 3 or len(dev_types) > 3:
         return templates.TemplateResponse(
             request,
             "rfp_form.html",
-            {"user": user, "rfp": rfp, "modules": modules,
-             "devtypes": devtypes, "error": "max_selection", "edit_mode": True},
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="max_selection",
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+            ),
             status_code=400,
         )
 
-    rfp.program_id = program_id.strip().upper() if program_id else rfp.program_id
-    rfp.transaction_code = transaction_code.strip().upper() if transaction_code else rfp.transaction_code
-    rfp.title = title
-    rfp.sap_modules = ",".join(sap_modules)
-    rfp.dev_types = ",".join(dev_types)
+    if not is_draft and (not sap_modules or not dev_types):
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="need_modules",
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+            ),
+            status_code=400,
+        )
+
+    pid, perr = sap_fields.validate_program_id(program_id, required=(not is_draft))
+    if perr:
+        err_key = {
+            "required": "program_id_required",
+            "too_long": "program_id_too_long",
+            "no_ime_chars": "program_id_ime",
+            "invalid_chars": "program_id_chars",
+        }[perr]
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error=err_key,
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+            ),
+            status_code=400,
+        )
+
+    tc, terr = sap_fields.validate_transaction_code(transaction_code)
+    if terr:
+        err_key = {
+            "too_long": "transaction_code_too_long",
+            "no_ime_chars": "transaction_code_ime",
+            "invalid_chars": "transaction_code_chars",
+        }[terr]
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error=err_key,
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+            ),
+            status_code=400,
+        )
+
+    existing = _rfp_attachment_entries(rfp)
+    kept: list[dict] = []
+    for i, att in enumerate(existing):
+        if i < len(del_flags) and del_flags[i]:
+            _remove_stored_file(att.get("path"))
+            continue
+        note = (notes_orig[i] if i < len(notes_orig) else "") or ""
+        kept.append({
+            "path": att["path"],
+            "filename": att.get("filename", ""),
+            "note": note.strip(),
+        })
+
+    n_uploads = sum(1 for f in attachments if f.filename)
+    if n_uploads > MAX_RFP_ATTACHMENTS:
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="too_many_attachments",
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+            ),
+            status_code=400,
+        )
+
+    new_parts: list[dict] = []
+    if n_uploads:
+        new_parts, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
+        if err_a:
+            return templates.TemplateResponse(
+                request,
+                "rfp_form.html",
+                _rfp_form_ctx(
+                    request, user, modules, devtypes, writing_tip,
+                    error=err_a,
+                    form=_form_dict(),
+                    rfp=rfp,
+                    edit_mode=True,
+                ),
+                status_code=400,
+            )
+
+    remaining = MAX_RFP_ATTACHMENTS - len(kept)
+    if len(new_parts) > remaining:
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="too_many_attachments",
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+            ),
+            status_code=400,
+        )
+
+    combined = kept + new_parts
+
+    rfp.program_id = pid
+    rfp.transaction_code = tc
+    rfp.title = title.strip()
+    rfp.sap_modules = ",".join(sap_modules) if sap_modules else ""
+    rfp.dev_types = ",".join(dev_types) if dev_types else ""
     rfp.description = description
+    if is_draft:
+        rfp.status = "draft"
+    else:
+        rfp.status = "submitted"
 
-    if attachment and attachment.filename:
-        ext = os.path.splitext(attachment.filename)[1].lower()
-        if ext in ALLOWED_EXTENSIONS:
-            try:
-                raw = await _read_upload_limited(attachment)
-            except ValueError:
-                writing_tip_setting = db.query(models.SiteSettings).filter(
-                    models.SiteSettings.key == "rfp_writing_tip"
-                ).first()
-                writing_tip = writing_tip_setting.value if writing_tip_setting else ""
-                return templates.TemplateResponse(
-                    request,
-                    "rfp_form.html",
-                    {"user": user, "rfp": rfp, "modules": modules, "devtypes": devtypes,
-                     "writing_tip": writing_tip, "error": "file_too_large", "edit_mode": True},
-                    status_code=400,
-                )
-            if len(raw) == 0:
-                writing_tip_setting = db.query(models.SiteSettings).filter(
-                    models.SiteSettings.key == "rfp_writing_tip"
-                ).first()
-                writing_tip = writing_tip_setting.value if writing_tip_setting else ""
-                return templates.TemplateResponse(
-                    request,
-                    "rfp_form.html",
-                    {"user": user, "rfp": rfp, "modules": modules, "devtypes": devtypes,
-                     "writing_tip": writing_tip, "error": "empty_attachment", "edit_mode": True},
-                    status_code=400,
-                )
-            _remove_stored_file(rfp.file_path)
-            rfp.file_path, rfp.file_name = _store_rfp_file(user.id, ext, raw, attachment.filename)
-
+    _set_rfp_attachments(rfp, combined)
     db.commit()
+    if is_draft:
+        return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
     return RedirectResponse(url="/dashboard", status_code=302)
 
 

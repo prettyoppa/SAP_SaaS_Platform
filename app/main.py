@@ -35,6 +35,7 @@ def _run_migrations():
         ("abap_codes", "program_id", "VARCHAR", "VARCHAR"),
         ("abap_codes", "transaction_code", "VARCHAR", "VARCHAR"),
         ("abap_codes", "is_draft", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("rfps", "attachments_json", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

@@ -12,7 +12,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, Request, Form, HTTPException, status, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session, joinedload
-from .. import models, auth
+from .. import models, auth, sap_fields
 from ..database import get_db
 from ..templates_config import templates
 
@@ -63,12 +63,39 @@ def _enforce_code_access(user: models.User, code: models.ABAPCode | None) -> boo
     return code.uploaded_by == user.id
 
 
+def _codelib_pid_error_msg(perr: str) -> str:
+    return {
+        "too_long": "프로그램 ID는 40자 이내로 입력해 주세요.",
+        "no_ime_chars": "프로그램 ID에는 한글·일본어·중국어 입력을 사용할 수 없습니다. 영문·숫자·기호(공백 제외)만 입력해 주세요.",
+        "invalid_chars": "프로그램 ID에는 인쇄되는 영문·숫자·기호만 사용할 수 있습니다.",
+    }[perr]
+
+
+def _codelib_tcode_error_msg(terr: str) -> str:
+    return {
+        "too_long": "트랜잭션 코드는 20자 이내로 입력해 주세요.",
+        "no_ime_chars": "트랜잭션 코드에는 한글 등 IME 입력을 사용할 수 없습니다.",
+        "invalid_chars": "트랜잭션 코드에 허용되지 않는 문자가 있습니다.",
+    }[terr]
+
+
+def _normalize_program_id_stored(program_id: str | None) -> str | None:
+    """DB 저장용: 앞뒤 공백만 제거. SAP 관례상 대문자는 사용자 입력 존중(기호·혼합 허용)."""
+    if not program_id:
+        return None
+    s = program_id.strip()
+    return s if s else None
+
+
 def _abap_download_filename(program_id: str | None, code_id: int, section_idx: int, n_sections: int) -> str:
-    """프로그램 ID 기반 파일명. 멀티 섹션은 _S1, _S2 접미사."""
-    raw = (program_id or "").strip().upper() or f"SOURCE_{code_id}"
-    safe = re.sub(r"[^\w\-.]", "_", raw).strip("_") or f"SOURCE_{code_id}"
-    if len(safe) > 80:
-        safe = safe[:80]
+    """다운로드 파일명: 등록한 프로그램 ID를 그대로 반영. Windows 금지 문자만 치환."""
+    raw = _normalize_program_id_stored(program_id) or f"SOURCE_{code_id}"
+    # <>:"/\|?* 및 제어문자만 제거·치환 (한글·기호·언더스코어 유지)
+    safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", raw).strip()
+    if not safe:
+        safe = f"SOURCE_{code_id}"
+    if len(safe) > 120:
+        safe = safe[:120]
     if n_sections <= 1:
         return f"{safe}.abap"
     return f"{safe}_S{section_idx + 1}.abap"
@@ -298,6 +325,33 @@ def codelib_upload(
             "selected_devtypes": [],
         })
 
+    pid_norm, perr = sap_fields.validate_program_id(program_id, required=False)
+    if perr:
+        return templates.TemplateResponse(request, "codelib_upload.html", {
+            "request": request, "user": user,
+            "modules": modules, "devtypes": devtypes,
+            "error": _codelib_pid_error_msg(perr),
+            "form_program_id": program_id,
+            "form_transaction_code": transaction_code,
+            "edit_code": None,
+            "edit_sections": None,
+            "selected_modules": [],
+            "selected_devtypes": [],
+        })
+    tc_norm, terr = sap_fields.validate_transaction_code(transaction_code)
+    if terr:
+        return templates.TemplateResponse(request, "codelib_upload.html", {
+            "request": request, "user": user,
+            "modules": modules, "devtypes": devtypes,
+            "error": _codelib_tcode_error_msg(terr),
+            "form_program_id": program_id,
+            "form_transaction_code": transaction_code,
+            "edit_code": None,
+            "edit_sections": None,
+            "selected_modules": [],
+            "selected_devtypes": [],
+        })
+
     save_as_draft = (is_draft == "1")
 
     analysis = {}
@@ -319,8 +373,8 @@ def codelib_upload(
 
     code = models.ABAPCode(
         uploaded_by=user.id,
-        program_id=program_id.strip().upper() if program_id else None,
-        transaction_code=transaction_code.strip().upper() if transaction_code else None,
+        program_id=pid_norm,
+        transaction_code=tc_norm,
         title=title,
         sap_modules=",".join(sap_modules),
         dev_types=",".join(dev_types),
@@ -410,10 +464,37 @@ def codelib_edit_save(
             "selected_devtypes": list(dev_types),
         })
 
+    pid_norm, perr = sap_fields.validate_program_id(program_id, required=False)
+    if perr:
+        return templates.TemplateResponse(request, "codelib_upload.html", {
+            "request": request, "user": user,
+            "modules": modules, "devtypes": devtypes,
+            "error": _codelib_pid_error_msg(perr),
+            "form_program_id": program_id,
+            "form_transaction_code": transaction_code,
+            "edit_code": code,
+            "edit_sections": _parse_upload_sections_for_edit(source_code),
+            "selected_modules": list(sap_modules),
+            "selected_devtypes": list(dev_types),
+        })
+    tc_norm, terr = sap_fields.validate_transaction_code(transaction_code)
+    if terr:
+        return templates.TemplateResponse(request, "codelib_upload.html", {
+            "request": request, "user": user,
+            "modules": modules, "devtypes": devtypes,
+            "error": _codelib_tcode_error_msg(terr),
+            "form_program_id": program_id,
+            "form_transaction_code": transaction_code,
+            "edit_code": code,
+            "edit_sections": _parse_upload_sections_for_edit(source_code),
+            "selected_modules": list(sap_modules),
+            "selected_devtypes": list(dev_types),
+        })
+
     save_as_draft = (is_draft == "1")
 
-    code.program_id = program_id.strip().upper() if program_id else None
-    code.transaction_code = transaction_code.strip().upper() if transaction_code else None
+    code.program_id = pid_norm
+    code.transaction_code = tc_norm
     code.title = title
     code.sap_modules = ",".join(sap_modules)
     code.dev_types = ",".join(dev_types)

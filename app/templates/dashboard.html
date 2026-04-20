@@ -140,10 +140,12 @@
             <!-- 왼쪽: 상태 아이콘 + 제목 + 메타 -->
             <div class="rfp-list-left">
               <div class="rfp-list-status
-                {% if rfp.interview_status == 'completed' %}status-completed
+                {% if rfp.status == 'draft' %}status-draft
+                {% elif rfp.interview_status == 'completed' %}status-completed
                 {% elif rfp.interview_status in ['in_progress', 'generating_proposal'] %}status-in_review
                 {% else %}status-submitted{% endif %}">
-                {% if rfp.interview_status == 'completed' %}<i class="fa-solid fa-circle-check"></i>
+                {% if rfp.status == 'draft' %}<i class="fa-solid fa-floppy-disk"></i>
+                {% elif rfp.interview_status == 'completed' %}<i class="fa-solid fa-circle-check"></i>
                 {% elif rfp.interview_status in ['in_progress', 'generating_proposal'] %}<i class="fa-solid fa-robot"></i>
                 {% else %}<i class="fa-solid fa-hourglass-half"></i>{% endif %}
               </div>
@@ -161,7 +163,7 @@
                   {% if rfp.dev_types %}
                     {% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}
                   {% endif %}
-                  {% if rfp.file_name %}
+                  {% if rfp.file_name or rfp.attachments_json %}
                   <a href="/rfp/{{ rfp.id }}/attachment" class="text-muted small ms-2 text-decoration-none" title="첨부 다운로드">
                     <i class="fa-solid fa-paperclip"></i>
                   </a>
@@ -187,7 +189,9 @@
             <div class="rfp-list-right rfp-list-actions">
               <!-- 상태 배지 -->
               <div class="mb-2 text-end">
-                {% if rfp.interview_status == 'completed' %}
+                {% if rfp.status == 'draft' %}
+                <span class="rfp-status-badge" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
+                {% elif rfp.interview_status == 'completed' %}
                 <span class="rfp-status-badge status-badge-completed">완료</span>
                 {% elif rfp.interview_status == 'generating_proposal' %}
                 <span class="rfp-status-badge" style="background:rgba(99,102,241,.15);color:#a5b4fc;border-color:rgba(99,102,241,.3)">생성 중...</span>
@@ -219,6 +223,12 @@
                 {% elif rfp.interview_status == 'generating_proposal' %}
                 <a href="/rfp/{{ rfp.id }}/proposal/generating" class="btn btn-sm btn-outline-secondary">
                   <i class="fa-solid fa-spinner fa-spin me-1"></i>진행 확인
+                </a>
+
+                <!-- 임시저장 -->
+                {% elif rfp.status == 'draft' %}
+                <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-warning text-dark">
+                  <i class="fa-solid fa-pen me-1"></i>이어서 작성
                 </a>
 
                 <!-- 인터뷰 미시작 -->

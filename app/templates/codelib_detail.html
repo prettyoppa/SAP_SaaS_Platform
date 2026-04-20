@@ -226,54 +226,83 @@
         {% endif %}
 
         <!-- 소스 코드 -->
-        <details class="interview-summary-toggle">
-          <summary class="interview-summary-header w-100">
-            <i class="fa-solid fa-code me-2"></i>원본 ABAP 소스 코드 보기
-            <span class="ms-2 small text-muted">
-              ({{ source_sections | length }}개 섹션 · {{ code.source_code.splitlines()|length }}줄)
+        {% set tab_base = (code.program_id or code.title or 'SOURCE') | trim %}
+        <details class="interview-summary-toggle codelib-source-details">
+          <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+            {% if source_sections | length > 1 %}
+            <a id="codelib-dl-link" href="/codelib/{{ code.id }}/download?section=0"
+               class="btn btn-sm btn-outline-primary"
+               onclick="event.stopPropagation()">
+              <i class="fa-solid fa-download me-1"></i>다운로드
+            </a>
+            {% else %}
+            <a href="/codelib/{{ code.id }}/download?section=0"
+               class="btn btn-sm btn-outline-primary"
+               onclick="event.stopPropagation()">
+              <i class="fa-solid fa-download me-1"></i>다운로드
+            </a>
+            {% endif %}
+            <span class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+              <i class="fa-solid fa-code me-1"></i>
+              <span>원본 ABAP 소스 코드 보기</span>
+              <span class="small text-muted">
+                ({{ source_sections | length }}개 섹션 · {{ code.source_code.splitlines()|length }}줄)
+              </span>
             </span>
           </summary>
           <div class="interview-summary-body p-0">
 
             {% if source_sections | length > 1 %}
-            <ul class="nav nav-tabs px-3 pt-2" role="tablist"
+            <ul class="nav nav-tabs codelib-source-tabs px-3 pt-2" id="codelib-src-tabs" role="tablist"
                 style="background:var(--surface2);border-bottom:1px solid var(--border)">
               {% for sec in source_sections %}
-              <li class="nav-item d-flex align-items-center gap-1" role="presentation">
-                <button class="nav-link {% if loop.first %}active{% endif %} small py-1 px-3"
+              <li class="nav-item" role="presentation">
+                <button class="nav-link codelib-src-tab-btn {% if loop.first %}active{% endif %} small py-2 px-3"
+                        id="src-tab-btn-{{ loop.index }}"
                         data-bs-toggle="tab"
                         data-bs-target="#src-tab-{{ loop.index }}"
-                        type="button">
-                  <i class="fa-solid fa-file-code me-1 opacity-60"></i>
-                  {{ sec.label }}
-                  <span class="ms-1 opacity-50" style="font-size:.75em">({{ sec.code.splitlines()|length }}줄)</span>
+                        data-section-idx="{{ loop.index0 }}"
+                        type="button" role="tab">
+                  <i class="fa-solid fa-file-code me-1 codelib-tab-ic"></i>
+                  <span class="font-monospace">{{ tab_base }}{% if source_sections | length > 1 %}_S{{ loop.index }}{% endif %}</span>
+                  <span class="ms-1 codelib-tab-meta">({{ sec.code.splitlines()|length }}줄)</span>
                 </button>
-                <a href="/codelib/{{ code.id }}/download?section={{ loop.index0 }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="이 섹션만 다운로드">
-                  <i class="fa-solid fa-download"></i>
-                </a>
               </li>
               {% endfor %}
             </ul>
             <div class="tab-content">
               {% for sec in source_sections %}
               <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
-                   id="src-tab-{{ loop.index }}">
+                   id="src-tab-{{ loop.index }}" role="tabpanel">
                 <pre class="codelib-source-pre rounded-0 mb-0"><code>{{ sec.code }}</code></pre>
               </div>
               {% endfor %}
             </div>
 
             {% else %}
-            <div class="d-flex justify-content-end px-3 pt-2 pb-0" style="background:var(--surface2);border-bottom:1px solid var(--border)">
-              <a href="/codelib/{{ code.id }}/download?section=0" class="btn btn-sm btn-outline-primary mb-2">
-                <i class="fa-solid fa-download me-1"></i>이 소스 다운로드
-              </a>
-            </div>
             <pre class="codelib-source-pre" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)"><code>{{ source_sections[0].code }}</code></pre>
             {% endif %}
 
           </div>
         </details>
+        {% if source_sections | length > 1 %}
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+          var dl = document.getElementById('codelib-dl-link');
+          var tabList = document.getElementById('codelib-src-tabs');
+          if (!dl || !tabList) return;
+          var base = '/codelib/{{ code.id }}/download?section=';
+          tabList.addEventListener('shown.bs.tab', function (e) {
+            var btn = e.target;
+            if (!btn || !btn.classList.contains('codelib-src-tab-btn')) return;
+            var idx = btn.getAttribute('data-section-idx');
+            if (idx !== null) dl.setAttribute('href', base + idx);
+          });
+          var active = tabList.querySelector('.codelib-src-tab-btn.active');
+          if (active) dl.setAttribute('href', base + active.getAttribute('data-section-idx'));
+        });
+        </script>
+        {% endif %}
 
       </div>
     </div>

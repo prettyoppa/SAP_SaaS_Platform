@@ -10,6 +10,23 @@ from ..agents.agent_tools import get_code_library_context
 router = APIRouter()
 
 
+def _interview_trust_panel(db: Session, rfp: models.RFP) -> dict:
+    """코드 라이브러리 매칭 여부 등 인터뷰 신뢰 UI용."""
+    modules = [x.strip() for x in (rfp.sap_modules or "").split(",") if x.strip()]
+    dev_types = [x.strip() for x in (rfp.dev_types or "").split(",") if x.strip()]
+    ctx_raw = get_code_library_context(db, modules, dev_types)
+    out = {"library_matched": False, "library_line": ""}
+    if ctx_raw:
+        try:
+            cj = json.loads(ctx_raw)
+            qs = cj.get("questions") or []
+            out["library_matched"] = len(qs) > 0
+            out["library_line"] = cj.get("source", "") or ""
+        except Exception:
+            pass
+    return out
+
+
 def _fc():
     """CrewAI는 import 비용이 커서 홈/대시보드 등에서는 로드하지 않습니다."""
     from ..agents import free_crew
@@ -80,6 +97,11 @@ def interview_page(rfp_id: int, request: Request,
     if not rfp:
         return RedirectResponse(url="/dashboard", status_code=302)
 
+    if rfp.status == "draft":
+        return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
+
+    trust = _interview_trust_panel(db, rfp)
+
     # Proposal 생성 완료 → 바로 proposal 페이지
     if rfp.interview_status == "completed" and rfp.proposal_text:
         return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
@@ -106,6 +128,7 @@ def interview_page(rfp_id: int, request: Request,
             "max_rounds": _fc().MAX_ROUNDS,
             "question_source": current_msg.source_label or "AI 에이전트 생성",
             "error": None,
+            "interview_trust": trust,
         })
 
     # 모든 라운드 완료 → Proposal 생성 시작
@@ -143,6 +166,8 @@ def interview_page(rfp_id: int, request: Request,
             "current_round": next_round,
             "max_rounds": _fc().MAX_ROUNDS,
             "error": str(e),
+            "interview_trust": trust,
+            "question_source": "",
         })
 
     new_msg = models.RFPMessage(
@@ -167,6 +192,7 @@ def interview_page(rfp_id: int, request: Request,
         "max_rounds": _fc().MAX_ROUNDS,
         "question_source": result.get("source", "AI 에이전트 생성"),
         "error": None,
+        "interview_trust": trust,
     })
 
 

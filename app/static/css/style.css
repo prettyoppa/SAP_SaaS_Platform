@@ -1251,3 +1251,32 @@ html[data-theme="light"] .codelib-source-pre {
 .notice-title { flex: 1; font-size: 0.85rem; }
 .notice-date { flex-shrink: 0; }
 
+/* ── Code library: source tabs (dark/light contrast) ───── */
+.codelib-source-tabs .nav-link {
+  color: var(--muted) !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+.codelib-source-tabs .nav-link:hover {
+  color: var(--text) !important;
+  border-bottom-color: var(--border) !important;
+}
+.codelib-source-tabs .nav-link.active {
+  color: var(--primary-light) !important;
+  border-bottom-color: var(--primary) !important;
+  font-weight: 600;
+}
+.codelib-source-tabs .codelib-tab-ic {
+  color: inherit;
+  opacity: 0.95;
+}
+.codelib-source-tabs .codelib-tab-meta {
+  color: var(--muted);
+  font-size: 0.75em;
+}
+html[data-theme="light"] .codelib-source-tabs .nav-link.active {
+  color: var(--primary) !important;
+}
+
