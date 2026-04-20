@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
+import socket
 import ssl
 from email.message import EmailMessage
 
@@ -26,6 +27,57 @@ def _smtp_timeout_sec() -> float:
 def _smtp_ehlo_hostname() -> str | None:
     h = (os.environ.get("SMTP_EHLO_HOSTNAME") or "").strip()
     return h or None
+
+
+def _smtp_force_ipv4() -> bool:
+    """Railway/Docker 등에서 IPv6 라우트가 없을 때 smtp.gmail.com 연결이 Errno 101로 실패하는 경우가 있어 IPv4만 사용."""
+    v = (os.environ.get("SMTP_FORCE_IPV4") or "1").strip().lower()
+    return v in ("1", "true", "yes", "")
+
+
+def _ipv4_socket_connect(
+    host: str,
+    port: int,
+    timeout: float,
+    source_address: tuple | None = None,
+) -> socket.socket:
+    """AF_INET만 사용해 connect (IPv6 ENETUNREACH 회피)."""
+    last_exc: OSError | None = None
+    for res in socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM):
+        af, socktype, proto, _canon, sa = res
+        sock = socket.socket(af, socktype, proto)
+        sock.settimeout(timeout)
+        if source_address:
+            sock.bind(source_address)
+        try:
+            sock.connect(sa)
+            return sock
+        except OSError as e:
+            last_exc = e
+            sock.close()
+    if last_exc:
+        raise last_exc
+    raise OSError(f"IPv4 connect failed for {host!r}:{port}")
+
+
+class _SMTP_IPv4(smtplib.SMTP):
+    def _get_socket(self, host, port, timeout):
+        if not _smtp_force_ipv4():
+            return super()._get_socket(host, port, timeout)
+        if self.debuglevel > 0:
+            self._print_debug("connect: to", (host, port))
+        return _ipv4_socket_connect(host, port, timeout, self.source_address)
+
+
+class _SMTP_SSL_IPv4(smtplib.SMTP_SSL):
+    def _get_socket(self, host, port, timeout):
+        if not _smtp_force_ipv4():
+            return super()._get_socket(host, port, timeout)
+        if self.debuglevel > 0:
+            self._print_debug("connect:", (host, port))
+        new_socket = _ipv4_socket_connect(host, port, timeout, self.source_address)
+        self.sock = self.context.wrap_socket(new_socket, server_hostname=host)
+        return self.sock
 
 
 def _smtp_params() -> dict:
@@ -72,6 +124,10 @@ def log_smtp_startup_checks(root_logger: logging.Logger) -> None:
         )
     if "gmail" in p["host"].lower() and p["port"] not in (587, 465):
         root_logger.warning("[SMTP] Gmail usually uses port 587 or 465; current port=%s", p["port"])
+    root_logger.info(
+        "[SMTP] SMTP_FORCE_IPV4=%s (if connect fails with Errno 101, keep enabled)",
+        _smtp_force_ipv4(),
+    )
 
 
 def send_verification_email(to_addr: str, verify_url: str) -> None:
@@ -100,7 +156,7 @@ def send_verification_email(to_addr: str, verify_url: str) -> None:
 
     if p["port"] == 465:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(
+        with _SMTP_SSL_IPv4(
             p["host"], p["port"], timeout=timeout, context=context, local_hostname=ehlo
         ) as smtp:
             if debug:
@@ -108,7 +164,7 @@ def send_verification_email(to_addr: str, verify_url: str) -> None:
             smtp.login(p["user"], p["password"])
             smtp.send_message(msg)
     else:
-        with smtplib.SMTP(p["host"], p["port"], timeout=timeout, local_hostname=ehlo) as smtp:
+        with _SMTP_IPv4(p["host"], p["port"], timeout=timeout, local_hostname=ehlo) as smtp:
             if debug:
                 smtp.set_debuglevel(1)
             smtp.ehlo()
