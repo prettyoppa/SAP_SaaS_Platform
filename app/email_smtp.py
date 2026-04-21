@@ -224,9 +224,7 @@ def log_smtp_startup_checks(root_logger: logging.Logger) -> None:
             )
 
 
-def send_verification_email(to_addr: str, verify_url: str) -> None:
-    subject, body = _verification_subject_and_body(verify_url)
-
+def _deliver_plain_email(to_addr: str, subject: str, body: str) -> None:
     if resend_api_enabled():
         _send_via_resend(to_addr, subject, body)
         return
@@ -269,3 +267,21 @@ def send_verification_email(to_addr: str, verify_url: str) -> None:
             smtp.ehlo()
             smtp.login(p["user"], p["password"])
             smtp.send_message(msg)
+
+
+def send_verification_email(to_addr: str, verify_url: str) -> None:
+    subject, body = _verification_subject_and_body(verify_url)
+    _deliver_plain_email(to_addr, subject, body)
+
+
+def send_registration_otp_email(to_addr: str, code: str) -> None:
+    try:
+        ttl = max(3, min(60, int(os.environ.get("REGISTRATION_CODE_TTL_MIN") or "10")))
+    except ValueError:
+        ttl = 10
+    subject = os.environ.get("REGISTRATION_CODE_MAIL_SUBJECT", "[SAP Dev Hub] 이메일 인증 코드")
+    body = (
+        f"회원가입 인증 코드: {code}\n\n"
+        f"이 코드는 약 {ttl}분간 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시하세요."
+    )
+    _deliver_plain_email(to_addr, subject, body)

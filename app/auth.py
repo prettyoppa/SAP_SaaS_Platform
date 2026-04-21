@@ -1,3 +1,7 @@
+import hashlib
+import hmac
+import os
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -28,6 +32,27 @@ def parse_email_verification_token(token: str, max_age_sec: int = EMAIL_VERIFY_M
         return e if isinstance(e, str) else None
     except (BadSignature, SignatureExpired):
         return None
+
+
+def registration_otp_ttl_minutes() -> int:
+    try:
+        return max(3, min(60, int(os.environ.get("REGISTRATION_CODE_TTL_MIN") or "10")))
+    except ValueError:
+        return 10
+
+
+def generate_registration_otp() -> str:
+    return f"{secrets.randbelow(900_000) + 100_000:06d}"
+
+
+def registration_code_hash(email: str, code: str) -> str:
+    e = (email or "").strip().lower()
+    c = (code or "").strip()
+    return hmac.new(SECRET_KEY.encode("utf-8"), f"{e}:{c}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def registration_codes_equal(email: str, code: str, stored_hash: str) -> bool:
+    return hmac.compare_digest(registration_code_hash(email, code), stored_hash)
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 

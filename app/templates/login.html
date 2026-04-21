@@ -13,6 +13,12 @@
           <h2 class="auth-title" data-i18n="login.title">Welcome Back</h2>
           <p class="auth-sub text-muted" data-i18n="login.sub">Sign in to your SAP Dev Hub account</p>
 
+          {% if registered_ok %}
+          <div class="alert alert-success d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-check me-2"></i>
+            <span>회원가입이 완료되었습니다. 로그인해 주세요.</span>
+          </div>
+          {% endif %}
           {% if verified_ok %}
           <div class="alert alert-success d-flex align-items-center" role="alert">
             <i class="fa-solid fa-circle-check me-2"></i>

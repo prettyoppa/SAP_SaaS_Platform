@@ -169,3 +169,16 @@ class ReviewComment(Base):
 
     review = relationship("Review", back_populates="comments")
     author = relationship("User", foreign_keys=[user_id])
+
+
+class EmailRegistrationCode(Base):
+    """회원가입 6자리 인증 코드 (이메일 OTP). 링크 인증 대신 사용."""
+
+    __tablename__ = "email_registration_codes"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    code_hash = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    last_sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

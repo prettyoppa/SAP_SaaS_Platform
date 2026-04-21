@@ -1,16 +1,17 @@
 import logging
 import os
 import threading
+from datetime import datetime, timedelta
 from urllib.parse import quote
 
 from email_validator import EmailNotValidError, validate_email
-from fastapi import APIRouter, Depends, Request, Form, HTTPException
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
-from ..email_smtp import email_verification_enabled, send_verification_email
+from ..email_smtp import email_verification_enabled, send_registration_otp_email, send_verification_email
 from ..templates_config import templates
 
 router = APIRouter()
@@ -62,7 +63,12 @@ def _access_token_cookie_args(request: Request, token: str) -> dict:
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, verified: str | None = None, verify: str | None = None):
+def login_page(
+    request: Request,
+    verified: str | None = None,
+    verify: str | None = None,
+    registered: str | None = None,
+):
     user = auth.get_current_user(request, next(get_db()))
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
@@ -71,6 +77,8 @@ def login_page(request: Request, verified: str | None = None, verify: str | None
         ctx["verified_ok"] = True
     if verify == "invalid":
         ctx["verify_invalid"] = True
+    if registered == "1":
+        ctx["registered_ok"] = True
     return templates.TemplateResponse(request, "login.html", ctx)
 
 
@@ -139,6 +147,51 @@ def register_check_email_page(request: Request, resent: str | None = None):
     )
 
 
+@router.post("/register/send-verification-code")
+def register_send_verification_code(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """회원가입용 6자리 인증 코드 메일 발송 (같은 탭에서 코드 입력)."""
+    if not email_verification_enabled():
+        return JSONResponse({"ok": False, "error": "disabled"}, status_code=400)
+    email_norm = _normalize_email_strict(email)
+    if not email_norm:
+        return JSONResponse({"ok": False, "error": "invalid_email"}, status_code=400)
+    if db.query(models.User).filter(models.User.email == email_norm).first():
+        return JSONResponse({"ok": False, "error": "duplicate"}, status_code=400)
+    now = datetime.utcnow()
+    row = db.query(models.EmailRegistrationCode).filter(
+        models.EmailRegistrationCode.email == email_norm
+    ).first()
+    if row and row.last_sent_at and (now - row.last_sent_at).total_seconds() < 60:
+        return JSONResponse({"ok": False, "error": "cooldown"}, status_code=429)
+    code = auth.generate_registration_otp()
+    code_hash = auth.registration_code_hash(email_norm, code)
+    expires = now + timedelta(minutes=auth.registration_otp_ttl_minutes())
+    try:
+        send_registration_otp_email(email_norm, code)
+    except Exception as e:
+        logger.exception("send_registration_otp_email: %s", e)
+        return JSONResponse({"ok": False, "error": "send_failed"}, status_code=500)
+    if row:
+        row.code_hash = code_hash
+        row.expires_at = expires
+        row.last_sent_at = now
+    else:
+        db.add(
+            models.EmailRegistrationCode(
+                email=email_norm,
+                code_hash=code_hash,
+                expires_at=expires,
+                last_sent_at=now,
+            )
+        )
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
 @router.post("/register")
 def register(
     request: Request,
@@ -146,6 +199,7 @@ def register(
     full_name: str = Form(...),
     company: str = Form(""),
     password: str = Form(...),
+    verification_code: str = Form(""),
     db: Session = Depends(get_db),
 ):
     email_norm = _normalize_email_strict(email)
@@ -176,25 +230,73 @@ def register(
             status_code=400,
         )
     want_verify = email_verification_enabled()
+    settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    ev = email_verification_enabled()
+
+    if want_verify:
+        code_in = "".join(c for c in (verification_code or "") if c.isdigit())
+        if len(code_in) != 6:
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "no_code",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        row = db.query(models.EmailRegistrationCode).filter(
+            models.EmailRegistrationCode.email == email_norm
+        ).first()
+        if not row:
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "no_code_sent",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        if datetime.utcnow() > row.expires_at:
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "expired_code",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        if not auth.registration_codes_equal(email_norm, code_in, row.code_hash):
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "bad_code",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        db.delete(row)
+
     new_user = models.User(
         email=email_norm,
         full_name=full_name,
         company=company or None,
         hashed_password=auth.hash_password(password),
-        email_verified=not want_verify,
+        email_verified=True,
     )
     db.add(new_user)
-    db.flush()
+    db.commit()
 
     if want_verify:
-        vtoken = auth.create_email_verification_token(email_norm)
-        base = _public_base_url(request)
-        link = f"{base}/verify-email?token={quote(vtoken, safe='')}"
-        db.commit()
-        _schedule_verification_email(email_norm, link)
-        return RedirectResponse(url="/register/check-email", status_code=302)
+        return RedirectResponse(url="/login?registered=1", status_code=302)
 
-    db.commit()
     token = auth.create_access_token({"sub": new_user.email})
     response = RedirectResponse(url="/dashboard", status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))

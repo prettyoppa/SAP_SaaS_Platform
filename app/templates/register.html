@@ -34,29 +34,65 @@
             <i class="fa-solid fa-circle-exclamation me-2"></i>
             <span>인증 메일을 보내지 못했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.</span>
           </div>
+          {% elif error == 'no_code' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>이메일로 받은 6자리 인증 코드를 입력해 주세요.</span>
+          </div>
+          {% elif error == 'no_code_sent' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>먼저 「인증메일 보내기」로 코드를 받아 주세요.</span>
+          </div>
+          {% elif error == 'expired_code' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>인증 코드가 만료되었습니다. 다시 「인증메일 보내기」를 눌러 주세요.</span>
+          </div>
+          {% elif error == 'bad_code' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>인증 코드가 올바르지 않습니다. 메일에 표시된 6자리를 다시 확인해 주세요.</span>
+          </div>
           {% endif %}
 
           {% if email_verification %}
           <div class="alert alert-info small d-flex align-items-start" role="alert">
             <i class="fa-solid fa-envelope me-2 mt-1"></i>
-            <span>가입 후 이메일로 인증 링크가 발송됩니다. 링크를 눌러 인증을 완료한 뒤 로그인할 수 있습니다.</span>
+            <span>이메일을 입력한 뒤 「인증메일 보내기」를 누르면 6자리 코드가 발송됩니다. 같은 화면에서 코드를 입력하고 나머지 정보를 채운 뒤 계정을 만듭니다.</span>
           </div>
           {% endif %}
 
           <form method="post" action="/register" id="registerForm" novalidate>
-            <!-- 이름 -->
+            {% if email_verification %}
+            <!-- 이메일 + 인증메일 -->
             <div class="mb-3">
-              <label class="form-label">
-                <span class="nav-ko">이름</span><span class="nav-en">Full Name</span>
+              <label class="form-label" for="emailInput">
+                <span class="nav-ko">이메일</span><span class="nav-en">Email</span>
               </label>
-              <div class="input-icon-wrap">
-                <i class="fa-solid fa-user input-icon"></i>
-                <input type="text" name="full_name" class="form-control input-with-icon" required
-                       placeholder="홍길동" autocomplete="name"/>
+              <div class="d-flex flex-wrap gap-2 align-items-stretch">
+                <div class="input-icon-wrap flex-grow-1" style="min-width:12rem">
+                  <i class="fa-solid fa-envelope input-icon"></i>
+                  <input type="email" name="email" id="emailInput" class="form-control input-with-icon"
+                         required placeholder="you@company.com" autocomplete="email"/>
+                </div>
+                <button type="button" class="btn btn-outline-primary flex-shrink-0" id="sendCodeBtn">
+                  인증메일 보내기
+                </button>
               </div>
+              <div class="invalid-feedback" id="emailFeedback" style="display:none">
+                올바른 이메일 형식을 입력해주세요.
+              </div>
+              <div class="small mt-2" id="sendCodeStatus" aria-live="polite"></div>
             </div>
-
-            <!-- 이메일 -->
+            <div class="mb-3" id="verificationCodeWrap" style="display:none">
+              <label class="form-label" for="verificationCodeInput">인증 코드 (6자리)</label>
+              <input type="text" name="verification_code" id="verificationCodeInput" class="form-control font-monospace"
+                     maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                     placeholder="000000"/>
+              <div class="form-text">메일로 받은 숫자 6자리를 입력하세요.</div>
+            </div>
+            {% else %}
             <div class="mb-3">
               <label class="form-label">
                 <span class="nav-ko">이메일</span><span class="nav-en">Email</span>
@@ -68,6 +104,19 @@
               </div>
               <div class="invalid-feedback" id="emailFeedback" style="display:none">
                 올바른 이메일 형식을 입력해주세요.
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- 이름 -->
+            <div class="mb-3">
+              <label class="form-label">
+                <span class="nav-ko">이름</span><span class="nav-en">Full Name</span>
+              </label>
+              <div class="input-icon-wrap">
+                <i class="fa-solid fa-user input-icon"></i>
+                <input type="text" name="full_name" class="form-control input-with-icon" required
+                       placeholder="홍길동" autocomplete="name"/>
               </div>
             </div>
 
@@ -267,14 +316,82 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// 인증메일 발송 (이메일 인증 사용 시에만 DOM 존재)
+const sendCodeBtn = document.getElementById('sendCodeBtn');
+const verificationCodeWrap = document.getElementById('verificationCodeWrap');
+const sendCodeStatus = document.getElementById('sendCodeStatus');
+const verificationCodeInput = document.getElementById('verificationCodeInput');
+if (sendCodeBtn && verificationCodeWrap) {
+  sendCodeBtn.addEventListener('click', function() {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!re.test(emailInput.value)) {
+      emailInput.classList.add('is-invalid');
+      if (emailFeedback) emailFeedback.style.display = 'block';
+      emailInput.focus();
+      return;
+    }
+    emailInput.classList.remove('is-invalid');
+    if (emailFeedback) emailFeedback.style.display = 'none';
+    sendCodeBtn.disabled = true;
+    if (sendCodeStatus) sendCodeStatus.textContent = '발송 중…';
+    const fd = new FormData();
+    fd.append('email', emailInput.value.trim());
+    fetch('/register/send-verification-code', { method: 'POST', body: fd })
+      .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, status: r.status, j: j }; }); })
+      .then(function(res) {
+        sendCodeBtn.disabled = false;
+        if (res.ok && res.j && res.j.ok) {
+          verificationCodeWrap.style.display = 'block';
+          if (sendCodeStatus) {
+            sendCodeStatus.className = 'small mt-2 text-success';
+            sendCodeStatus.textContent = '인증 메일을 보냈습니다. 메일함(스팸함)을 확인하세요.';
+          }
+          if (verificationCodeInput) verificationCodeInput.focus();
+        } else {
+          const err = (res.j && res.j.error) || '';
+          let msg = '발송에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+          if (err === 'duplicate') msg = '이미 가입된 이메일입니다.';
+          else if (err === 'invalid_email') msg = '올바른 이메일 형식이 아닙니다.';
+          else if (err === 'cooldown') msg = '잠시 후(약 1분) 다시 시도해 주세요.';
+          else if (err === 'send_failed') msg = '메일 발송에 실패했습니다. 설정을 확인하거나 잠시 후 다시 시도해 주세요.';
+          if (sendCodeStatus) {
+            sendCodeStatus.className = 'small mt-2 text-danger';
+            sendCodeStatus.textContent = msg;
+          }
+        }
+      })
+      .catch(function() {
+        sendCodeBtn.disabled = false;
+        if (sendCodeStatus) {
+          sendCodeStatus.className = 'small mt-2 text-danger';
+          sendCodeStatus.textContent = '네트워크 오류가 발생했습니다.';
+        }
+      });
+  });
+  if (verificationCodeInput) {
+    verificationCodeInput.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    });
+  }
+}
+
 // 폼 제출 유효성 검사
 document.getElementById('registerForm').addEventListener('submit', function(e) {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!re.test(emailInput.value)) {
     e.preventDefault();
     emailInput.classList.add('is-invalid');
-    emailFeedback.style.display = 'block';
+    if (emailFeedback) emailFeedback.style.display = 'block';
     emailInput.focus();
+    return;
+  }
+  if (sendCodeBtn && verificationCodeWrap && verificationCodeInput) {
+    const d = verificationCodeInput.value.replace(/\D/g, '');
+    if (d.length !== 6) {
+      e.preventDefault();
+      alert('인증 코드 6자리를 입력해 주세요. 먼저 「인증메일 보내기」를 눌러 코드를 받으세요.');
+      verificationCodeInput.focus();
+    }
   }
 });
 </script>

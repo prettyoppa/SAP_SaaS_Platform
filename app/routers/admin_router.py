@@ -23,6 +23,9 @@ def _admin_purge_user_and_data(db: Session, target: models.User, actor: models.U
     """
     if target.id == actor.id:
         return "self"
+    db.query(models.EmailRegistrationCode).filter(
+        models.EmailRegistrationCode.email == target.email
+    ).delete(synchronize_session=False)
     uid = target.id
     for rfp in db.query(models.RFP).filter(models.RFP.user_id == uid).all():
         db.query(models.RFPMessage).filter(models.RFPMessage.rfp_id == rfp.id).delete()
