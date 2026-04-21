@@ -229,10 +229,18 @@ def resend_verification(
     if not email_norm:
         return RedirectResponse(url="/register/check-email?resent=1", status_code=302)
     user = db.query(models.User).filter(models.User.email == email_norm).first()
-    if user and not user.email_verified:
+    if not user:
+        logger.info(
+            "resend-verification: no user for %s — not sending (must match signup email)",
+            email_norm,
+        )
+    elif user.email_verified:
+        logger.info("resend-verification: %s already verified — not sending", email_norm)
+    else:
         vtoken = auth.create_email_verification_token(email_norm)
         base = _public_base_url(request)
         link = f"{base}/verify-email?token={quote(vtoken, safe='')}"
+        logger.info("resend-verification: queueing verification email for %s", email_norm)
         _schedule_verification_email(email_norm, link)
     return RedirectResponse(url="/register/check-email?resent=1", status_code=302)
 
