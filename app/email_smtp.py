@@ -128,6 +128,13 @@ def log_smtp_startup_checks(root_logger: logging.Logger) -> None:
         "[SMTP] SMTP_FORCE_IPV4=%s (if connect fails with Errno 101, keep enabled)",
         _smtp_force_ipv4(),
     )
+    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"):
+        root_logger.warning(
+            "[SMTP] Railway: Free/Trial/Hobby 워크스페이스는 아웃바운드 SMTP(587/465 등)가 차단됩니다. "
+            "증상: smtp.gmail.com 연결 Timeout / unreachable. "
+            "대안: Resend·SendGrid 등 HTTPS API로 발송하거나 Pro+ 플랜에서 SMTP 사용. "
+            "https://docs.railway.com/reference/outbound-networking#email-delivery"
+        )
 
 
 def send_verification_email(to_addr: str, verify_url: str) -> None:
