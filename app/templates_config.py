@@ -6,7 +6,17 @@ import json as _json
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 templates.env.filters["from_json"] = _json.loads
+
+
+def _tojson_filter(v) -> Markup:
+    s = _json.dumps(v, ensure_ascii=False)
+    s = s.replace("<", "\\u003c").replace(">", "\\u003e")
+    return Markup(s)
+
+
+templates.env.filters["tojson"] = _tojson_filter

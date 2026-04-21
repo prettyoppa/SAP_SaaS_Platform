@@ -15,7 +15,7 @@ def validate_program_id(raw: str, *, required: bool, max_len: int = 40) -> tuple
     Returns (normalized_value, error_key).
     error_key: required | too_long | no_ime_chars | invalid_chars
     """
-    v = (raw or "").strip()
+    v = (raw or "").strip().upper()
     if not v:
         return (None, "required" if required else None)
     if len(v) > max_len:
@@ -29,7 +29,7 @@ def validate_program_id(raw: str, *, required: bool, max_len: int = 40) -> tuple
 
 def validate_transaction_code(raw: str, *, max_len: int = 20) -> tuple[str | None, str | None]:
     """선택 필드. 빈 값이면 (None, None)."""
-    v = (raw or "").strip()
+    v = (raw or "").strip().upper()
     if not v:
         return (None, None)
     if len(v) > max_len:

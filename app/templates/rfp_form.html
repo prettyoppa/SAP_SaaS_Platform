@@ -224,31 +224,21 @@
               </div>
             </div>
 
-            <div class="file-drop-zone" id="drop-zone" data-max-files="5" onclick="document.getElementById('attachments').click()">
+            <div class="file-drop-zone" id="drop-zone" data-max-files="5">
               <input type="file" name="attachments" id="attachments" class="d-none" multiple
                      accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg"
 />
               <div class="file-drop-content" id="drop-content">
                 <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
-                <p class="fw-semibold mb-1" data-i18n="rfp.dropTitle">클릭하거나 파일을 드래그하세요</p>
-                <p class="text-muted small mb-0">PDF, Excel, Word, 이미지, TXT · 파일당 최대 20MB · 최대 5개</p>
+                <p class="fw-semibold mb-1" data-i18n="rfp.dropTitle">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+                <p class="text-muted small mb-0">PDF, Excel, Word, 이미지, TXT · 파일당 최대 20MB · 최대 5개 (여러 줄로 표시됩니다)</p>
               </div>
-              <div class="file-drop-content d-none" id="file-selected">
-                <i class="fa-solid fa-file-circle-check file-drop-icon text-success"></i>
-                <p class="fw-semibold mb-1 text-success" id="file-name-display"></p>
-                <p class="text-muted small mb-0">클릭하여 파일 변경</p>
-              </div>
+              <div id="attachment-list" class="w-100 px-1"></div>
             </div>
-            <p class="small text-muted mt-2 mb-1">각 파일 설명 (선택, 최대 5개 슬롯에 순서대로 적용됩니다)</p>
-            <div class="row g-2 mb-2">
-              {% for i in [0,1,2,3,4] %}
-              <div class="col-md-6">
-                <input type="text" class="form-control form-control-sm" name="note_{{ i }}" maxlength="200"
-                       placeholder="첨부 {{ i + 1 }} 설명"
-                       value="{% if form and form.notes and i < (form.notes|length) %}{{ form.notes[i] }}{% endif %}"/>
-              </div>
-              {% endfor %}
-            </div>
+            <p class="small text-muted mt-2 mb-0">파일마다 한 줄에 이름·설명이 붙습니다. 드래그로 여러 번 추가할 수 있습니다.</p>
+            {% if form and form.notes is defined %}
+            <script type="application/json" id="rfp-notes-prefill">{{ form.notes | tojson }}</script>
+            {% endif %}
 
             {% if edit_mode and attachment_entries %}
             <div class="border rounded p-3 mt-3" style="background:var(--surface2);border-color:var(--border)!important;">
@@ -329,93 +319,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/rfp_form.js"></script>
-<script>
-// 최대 3개 선택 제한
-function setupMaxSelect(cls, countId, max) {
-  const inputs = document.querySelectorAll('.' + cls);
-  const countEl = document.getElementById(countId);
-  function update() {
-    const checked = document.querySelectorAll('.' + cls + ':checked').length;
-    if (countEl) countEl.textContent = checked + ' / ' + max;
-    inputs.forEach(inp => {
-      if (!inp.checked) inp.disabled = (checked >= max);
-    });
-  }
-  inputs.forEach(inp => inp.addEventListener('change', update));
-  update();
-}
-setupMaxSelect('module-chip',  'module-count',  3);
-setupMaxSelect('devtype-chip', 'devtype-count', 3);
-
-// 리뷰 패널 업데이트 (rfp_form.js의 전역 updateReview를 대체 — 프로그램 ID + 첨부 모두 반영)
-function updateReview() {
-  const progId = document.getElementById('program_id').value || '<em class="text-muted">미입력</em>';
-  const rp = document.getElementById('review-program');
-  if (rp) rp.innerHTML = progId;
-
-  const modules = [...document.querySelectorAll('.module-chip:checked')].map(c => c.value);
-  const rm = document.getElementById('review-modules');
-  if (rm) rm.innerHTML = modules.length
-    ? modules.map(m => '<span class="badge bg-primary me-1">' + m + '</span>').join('')
-    : '<em class="text-muted">선택 없음</em>';
-
-  const types = [...document.querySelectorAll('.devtype-chip:checked')].map(c => {
-    const lbl = c.closest('.chip-label').querySelector('.chip');
-    return lbl ? lbl.textContent.trim() : c.value;
-  });
-  const rt = document.getElementById('review-types');
-  if (rt) rt.innerHTML = types.length
-    ? types.map(t => '<span class="badge bg-secondary me-1">' + t + '</span>').join('')
-    : '<em class="text-muted">선택 없음</em>';
-
-  const fileInput = document.getElementById('attachments') || document.getElementById('attachment');
-  const rf = document.getElementById('review-file');
-  if (rf) {
-    if (fileInput && fileInput.files && fileInput.files.length) {
-      const names = Array.from(fileInput.files).map(function (f) { return f.name; });
-      rf.innerHTML = '<i class="fa-solid fa-file me-1"></i>' + names.join(', ');
-    } else {
-      rf.innerHTML = '<em class="text-muted">없음</em>';
-    }
-  }
-}
-
-// 프로그램 ID / 트랜잭션: 입력은 막지 않고, IME(한글 등) 시 안내 메시지
-(function () {
-  var CJK = /[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]/;
-  var printable = /^[!-~]*$/;
-  function hintPid() {
-    var el = document.getElementById('program_id');
-    var fb = document.getElementById('program-id-feedback');
-    if (!el || !fb) return;
-    var v = el.value.trim();
-    if (!v) { fb.textContent = ''; return; }
-    if (v.length > 40) { fb.textContent = '40자 이내로 입력해 주세요.'; return; }
-    if (CJK.test(v)) { fb.textContent = '한글·일본어·중국어 키보드 입력은 사용할 수 없습니다. 영문·숫자·기호(공백 제외)만 입력해 주세요.'; return; }
-    if (!printable.test(el.value)) { fb.textContent = '허용되지 않는 문자가 있습니다.'; return; }
-    fb.textContent = '';
-  }
-  function hintTc() {
-    var el = document.getElementById('transaction_code');
-    var fb = document.getElementById('transaction-code-feedback');
-    if (!el || !fb) return;
-    var v = el.value.trim();
-    if (!v) { fb.textContent = ''; return; }
-    if (v.length > 20) { fb.textContent = '20자 이내로 입력해 주세요.'; return; }
-    if (CJK.test(v)) { fb.textContent = '한글 등 IME 입력은 사용할 수 없습니다.'; return; }
-    if (!printable.test(el.value)) { fb.textContent = '허용되지 않는 문자가 있습니다.'; return; }
-    fb.textContent = '';
-  }
-  var pid = document.getElementById('program_id');
-  var tc = document.getElementById('transaction_code');
-  if (pid) pid.addEventListener('input', function () { hintPid(); updateReview(); });
-  if (tc) tc.addEventListener('input', function () { hintTc(); updateReview(); });
-  hintPid();
-  hintTc();
-})();
-
-document.querySelectorAll('.module-chip, .devtype-chip').forEach(c => c.addEventListener('change', updateReview));
-updateReview();
-</script>
+<script src="/static/js/rfp_form.js?v=20260414a"></script>
 {% endblock %}

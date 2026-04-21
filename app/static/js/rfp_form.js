@@ -1,78 +1,298 @@
-/* SAP Dev Hub – RFP Form logic */
-document.addEventListener('DOMContentLoaded', () => {
+/* SAP Dev Hub – RFP Form (program ID, multi-attach, review) */
 
-  /* Character counter */
-  const desc = document.getElementById('description');
-  const counter = document.getElementById('char-count');
-  if (desc && counter) {
-    desc.addEventListener('input', () => { counter.textContent = desc.value.length; });
+const RFP_CJK = /[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]/;
+
+let _rfpNotePrefill = null;
+function loadRfpNotePrefill() {
+  const el = document.getElementById('rfp-notes-prefill');
+  if (!el) return;
+  try {
+    _rfpNotePrefill = JSON.parse(el.textContent);
+  } catch (_) {
+    _rfpNotePrefill = null;
   }
+}
 
-  /* File input change (다중 첨부) */
-  const fileInput = document.getElementById('attachments') || document.getElementById('attachment');
-  if (fileInput) {
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files && fileInput.files.length) {
-        const names = Array.from(fileInput.files).map(f => f.name).slice(0, 5);
-        showFileSelected(names.join(', '));
+function setupMaxSelect(cls, countId, max) {
+  const inputs = document.querySelectorAll('.' + cls);
+  const countEl = document.getElementById(countId);
+  function update() {
+    const checked = document.querySelectorAll('.' + cls + ':checked').length;
+    if (countEl) countEl.textContent = checked + ' / ' + max;
+    inputs.forEach(inp => {
+      if (!inp.checked) inp.disabled = (checked >= max);
+    });
+  }
+  inputs.forEach(inp => inp.addEventListener('change', update));
+  update();
+}
+
+/** Assign File[] to <input type=file>; prefer native File objects for reliable POST. */
+function setFilesOnInput(input, files) {
+  const dt = new DataTransfer();
+  for (const f of files) {
+    try {
+      dt.items.add(f);
+    } catch (_) {
+      try {
+        dt.items.add(new File([f], f.name, { type: f.type || 'application/octet-stream' }));
+      } catch (_) {
+        dt.items.add(new File([], f.name, { type: f.type || 'application/octet-stream' }));
       }
-    });
+    }
+  }
+  input.files = dt.files;
+  if (input.files.length !== files.length && files.length) {
+    const dt2 = new DataTransfer();
+    for (const f of files) {
+      dt2.items.add(new File([f], f.name, { type: f.type || 'application/octet-stream' }));
+    }
+    input.files = dt2.files;
+  }
+}
+
+function collectNoteValues(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const el = document.querySelector(`#attachment-list input[name="note_${i}"]`);
+    out.push(el ? el.value : '');
+  }
+  return out;
+}
+
+function renderAttachmentRows(input, maxFiles, notePreset) {
+  const listEl = document.getElementById('attachment-list');
+  const dropContent = document.getElementById('drop-content');
+  if (!listEl || !input) return;
+
+  const files = Array.from(input.files || []);
+  let notes;
+  if (notePreset != null) {
+    notes = notePreset.slice(0, files.length);
+    while (notes.length < files.length) notes.push('');
+  } else {
+    const prev = collectNoteValues(maxFiles);
+    const fb = Array.isArray(_rfpNotePrefill) ? _rfpNotePrefill : [];
+    notes = files.map((_, i) => (prev[i] || fb[i] || ''));
   }
 
-  /* Live review panel update */
-  updateReview();
-  document.querySelectorAll('.chip-input').forEach(cb => {
-    cb.addEventListener('change', updateReview);
+  listEl.innerHTML = '';
+  if (!files.length) {
+    if (dropContent) dropContent.classList.remove('d-none');
+    return;
+  }
+  if (dropContent) dropContent.classList.add('d-none');
+
+  files.forEach((file, i) => {
+    const row = document.createElement('div');
+    row.className = 'rfp-attachment-row d-flex flex-wrap align-items-center gap-2 w-100 py-2 border-bottom';
+    row.style.borderColor = 'var(--border)';
+
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'flex-shrink-0';
+    iconWrap.innerHTML = '<i class="fa-solid fa-file text-muted"></i>';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'flex-grow-1 text-break small fw-medium';
+    nameEl.textContent = file.name;
+    nameEl.title = file.name;
+
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'btn btn-sm btn-outline-danger rfp-att-remove flex-shrink-0';
+    rm.setAttribute('data-idx', String(i));
+    rm.setAttribute('aria-label', '첨부 제거');
+    rm.textContent = '제거';
+
+    const br = document.createElement('div');
+    br.className = 'w-100';
+
+    const lbl = document.createElement('label');
+    lbl.className = 'small text-muted mb-0 w-100';
+    lbl.textContent = '설명 (선택)';
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'form-control form-control-sm';
+    noteInput.name = `note_${i}`;
+    noteInput.maxLength = 200;
+    noteInput.placeholder = `첨부 ${i + 1} 설명`;
+    noteInput.value = notes[i] || '';
+
+    row.appendChild(iconWrap);
+    row.appendChild(nameEl);
+    row.appendChild(rm);
+    row.appendChild(br);
+    row.appendChild(lbl);
+    row.appendChild(noteInput);
+    listEl.appendChild(row);
   });
-  if (fileInput) fileInput.addEventListener('change', updateReview);
 
-  /* Progress bar activation on scroll */
-  activateProgressOnScroll();
-
-  /* Submit guard */
-  const form = document.getElementById('rfp-form');
-  const submitBtn = document.getElementById('submit-btn');
-  if (form && submitBtn) {
-    form.addEventListener('submit', () => {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+  listEl.querySelectorAll('.rfp-att-remove').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const next = Array.from(input.files).filter((_, j) => j !== idx);
+      const prevNotes = collectNoteValues(maxFiles);
+      const keptNotes = prevNotes.filter((_, j) => j !== idx);
+      setFilesOnInput(input, next);
+      renderAttachmentRows(input, maxFiles, keptNotes);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      updateReview();
     });
+  });
+}
+
+function initAttachmentDropZone() {
+  const dz = document.getElementById('drop-zone');
+  const input = document.getElementById('attachments') || document.getElementById('attachment');
+  if (!dz || !input) return;
+
+  const maxFiles = parseInt(dz.getAttribute('data-max-files') || '5', 10) || 5;
+
+  dz.addEventListener('click', e => {
+    if (e.target.closest('.rfp-att-remove')) return;
+    if (e.target.closest('input[name^="note_"]')) return;
+    e.preventDefault();
+    input.click();
+  });
+
+  ['dragenter', 'dragover'].forEach(ev => {
+    dz.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dz.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(ev => {
+    dz.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dz.classList.remove('dragover');
+    });
+  });
+
+  dz.addEventListener('drop', e => {
+    const incoming = Array.from(e.dataTransfer.files || []);
+    if (!incoming.length) return;
+    const existing = Array.from(input.files || []);
+    const merged = [...existing, ...incoming].slice(0, maxFiles);
+    setFilesOnInput(input, merged);
+    renderAttachmentRows(input, maxFiles);
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    updateReview();
+  });
+
+  input.addEventListener('change', () => {
+    const picked = Array.from(input.files || []).slice(0, maxFiles);
+    if (picked.length !== input.files.length) setFilesOnInput(input, picked);
+    renderAttachmentRows(input, maxFiles);
+    updateReview();
+  });
+
+  renderAttachmentRows(input, maxFiles);
+}
+
+function normalizeSapFieldValue(raw, maxLen) {
+  const hadCjk = RFP_CJK.test(raw);
+  let v = raw.toUpperCase().replace(/[^\x21-\x7E]/g, '');
+  if (v.length > maxLen) v = v.slice(0, maxLen);
+  return { value: v, hadCjk };
+}
+
+function initProgramIdTransactionFields() {
+  const pid = document.getElementById('program_id');
+  const tc = document.getElementById('transaction_code');
+  const fbPid = document.getElementById('program-id-feedback');
+  const fbTc = document.getElementById('transaction-code-feedback');
+  if (!pid || !tc) return;
+
+  let tcTouched = (tc.value || '').trim().length > 0;
+
+  function refreshTcCopy() {
+    const p = pid.value.trim();
+    if (!tcTouched && p) {
+      const { value } = normalizeSapFieldValue(p, 20);
+      tc.value = value;
+    }
   }
-});
+
+  pid.addEventListener('input', () => {
+    const raw = pid.value;
+    const { value, hadCjk } = normalizeSapFieldValue(raw, 40);
+    pid.value = value;
+    if (hadCjk && fbPid) {
+      fbPid.textContent = '한글·일본어·중국어는 입력할 수 없습니다. 영문·숫자·기호(공백 제외)만 사용해 주세요.';
+    } else if (fbPid) {
+      fbPid.textContent = '';
+    }
+    refreshTcCopy();
+    updateReview();
+  });
+
+  tc.addEventListener('input', () => {
+    tcTouched = (tc.value || '').trim().length > 0;
+    const raw = tc.value;
+    const { value, hadCjk } = normalizeSapFieldValue(raw, 20);
+    tc.value = value;
+    if (hadCjk && fbTc) {
+      fbTc.textContent = '한글·일본어·중국어는 입력할 수 없습니다. 영문·숫자·기호(공백 제외)만 사용해 주세요.';
+    } else if (fbTc) {
+      fbTc.textContent = '';
+    }
+    updateReview();
+  });
+
+  pid.addEventListener('blur', refreshTcCopy);
+
+  if ((pid.value || '').trim() && !(tc.value || '').trim()) {
+    refreshTcCopy();
+  }
+}
 
 function updateReview() {
-  const modules = [...document.querySelectorAll('input[name="sap_modules"]:checked')].map(el => el.value);
-  const types   = [...document.querySelectorAll('input[name="dev_types"]:checked')].map(el => el.value);
+  const progEl = document.getElementById('program_id');
+  const progId = progEl && progEl.value ? progEl.value : '';
+  const rp = document.getElementById('review-program');
+  if (rp) rp.innerHTML = progId || '<em class="text-muted">미입력</em>';
+
+  const modules = [...document.querySelectorAll('.module-chip:checked')].map(c => c.value);
+  const rm = document.getElementById('review-modules');
+  const noSel = typeof currentLang !== 'undefined' && currentLang === 'en' ? 'None selected' : '선택 없음';
+  if (rm) {
+    rm.innerHTML = modules.length
+      ? modules.map(m => `<span class="badge-module me-1">${m}</span>`).join('')
+      : `<em class="text-muted">${noSel}</em>`;
+  }
+
+  const types = [...document.querySelectorAll('.devtype-chip:checked')].map(c => {
+    const lbl = c.closest('.chip-label') && c.closest('.chip-label').querySelector('.chip');
+    return lbl ? lbl.textContent.trim() : c.value;
+  });
+  const rt = document.getElementById('review-types');
+  if (rt) {
+    rt.innerHTML = types.length
+      ? types.map(t => `<span class="badge-devtype me-1">${t}</span>`).join('')
+      : `<em class="text-muted">${noSel}</em>`;
+  }
+
   const fileInput = document.getElementById('attachments') || document.getElementById('attachment');
-
-  const noSel  = currentLang === 'ko' ? '선택 없음' : 'None selected';
-  const noFile = currentLang === 'ko' ? '파일 없음'  : 'No file attached';
-
-  const rmEl = document.getElementById('review-modules');
-  const rtEl = document.getElementById('review-types');
-  const rfEl = document.getElementById('review-file');
-
-  if (rmEl) rmEl.innerHTML = modules.length
-    ? modules.map(m => `<span class="badge-module">${m}</span>`).join('')
-    : `<em class="text-muted">${noSel}</em>`;
-
-  if (rtEl) rtEl.innerHTML = types.length
-    ? types.map(d => `<span class="badge-devtype">${d.replace(/_/g,' ')}</span>`).join('')
-    : `<em class="text-muted">${noSel}</em>`;
-
-  if (rfEl) {
+  const rf = document.getElementById('review-file');
+  const noFile = typeof currentLang !== 'undefined' && currentLang === 'en' ? 'No file attached' : '없음';
+  if (rf) {
     if (fileInput && fileInput.files && fileInput.files.length) {
       const names = Array.from(fileInput.files).map(f => f.name);
-      rfEl.innerHTML = `<i class="fa-solid fa-file me-1"></i>${names.join(', ')}`;
+      rf.innerHTML = names.map(n => `<div class="small mb-0"><i class="fa-solid fa-file me-1"></i>${n}</div>`).join('');
     } else {
-      rfEl.innerHTML = `<em class="text-muted">${noFile}</em>`;
+      rf.innerHTML = `<em class="text-muted">${noFile}</em>`;
     }
   }
 }
 
 function activateProgressOnScroll() {
-  const sections = ['section-1','section-2','section-3','section-4'];
-  const steps    = ['prog-1','prog-2','prog-3','prog-4'];
+  const sections = ['section-1', 'section-2', 'section-3', 'section-4'];
+  const steps = ['prog-1', 'prog-2', 'prog-3', 'prog-4'];
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -90,3 +310,37 @@ function activateProgressOnScroll() {
     if (el) observer.observe(el);
   });
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadRfpNotePrefill();
+
+  const desc = document.getElementById('description');
+  const counter = document.getElementById('char-count');
+  if (desc && counter) {
+    counter.textContent = desc.value.length;
+    desc.addEventListener('input', () => { counter.textContent = desc.value.length; });
+  }
+
+  setupMaxSelect('module-chip', 'module-count', 3);
+  setupMaxSelect('devtype-chip', 'devtype-count', 3);
+
+  initProgramIdTransactionFields();
+  initAttachmentDropZone();
+
+  document.querySelectorAll('.module-chip, .devtype-chip').forEach(c => {
+    c.addEventListener('change', updateReview);
+  });
+
+  updateReview();
+
+  activateProgressOnScroll();
+
+  const form = document.getElementById('rfp-form');
+  const submitBtn = document.getElementById('submit-btn');
+  if (form && submitBtn) {
+    form.addEventListener('submit', () => {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+    });
+  }
+});
