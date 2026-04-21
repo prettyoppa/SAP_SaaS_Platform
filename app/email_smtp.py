@@ -67,12 +67,15 @@ def _send_via_resend(to_addr: str, subject: str, body: str) -> None:
         "text": body,
     }
     data = json.dumps(payload).encode("utf-8")
+    # Resend/Cloudflare: User-Agent 없으면 403 + error code 1010
+    # https://resend.com/docs/knowledge-base/403-error-1010
     req = urllib.request.Request(
         "https://api.resend.com/emails",
         data=data,
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": (os.environ.get("RESEND_USER_AGENT") or "SAP-Dev-Hub/1.0 (verification)"),
         },
         method="POST",
     )
