@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}입력 확인 – SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-8 col-lg-6">
+        <div class="auth-card">
+          <h2 class="auth-title mb-3"><i class="fa-solid fa-circle-exclamation text-warning me-2"></i>입력을 완료해 주세요</h2>
+          <div class="alert alert-danger mb-4" role="alert">
+            {{ message }}
+          </div>
+          <p class="text-muted small mb-4">필수 입력란이 비어 있거나 형식이 맞지 않을 때 나옵니다. 이전 화면으로 돌아가 수정한 뒤 다시 시도해 주세요.</p>
+          <a href="{{ back_url }}" class="btn btn-primary w-100 btn-lg">
+            <i class="fa-solid fa-arrow-left me-2"></i>이전 페이지로
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

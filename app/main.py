@@ -4,13 +4,16 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
-from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from .database import SessionLocal, db_target_log_line, engine
-from .email_smtp import log_smtp_startup_checks
+from .email_smtp import email_verification_enabled, log_smtp_startup_checks
+from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
 from . import auth, models
 from .routers import auth_router, rfp_router, interview_router, codelib_router
 from .routers import admin_router, review_router
@@ -164,6 +167,58 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    """브라우저 폼 제출(text/html) 시 422 JSON 대신 안내 화면 또는 폼 재표시."""
+    errors_list = exc.errors()
+    if not request_accepts_html(request):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": jsonable_encoder(errors_list)},
+        )
+
+    path = request.url.path
+    message = humanize_validation_errors(errors_list)
+
+    if path == "/register":
+        db = SessionLocal()
+        try:
+            settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "settings": settings,
+                    "email_verification": email_verification_enabled(),
+                    "error": "validation",
+                    "validation_message": message,
+                },
+                status_code=422,
+            )
+        finally:
+            db.close()
+
+    if path == "/login":
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "error": "validation",
+                "validation_message": message,
+            },
+            status_code=422,
+        )
+
+    back = safe_back_url(request, "/")
+    return templates.TemplateResponse(
+        request,
+        "form_validation_error.html",
+        {"message": message, "back_url": back},
+        status_code=422,
+    )
+
 
 # 서버 사이드 세션(코드 라이브러리 2차 확인 등). SESSION_SECRET 미설정 시 JWT 시크릿과 동일(운영에서는 분리 권장).
 app.add_middleware(

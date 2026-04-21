@@ -13,6 +13,12 @@
           <h2 class="auth-title" data-i18n="login.title">Welcome Back</h2>
           <p class="auth-sub text-muted" data-i18n="login.sub">Sign in to your SAP Dev Hub account</p>
 
+          {% if error == 'validation' %}
+          <div class="alert alert-danger d-flex align-items-start" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2 mt-1"></i>
+            <span>{{ validation_message or '이메일과 비밀번호를 입력해 주세요.' }}</span>
+          </div>
+          {% endif %}
           {% if registered_ok %}
           <div class="alert alert-success d-flex align-items-center" role="alert">
             <i class="fa-solid fa-circle-check me-2"></i>

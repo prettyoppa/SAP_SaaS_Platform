@@ -19,7 +19,12 @@
             <span class="nav-en">Start automating your SAP development today</span>
           </p>
 
-          {% if error == 'duplicate' %}
+          {% if error == 'validation' %}
+          <div class="alert alert-danger d-flex align-items-start" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2 mt-1"></i>
+            <span>{{ validation_message or '입력 내용을 확인해 주세요.' }}</span>
+          </div>
+          {% elif error == 'duplicate' %}
           <div class="alert alert-danger d-flex align-items-center" role="alert">
             <i class="fa-solid fa-circle-exclamation me-2"></i>
             <span>이미 등록된 이메일입니다. / This email is already registered.</span>
