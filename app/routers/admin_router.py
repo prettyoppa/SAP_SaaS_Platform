@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
+
 from .. import models, auth
 from ..database import get_db
 from ..templates_config import templates
@@ -15,6 +16,32 @@ def _require_admin(request: Request, db: Session):
     return user
 
 
+def _admin_purge_user_and_data(db: Session, target: models.User, actor: models.User) -> str | None:
+    """
+    테스트용: 사용자와 소유 RFP·코드·이용후기 등 연관 데이터 삭제.
+    성공 시 None, 실패 시 오류 코드 문자열 (redirect query용).
+    """
+    if target.id == actor.id:
+        return "self"
+    uid = target.id
+    for rfp in db.query(models.RFP).filter(models.RFP.user_id == uid).all():
+        db.query(models.RFPMessage).filter(models.RFPMessage.rfp_id == rfp.id).delete()
+        db.delete(rfp)
+    db.query(models.ABAPCode).filter(models.ABAPCode.uploaded_by == uid).delete()
+    rev_ids = [r.id for r in db.query(models.Review).filter(models.Review.user_id == uid).all()]
+    if rev_ids:
+        db.query(models.ReviewComment).filter(models.ReviewComment.review_id.in_(rev_ids)).delete(
+            synchronize_session=False
+        )
+    db.query(models.Review).filter(models.Review.user_id == uid).delete(synchronize_session=False)
+    db.query(models.ReviewComment).filter(models.ReviewComment.user_id == uid).delete(
+        synchronize_session=False
+    )
+    db.delete(target)
+    db.commit()
+    return None
+
+
 # ── 관리자 대시보드 ────────────────────────────────────
 
 @router.get("", response_class=HTMLResponse)
@@ -23,6 +50,46 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse(request, "admin/dashboard.html", {"request": request, "user": user})
+
+
+# ── 사용자 삭제 (테스트용: 동일 이메일 재가입) ───────────
+
+@router.get("/users", response_class=HTMLResponse)
+def admin_users(
+    request: Request,
+    db: Session = Depends(get_db),
+    deleted: str | None = None,
+    err: str | None = None,
+):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    users = db.query(models.User).order_by(models.User.id.desc()).all()
+    return templates.TemplateResponse(
+        request,
+        "admin/users.html",
+        {
+            "request": request,
+            "user": user,
+            "users": users,
+            "deleted": deleted == "1",
+            "err": err,
+        },
+    )
+
+
+@router.post("/users/{user_id}/delete")
+def admin_user_delete(user_id: int, request: Request, db: Session = Depends(get_db)):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    code = _admin_purge_user_and_data(db, target, actor)
+    if code == "self":
+        return RedirectResponse(url="/admin/users?err=self", status_code=302)
+    return RedirectResponse(url="/admin/users?deleted=1", status_code=302)
 
 
 # ── SAP 모듈 관리 ──────────────────────────────────────
