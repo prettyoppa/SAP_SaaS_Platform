@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
-from ..email_smtp import send_verification_email, smtp_verification_enabled
+from ..email_smtp import email_verification_enabled, send_verification_email
 from ..templates_config import templates
 
 router = APIRouter()
@@ -97,7 +97,7 @@ def login(
             {"error": True},
             status_code=400,
         )
-    if smtp_verification_enabled() and not user.email_verified:
+    if email_verification_enabled() and not user.email_verified:
         return templates.TemplateResponse(
             request,
             "login.html",
@@ -126,7 +126,7 @@ def register_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "register.html",
-        {"settings": settings, "email_verification": smtp_verification_enabled()},
+        {"settings": settings, "email_verification": email_verification_enabled()},
     )
 
 
@@ -157,7 +157,7 @@ def register(
             {
                 "error": "invalid_email",
                 "settings": settings,
-                "email_verification": smtp_verification_enabled(),
+                "email_verification": email_verification_enabled(),
             },
             status_code=400,
         )
@@ -171,11 +171,11 @@ def register(
             {
                 "error": "duplicate",
                 "settings": settings,
-                "email_verification": smtp_verification_enabled(),
+                "email_verification": email_verification_enabled(),
             },
             status_code=400,
         )
-    want_verify = smtp_verification_enabled()
+    want_verify = email_verification_enabled()
     new_user = models.User(
         email=email_norm,
         full_name=full_name,
@@ -223,7 +223,7 @@ def resend_verification(
     db: Session = Depends(get_db),
 ):
     """미인증 계정에 한해 인증 메일 재발송. 존재 여부는 응답에 노출하지 않음."""
-    if not smtp_verification_enabled():
+    if not email_verification_enabled():
         return RedirectResponse(url="/login", status_code=302)
     email_norm = _normalize_email_strict(email)
     if not email_norm:

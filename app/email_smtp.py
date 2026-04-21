@@ -1,20 +1,91 @@
 """
-SMTP 발송 (회원 이메일 인증 링크). SMTP_HOST + MAIL_FROM 이 설정된 경우에만 활성화.
+회원 인증 메일 발송.
+
+- Resend HTTPS API: Railway Hobby 등 SMTP 차단 환경용 (RESEND_API_KEY).
+- SMTP: Pro+ 등 아웃바운드 SMTP 허용 환경용 (SMTP_HOST + MAIL_FROM).
 """
 from __future__ import annotations
 
-import logging
+import json
 import os
 import smtplib
 import socket
 import ssl
+import urllib.error
+import urllib.request
 from email.message import EmailMessage
+
+
+def resend_api_enabled() -> bool:
+    return bool((os.environ.get("RESEND_API_KEY") or "").strip())
 
 
 def smtp_verification_enabled() -> bool:
     host = (os.environ.get("SMTP_HOST") or "").strip()
     mail_from = (os.environ.get("MAIL_FROM") or "").strip()
     return bool(host and mail_from)
+
+
+def email_verification_enabled() -> bool:
+    """인증 메일 플로우 사용 여부 (Resend 또는 SMTP 중 하나라도 설정되면 True)."""
+    return resend_api_enabled() or smtp_verification_enabled()
+
+
+def _verification_subject_and_body(verify_url: str) -> tuple[str, str]:
+    subject = os.environ.get("MAIL_VERIFY_SUBJECT", "[SAP Dev Hub] 이메일 주소를 확인해 주세요")
+    body = (
+        "아래 링크를 눌러 이메일 인증을 완료해 주세요.\n\n"
+        f"{verify_url}\n\n"
+        "이 링크는 며칠 동안만 유효합니다. 요청하지 않으셨다면 이 메일을 무시하세요."
+    )
+    return subject, body
+
+
+def _resend_from_address() -> str:
+    """Resend 발신 주소. 도메인 인증 전에는 onboarding@resend.dev 등 Resend 안내 주소 사용."""
+    return (
+        (os.environ.get("RESEND_FROM") or "").strip()
+        or (os.environ.get("MAIL_FROM") or "").strip()
+    )
+
+
+def _send_via_resend(to_addr: str, subject: str, body: str) -> None:
+    api_key = (os.environ.get("RESEND_API_KEY") or "").strip()
+    from_addr = _resend_from_address()
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY가 없습니다.")
+    if not from_addr:
+        raise RuntimeError(
+            "발신 주소가 필요합니다. Railway Variables에 RESEND_FROM "
+            "(또는 Resend에서 허용된 MAIL_FROM)을 설정하세요."
+        )
+
+    payload = {
+        "from": from_addr,
+        "to": [to_addr],
+        "subject": subject,
+        "text": body,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=data,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            if resp.status >= 400:
+                raise RuntimeError(f"Resend HTTP {resp.status}: {raw}")
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Resend API {e.code}: {err_body}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Resend 연결 실패: {e}") from e
 
 
 def _smtp_timeout_sec() -> float:
@@ -92,65 +163,81 @@ def _smtp_params() -> dict:
 
 def log_smtp_startup_checks(root_logger: logging.Logger) -> None:
     """
-    Railway 등에서 변수 누락·오타를 빨리 찾기 위해 기동 시 한 번 로그합니다.
-    비밀번호 값은 절대 출력하지 않습니다.
+    기동 시 메일 설정 점검 로그. 비밀번호·API 키 전체는 출력하지 않습니다.
     """
-    if not smtp_verification_enabled():
-        root_logger.info("[SMTP] email verification disabled (set SMTP_HOST + MAIL_FROM to enable)")
-        return
-    p = _smtp_params()
     pub = (os.environ.get("PUBLIC_BASE_URL") or "").strip()
     if pub and not (pub.startswith("https://") or pub.startswith("http://")):
         root_logger.error(
-            "[SMTP] PUBLIC_BASE_URL must include scheme, e.g. https://sap.example.com (got: %s)",
+            "[Email] PUBLIC_BASE_URL must include scheme, e.g. https://sap.example.com (got: %s)",
             pub[:80],
         )
     elif not pub:
         root_logger.warning(
-            "[SMTP] PUBLIC_BASE_URL is empty; verify links will use request host (set explicitly behind proxies)"
+            "[Email] PUBLIC_BASE_URL is empty; verify links will use request host (set explicitly behind proxies)"
         )
-    root_logger.info(
-        "[SMTP] enabled host=%s port=%s mail_from_set=%s user_set=%s password_set=%s",
-        p["host"] or "(empty)",
-        p["port"],
-        bool(p["mail_from"]),
-        bool(p["user"]),
-        bool(p["password"]),
-    )
-    if not p["user"] or not p["password"]:
-        root_logger.error(
-            "[SMTP] SMTP_USER (full Gmail address) and SMTP_PASSWORD (16-char app password) are required — "
-            "verification emails will fail until both are set."
+
+    if resend_api_enabled():
+        from_ok = bool(_resend_from_address())
+        root_logger.info(
+            "[Email] Resend API enabled (api_key set, from_set=%s). Railway Hobby에서 SMTP 대신 사용 가능.",
+            from_ok,
         )
-    if "gmail" in p["host"].lower() and p["port"] not in (587, 465):
-        root_logger.warning("[SMTP] Gmail usually uses port 587 or 465; current port=%s", p["port"])
-    root_logger.info(
-        "[SMTP] SMTP_FORCE_IPV4=%s (if connect fails with Errno 101, keep enabled)",
-        _smtp_force_ipv4(),
-    )
-    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"):
-        root_logger.warning(
-            "[SMTP] Railway: Free/Trial/Hobby 워크스페이스는 아웃바운드 SMTP(587/465 등)가 차단됩니다. "
-            "증상: smtp.gmail.com 연결 Timeout / unreachable. "
-            "대안: Resend·SendGrid 등 HTTPS API로 발송하거나 Pro+ 플랜에서 SMTP 사용. "
-            "https://docs.railway.com/reference/outbound-networking#email-delivery"
+        if not from_ok:
+            root_logger.error(
+                "[Email] Set RESEND_FROM (e.g. onboarding@resend.dev for Resend 테스트) or MAIL_FROM."
+            )
+        # Resend가 있으면 SMTP는 보조; SMTP만 쓰는 경우의 Railway 경고는 아래에서 처리
+    if not email_verification_enabled():
+        root_logger.info(
+            "[Email] verification disabled (set RESEND_API_KEY or SMTP_HOST+MAIL_FROM)"
         )
+        return
+
+    if not resend_api_enabled() and smtp_verification_enabled():
+        p = _smtp_params()
+        root_logger.info(
+            "[SMTP] enabled host=%s port=%s mail_from_set=%s user_set=%s password_set=%s",
+            p["host"] or "(empty)",
+            p["port"],
+            bool(p["mail_from"]),
+            bool(p["user"]),
+            bool(p["password"]),
+        )
+        if not p["user"] or not p["password"]:
+            root_logger.error(
+                "[SMTP] SMTP_USER and SMTP_PASSWORD are required for SMTP — "
+                "or use RESEND_API_KEY on Railway Hobby."
+            )
+        if "gmail" in p["host"].lower() and p["port"] not in (587, 465):
+            root_logger.warning("[SMTP] Gmail usually uses port 587 or 465; current port=%s", p["port"])
+        root_logger.info(
+            "[SMTP] SMTP_FORCE_IPV4=%s (if connect fails with Errno 101, keep enabled)",
+            _smtp_force_ipv4(),
+        )
+        if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"):
+            root_logger.warning(
+                "[SMTP] Railway Hobby: outbound SMTP is blocked — prefer Resend (HTTPS). "
+                "https://docs.railway.com/reference/outbound-networking#email-delivery"
+            )
 
 
 def send_verification_email(to_addr: str, verify_url: str) -> None:
+    subject, body = _verification_subject_and_body(verify_url)
+
+    if resend_api_enabled():
+        _send_via_resend(to_addr, subject, body)
+        return
+
     if not smtp_verification_enabled():
-        raise RuntimeError("SMTP is not configured")
+        raise RuntimeError(
+            "메일 발송 설정이 없습니다. Railway에는 RESEND_API_KEY(+ RESEND_FROM)를 권장합니다."
+        )
     p = _smtp_params()
     if not p["user"] or not p["password"]:
         raise RuntimeError(
             "SMTP_USER와 SMTP_PASSWORD가 필요합니다. Gmail은 전체 주소 + 앱 비밀번호를 넣으세요."
         )
-    subject = os.environ.get("MAIL_VERIFY_SUBJECT", "[SAP Dev Hub] 이메일 주소를 확인해 주세요")
-    body = (
-        "아래 링크를 눌러 이메일 인증을 완료해 주세요.\n\n"
-        f"{verify_url}\n\n"
-        "이 링크는 며칠 동안만 유효합니다. 요청하지 않으셨다면 이 메일을 무시하세요."
-    )
+
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = p["mail_from"]
