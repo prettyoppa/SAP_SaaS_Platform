@@ -302,16 +302,20 @@ a:hover { color: var(--primary); }
   color: var(--text) !important;
   letter-spacing: -.3px;
 }
+/* 로고 PNG 투명만 보이도록: 정사각형 박스·레터백스 제거, 배경색 없음 */
 .navbar-brand-logo {
-  width: 2.75rem;
+  display: block;
   height: 2.75rem;
+  width: auto;
+  max-height: 2.75rem;
   object-fit: contain;
   flex-shrink: 0;
-  border-radius: 4px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+  background: none !important;
+  border-radius: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
 }
 html[data-theme="light"] .navbar-brand-logo {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
 }
 .navbar-brand i { color: var(--primary); }
 .nav-link { color: var(--muted) !important; font-weight: 500; transition: color .2s; }
