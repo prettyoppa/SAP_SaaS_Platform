@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import models, auth
@@ -30,6 +30,9 @@ def _admin_purge_user_and_data(db: Session, target: models.User, actor: models.U
     for rfp in db.query(models.RFP).filter(models.RFP.user_id == uid).all():
         db.query(models.RFPMessage).filter(models.RFPMessage.rfp_id == rfp.id).delete()
         db.delete(rfp)
+    db.query(models.IntegrationRequest).filter(models.IntegrationRequest.user_id == uid).delete(
+        synchronize_session=False
+    )
     db.query(models.ABAPCode).filter(models.ABAPCode.uploaded_by == uid).delete()
     rev_ids = [r.id for r in db.query(models.Review).filter(models.Review.user_id == uid).all()]
     if rev_ids:
@@ -215,6 +218,22 @@ SITE_SETTING_KEYS = [
     ("privacy_policy", "개인정보처리방침"),
 ]
 
+HOME_TILE_API_KEYS = [
+    "home_tile_guide_title_ko",
+    "home_tile_guide_title_en",
+    "home_tile_guide_desc_ko",
+    "home_tile_guide_desc_en",
+    "home_tile_abap_title_ko",
+    "home_tile_abap_title_en",
+    "home_tile_abap_desc_ko",
+    "home_tile_abap_desc_en",
+    "home_tile_integration_title_ko",
+    "home_tile_integration_title_en",
+    "home_tile_integration_desc_ko",
+    "home_tile_integration_desc_en",
+    "user_guide_pdf_url",
+]
+
 
 @router.get("/settings", response_class=HTMLResponse)
 def admin_settings(request: Request, db: Session = Depends(get_db)):
@@ -226,6 +245,31 @@ def admin_settings(request: Request, db: Session = Depends(get_db)):
         "request": request, "user": user,
         "settings": raw, "setting_keys": SITE_SETTING_KEYS,
     })
+
+
+@router.patch("/api/home-tiles")
+async def admin_patch_home_tiles(request: Request, db: Session = Depends(get_db)):
+    actor = _require_admin(request, db)
+    if not actor:
+        return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "invalid_json"}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"ok": False, "error": "invalid_body"}, status_code=400)
+    for key in HOME_TILE_API_KEYS:
+        if key not in body:
+            continue
+        raw = body[key]
+        val = "" if raw is None else str(raw).strip()
+        existing = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
+        if existing:
+            existing.value = val
+        else:
+            db.add(models.SiteSettings(key=key, value=val))
+    db.commit()
+    return JSONResponse({"ok": True})
 
 
 @router.post("/settings")

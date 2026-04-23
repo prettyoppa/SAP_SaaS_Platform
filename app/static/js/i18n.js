@@ -4,9 +4,10 @@
 const TRANSLATIONS = {
   en: {
     /* Brand */
-    "brand.name": "Catchy Lab - SAP Dev Hub",
+    "brand.name": "SAP Development Partner",
     /* Nav */
-    "nav.home": "Home", "nav.dashboard": "Dashboard", "nav.newRfp": "New Request",
+    "nav.home": "Home", "nav.dashboard": "Dashboard", "nav.newRfp": "RFP",
+    "nav.integration": "Integration",
     "nav.codelib": "Code Library", "nav.admin": "Admin",
     "nav.login": "Login", "nav.signup": "Sign Up", "nav.logout": "Logout",
     /* Footer */
@@ -17,6 +18,9 @@ const TRANSLATIONS = {
     "hero.title1": "Transform Your", "hero.title2": "SAP Development", "hero.title3": "with AI Power",
     "hero.subtitle": "Submit your SAP development requirements and receive a professional Development Proposal automatically. Expert consultants then deliver production-ready ABAP code.",
     "hero.cta.start": "Start Free", "hero.cta.how": "How it Works",
+    "hero.powerAgents": "with 8 Power Agents",
+    "hero.cta.newRfp": "New RFP", "hero.cta.newIntegration": "Integration request",
+    "hero.cta.features": "Explore services",
     "hero.stat1": "Development Proposal", "hero.stat2": "Turnaround", "hero.stat3": "Certified Experts",
     /* How */
     "how.title": "How It Works", "how.subtitle": "From requirement to delivery in 3 simple steps",
@@ -36,6 +40,8 @@ const TRANSLATIONS = {
     "home.notice.empty": "No notices yet.", "home.faq.empty": "No FAQs yet.",
     "home.review.empty": "Be the first to leave a review.",
     "home.review.write": "Write a Review", "home.review.login": "Login to Write",
+    "home.features.title": "Get started", "home.features.sub": "User guide, ABAP RFP, or integration development.",
+    "home.tile.guideCta": "Open PDF", "home.tile.abapCta": "Learn more", "home.tile.intCta": "Learn more",
     /* Hero (logged-in) */
     "hero.cta.new": "New Request", "hero.cta.dashboard": "My Dashboard",
     /* How-it-works flow */
@@ -54,6 +60,7 @@ const TRANSLATIONS = {
     "cta.title": "Ready to automate your SAP development?",
     "cta.sub": "Create your free account and submit your first requirement today.",
     "cta.btn": "Get Started Free", "cta.btn.loggedin": "New Request",
+    "cta.btn.rfp": "New RFP", "cta.btn.integration": "Integration request",
     /* Login */
     "login.title": "Welcome Back", "login.sub": "Sign in to your SAP Dev Hub account",
     "login.email": "Email", "login.password": "Password", "login.btn": "Sign In",
@@ -116,11 +123,15 @@ const TRANSLATIONS = {
     /* Dashboard */
     "dash.welcome": "Welcome back,",
     "dash.newRequest": "New Request", "dash.totalRequests": "Total",
+    "dash.newRfp": "RFP (ABAP)", "dash.newIntegration": "Integration",
+    "dash.allKinds": "All (RFP + integration)", "dash.rfpOnly": "SAP ABAP (RFP)",
+    "dash.integrationOnly": "Integration", "dash.rfpTotal": "RFP total",
     "dash.completed": "Completed", "dash.inReview": "In Review", "dash.submitted": "Submitted",
-    "dash.myRequests": "My Development Requests",
+    "dash.myRequests": "My requests",
     "dash.emptyTitle": "No requests yet",
-    "dash.emptyDesc": "Submit your first development request and receive a free AI-generated proposal.",
+    "dash.emptyDesc": "Create an RFP or an integration request.",
     "dash.emptyBtn": "Create First Request",
+    "dash.emptyBtnRfp": "New RFP", "dash.emptyBtnInt": "Integration",
     "dash.editRfp": "Edit RFP", "dash.createdAt": "Submitted", "dash.proposalAt": "Proposal",
     /* Status */
     "status.draft": "Draft", "status.submitted": "Submitted",
@@ -138,9 +149,10 @@ const TRANSLATIONS = {
 
   ko: {
     /* Brand */
-    "brand.name": "Catchy Lab - SAP 개발 Hub",
+    "brand.name": "SAP 개발 파트너",
     /* Nav */
-    "nav.home": "홈", "nav.dashboard": "대시보드", "nav.newRfp": "신규 요청",
+    "nav.home": "홈", "nav.dashboard": "대시보드", "nav.newRfp": "RFP",
+    "nav.integration": "연동 개발",
     "nav.codelib": "코드 라이브러리", "nav.admin": "관리자 메뉴",
     "nav.login": "로그인", "nav.signup": "회원가입", "nav.logout": "로그아웃",
     /* Footer */
@@ -151,6 +163,9 @@ const TRANSLATIONS = {
     "hero.title1": "SAP 개발을", "hero.title2": "AI로 혁신하세요", "hero.title3": "",
     "hero.subtitle": "개발 요구사항을 제출하면 전문 수준의 개발 제안서(Proposal)를 자동으로 받아보세요. SAP 전문 컨설턴트가 실제 운영 가능한 ABAP 코드를 납품해 드립니다.",
     "hero.cta.start": "무료로 시작하기", "hero.cta.how": "이용 방법 보기",
+    "hero.powerAgents": "with 8 Power Agents",
+    "hero.cta.newRfp": "RFP 작성", "hero.cta.newIntegration": "연동 요청",
+    "hero.cta.features": "서비스 둘러보기",
     "hero.stat1": "개발 제안서 무료", "hero.stat2": "납품 기간", "hero.stat3": "SAP 전문가",
     /* How */
     "how.title": "이용 방법", "how.subtitle": "요구사항 접수부터 납품까지 3단계",
@@ -170,6 +185,8 @@ const TRANSLATIONS = {
     "home.notice.empty": "등록된 공지사항이 없습니다.", "home.faq.empty": "등록된 FAQ가 없습니다.",
     "home.review.empty": "이용후기를 남겨주세요.",
     "home.review.write": "후기 작성", "home.review.login": "로그인 후 작성",
+    "home.features.title": "시작하기", "home.features.sub": "이용 가이드, ABAP RFP, 연동 개발로 이동합니다.",
+    "home.tile.guideCta": "PDF 열기", "home.tile.abapCta": "자세히", "home.tile.intCta": "자세히",
     /* Hero (logged-in) */
     "hero.cta.new": "신규 요청하기", "hero.cta.dashboard": "내 대시보드",
     /* How-it-works flow */
@@ -188,6 +205,7 @@ const TRANSLATIONS = {
     "cta.title": "SAP 개발 자동화를 시작할 준비가 되셨나요?",
     "cta.sub": "무료 계정을 만들고 첫 번째 요구사항을 오늘 바로 제출해 보세요.",
     "cta.btn": "무료로 시작하기", "cta.btn.loggedin": "신규 요청하기",
+    "cta.btn.rfp": "RFP 작성", "cta.btn.integration": "연동 요청",
     /* Login */
     "login.title": "다시 오셨군요!", "login.sub": "SAP Dev Hub 계정으로 로그인하세요",
     "login.email": "이메일", "login.password": "비밀번호", "login.btn": "로그인",
@@ -250,11 +268,15 @@ const TRANSLATIONS = {
     /* Dashboard */
     "dash.welcome": "환영합니다,",
     "dash.newRequest": "신규 요청", "dash.totalRequests": "전체",
+    "dash.newRfp": "RFP(ABAP)", "dash.newIntegration": "연동 요청",
+    "dash.allKinds": "전체 (RFP+연동)", "dash.rfpOnly": "SAP ABAP (RFP)",
+    "dash.integrationOnly": "연동 개발", "dash.rfpTotal": "RFP 전체",
     "dash.completed": "완료", "dash.inReview": "검토 중", "dash.submitted": "제출됨",
-    "dash.myRequests": "나의 개발 요청 목록",
+    "dash.myRequests": "나의 요청",
     "dash.emptyTitle": "아직 요청이 없습니다",
-    "dash.emptyDesc": "첫 번째 개발 요청을 제출하고 무료 AI 개발 제안서를 받아보세요.",
+    "dash.emptyDesc": "RFP 또는 연동 요청을 제출해 보세요.",
     "dash.emptyBtn": "첫 번째 요청 만들기",
+    "dash.emptyBtnRfp": "RFP 작성", "dash.emptyBtnInt": "연동 요청",
     "dash.editRfp": "RFP 수정", "dash.createdAt": "제출일", "dash.proposalAt": "제안서",
     /* Status */
     "status.draft": "초안", "status.submitted": "제출됨",

@@ -18,6 +18,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     rfps = relationship("RFP", back_populates="owner")
+    integration_requests = relationship("IntegrationRequest", back_populates="owner")
     abap_codes = relationship("ABAPCode", back_populates="uploader")
 
 
@@ -62,6 +63,32 @@ class RFPMessage(Base):
     updated_at = Column(DateTime, nullable=True)
 
     rfp = relationship("RFP", back_populates="messages")
+
+
+class IntegrationRequest(Base):
+    """SAP 연동 개발 요청 (비 ABAP 중심: VBA, Python, 배치, API 등)."""
+
+    __tablename__ = "integration_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String, nullable=False)
+    # comma-separated: excel_vba, python_script, small_webapp, windows_batch, api_integration, other
+    impl_types = Column(String, nullable=True)
+    sap_touchpoints = Column(Text, nullable=True)
+    environment_notes = Column(Text, nullable=True)
+    security_notes = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+    attachments_json = Column(Text, nullable=True)
+    reference_code_payload = Column(Text, nullable=True)
+    status = Column(String, default="submitted")
+    interview_status = Column(String, default="pending")
+    proposal_text = Column(Text, nullable=True)
+    proposal_generated_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    owner = relationship("User", back_populates="integration_requests")
 
 
 class ABAPCode(Base):

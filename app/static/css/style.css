@@ -1101,6 +1101,33 @@ html[data-theme="light"] .codelib-source-pre {
 .notice-title { flex: 1; color: var(--text); }
 .notice-date { white-space: nowrap; font-size: .75rem; }
 
+/* ── Home feature tiles (3-col) ─────────────── */
+.home-feature-tiles .home-feature-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.35rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: border-color .2s, transform .2s;
+}
+.home-feature-tiles .home-feature-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+.home-feature-icon {
+  font-size: 1.75rem;
+  color: var(--primary-light);
+  margin-bottom: .75rem;
+}
+.home-feature-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: .5rem;
+}
+.home-feature-desc { flex: 1; }
+
 /* ── Flow Diagram ───────────────────────────── */
 .flow-diagram {
   display: flex; align-items: flex-start; justify-content: center;

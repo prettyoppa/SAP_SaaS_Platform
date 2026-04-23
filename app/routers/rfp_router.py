@@ -13,6 +13,16 @@ from ..templates_config import templates
 
 router = APIRouter()
 
+# 대시보드 연동 요청 배지용 (integration_router.IMPL_LABELS 와 동일)
+INTEGRATION_IMPL_LABELS = {
+    "excel_vba": "Excel / VBA 매크로",
+    "python_script": "Python 스크립트",
+    "small_webapp": "소규모 웹앱",
+    "windows_batch": "Windows 배치 / 작업 스케줄러",
+    "api_integration": "API·시스템 연동",
+    "other": "기타",
+}
+
 
 def _ref_code_initial_from_rfp(rfp: Any) -> Optional[dict]:
     if not rfp:
@@ -706,6 +716,7 @@ def delete_rfp_reference_codes(
 def dashboard(
     request: Request,
     status_filter: str = "",
+    kind_filter: str = "",
     date_from: str = "",
     date_to: str = "",
     sort_by: str = "newest",
@@ -719,26 +730,37 @@ def dashboard(
     query = db.query(models.RFP)
     if not user.is_admin:
         query = query.filter(models.RFP.user_id == user.id)
-
     all_rfps = query.order_by(models.RFP.created_at.desc()).all()
 
-    # 상태별 카운트 (필터 전)
+    iq = db.query(models.IntegrationRequest)
+    if not user.is_admin:
+        iq = iq.filter(models.IntegrationRequest.user_id == user.id)
+    all_irs = iq.order_by(models.IntegrationRequest.created_at.desc()).all()
+
     total = len(all_rfps)
     completed = sum(1 for r in all_rfps if r.interview_status == "completed")
     in_review = sum(1 for r in all_rfps if r.interview_status == "in_progress")
     submitted = sum(1 for r in all_rfps if r.interview_status == "pending" and r.status == "submitted")
 
-    # 상태 필터
     if status_filter == "completed":
-        rfps = [r for r in all_rfps if r.interview_status == "completed"]
+        rfps_by_status = [r for r in all_rfps if r.interview_status == "completed"]
     elif status_filter == "in_review":
-        rfps = [r for r in all_rfps if r.interview_status == "in_progress"]
+        rfps_by_status = [r for r in all_rfps if r.interview_status == "in_progress"]
     elif status_filter == "submitted":
-        rfps = [r for r in all_rfps if r.interview_status == "pending" and r.status == "submitted"]
+        rfps_by_status = [r for r in all_rfps if r.interview_status == "pending" and r.status == "submitted"]
     else:
-        rfps = all_rfps
+        rfps_by_status = all_rfps
 
-    # 날짜 범위 필터
+    if kind_filter == "rfp":
+        pool_rfp = rfps_by_status
+        pool_ir: List[models.IntegrationRequest] = []
+    elif kind_filter == "integration":
+        pool_rfp = []
+        pool_ir = list(all_irs)
+    else:
+        pool_rfp = rfps_by_status
+        pool_ir = list(all_irs)
+
     try:
         dt_from = _dt.strptime(date_from, "%Y-%m-%d") if date_from else None
     except ValueError:
@@ -751,26 +773,44 @@ def dashboard(
         dt_to_parsed = None
 
     if dt_from:
-        rfps = [r for r in rfps if r.created_at >= dt_from]
+        pool_rfp = [r for r in pool_rfp if r.created_at >= dt_from]
+        pool_ir = [ir for ir in pool_ir if ir.created_at >= dt_from]
     if dt_to_parsed:
-        rfps = [r for r in rfps if r.created_at <= dt_to_parsed]
+        pool_rfp = [r for r in pool_rfp if r.created_at <= dt_to_parsed]
+        pool_ir = [ir for ir in pool_ir if ir.created_at <= dt_to_parsed]
 
-    # 정렬
+    display_items: List[Tuple[str, Any]] = [("rfp", r) for r in pool_rfp] + [("integration", ir) for ir in pool_ir]
+
     if sort_by == "oldest":
-        rfps = sorted(rfps, key=lambda r: r.created_at)
+        display_items.sort(key=lambda t: t[1].created_at)
     elif sort_by == "status":
         order = {"completed": 0, "in_progress": 1, "generating_proposal": 2, "pending": 3}
-        rfps = sorted(rfps, key=lambda r: order.get(r.interview_status, 9))
-    else:  # newest (default)
-        rfps = sorted(rfps, key=lambda r: r.created_at, reverse=True)
+
+        def _sk(t: tuple[str, Any]) -> tuple:
+            obj = t[1]
+            return (order.get(obj.interview_status, 9), -obj.created_at.timestamp())
+
+        display_items.sort(key=_sk)
+    else:
+        display_items.sort(key=lambda t: t[1].created_at, reverse=True)
 
     return templates.TemplateResponse(request, "dashboard.html", {
         "request": request,
         "user": user,
-        "rfps": rfps,
+        "display_items": display_items,
+        "kind_filter": kind_filter,
         "status_filter": status_filter,
         "date_from": date_from,
         "date_to": date_to,
         "sort_by": sort_by,
-        "counts": {"total": total, "completed": completed, "in_review": in_review, "submitted": submitted},
+        "counts": {
+            "total": total,
+            "completed": completed,
+            "in_review": in_review,
+            "submitted": submitted,
+            "all_kinds": len(all_rfps) + len(all_irs),
+            "rfp_only": len(all_rfps),
+            "integration_only": len(all_irs),
+        },
+        "integration_impl_labels": INTEGRATION_IMPL_LABELS,
     })

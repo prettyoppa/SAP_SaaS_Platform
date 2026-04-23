@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}SAP 연동 개발 – SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="py-5">
+  <div class="container col-lg-9">
+    <nav aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="/">홈</a></li>
+        <li class="breadcrumb-item active" aria-current="page">SAP 연동 개발</li>
+      </ol>
+    </nav>
+    <h1 class="mb-3">SAP 연동 개발</h1>
+    <p class="lead text-muted">
+      Excel VBA, Python, 소규모 웹앱, 배치, API 연동 등 <strong>SAP와 붙는 비-ABAP</strong> 과제를 여기서 요청합니다.
+      SAP 터치포인트(RFC, IDoc, OData 등)와 보안·환경 조건을 적어 주시면 분석에 반영됩니다.
+    </p>
+    <div class="d-flex flex-wrap gap-3 mt-4 mb-5">
+      {% if user %}
+      <a href="/integration/new" class="btn btn-primary btn-lg">
+        <i class="fa-solid fa-plus me-2"></i>연동 요청 작성
+      </a>
+      <a href="/dashboard?kind_filter=integration" class="btn btn-outline-secondary btn-lg">내 연동 요청만 보기</a>
+      {% else %}
+      <a href="/login?next=/integration/new" class="btn btn-primary btn-lg">로그인 후 요청하기</a>
+      {% endif %}
+      <a href="/services/abap" class="btn btn-outline-primary btn-lg">SAP ABAP 개발 안내</a>
+    </div>
+
+    {% if user and mine %}
+    <h4 class="mb-3">최근 요청</h4>
+    <div class="list-group">
+      {% for ir in mine %}
+      <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+         href="/integration/{{ ir.id }}">
+        <span>{{ ir.title }}</span>
+        <small class="text-muted">{{ ir.created_at.strftime('%Y-%m-%d') }}</small>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

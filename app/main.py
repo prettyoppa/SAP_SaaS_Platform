@@ -16,7 +16,7 @@ from .email_smtp import email_verification_enabled, log_smtp_startup_checks
 from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
 from . import auth, models
 from .routers import auth_router, rfp_router, interview_router, codelib_router
-from .routers import admin_router, review_router
+from .routers import admin_router, review_router, integration_router
 from .templates_config import templates
 
 _log = logging.getLogger("uvicorn.error")
@@ -57,6 +57,34 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+
+def _seed_home_tile_settings():
+    """홈 3타일·이용가이드 PDF URL 등 기본 SiteSettings 시드."""
+    defaults = [
+        ("home_tile_guide_title_ko", "이용 가이드"),
+        ("home_tile_guide_title_en", "User Guide"),
+        ("home_tile_guide_desc_ko", "PDF와 서비스 이용 방법을 확인하세요."),
+        ("home_tile_guide_desc_en", "Open the PDF and learn how to use the hub."),
+        ("home_tile_abap_title_ko", "SAP ABAP 개발"),
+        ("home_tile_abap_title_en", "SAP ABAP Development"),
+        ("home_tile_abap_desc_ko", "RFP·AI 인터뷰·제안서 기반 전형적인 ABAP 개발 요청"),
+        ("home_tile_abap_desc_en", "RFP, AI interview, and proposal for classic ABAP work."),
+        ("home_tile_integration_title_ko", "SAP 연동 개발"),
+        ("home_tile_integration_title_en", "SAP Integration Dev"),
+        ("home_tile_integration_desc_ko", "VBA, Python, API 등 비-ABAP 연동·자동화 요청"),
+        ("home_tile_integration_desc_en", "Non-ABAP automation: VBA, Python, APIs, batch, small web apps."),
+        ("user_guide_pdf_url", "/static/docs/user-guide.pdf"),
+    ]
+    db: Session = SessionLocal()
+    try:
+        for key, val in defaults:
+            if db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first():
+                continue
+            db.add(models.SiteSettings(key=key, value=val))
+        db.commit()
+    finally:
+        db.close()
 
 
 def _seed_modules_and_devtypes():
@@ -142,6 +170,7 @@ def _bootstrap_database():
     models.Base.metadata.create_all(bind=engine)
     _run_migrations()
     _seed_modules_and_devtypes()
+    _seed_home_tile_settings()
     _sync_admins()
     _log.info("[DB] bootstrap complete")
 
@@ -163,7 +192,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Catchy Lab - SAP Dev Hub",
+    title="SAP 개발 파트너",
     docs_url=None,
     redoc_url=None,
     lifespan=lifespan,
@@ -251,6 +280,7 @@ app.include_router(interview_router.router)
 app.include_router(codelib_router.router)
 app.include_router(admin_router.router)
 app.include_router(review_router.router)
+app.include_router(integration_router.router)
 
 
 @app.get("/", response_class=HTMLResponse)

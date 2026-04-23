@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Catchy Lab - SAP 개발 Hub{% endblock %}
+{% block title %}SAP 개발 파트너{% endblock %}
 
 {% block content %}
 
@@ -10,7 +10,7 @@
       <div class="col-lg-5">
         <h1 class="hero-title">
           {{ settings.get('home_headline_ko', 'SAP 개발을 AI로 혁신하세요') }}<br/>
-          <span class="text-gradient">with AI Power</span>
+          <span class="text-gradient" data-i18n="hero.powerAgents">with 8 Power Agents</span>
         </h1>
         <p class="hero-sub">
           {{ settings.get('home_subtitle_ko', '개발 요구사항을 제출하면 AI 에이전트가 심층 인터뷰를 진행하고 전문 수준의 개발 제안서를 무료로 제공합니다.') }}
@@ -19,7 +19,11 @@
           {% if user %}
           <a href="/rfp/new" class="btn btn-primary btn-lg px-4">
             <i class="fa-solid fa-plus me-2"></i>
-            <span data-i18n="hero.cta.new">신규 요청하기</span>
+            <span data-i18n="hero.cta.newRfp">RFP 작성</span>
+          </a>
+          <a href="/integration/new" class="btn btn-outline-primary btn-lg px-4">
+            <i class="fa-solid fa-link me-2"></i>
+            <span data-i18n="hero.cta.newIntegration">연동 요청</span>
           </a>
           <a href="/dashboard" class="btn btn-outline-secondary btn-lg px-4">
             <span data-i18n="hero.cta.dashboard">내 대시보드</span>
@@ -29,15 +33,14 @@
             <i class="fa-solid fa-rocket me-2"></i>
             <span data-i18n="hero.cta.start">무료로 시작하기</span>
           </a>
-          <a href="#how-it-works" class="btn btn-outline-secondary btn-lg px-4">
-            <span data-i18n="hero.cta.how">이용 방법</span>
+          <a href="#home-features" class="btn btn-outline-secondary btn-lg px-4">
+            <span data-i18n="hero.cta.features">서비스 둘러보기</span>
             <i class="fa-solid fa-arrow-down ms-2"></i>
           </a>
           {% endif %}
         </div>
       </div>
 
-      <!-- 우측 탭 패널 -->
       <div class="col-lg-7">
         <div class="home-tabs-card">
           <ul class="nav nav-tabs home-nav-tabs" id="homeTabs" role="tablist">
@@ -60,7 +63,6 @@
             </li>
           </ul>
           <div class="tab-content home-tab-content p-3">
-            <!-- 공지사항 -->
             <div class="tab-pane fade show active" id="tab-notice">
               {% if notices %}
                 {% for n in notices %}
@@ -77,7 +79,6 @@
               </div>
               {% endif %}
             </div>
-            <!-- FAQ -->
             <div class="tab-pane fade" id="tab-faq">
               {% if faqs %}
               <div class="accordion accordion-flush" id="faqAccordion">
@@ -102,7 +103,6 @@
               </div>
               {% endif %}
             </div>
-            <!-- 이용후기 -->
             <div class="tab-pane fade" id="tab-reviews">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <small class="text-muted">고객 이용후기</small>
@@ -147,67 +147,127 @@
   </div>
 </section>
 
-<!-- 이용 방법 Diagram -->
-<section id="how-it-works" class="section-light py-5">
+<!-- 홈 기능 타일 -->
+<section id="home-features" class="section-light py-5">
   <div class="container">
     <div class="text-center mb-5">
-      <h2 class="section-title" data-i18n="how.title">이용 방법</h2>
-      <p class="section-sub text-muted" data-i18n="how.subtitle">요구사항 제출부터 최종 납품까지 3단계</p>
+      <h2 class="section-title" data-i18n="home.features.title">시작하기</h2>
+      <p class="section-sub text-muted" data-i18n="home.features.sub">이용 가이드, ABAP RFP, 연동 개발 중 필요한 경로로 이동하세요.</p>
     </div>
 
-    <!-- Flow Diagram -->
-    <div class="flow-diagram">
-      <!-- Step 1 -->
-      <div class="flow-step free-step">
-        <div class="flow-step-header">
-          <span class="flow-badge free-badge">FREE</span>
-          <div class="flow-step-num">01</div>
+    <div class="row g-4 home-feature-tiles">
+      <div class="col-md-4">
+        <div class="home-feature-card h-100">
+          <div class="home-feature-icon"><i class="fa-solid fa-book"></i></div>
+          <h3 class="home-feature-title">
+            <span class="nav-ko">{{ settings.get('home_tile_guide_title_ko', '이용 가이드') }}</span>
+            <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_title_en', 'User Guide') }}</span>
+          </h3>
+          <p class="home-feature-desc text-muted small mb-3">
+            <span class="nav-ko">{{ settings.get('home_tile_guide_desc_ko', '') }}</span>
+            <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_desc_en', '') }}</span>
+          </p>
+          <a class="btn btn-outline-primary btn-sm" id="home-guide-pdf-link" href="{{ settings.get('user_guide_pdf_url', '/static/docs/user-guide.pdf') }}" target="_blank" rel="noopener">
+            <i class="fa-solid fa-file-pdf me-1"></i><span data-i18n="home.tile.guideCta">PDF 열기</span>
+          </a>
         </div>
-        <div class="flow-icon"><i class="fa-solid fa-file-pen"></i></div>
-        <h5 data-i18n="how.step1.title">RFP 제출</h5>
-        <ul class="flow-list text-muted small">
-          <li data-i18n="how.step1.a">SAP 모듈 &amp; 개발 유형 선택</li>
-          <li data-i18n="how.step1.b">요구사항 자유 기술</li>
-          <li data-i18n="how.step1.c">참고 파일 첨부 (선택)</li>
-        </ul>
       </div>
-
-      <div class="flow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
-
-      <!-- Step 2 -->
-      <div class="flow-step free-step highlight-step">
-        <div class="flow-step-header">
-          <span class="flow-badge free-badge">FREE</span>
-          <div class="flow-step-num">02</div>
+      <div class="col-md-4">
+        <div class="home-feature-card h-100">
+          <div class="home-feature-icon"><i class="fa-solid fa-code"></i></div>
+          <h3 class="home-feature-title">
+            <span class="nav-ko">{{ settings.get('home_tile_abap_title_ko', 'SAP ABAP 개발') }}</span>
+            <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_title_en', 'SAP ABAP') }}</span>
+          </h3>
+          <p class="home-feature-desc text-muted small mb-3">
+            <span class="nav-ko">{{ settings.get('home_tile_abap_desc_ko', '') }}</span>
+            <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_desc_en', '') }}</span>
+          </p>
+          <a class="btn btn-primary btn-sm" href="/services/abap">
+            <span data-i18n="home.tile.abapCta">자세히</span>
+          </a>
         </div>
-        <div class="flow-icon"><i class="fa-solid fa-robot"></i></div>
-        <h5 data-i18n="how.step2.title">AI 인터뷰 &amp; 제안서</h5>
-        <ul class="flow-list small">
-          <li data-i18n="how.step2.a">Hannah – RFP 분석</li>
-          <li data-i18n="how.step2.b">Mia – 3라운드 심층 인터뷰</li>
-          <li data-i18n="how.step2.c">Jun – 개발 제안서 초안</li>
-          <li data-i18n="how.step2.d">Sara – 제안서 품질 검토</li>
-        </ul>
       </div>
-
-      <div class="flow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
-
-      <!-- Step 3 -->
-      <div class="flow-step paid-step">
-        <div class="flow-step-header">
-          <span class="flow-badge paid-badge">PAID</span>
-          <div class="flow-step-num">03</div>
+      <div class="col-md-4">
+        <div class="home-feature-card h-100">
+          <div class="home-feature-icon"><i class="fa-solid fa-plug"></i></div>
+          <h3 class="home-feature-title">
+            <span class="nav-ko">{{ settings.get('home_tile_integration_title_ko', 'SAP 연동 개발') }}</span>
+            <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_title_en', 'Integration') }}</span>
+          </h3>
+          <p class="home-feature-desc text-muted small mb-3">
+            <span class="nav-ko">{{ settings.get('home_tile_integration_desc_ko', '') }}</span>
+            <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_desc_en', '') }}</span>
+          </p>
+          <a class="btn btn-primary btn-sm" href="/integration">
+            <span data-i18n="home.tile.intCta">자세히</span>
+          </a>
         </div>
-        <div class="flow-icon"><i class="fa-solid fa-code"></i></div>
-        <h5 data-i18n="how.step3.title">최종 FS &amp; ABAP 코드</h5>
-        <ul class="flow-list text-muted small">
-          <li data-i18n="how.step3.a">David – 상세 기능 명세서 작성</li>
-          <li data-i18n="how.step3.b">Kevin – ABAP 코드 생성</li>
-          <li data-i18n="how.step3.c">Young – 코드 리뷰 &amp; 완성도 향상</li>
-          <li data-i18n="how.step3.d">Brian – 단위 테스트 시나리오</li>
-        </ul>
       </div>
     </div>
+
+    {% if user and user.is_admin %}
+    <div class="admin-home-tiles-editor card border mt-5" style="background:var(--surface2);border-color:var(--border)!important;">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fa-solid fa-gear me-2"></i>홈 타일 문구 편집 (관리자)</h5>
+        <p class="small text-muted">저장 시 즉시 반영됩니다. PDF는 <code>/static/docs/</code>에 올린 뒤 URL을 맞추면 됩니다.</p>
+        <div class="row g-2 small">
+          <div class="col-md-6"><label class="form-label">가이드 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-gtko" value="{{ settings.get('home_tile_guide_title_ko', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">가이드 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-gten" value="{{ settings.get('home_tile_guide_title_en', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">가이드 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-gdko" rows="2">{{ settings.get('home_tile_guide_desc_ko', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">가이드 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-gden" rows="2">{{ settings.get('home_tile_guide_desc_en', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">ABAP 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-akko" value="{{ settings.get('home_tile_abap_title_ko', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">ABAP 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-aken" value="{{ settings.get('home_tile_abap_title_en', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">ABAP 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-adko" rows="2">{{ settings.get('home_tile_abap_desc_ko', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">ABAP 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-aden" rows="2">{{ settings.get('home_tile_abap_desc_en', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">연동 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-ikko" value="{{ settings.get('home_tile_integration_title_ko', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">연동 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-iken" value="{{ settings.get('home_tile_integration_title_en', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">연동 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-idko" rows="2">{{ settings.get('home_tile_integration_desc_ko', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">연동 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-iden" rows="2">{{ settings.get('home_tile_integration_desc_en', '') }}</textarea></div>
+          <div class="col-12"><label class="form-label">이용 가이드 PDF URL</label><input class="form-control form-control-sm" id="adm-ht-pdf" value="{{ settings.get('user_guide_pdf_url', '') }}"/></div>
+        </div>
+        <div class="mt-3 d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-primary btn-sm" id="adm-ht-save">저장</button>
+          <span class="small text-muted" id="adm-ht-msg"></span>
+        </div>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var btn = document.getElementById('adm-ht-save');
+      if (!btn) return;
+      btn.addEventListener('click', function(){
+        var msg = document.getElementById('adm-ht-msg');
+        var body = {
+          home_tile_guide_title_ko: document.getElementById('adm-ht-gtko').value,
+          home_tile_guide_title_en: document.getElementById('adm-ht-gten').value,
+          home_tile_guide_desc_ko: document.getElementById('adm-ht-gdko').value,
+          home_tile_guide_desc_en: document.getElementById('adm-ht-gden').value,
+          home_tile_abap_title_ko: document.getElementById('adm-ht-akko').value,
+          home_tile_abap_title_en: document.getElementById('adm-ht-aken').value,
+          home_tile_abap_desc_ko: document.getElementById('adm-ht-adko').value,
+          home_tile_abap_desc_en: document.getElementById('adm-ht-aden').value,
+          home_tile_integration_title_ko: document.getElementById('adm-ht-ikko').value,
+          home_tile_integration_title_en: document.getElementById('adm-ht-iken').value,
+          home_tile_integration_desc_ko: document.getElementById('adm-ht-idko').value,
+          home_tile_integration_desc_en: document.getElementById('adm-ht-iden').value,
+          user_guide_pdf_url: document.getElementById('adm-ht-pdf').value
+        };
+        msg.textContent = '저장 중…';
+        fetch('/admin/api/home-tiles', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+          .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+          .then(function(x){
+            if (x.ok && x.j && x.j.ok) {
+              msg.textContent = '저장됨. 새로고침하면 화면에 반영됩니다.';
+              var pdf = document.getElementById('home-guide-pdf-link');
+              if (pdf && body.user_guide_pdf_url) pdf.setAttribute('href', body.user_guide_pdf_url);
+            } else msg.textContent = '저장 실패';
+          })
+          .catch(function(){ msg.textContent = '오류'; });
+      });
+    })();
+    </script>
+    {% endif %}
   </div>
 </section>
 
@@ -219,10 +279,16 @@
     <p class="text-muted mb-4" data-i18n="cta.sub">무료로 계정을 만들고 첫 번째 요청을 제출해 보세요.</p>
     {% endif %}
     {% if user %}
-    <a href="/rfp/new" class="btn btn-primary btn-lg px-5">
-      <i class="fa-solid fa-plus me-2"></i>
-      <span data-i18n="cta.btn.loggedin">신규 요청하기</span>
-    </a>
+    <div class="d-flex flex-wrap gap-3 justify-content-center">
+      <a href="/rfp/new" class="btn btn-primary btn-lg px-5">
+        <i class="fa-solid fa-plus me-2"></i>
+        <span data-i18n="cta.btn.rfp">RFP 작성</span>
+      </a>
+      <a href="/integration/new" class="btn btn-outline-primary btn-lg px-5">
+        <i class="fa-solid fa-link me-2"></i>
+        <span data-i18n="cta.btn.integration">연동 요청</span>
+      </a>
+    </div>
     {% else %}
     <a href="/register" class="btn btn-primary btn-lg px-5">
       <i class="fa-solid fa-user-plus me-2"></i>
