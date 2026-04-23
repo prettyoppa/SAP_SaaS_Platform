@@ -248,3 +248,54 @@ def extract_questions_from_codes(similar_codes: list) -> list[str]:
         except Exception:
             pass
     return merged[:5]  # 최대 5개
+
+
+def format_similar_codes_analysis_summary(similar_codes: list, max_total: int = 4500) -> str:
+    """
+    DB 코드 라이브러리의 유사 항목을 Hannah / Proposal 프롬프트용 요약 문자열로 만듭니다.
+    (고객이 RFP 폼에 로컬 저장한 참고 ABAP은 서버로 오지 않으므로 여기 포함되지 않습니다.)
+    """
+    if not similar_codes:
+        return ""
+
+    intro = (
+        "아래는 서버 코드 라이브러리에서 본 요청의 SAP 모듈·개발 유형과 겹치는 "
+        "분석 완료 사례입니다. 고객 브라우저에만 있는 참고 소스와는 별개이며, "
+        "인터뷰·제안서 작성 시 유사 패턴 참고용으로만 활용하세요.\n"
+    )
+
+    parts: list[str] = []
+    total = len(intro)
+    for idx, code in enumerate(similar_codes, start=1):
+        lines: list[str] = []
+        title = (code.title or code.program_id or "").strip() or "(제목 없음)"
+        lines.append(f"{idx}. {title}")
+        if getattr(code, "program_id", None):
+            lines.append(f"   프로그램 ID: {code.program_id}")
+        if getattr(code, "transaction_code", None):
+            lines.append(f"   T-Code: {code.transaction_code}")
+        aj = getattr(code, "analysis_json", None) or ""
+        if aj:
+            try:
+                j = json.loads(aj)
+                pp = (j.get("program_purpose") or "").strip()
+                if pp:
+                    lines.append(f"   분석 요약: {pp[:900]}")
+                screens = j.get("screens") or []
+                if isinstance(screens, list) and screens:
+                    titles: list[str] = []
+                    for s in screens[:6]:
+                        if isinstance(s, dict) and s.get("title"):
+                            titles.append(str(s["title"])[:100])
+                    if titles:
+                        lines.append(f"   화면: {', '.join(titles)}")
+            except Exception:
+                pass
+        block = "\n".join(lines)
+        if total + len(block) + 2 > max_total:
+            parts.append("… (이하 생략)")
+            break
+        parts.append(block)
+        total += len(block) + 2
+
+    return intro + "\n\n".join(parts)

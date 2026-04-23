@@ -26,6 +26,35 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 MAX_ROUNDS = 3
 
+
+def _parse_code_library_context(code_library_context: str) -> tuple[str, dict]:
+    """JSON code_library_context → (analysis_summary, 전체 dict)."""
+    if not code_library_context or not str(code_library_context).strip():
+        return "", {}
+    try:
+        ctx = json.loads(code_library_context)
+        if not isinstance(ctx, dict):
+            return "", {}
+        summary = (ctx.get("analysis_summary") or "").strip()
+        return summary, ctx
+    except Exception:
+        return "", {}
+
+
+def _format_library_block_for_mia(code_library_context: str) -> str:
+    """Mia 태스크용: 질문 목록 + 요약 (원시 JSON 대신 가독 형식)."""
+    summary, ctx = _parse_code_library_context(code_library_context)
+    qs = ctx.get("questions") if ctx else None
+    chunks = []
+    if qs and isinstance(qs, list):
+        lines = [f"- {q}" for q in qs[:6] if q]
+        if lines:
+            chunks.append("역추출 인터뷰 질문 후보:\n" + "\n".join(lines))
+    if summary:
+        chunks.append("유사 프로그램 요약:\n" + summary[:3200])
+    return "\n\n".join(chunks) if chunks else "없음"
+
+
 # ── SAP 레이블 맵 ─────────────────────────────────────
 
 _MODULE_LABELS = {
@@ -196,10 +225,12 @@ def generate_round_questions(
     Returns:
         {"questions": [...], "is_complete": False, "source": "..."}
     """
+    analysis_summary, lib_ctx = _parse_code_library_context(code_library_context)
+
     # 1라운드: 코드 라이브러리 질문 우선 사용
     if round_num == 1 and code_library_context:
         try:
-            ctx = json.loads(code_library_context)
+            ctx = lib_ctx if lib_ctx else json.loads(code_library_context)
             qs = ctx.get("questions", [])
             if qs:
                 return {
@@ -215,6 +246,14 @@ def generate_round_questions(
     rfp_ctx = _fmt_rfp(rfp_data)
     conv_ctx = _fmt_conv(conversation)
 
+    lib_for_hannah = ""
+    if analysis_summary:
+        lib_for_hannah = f"""
+
+[서버 코드 라이브러리 – 유사 프로그램 요약 (고객 PC 로컬 참고 코드와 별개, 패턴 참고용)]
+{analysis_summary}
+"""
+
     # Task 1: Hannah – 현재 상태 분석
     analyze_task = Task(
         description=f"""아래 RFP와 지금까지의 인터뷰 내용을 분석하세요.
@@ -224,13 +263,15 @@ def generate_round_questions(
 
 [인터뷰 내용]
 {conv_ctx}
-
+{lib_for_hannah}
 [현재 라운드: {round_num} / 전체: {MAX_ROUNDS}]
 
 다음 항목을 간결하게 분석하세요:
 1. 현재까지 파악된 핵심 요구사항 (2~3줄)
 2. 아직 불명확하거나 확인이 필요한 사항 목록
-3. 이번 라운드에서 반드시 확인해야 할 우선순위 3가지""",
+3. 이번 라운드에서 반드시 확인해야 할 우선순위 3가지
+
+※ 서버 코드 라이브러리 요약이 있다면, 그 사례와 고객 RFP의 차이·공통점을 구분해 분석에 반영하세요.""",
         agent=f_analyst,
         expected_output="요구사항 현황 분석 결과 (텍스트)",
     )
@@ -239,8 +280,8 @@ def generate_round_questions(
     question_task = Task(
         description=f"""Hannah의 분석을 바탕으로 {round_num}라운드 인터뷰 질문 3개를 생성하세요.
 
-[코드 라이브러리 참고 질문]
-{code_library_context if code_library_context else "없음"}
+[코드 라이브러리 참고 자료]
+{_format_library_block_for_mia(code_library_context)}
 
 작성 원칙:
 - "기능이 필요한가요? (예: 구체적 사례) 필요하다면 어떤 기준으로?" 구조
@@ -278,7 +319,11 @@ def generate_round_questions(
     }
 
 
-def generate_proposal(rfp_data: dict, conversation: list[dict]) -> str:
+def generate_proposal(
+    rfp_data: dict,
+    conversation: list[dict],
+    code_library_context: str = "",
+) -> str:
     """
     전체 인터뷰 내용으로 Development Proposal을 생성합니다.
     Hannah(최종 분석) → Jun(작성) → Sara(검토/승인) 순서로 진행합니다.
@@ -287,6 +332,14 @@ def generate_proposal(rfp_data: dict, conversation: list[dict]) -> str:
     f_analyst, _, f_writer, f_reviewer = _make_agents(llm)
     rfp_ctx = _fmt_rfp(rfp_data)
     conv_ctx = _fmt_conv(conversation)
+    analysis_summary, _ = _parse_code_library_context(code_library_context)
+    lib_for_hannah = ""
+    if analysis_summary:
+        lib_for_hannah = f"""
+
+[서버 코드 라이브러리 – 유사 프로그램 요약 (Proposal 기술·화면 설계 참고; 고객 로컬 참고 코드 미포함)]
+{analysis_summary}
+"""
 
     # Task 1: Hannah – 최종 요구사항 명세
     final_analysis = Task(
@@ -294,7 +347,7 @@ def generate_proposal(rfp_data: dict, conversation: list[dict]) -> str:
 
 [RFP 정보]
 {rfp_ctx}
-
+{lib_for_hannah}
 [전체 인터뷰 내용]
 {conv_ctx}
 
@@ -304,7 +357,9 @@ def generate_proposal(rfp_data: dict, conversation: list[dict]) -> str:
 3. 입력 조건 및 출력 형태
 4. SAP 모듈/컴포넌트 범위
 5. 특이사항 및 제약조건
-6. 복잡도 평가 (Low/Medium/High) 및 근거""",
+6. 복잡도 평가 (Low/Medium/High) 및 근거
+
+※ 코드 라이브러리 요약이 있으면, 유사 사례의 화면·기술 패턴을 참고하되 고객 RFP·인터뷰 내용을 최우선으로 반영하세요.""",
         agent=f_analyst,
         expected_output="구조화된 최종 요구사항 명세 (텍스트)",
     )

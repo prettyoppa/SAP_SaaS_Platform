@@ -7,6 +7,8 @@
   var MAX_SLOTS = 3;
   var DEBOUNCE_MS = 450;
   var saveTimer = null;
+  /** 동시에 펼쳐 보이는 참고 코드 슬롯 수 (1~3, 로컬 저장) */
+  var visibleSlotCount = 1;
 
   var TYPE_OPTIONS = [
     '메인 프로그램',
@@ -140,6 +142,43 @@
     bind(clsDt, dtCountId);
   }
 
+  function slotHasData(s) {
+    if (!s) return false;
+    if ((s.program_id || '').trim()) return true;
+    if ((s.transaction_code || '').trim()) return true;
+    if ((s.title || '').trim()) return true;
+    if ((s.sap_modules || []).length) return true;
+    if ((s.dev_types || []).length) return true;
+    var secs = s.sections || [];
+    for (var j = 0; j < secs.length; j++) {
+      if ((secs[j].code || '').trim()) return true;
+      if ((secs[j].name || '').trim()) return true;
+    }
+    return false;
+  }
+
+  function minSlotsFromPayload(slots) {
+    var n = 1;
+    if (!slots || !slots.length) return 1;
+    for (var i = 0; i < MAX_SLOTS; i++) {
+      if (slotHasData(slots[i])) n = i + 1;
+    }
+    return n;
+  }
+
+  function applySlotVisibility() {
+    for (var i = 0; i < MAX_SLOTS; i++) {
+      var root = document.querySelector('[data-ref-slot="' + i + '"]');
+      if (!root) continue;
+      root.classList.toggle('d-none', i >= visibleSlotCount);
+    }
+    var btn = document.getElementById('ref-add-slot-btn');
+    if (btn) {
+      btn.style.display = visibleSlotCount >= MAX_SLOTS ? 'none' : '';
+      btn.disabled = visibleSlotCount >= MAX_SLOTS;
+    }
+  }
+
   function gather() {
     var slots = [];
     for (var i = 0; i < MAX_SLOTS; i++) {
@@ -205,6 +244,13 @@
     if (!host) return;
 
     var loaded = loadRaw();
+    visibleSlotCount = 1;
+    if (loaded) {
+      var fromData = minSlotsFromPayload(loaded.slots);
+      var saved =
+        typeof loaded.visibleSlotCount === 'number' ? loaded.visibleSlotCount : 1;
+      visibleSlotCount = Math.min(MAX_SLOTS, Math.max(1, saved, fromData));
+    }
 
     for (var i = 0; i < MAX_SLOTS; i++) {
       var slotData = (loaded && loaded.slots && loaded.slots[i]) || {};
@@ -255,6 +301,19 @@
         var titleEl = root.querySelector('.js-ref-title');
         if (titleEl) titleEl.addEventListener('input', scheduleSave);
       }
+    }
+
+    applySlotVisibility();
+
+    var addSlotBtn = document.getElementById('ref-add-slot-btn');
+    if (addSlotBtn) {
+      addSlotBtn.addEventListener('click', function () {
+        if (visibleSlotCount < MAX_SLOTS) {
+          visibleSlotCount++;
+          applySlotVisibility();
+          scheduleSave();
+        }
+      });
     }
   }
 

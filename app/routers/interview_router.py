@@ -20,8 +20,11 @@ def _interview_trust_panel(db: Session, rfp: models.RFP) -> dict:
         try:
             cj = json.loads(ctx_raw)
             qs = cj.get("questions") or []
-            out["library_matched"] = len(qs) > 0
-            out["library_line"] = cj.get("source", "") or ""
+            has_summary = bool((cj.get("analysis_summary") or "").strip())
+            out["library_matched"] = len(qs) > 0 or has_summary
+            out["library_line"] = cj.get("source", "") or (
+                "코드 라이브러리 유사 프로그램 요약" if has_summary else ""
+            )
         except Exception:
             pass
     return out
@@ -39,8 +42,12 @@ def _fc():
 def _rfp_to_dict(rfp: models.RFP) -> dict:
     return {
         "title": rfp.title,
-        "sap_modules": rfp.sap_modules.split(",") if rfp.sap_modules else [],
-        "dev_types": rfp.dev_types.split(",") if rfp.dev_types else [],
+        "sap_modules": [x.strip() for x in rfp.sap_modules.split(",") if x.strip()]
+        if rfp.sap_modules
+        else [],
+        "dev_types": [x.strip() for x in rfp.dev_types.split(",") if x.strip()]
+        if rfp.dev_types
+        else [],
         "description": rfp.description or "",
     }
 
@@ -71,7 +78,12 @@ def _run_proposal_background(rfp_id: int, rfp_dict: dict, conv: list[dict]):
         if not rfp:
             return
         try:
-            proposal = _fc().generate_proposal(rfp_dict, conv)
+            code_ctx = get_code_library_context(
+                db,
+                rfp_dict.get("sap_modules", []),
+                rfp_dict.get("dev_types", []),
+            )
+            proposal = _fc().generate_proposal(rfp_dict, conv, code_library_context=code_ctx)
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
         rfp.proposal_text = proposal
