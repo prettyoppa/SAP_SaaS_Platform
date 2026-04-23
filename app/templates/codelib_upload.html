@@ -49,7 +49,7 @@
                   프로그램 ID <small class="text-muted fw-normal">(선택)</small>
                 </label>
                 <input type="text" name="program_id" id="program_id" class="form-control"
-                       maxlength="40" placeholder="예: ZRSDD6A120"
+                       maxlength="40"
                        value="{% if form_program_id is defined %}{{ form_program_id }}{% elif edit_code %}{{ edit_code.program_id or '' }}{% endif %}"/>
                 <div class="small mt-1 text-warning" id="codelib-program-id-feedback" style="min-height:1.25rem"></div>
               </div>
@@ -58,7 +58,7 @@
                   트랜잭션 코드 <small class="text-muted fw-normal">(선택)</small>
                 </label>
                 <input type="text" name="transaction_code" id="transaction_code" class="form-control"
-                       maxlength="20" placeholder="예: ZSD_TRACK"
+                       maxlength="20"
                        value="{% if form_transaction_code is defined %}{{ form_transaction_code }}{% elif edit_code %}{{ edit_code.transaction_code or '' }}{% endif %}"/>
                 <div class="small mt-1 text-warning" id="codelib-tcode-feedback" style="min-height:1.25rem"></div>
               </div>
@@ -68,7 +68,6 @@
             <div class="mb-4">
               <label class="form-label fw-semibold">프로그램 설명 <span class="text-danger">*</span></label>
               <input type="text" name="title" class="form-control form-control-lg" required
-                     placeholder="예) Sales Order 수주 이행 추적 리포트"
                      value="{% if edit_code %}{{ edit_code.title }}{% endif %}"/>
             </div>
 
@@ -176,7 +175,7 @@
                       <option value="기타 Include" {% if sec.type == '기타 Include' %}selected{% endif %}>기타 Include</option>
                     </select>
                     <input type="text" class="form-control form-control-sm section-name-input"
-                           style="max-width:200px" placeholder="Include명 (예: ZXXX_TOP)" value="{{ sec.name }}"/>
+                           style="max-width:200px" value="{{ sec.name }}"/>
                     <span class="ms-auto small text-muted section-stat">{{ sec.code.splitlines()|length }}줄</span>
                   </div>
                   <div class="section-actions ms-3">
@@ -185,8 +184,7 @@
                     </button>
                   </div>
                 </div>
-                <textarea class="form-control section-code" rows="12"
-                          placeholder="여기에 ABAP 소스를 붙여넣으세요 (REPORT 구문부터)...">{{ sec.code }}</textarea>
+                <textarea class="form-control section-code" rows="12">{{ sec.code }}</textarea>
               </div>
                 {% endfor %}
               {% else %}
@@ -205,7 +203,7 @@
                       <option value="기타 Include">기타 Include</option>
                     </select>
                     <input type="text" class="form-control form-control-sm section-name-input"
-                           style="max-width:200px" placeholder="Include명 (예: ZXXX_TOP)"/>
+                           style="max-width:200px"/>
                     <span class="ms-auto small text-muted section-stat">0줄</span>
                   </div>
                   <div class="section-actions ms-3">
@@ -214,8 +212,7 @@
                     </button>
                   </div>
                 </div>
-                <textarea class="form-control section-code" rows="12"
-                          placeholder="여기에 ABAP 소스를 붙여넣으세요 (REPORT 구문부터)..."></textarea>
+                <textarea class="form-control section-code" rows="12"></textarea>
               </div>
               {% endif %}
             </div>
@@ -258,40 +255,20 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/js/sap_field_input.js?v=20260415c"></script>
 <script>
-// 프로그램 ID / 트랜잭션: IME 시 안내 (입력 강제 제거 없음)
-(function () {
-  var CJK = /[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]/;
-  var printable = /^[!-~]*$/;
-  function hintPid() {
-    var el = document.getElementById('program_id');
-    var fb = document.getElementById('codelib-program-id-feedback');
-    if (!el || !fb) return;
-    var v = el.value.trim();
-    if (!v) { fb.textContent = ''; return; }
-    if (v.length > 40) { fb.textContent = '40자 이내로 입력해 주세요.'; return; }
-    if (CJK.test(v)) { fb.textContent = '한글 등 IME 입력은 사용할 수 없습니다. 영문·숫자·기호(공백 제외)만 입력해 주세요.'; return; }
-    if (!printable.test(el.value)) { fb.textContent = '허용되지 않는 문자가 있습니다.'; return; }
-    fb.textContent = '';
-  }
-  function hintTc() {
-    var el = document.getElementById('transaction_code');
-    var fb = document.getElementById('codelib-tcode-feedback');
-    if (!el || !fb) return;
-    var v = el.value.trim();
-    if (!v) { fb.textContent = ''; return; }
-    if (v.length > 20) { fb.textContent = '20자 이내로 입력해 주세요.'; return; }
-    if (CJK.test(v)) { fb.textContent = '한글 등 IME 입력은 사용할 수 없습니다.'; return; }
-    if (!printable.test(el.value)) { fb.textContent = '허용되지 않는 문자가 있습니다.'; return; }
-    fb.textContent = '';
-  }
-  var pid = document.getElementById('program_id');
-  var tc = document.getElementById('transaction_code');
-  if (pid) pid.addEventListener('input', hintPid);
-  if (tc) tc.addEventListener('input', hintTc);
-  hintPid();
-  hintTc();
-})();
+if (window.initSapPidTcodePair) {
+  initSapPidTcodePair({
+    programEl: document.getElementById('program_id'),
+    transactionEl: document.getElementById('transaction_code'),
+    feedbackPid: document.getElementById('codelib-program-id-feedback'),
+    feedbackTc: document.getElementById('codelib-tcode-feedback'),
+    maxPid: 40,
+    maxTc: 20,
+    mirrorTc: true,
+    onChange: function () {},
+  });
+}
 
 const container = document.getElementById('sections-container');
 let sectionCount = container.querySelectorAll('.code-section').length || 1;
@@ -315,7 +292,7 @@ document.getElementById('add-section-btn').addEventListener('click', () => {
           <option value="기타 Include">기타 Include</option>
         </select>
         <input type="text" class="form-control form-control-sm section-name-input"
-               style="max-width:200px" placeholder="Include명 (예: ZXXX_F01)"/>
+               style="max-width:200px"/>
         <span class="ms-auto small text-muted section-stat">0줄</span>
       </div>
       <div class="section-actions ms-3">
@@ -324,8 +301,7 @@ document.getElementById('add-section-btn').addEventListener('click', () => {
         </button>
       </div>
     </div>
-    <textarea class="form-control section-code" rows="10"
-              placeholder="여기에 Include 소스를 붙여넣으세요..."></textarea>`;
+    <textarea class="form-control section-code" rows="10"></textarea>`;
   container.appendChild(div);
   bindSection(div);
   updateStats();

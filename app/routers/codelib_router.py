@@ -1,8 +1,7 @@
 """
 Code Library Router – SAP Dev Hub
-회원이 ABAP 소스를 업로드하고, Hannah+Mia 에이전트가 분석합니다.
-회원은 본인 코드만, Admin은 전체를 볼 수 있습니다.
-비관리자는 코드 라이브러리 진입 시 비밀번호 재확인(세션)이 필요합니다.
+관리자가 ABAP 소스를 업로드하고 Hannah+Mia 에이전트가 분석합니다.
+일반 회원은 코드 라이브러리에 접근할 수 없으며, 신규 요청의 「참고 코드 정보」는 브라우저 로컬에만 저장됩니다.
 """
 
 import json
@@ -18,9 +17,6 @@ from ..templates_config import templates
 
 router = APIRouter()
 
-# 서버 세션 키( SessionMiddleware 필요 )
-SESSION_KEY_CODELIB = "codelib_unlocked"
-
 
 def _safe_next_url(next_raw: str | None) -> str:
     """오픈 리다이렉트 방지: 동일 사이트 상대 경로만 허용."""
@@ -33,9 +29,7 @@ def _safe_next_url(next_raw: str | None) -> str:
 
 
 def require_code_library_access(request: Request, db: Session = Depends(get_db)) -> models.User:
-    """
-    로그인 + (관리자 제외) 코드 라이브러리용 비밀번호 재확인 세션.
-    """
+    """로그인 관리자만 코드 라이브러리 접근 (일반 회원은 신규 요청 내 로컬 참고 코드 사용)."""
     user = auth.get_current_user(request, db)
     if not user:
         nu = quote(request.url.path + ("?" + request.url.query if request.url.query else ""), safe="")
@@ -43,15 +37,12 @@ def require_code_library_access(request: Request, db: Session = Depends(get_db))
             status_code=status.HTTP_303_SEE_OTHER,
             headers={"Location": f"/login?next={nu}"},
         )
-    if user.is_admin:
-        return user
-    if request.session.get(SESSION_KEY_CODELIB):
-        return user
-    nu = quote(request.url.path + ("?" + request.url.query if request.url.query else ""), safe="")
-    raise HTTPException(
-        status_code=status.HTTP_303_SEE_OTHER,
-        headers={"Location": f"/codelib/unlock?next={nu}"},
-    )
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            headers={"Location": "/dashboard"},
+        )
+    return user
 
 
 def _enforce_code_access(user: models.User, code: models.ABAPCode | None) -> bool:
@@ -240,40 +231,23 @@ def codelib_unlock_page(request: Request, next: str = "/codelib", db: Session = 
     if not user:
         nu = quote(f"/codelib/unlock?next={_safe_next_url(next)}", safe="")
         return RedirectResponse(url=f"/login?next={nu}", status_code=302)
-    if user.is_admin:
-        return RedirectResponse(url=_safe_next_url(next), status_code=302)
-    if request.session.get(SESSION_KEY_CODELIB):
-        return RedirectResponse(url=_safe_next_url(next), status_code=302)
-    return templates.TemplateResponse(request, "codelib_unlock.html", {
-        "request": request,
-        "user": user,
-        "next": _safe_next_url(next),
-        "error": None,
-    })
+    if not user.is_admin:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url=_safe_next_url(next), status_code=302)
 
 
 @router.post("/codelib/unlock")
 def codelib_unlock_post(
     request: Request,
-    password: str = Form(...),
     next: str = Form("/codelib"),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    if user.is_admin:
-        return RedirectResponse(url=_safe_next_url(next), status_code=302)
-    safe = _safe_next_url(next)
-    if not auth.verify_password(password, user.hashed_password):
-        return templates.TemplateResponse(request, "codelib_unlock.html", {
-            "request": request,
-            "user": user,
-            "next": safe,
-            "error": "비밀번호가 일치하지 않습니다.",
-        }, status_code=400)
-    request.session[SESSION_KEY_CODELIB] = True
-    return RedirectResponse(url=safe, status_code=302)
+    if not user.is_admin:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url=_safe_next_url(next), status_code=302)
 
 
 # ── 목록 ──────────────────────────────────────────────────────

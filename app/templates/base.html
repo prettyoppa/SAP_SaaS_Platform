@@ -50,13 +50,13 @@
             <span class="nav-ko">신규 요청</span><span class="nav-en" style="display:none">New Request</span>
           </a>
         </li>
+        {% if user.is_admin %}
         <li class="nav-item">
           <a class="nav-link {% if '/codelib' in path %}active{% endif %}" href="/codelib">
             <i class="fa-solid fa-database me-1"></i>
             <span class="nav-ko">코드 라이브러리</span><span class="nav-en" style="display:none">Code Library</span>
           </a>
         </li>
-        {% if user.is_admin %}
         <li class="nav-item">
           <a class="nav-link nav-link-admin {% if '/admin' in path %}active{% endif %}" href="/admin">
             <i class="fa-solid fa-gear me-1"></i>

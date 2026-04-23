@@ -1,6 +1,4 @@
-/* SAP Dev Hub – RFP Form (program ID, multi-attach, review) */
-
-const RFP_CJK = /[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]/;
+/* SAP Dev Hub – RFP Form (program ID, multi-attach, review, local ref code) */
 
 let _rfpNotePrefill = null;
 function loadRfpNotePrefill() {
@@ -27,7 +25,6 @@ function setupMaxSelect(cls, countId, max) {
   update();
 }
 
-/** Assign File[] to <input type=file>; prefer native File objects for reliable POST. */
 function setFilesOnInput(input, files) {
   const dt = new DataTransfer();
   for (const f of files) {
@@ -194,63 +191,6 @@ function initAttachmentDropZone() {
   renderAttachmentRows(input, maxFiles);
 }
 
-function normalizeSapFieldValue(raw, maxLen) {
-  const hadCjk = RFP_CJK.test(raw);
-  let v = raw.toUpperCase().replace(/[^\x21-\x7E]/g, '');
-  if (v.length > maxLen) v = v.slice(0, maxLen);
-  return { value: v, hadCjk };
-}
-
-function initProgramIdTransactionFields() {
-  const pid = document.getElementById('program_id');
-  const tc = document.getElementById('transaction_code');
-  const fbPid = document.getElementById('program-id-feedback');
-  const fbTc = document.getElementById('transaction-code-feedback');
-  if (!pid || !tc) return;
-
-  let tcTouched = (tc.value || '').trim().length > 0;
-
-  function refreshTcCopy() {
-    const p = pid.value.trim();
-    if (!tcTouched && p) {
-      const { value } = normalizeSapFieldValue(p, 20);
-      tc.value = value;
-    }
-  }
-
-  pid.addEventListener('input', () => {
-    const raw = pid.value;
-    const { value, hadCjk } = normalizeSapFieldValue(raw, 40);
-    pid.value = value;
-    if (hadCjk && fbPid) {
-      fbPid.textContent = '한글·일본어·중국어는 입력할 수 없습니다. 영문·숫자·기호(공백 제외)만 사용해 주세요.';
-    } else if (fbPid) {
-      fbPid.textContent = '';
-    }
-    refreshTcCopy();
-    updateReview();
-  });
-
-  tc.addEventListener('input', () => {
-    tcTouched = (tc.value || '').trim().length > 0;
-    const raw = tc.value;
-    const { value, hadCjk } = normalizeSapFieldValue(raw, 20);
-    tc.value = value;
-    if (hadCjk && fbTc) {
-      fbTc.textContent = '한글·일본어·중국어는 입력할 수 없습니다. 영문·숫자·기호(공백 제외)만 사용해 주세요.';
-    } else if (fbTc) {
-      fbTc.textContent = '';
-    }
-    updateReview();
-  });
-
-  pid.addEventListener('blur', refreshTcCopy);
-
-  if ((pid.value || '').trim() && !(tc.value || '').trim()) {
-    refreshTcCopy();
-  }
-}
-
 function updateReview() {
   const progEl = document.getElementById('program_id');
   const progId = progEl && progEl.value ? progEl.value : '';
@@ -288,11 +228,21 @@ function updateReview() {
       rf.innerHTML = `<em class="text-muted">${noFile}</em>`;
     }
   }
+
+  const rr = document.getElementById('review-ref-code');
+  if (rr && typeof window.countRfpRefCodeSlotsFilled === 'function') {
+    const n = window.countRfpRefCodeSlotsFilled();
+    rr.innerHTML = n
+      ? `${n}건 <span class="small text-muted">(이 브라우저에만 저장, 서버 미전송)</span>`
+      : '<em class="text-muted">없음</em>';
+  }
 }
 
+window.updateReview = updateReview;
+
 function activateProgressOnScroll() {
-  const sections = ['section-1', 'section-2', 'section-3', 'section-4'];
-  const steps = ['prog-1', 'prog-2', 'prog-3', 'prog-4'];
+  const sections = ['section-1', 'section-2', 'section-3', 'section-ref-code', 'section-5'];
+  const steps = ['prog-1', 'prog-2', 'prog-3', 'prog-4', 'prog-5'];
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -324,8 +274,22 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMaxSelect('module-chip', 'module-count', 3);
   setupMaxSelect('devtype-chip', 'devtype-count', 3);
 
-  initProgramIdTransactionFields();
+  if (window.initSapPidTcodePair) {
+    window.initSapPidTcodePair({
+      programEl: document.getElementById('program_id'),
+      transactionEl: document.getElementById('transaction_code'),
+      feedbackPid: document.getElementById('program-id-feedback'),
+      feedbackTc: document.getElementById('transaction-code-feedback'),
+      maxPid: 40,
+      maxTc: 20,
+      mirrorTc: true,
+      onChange: updateReview,
+    });
+  }
+
   initAttachmentDropZone();
+
+  if (window.initRfpLocalRefCode) window.initRfpLocalRefCode();
 
   document.querySelectorAll('.module-chip, .devtype-chip').forEach(c => {
     c.addEventListener('change', updateReview);

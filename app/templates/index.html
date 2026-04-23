@@ -215,7 +215,9 @@
 <section class="cta-section py-5">
   <div class="container text-center">
     <h2 class="mb-3" data-i18n="cta.title">SAP 개발 자동화를 지금 시작하세요</h2>
+    {% if not user %}
     <p class="text-muted mb-4" data-i18n="cta.sub">무료로 계정을 만들고 첫 번째 요청을 제출해 보세요.</p>
+    {% endif %}
     {% if user %}
     <a href="/rfp/new" class="btn btn-primary btn-lg px-5">
       <i class="fa-solid fa-plus me-2"></i>
