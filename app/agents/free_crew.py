@@ -226,9 +226,10 @@ def generate_round_questions(
         {"questions": [...], "is_complete": False, "source": "..."}
     """
     analysis_summary, lib_ctx = _parse_code_library_context(code_library_context)
+    member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
 
-    # 1라운드: 코드 라이브러리 질문 우선 사용
-    if round_num == 1 and code_library_context:
+    # 1라운드: 코드 라이브러리 질문 우선 사용 (회원 참고 ABAP이 있으면 전체 크루로 넘겨 반영)
+    if round_num == 1 and code_library_context and not member_ref:
         try:
             ctx = lib_ctx if lib_ctx else json.loads(code_library_context)
             qs = ctx.get("questions", [])
@@ -254,6 +255,14 @@ def generate_round_questions(
 {analysis_summary}
 """
 
+    member_ref_block = ""
+    if member_ref:
+        member_ref_block = f"""
+
+[회원이 본 개발 요청에 제공한 참고 ABAP]
+{member_ref}
+"""
+
     # Task 1: Hannah – 현재 상태 분석
     analyze_task = Task(
         description=f"""아래 RFP와 지금까지의 인터뷰 내용을 분석하세요.
@@ -263,7 +272,7 @@ def generate_round_questions(
 
 [인터뷰 내용]
 {conv_ctx}
-{lib_for_hannah}
+{lib_for_hannah}{member_ref_block}
 [현재 라운드: {round_num} / 전체: {MAX_ROUNDS}]
 
 다음 항목을 간결하게 분석하세요:
@@ -271,17 +280,21 @@ def generate_round_questions(
 2. 아직 불명확하거나 확인이 필요한 사항 목록
 3. 이번 라운드에서 반드시 확인해야 할 우선순위 3가지
 
-※ 서버 코드 라이브러리 요약이 있다면, 그 사례와 고객 RFP의 차이·공통점을 구분해 분석에 반영하세요.""",
+※ 내부 유사 사례 요약·회원 제공 참고 ABAP이 있으면 RFP·인터뷰와의 차이·공통점을 구분해 반영하세요. 충돌 시 RFP·인터뷰를 우선합니다.""",
         agent=f_analyst,
         expected_output="요구사항 현황 분석 결과 (텍스트)",
     )
 
     # Task 2: Mia – 질문 생성
+    mia_member = member_ref if member_ref else "없음"
     question_task = Task(
         description=f"""Hannah의 분석을 바탕으로 {round_num}라운드 인터뷰 질문 3개를 생성하세요.
 
-[코드 라이브러리 참고 자료]
+[내부 참고 자료 – 역추출 질문·유사 사례 요약]
 {_format_library_block_for_mia(code_library_context)}
+
+[회원이 본 요청에 제공한 참고 ABAP]
+{mia_member}
 
 작성 원칙:
 - "기능이 필요한가요? (예: 구체적 사례) 필요하다면 어떤 기준으로?" 구조
@@ -333,12 +346,20 @@ def generate_proposal(
     rfp_ctx = _fmt_rfp(rfp_data)
     conv_ctx = _fmt_conv(conversation)
     analysis_summary, _ = _parse_code_library_context(code_library_context)
+    member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
     lib_for_hannah = ""
     if analysis_summary:
         lib_for_hannah = f"""
 
 [서버 코드 라이브러리 – 유사 프로그램 요약 (Proposal 기술·화면 설계 참고; 고객 로컬 참고 코드 미포함)]
 {analysis_summary}
+"""
+    member_ref_block = ""
+    if member_ref:
+        member_ref_block = f"""
+
+[회원이 본 개발 요청에 제공한 참고 ABAP]
+{member_ref}
 """
 
     # Task 1: Hannah – 최종 요구사항 명세
@@ -347,7 +368,7 @@ def generate_proposal(
 
 [RFP 정보]
 {rfp_ctx}
-{lib_for_hannah}
+{lib_for_hannah}{member_ref_block}
 [전체 인터뷰 내용]
 {conv_ctx}
 
@@ -359,7 +380,7 @@ def generate_proposal(
 5. 특이사항 및 제약조건
 6. 복잡도 평가 (Low/Medium/High) 및 근거
 
-※ 코드 라이브러리 요약이 있으면, 유사 사례의 화면·기술 패턴을 참고하되 고객 RFP·인터뷰 내용을 최우선으로 반영하세요.""",
+※ 내부 유사 사례 요약·회원 제공 참고 ABAP이 있으면 화면·기술 패턴을 참고하되, 고객 RFP·인터뷰를 최우선으로 반영하세요.""",
         agent=f_analyst,
         expected_output="구조화된 최종 요구사항 명세 (텍스트)",
     )

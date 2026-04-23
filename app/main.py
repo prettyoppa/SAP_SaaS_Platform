@@ -40,6 +40,7 @@ def _run_migrations():
         ("abap_codes", "transaction_code", "VARCHAR", "VARCHAR"),
         ("abap_codes", "is_draft", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("rfps", "attachments_json", "TEXT", "TEXT"),
+        ("rfps", "reference_code_payload", "TEXT", "TEXT"),
         ("users", "email_verified", "BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT true"),
     ]
     with engine.connect() as conn:

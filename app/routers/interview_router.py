@@ -6,6 +6,7 @@ from .. import models, auth
 from ..database import get_db
 from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
+from ..rfp_reference_code import format_reference_code_for_llm
 
 router = APIRouter()
 
@@ -40,6 +41,7 @@ def _fc():
 # ── 헬퍼 ─────────────────────────────────────────────
 
 def _rfp_to_dict(rfp: models.RFP) -> dict:
+    payload = getattr(rfp, "reference_code_payload", None)
     return {
         "title": rfp.title,
         "sap_modules": [x.strip() for x in rfp.sap_modules.split(",") if x.strip()]
@@ -49,6 +51,7 @@ def _rfp_to_dict(rfp: models.RFP) -> dict:
         if rfp.dev_types
         else [],
         "description": rfp.description or "",
+        "reference_code_for_agents": format_reference_code_for_llm(payload),
     }
 
 
@@ -78,6 +81,8 @@ def _run_proposal_background(rfp_id: int, rfp_dict: dict, conv: list[dict]):
         if not rfp:
             return
         try:
+            rfp_dict = _rfp_to_dict(rfp)
+            conv = _messages_to_list(rfp.messages)
             code_ctx = get_code_library_context(
                 db,
                 rfp_dict.get("sap_modules", []),

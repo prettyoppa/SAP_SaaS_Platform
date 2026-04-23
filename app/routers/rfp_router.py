@@ -2,15 +2,28 @@ import json
 import mimetypes
 import os
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
+from ..rfp_reference_code import normalize_reference_code_payload
 from ..database import get_db
 from ..templates_config import templates
 
 router = APIRouter()
+
+
+def _ref_code_initial_from_rfp(rfp: Any) -> Optional[dict]:
+    if not rfp:
+        return None
+    raw = getattr(rfp, "reference_code_payload", None)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except Exception:
+        return None
 
 # Railway 등에서는 상대 경로 uploads 쓰기 실패할 수 있어 /tmp 사용
 UPLOAD_DIR = (
@@ -154,6 +167,7 @@ def _rfp_form_ctx(
         ctx["attachment_entries"] = _rfp_attachment_entries(rfp)
     else:
         ctx["attachment_entries"] = []
+    ctx["ref_code_initial"] = _ref_code_initial_from_rfp(rfp)
     return ctx
 
 
@@ -178,6 +192,7 @@ def rfp_form(request: Request, db: Session = Depends(get_db)):
         "devtypes": devtypes,
         "writing_tip": writing_tip,
         "attachment_entries": [],
+        "ref_code_initial": None,
     })
 
 
@@ -197,6 +212,7 @@ async def submit_rfp(
     note_3: str = Form(""),
     note_4: str = Form(""),
     save_action: str = Form("submit"),
+    reference_code_json: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -311,6 +327,20 @@ async def submit_rfp(
                 status_code=400,
             )
 
+    try:
+        norm_ref = normalize_reference_code_payload(reference_code_json)
+    except ValueError:
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="reference_code_too_large",
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
+
     rfp = models.RFP(
         user_id=user.id,
         program_id=pid,
@@ -321,6 +351,7 @@ async def submit_rfp(
         description=description,
         status="draft" if is_draft else "submitted",
         interview_status="pending",
+        reference_code_payload=norm_ref,
     )
     _set_rfp_attachments(rfp, att_entries)
     db.add(rfp)
@@ -393,6 +424,7 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         "modules": modules, "devtypes": devtypes, "writing_tip": writing_tip,
         "edit_mode": True,
         "attachment_entries": _rfp_attachment_entries(rfp),
+        "ref_code_initial": _ref_code_initial_from_rfp(rfp),
     })
 
 
@@ -423,6 +455,7 @@ async def rfp_edit_submit(
     delete_3: str = Form(""),
     delete_4: str = Form(""),
     save_action: str = Form("submit"),
+    reference_code_json: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -586,12 +619,29 @@ async def rfp_edit_submit(
 
     combined = kept + new_parts
 
+    try:
+        norm_ref = normalize_reference_code_payload(reference_code_json)
+    except ValueError:
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip,
+                error="reference_code_too_large",
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+            ),
+            status_code=400,
+        )
+
     rfp.program_id = pid
     rfp.transaction_code = tc
     rfp.title = title.strip()
     rfp.sap_modules = ",".join(sap_modules) if sap_modules else ""
     rfp.dev_types = ",".join(dev_types) if dev_types else ""
     rfp.description = description
+    rfp.reference_code_payload = norm_ref
     if is_draft:
         rfp.status = "draft"
     else:
@@ -602,6 +652,54 @@ async def rfp_edit_submit(
     if is_draft:
         return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
     return RedirectResponse(url="/dashboard", status_code=302)
+
+
+@router.patch("/rfp/{rfp_id}/reference-codes")
+async def patch_rfp_reference_codes(
+    rfp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """편집 중 참고 ABAP JSON 자동 저장 (본 RFP 행만)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+    rfp = db.query(models.RFP).filter(
+        models.RFP.id == rfp_id, models.RFP.user_id == user.id
+    ).first()
+    if not rfp:
+        return JSONResponse({"ok": False, "error": "not_found"}, status_code=404)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "invalid_json"}, status_code=400)
+    try:
+        raw = json.dumps(body, ensure_ascii=False)
+        norm = normalize_reference_code_payload(raw)
+    except ValueError:
+        return JSONResponse({"ok": False, "error": "too_large"}, status_code=400)
+    rfp.reference_code_payload = norm
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.delete("/rfp/{rfp_id}/reference-codes")
+def delete_rfp_reference_codes(
+    rfp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+    rfp = db.query(models.RFP).filter(
+        models.RFP.id == rfp_id, models.RFP.user_id == user.id
+    ).first()
+    if not rfp:
+        return JSONResponse({"ok": False, "error": "not_found"}, status_code=404)
+    rfp.reference_code_payload = None
+    db.commit()
+    return JSONResponse({"ok": True})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)

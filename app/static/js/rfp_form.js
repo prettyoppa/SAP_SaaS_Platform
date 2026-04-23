@@ -233,7 +233,7 @@ function updateReview() {
   if (rr && typeof window.countRfpRefCodeSlotsFilled === 'function') {
     const n = window.countRfpRefCodeSlotsFilled();
     rr.innerHTML = n
-      ? `${n}건 <span class="small text-muted">(이 브라우저에만 저장, 서버 미전송)</span>`
+      ? `${n}건 <span class="small text-muted">(본 요청 분석·제안서 작성에 반영)</span>`
       : '<em class="text-muted">없음</em>';
   }
 }

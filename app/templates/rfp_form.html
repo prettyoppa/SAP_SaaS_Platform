@@ -3,8 +3,15 @@
 
 {% block content %}
 <script>
-  window.__RFP_CTX__ = { userId: {{ user.id }}, scope: {% if edit_mode and rfp %}'e{{ rfp.id }}'{% else %}'new'{% endif %} };
+  window.__RFP_CTX__ = {
+    userId: {{ user.id }},
+    rfpId: {% if edit_mode and rfp %}{{ rfp.id }}{% else %}null{% endif %},
+    scope: {% if edit_mode and rfp %}'e{{ rfp.id }}'{% else %}'new'{% endif %}
+  };
 </script>
+{% if ref_code_initial %}
+<script type="application/json" id="rfp-refcode-initial">{{ ref_code_initial | tojson }}</script>
+{% endif %}
 <div class="rfp-page py-5">
   <div class="container">
     <div class="row justify-content-center">
@@ -106,8 +113,15 @@
           <span>첨부 파일은 최대 5개까지 가능합니다.</span>
         </div>
         {% endif %}
+        {% if error == 'reference_code_too_large' %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>참고 코드 정보가 허용 용량을 초과했습니다. ABAP 섹션을 줄이거나 항목 수를 조정해 주세요.</span>
+        </div>
+        {% endif %}
 
         <form method="post" action="{% if edit_mode %}/rfp/{{ rfp.id }}/edit{% else %}/rfp/new{% endif %}" enctype="multipart/form-data" id="rfp-form">
+          <input type="hidden" name="reference_code_json" id="reference-code-json-field" value=""/>
 
           <!-- ── STEP 1: 모듈·유형 우선 → 프로그램 ID·제목 ── -->
           <div class="rfp-section" id="section-1">
@@ -272,7 +286,7 @@
               <span class="rfp-section-num">04</span>
               <div>
                 <h4 class="mb-0">참고 코드 정보</h4>
-                <small class="text-muted"><strong class="text-warning">서버로 전송되지 않습니다.</strong> 이 PC 브라우저 저장소에만 보관되며, 같은 기기에서도 <strong>로그인한 계정별</strong>로 따로 저장·표시됩니다. (비밀번호로 암호화되어 있지는 않으니, 공용 PC에서는 이용에 주의해 주세요.)</small>
+                <small class="text-muted">회원이 올리는 참고 코드는 해당 개발 요청 이해 및 최적의 개발 제안서 작성을 위해서 이용됩니다. 광고, 제3자 제공, AI 모델 학습·재학습 등 그 밖의 목적으로는 사용하지 않습니다. 회원이 직접 삭제하신 경우, 지체 없이 복구 불가능한 방식으로 삭제합니다.</small>
               </div>
             </div>
 
@@ -284,9 +298,12 @@
               <div id="ref-code-slots-host">
                 {% for rs in [0, 1, 2] %}
                 <div class="ref-code-slot card mb-4 border" data-ref-slot="{{ rs }}" style="background:var(--surface2);border-color:var(--border)!important;">
-                  <div class="card-header py-2 d-flex align-items-center justify-content-between">
+                  <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <strong>참고 코드 {{ rs + 1 }}</strong>
-                    <span class="badge bg-dark">로컬 전용</span>
+                    <div class="d-flex align-items-center gap-2">
+                      <button type="button" class="btn btn-sm btn-outline-secondary js-ref-remove-last d-none" data-slot="{{ rs }}" title="가장 마지막에 연 참고 코드 항목만 닫을 수 있습니다">이 항목 닫기</button>
+                      <span class="badge bg-secondary small">본 요청 분석용</span>
+                    </div>
                   </div>
                   <div class="card-body">
                     <div class="row g-3 mb-3">
@@ -336,9 +353,14 @@
                 </div>
                 {% endfor %}
               </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="ref-add-slot-btn">
-                <i class="fa-solid fa-plus me-1"></i>참고 코드 추가 (최대 3건)
-              </button>
+              <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="ref-add-slot-btn">
+                  <i class="fa-solid fa-plus me-1"></i>참고 코드 추가 (최대 3건)
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="ref-delete-all-btn">
+                  <i class="fa-solid fa-trash me-1"></i>저장된 참고 코드 모두 삭제
+                </button>
+              </div>
             </div>
           </div>
 
@@ -405,6 +427,6 @@
 
 {% block extra_js %}
 <script src="/static/js/sap_field_input.js?v=20260415c"></script>
-<script src="/static/js/rfp_local_ref_code.js?v=20260416a"></script>
-<script src="/static/js/rfp_form.js?v=20260415c"></script>
+<script src="/static/js/rfp_local_ref_code.js?v=20260417a"></script>
+<script src="/static/js/rfp_form.js?v=20260417a"></script>
 {% endblock %}

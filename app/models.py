@@ -35,6 +35,8 @@ class RFP(Base):
     file_path = Column(String, nullable=True)
     file_name = Column(String, nullable=True)
     attachments_json = Column(Text, nullable=True)   # JSON [{path, filename, note}, ...] 최대 5
+    # 회원 참고 ABAP(본 RFP 전용, abap_codes 미등록). 에이전트 프롬프트용.
+    reference_code_payload = Column(Text, nullable=True)
     status = Column(String, default="draft")           # draft | submitted | in_review | completed
     interview_status = Column(String, default="pending")  # pending | in_progress | generating_proposal | completed
     proposal_text = Column(Text, nullable=True)

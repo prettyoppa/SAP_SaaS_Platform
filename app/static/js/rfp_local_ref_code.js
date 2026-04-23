@@ -1,5 +1,5 @@
 /**
- * 신규 요청 – 참고 코드 정보 (localStorage, 계정·요청 스코프별, 서버 미전송)
+ * 신규 요청 – 참고 코드 정보 (본 RFP DB 행에 저장, 에이전트 전용. abap_codes 미사용)
  */
 (function () {
   'use strict';
@@ -7,7 +7,6 @@
   var MAX_SLOTS = 3;
   var DEBOUNCE_MS = 450;
   var saveTimer = null;
-  /** 동시에 펼쳐 보이는 참고 코드 슬롯 수 (1~3, 로컬 저장) */
   var visibleSlotCount = 1;
 
   var TYPE_OPTIONS = [
@@ -21,32 +20,23 @@
     '기타 Include',
   ];
 
-  function ctx() {
-    return window.__RFP_CTX__ || { userId: 0, scope: 'new' };
+  function rfpId() {
+    var c = window.__RFP_CTX__ || {};
+    return c.rfpId || null;
   }
 
-  function storageKey() {
-    var c = ctx();
-    return 'sapdevhub_rfp_refcode_v1_u' + c.userId + '_' + c.scope;
-  }
-
-  function defaultSections() {
-    return [{ type: '메인 프로그램', name: '', code: '' }];
-  }
-
-  function loadRaw() {
+  function loadInitial() {
+    var el = document.getElementById('rfp-refcode-initial');
+    if (!el) return null;
     try {
-      var s = localStorage.getItem(storageKey());
-      return s ? JSON.parse(s) : null;
+      return JSON.parse(el.textContent);
     } catch (e) {
       return null;
     }
   }
 
-  function saveRaw(obj) {
-    try {
-      localStorage.setItem(storageKey(), JSON.stringify(obj));
-    } catch (e) { /* quota */ }
+  function defaultSections() {
+    return [{ type: '메인 프로그램', name: '', code: '' }];
   }
 
   function makeSectionEl(slotIdx, idx, sec) {
@@ -118,6 +108,23 @@
     });
   }
 
+  function refreshSlotCounts(slotIdx) {
+    var max = 3;
+    var modCls = 'ref-mod-' + slotIdx;
+    var dtCls = 'ref-dt-' + slotIdx;
+    function upd(cls, countId) {
+      var inputs = document.querySelectorAll('.' + cls);
+      var countEl = document.getElementById(countId);
+      var checked = document.querySelectorAll('.' + cls + ':checked').length;
+      if (countEl) countEl.textContent = checked + ' / ' + max;
+      inputs.forEach(function (inp) {
+        if (!inp.checked) inp.disabled = checked >= max;
+      });
+    }
+    upd(modCls, 'ref-mod-count-' + slotIdx);
+    upd(dtCls, 'ref-dt-count-' + slotIdx);
+  }
+
   function setupSlotMaxSelect(slotIdx, clsMod, clsDt, modCountId, dtCountId) {
     var max = 3;
     function bind(cls, countId) {
@@ -140,43 +147,6 @@
     }
     bind(clsMod, modCountId);
     bind(clsDt, dtCountId);
-  }
-
-  function slotHasData(s) {
-    if (!s) return false;
-    if ((s.program_id || '').trim()) return true;
-    if ((s.transaction_code || '').trim()) return true;
-    if ((s.title || '').trim()) return true;
-    if ((s.sap_modules || []).length) return true;
-    if ((s.dev_types || []).length) return true;
-    var secs = s.sections || [];
-    for (var j = 0; j < secs.length; j++) {
-      if ((secs[j].code || '').trim()) return true;
-      if ((secs[j].name || '').trim()) return true;
-    }
-    return false;
-  }
-
-  function minSlotsFromPayload(slots) {
-    var n = 1;
-    if (!slots || !slots.length) return 1;
-    for (var i = 0; i < MAX_SLOTS; i++) {
-      if (slotHasData(slots[i])) n = i + 1;
-    }
-    return n;
-  }
-
-  function applySlotVisibility() {
-    for (var i = 0; i < MAX_SLOTS; i++) {
-      var root = document.querySelector('[data-ref-slot="' + i + '"]');
-      if (!root) continue;
-      root.classList.toggle('d-none', i >= visibleSlotCount);
-    }
-    var btn = document.getElementById('ref-add-slot-btn');
-    if (btn) {
-      btn.style.display = visibleSlotCount >= MAX_SLOTS ? 'none' : '';
-      btn.disabled = visibleSlotCount >= MAX_SLOTS;
-    }
   }
 
   function gather() {
@@ -214,15 +184,116 @@
         sections: sections,
       });
     }
-    return { v: 1, slots: slots, savedAt: Date.now() };
+    return {
+      v: 1,
+      slots: slots,
+      visibleSlotCount: visibleSlotCount,
+      savedAt: Date.now(),
+    };
+  }
+
+  function syncHiddenInput() {
+    var el = document.getElementById('reference-code-json-field');
+    if (!el) return;
+    el.value = JSON.stringify(gather());
+  }
+
+  function pushServer() {
+    var id = rfpId();
+    if (!id) {
+      syncHiddenInput();
+      return;
+    }
+    var payload = gather();
+    fetch('/rfp/' + id + '/reference-codes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    }).catch(function () {});
   }
 
   function scheduleSave() {
+    syncHiddenInput();
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
-      saveRaw(gather());
+      pushServer();
       if (typeof window.updateReview === 'function') window.updateReview();
     }, DEBOUNCE_MS);
+  }
+
+  function clearSlot(slotIdx) {
+    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+    if (!root) return;
+    var pid = root.querySelector('.js-ref-pid');
+    var tc = root.querySelector('.js-ref-tcode');
+    var tit = root.querySelector('.js-ref-title');
+    if (pid) pid.value = '';
+    if (tc) tc.value = '';
+    if (tit) tit.value = '';
+    root.querySelectorAll('.ref-mod-' + slotIdx).forEach(function (cb) {
+      cb.checked = false;
+    });
+    root.querySelectorAll('.ref-dt-' + slotIdx).forEach(function (cb) {
+      cb.checked = false;
+    });
+    rebuildSections(slotIdx, defaultSections());
+    var fb1 = root.querySelector('.js-ref-fb-pid');
+    var fb2 = root.querySelector('.js-ref-fb-tcode');
+    if (fb1) fb1.textContent = '';
+    if (fb2) fb2.textContent = '';
+    refreshSlotCounts(slotIdx);
+  }
+
+  function applySlotVisibility() {
+    for (var i = 0; i < MAX_SLOTS; i++) {
+      var root = document.querySelector('[data-ref-slot="' + i + '"]');
+      if (!root) continue;
+      root.classList.toggle('d-none', i >= visibleSlotCount);
+      var btn = root.querySelector('.js-ref-remove-last');
+      if (btn) {
+        var show = visibleSlotCount > 1 && i === visibleSlotCount - 1;
+        btn.classList.toggle('d-none', !show);
+      }
+    }
+    var addBtn = document.getElementById('ref-add-slot-btn');
+    if (addBtn) {
+      addBtn.style.display = visibleSlotCount >= MAX_SLOTS ? 'none' : '';
+      addBtn.disabled = visibleSlotCount >= MAX_SLOTS;
+    }
+  }
+
+  function slotHasData(s) {
+    if (!s) return false;
+    if ((s.program_id || '').trim()) return true;
+    if ((s.transaction_code || '').trim()) return true;
+    if ((s.title || '').trim()) return true;
+    if ((s.sap_modules || []).length) return true;
+    if ((s.dev_types || []).length) return true;
+    var secs = s.sections || [];
+    for (var j = 0; j < secs.length; j++) {
+      if ((secs[j].code || '').trim()) return true;
+      if ((secs[j].name || '').trim()) return true;
+    }
+    return false;
+  }
+
+  function minSlotsFromPayload(slots) {
+    var n = 1;
+    if (!slots || !slots.length) return 1;
+    for (var i = 0; i < MAX_SLOTS; i++) {
+      if (slotHasData(slots[i])) n = i + 1;
+    }
+    return n;
+  }
+
+  function removeLastRefSlot(slotIdx) {
+    if (visibleSlotCount <= 1) return;
+    if (slotIdx !== visibleSlotCount - 1) return;
+    clearSlot(slotIdx);
+    visibleSlotCount--;
+    applySlotVisibility();
+    scheduleSave();
   }
 
   function wireAddSection(slotIdx) {
@@ -243,7 +314,7 @@
     var host = document.getElementById('ref-code-slots-host');
     if (!host) return;
 
-    var loaded = loadRaw();
+    var loaded = loadInitial();
     visibleSlotCount = 1;
     if (loaded) {
       var fromData = minSlotsFromPayload(loaded.slots);
@@ -305,6 +376,13 @@
 
     applySlotVisibility();
 
+    document.querySelectorAll('.js-ref-remove-last').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(btn.getAttribute('data-slot'), 10);
+        removeLastRefSlot(idx);
+      });
+    });
+
     var addSlotBtn = document.getElementById('ref-add-slot-btn');
     if (addSlotBtn) {
       addSlotBtn.addEventListener('click', function () {
@@ -315,13 +393,55 @@
         }
       });
     }
+
+    var delAll = document.getElementById('ref-delete-all-btn');
+    if (delAll) {
+      delAll.addEventListener('click', function () {
+        if (!confirm('저장된 참고 코드를 모두 삭제할까요? 이 요청 분석·제안서에 더 이상 반영되지 않습니다.')) return;
+        var id = rfpId();
+        function wipeLocal() {
+          visibleSlotCount = 1;
+          for (var j = 0; j < MAX_SLOTS; j++) {
+            clearSlot(j);
+          }
+          applySlotVisibility();
+          for (var k = 0; k < MAX_SLOTS; k++) refreshSlotCounts(k);
+          syncHiddenInput();
+          if (typeof window.updateReview === 'function') window.updateReview();
+        }
+        if (id) {
+          fetch('/rfp/' + id + '/reference-codes', {
+            method: 'DELETE',
+            credentials: 'same-origin',
+          })
+            .then(function () {
+              wipeLocal();
+            })
+            .catch(function () {
+              wipeLocal();
+            });
+        } else {
+          wipeLocal();
+        }
+      });
+    }
+
+    var form = document.getElementById('rfp-form');
+    if (form) {
+      form.addEventListener('submit', function () {
+        syncHiddenInput();
+      });
+    }
+
+    syncHiddenInput();
+    if (typeof window.updateReview === 'function') window.updateReview();
   }
 
   window.initRfpLocalRefCode = init;
   window.scheduleRfpRefCodeSave = scheduleSave;
   window.countRfpRefCodeSlotsFilled = function () {
     var n = 0;
-    for (var i = 0; i < MAX_SLOTS; i++) {
+    for (var i = 0; i < visibleSlotCount; i++) {
       var root = document.querySelector('[data-ref-slot="' + i + '"]');
       if (!root) continue;
       var pid = ((root.querySelector('.js-ref-pid') || {}).value || '').trim();
