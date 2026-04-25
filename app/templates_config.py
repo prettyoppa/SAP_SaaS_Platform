@@ -8,6 +8,8 @@ from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
+from .agent_display import agent_label_ko
+
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 templates.env.filters["from_json"] = _json.loads
@@ -40,3 +42,4 @@ def _interview_bold_filter(s) -> Markup:
 
 
 templates.env.filters["interview_bold"] = _interview_bold_filter
+templates.env.filters["agent_label"] = agent_label_ko

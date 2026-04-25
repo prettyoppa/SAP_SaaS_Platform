@@ -14,9 +14,9 @@
           <h2 class="rfp-title">{% if edit_code %}ABAP 코드 수정 <span class="badge bg-warning text-dark ms-2 small">임시저장</span>{% else %}ABAP 코드 등록{% endif %}</h2>
           <p class="text-muted">
             {% if edit_code %}
-            임시저장 항목을 수정한 뒤 다시 임시 저장하거나, 등록 후 Hannah 분석을 실행할 수 있습니다.
+            임시저장 항목을 수정한 뒤 다시 임시 저장하거나, 등록 후 {{ 'f_analyst'|agent_label }}의 분석을 실행할 수 있습니다.
             {% else %}
-            실제 프로젝트 ABAP 소스를 등록하면 Hannah가 프로그램을 분석합니다.<br/>
+            실제 프로젝트 ABAP 소스를 등록하면 {{ 'f_analyst'|agent_label }}가 프로그램을 분석합니다.<br/>
             <span class="text-warning small">
               <i class="fa-solid fa-clock me-1"></i>분석에는 약 10~30초가 소요됩니다.
             </span>
@@ -263,6 +263,7 @@
 {% block extra_js %}
 <script src="/static/js/sap_field_input.js?v=20260419a"></script>
 <script>
+const AGENT_F_ANALYST = {{ "f_analyst"|agent_label|tojson }};
 if (window.initSapPidTcodePair) {
   initSapPidTcodePair({
     programEl: document.getElementById('program_id'),
@@ -422,7 +423,7 @@ if (!container) {
       var submitBtn = document.getElementById('submit-btn');
       if (!isDraft && submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Hannah 분석 중... (10~30초 소요)';
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + AGENT_F_ANALYST + '가 코드를 분석하는 중... (10~30초 소요)';
       }
     });
   }
