@@ -112,6 +112,57 @@
     }
   }
 
+  /**
+   * 프로그램 ID 1필드만 (코드라이브러리 섹션별 Include명 등) — pair 없이 program_id와 동일 규칙.
+   */
+  function initSapProgramIdOnly(opts) {
+    var el = opts.programEl;
+    var fb = opts.feedbackEl;
+    var maxLen = opts.maxLen != null ? opts.maxLen : 40;
+    var onChange = opts.onChange || function () {};
+    if (!el) return;
+    if (el.getAttribute('data-sap-pid-initialized') === '1') return;
+    el.setAttribute('data-sap-pid-initialized', '1');
+
+    function run() {
+      var msg = '';
+      var raw = el.value;
+      if (RFP_CJK.test(raw)) {
+        el.value = raw.replace(RFP_CJK, '');
+        msg = MSG_CJK;
+      }
+      el.value = el.value.replace(/[a-z]/g, function (c) {
+        return c.toUpperCase();
+      });
+      var cleaned = el.value.replace(/[^\x21-\x7E]/g, '');
+      if (cleaned !== el.value) {
+        el.value = cleaned;
+        if (!msg) msg = MSG_BAD;
+      }
+      if (el.value.length > maxLen) {
+        el.value = el.value.slice(0, maxLen);
+        msg = maxLen + '자 이내로 입력해 주세요.';
+      }
+      if (fb) fb.textContent = msg;
+      onChange();
+    }
+
+    el.addEventListener('beforeinput', function (e) {
+      if (e.isComposing) return;
+      if (e.data && RFP_CJK.test(e.data)) {
+        e.preventDefault();
+        if (fb) fb.textContent = MSG_CJK;
+      }
+    });
+    el.addEventListener('input', run);
+    el.addEventListener('compositionend', run);
+    el.addEventListener('paste', function () {
+      setTimeout(run, 0);
+    });
+    run();
+  }
+
   global.initSapPidTcodePair = initSapPidTcodePair;
+  global.initSapProgramIdOnly = initSapProgramIdOnly;
   global.SAP_FIELD_MSG_CJK = MSG_CJK;
 })(typeof window !== 'undefined' ? window : this);

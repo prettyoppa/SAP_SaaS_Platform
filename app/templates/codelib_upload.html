@@ -162,8 +162,8 @@
                 {% for sec in edit_sections %}
               <div class="code-section" data-section-id="{{ loop.index0 }}">
                 <div class="code-section-header">
-                  <div class="d-flex align-items-center gap-2 flex-grow-1">
-                    <div class="section-drag-handle"><i class="fa-solid fa-grip-vertical"></i></div>
+                  <div class="d-flex align-items-start gap-2 flex-grow-1 flex-wrap">
+                    <div class="section-drag-handle pt-1"><i class="fa-solid fa-grip-vertical"></i></div>
                     <select class="form-select form-select-sm section-type-select" style="max-width:220px">
                       <option value="메인 프로그램" {% if sec.type == '메인 프로그램' %}selected{% endif %}>메인 프로그램</option>
                       <option value="TOP Include" {% if sec.type == 'TOP Include' %}selected{% endif %}>TOP Include</option>
@@ -174,9 +174,12 @@
                       <option value="Class" {% if sec.type == 'Class' %}selected{% endif %}>Class / Interface</option>
                       <option value="기타 Include" {% if sec.type == '기타 Include' %}selected{% endif %}>기타 Include</option>
                     </select>
-                    <input type="text" class="form-control form-control-sm section-name-input"
-                           style="max-width:200px" value="{{ sec.name }}"/>
-                    <span class="ms-auto small text-muted section-stat">{{ sec.code.splitlines()|length }}줄</span>
+                    <div class="d-flex flex-column" style="min-width: 140px; max-width: 220px">
+                      <label class="small text-muted mb-0">Include·프로그램 ID <span class="fw-normal">(선택)</span></label>
+                      <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off" value="{{ sec.name }}"/>
+                      <div class="section-pid-fb small text-warning" style="min-height:1rem"></div>
+                    </div>
+                    <span class="ms-auto small text-muted section-stat pt-1">{{ sec.code.splitlines()|length }}줄</span>
                   </div>
                   <div class="section-actions ms-3">
                     <button type="button" class="btn btn-ghost btn-sm text-danger remove-section-btn" {% if edit_sections|length == 1 %}disabled{% endif %}>
@@ -190,8 +193,8 @@
               {% else %}
               <div class="code-section" data-section-id="0">
                 <div class="code-section-header">
-                  <div class="d-flex align-items-center gap-2 flex-grow-1">
-                    <div class="section-drag-handle"><i class="fa-solid fa-grip-vertical"></i></div>
+                  <div class="d-flex align-items-start gap-2 flex-grow-1 flex-wrap">
+                    <div class="section-drag-handle pt-1"><i class="fa-solid fa-grip-vertical"></i></div>
                     <select class="form-select form-select-sm section-type-select" style="max-width:220px">
                       <option value="메인 프로그램" selected>메인 프로그램</option>
                       <option value="TOP Include">TOP Include</option>
@@ -202,9 +205,12 @@
                       <option value="Class">Class / Interface</option>
                       <option value="기타 Include">기타 Include</option>
                     </select>
-                    <input type="text" class="form-control form-control-sm section-name-input"
-                           style="max-width:200px"/>
-                    <span class="ms-auto small text-muted section-stat">0줄</span>
+                    <div class="d-flex flex-column" style="min-width: 140px; max-width: 220px">
+                      <label class="small text-muted mb-0">Include·프로그램 ID <span class="fw-normal">(선택)</span></label>
+                      <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off"/>
+                      <div class="section-pid-fb small text-warning" style="min-height:1rem"></div>
+                    </div>
+                    <span class="ms-auto small text-muted section-stat pt-1">0줄</span>
                   </div>
                   <div class="section-actions ms-3">
                     <button type="button" class="btn btn-ghost btn-sm text-danger remove-section-btn" disabled>
@@ -255,7 +261,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/sap_field_input.js?v=20260415c"></script>
+<script src="/static/js/sap_field_input.js?v=20260419a"></script>
 <script>
 if (window.initSapPidTcodePair) {
   initSapPidTcodePair({
@@ -271,17 +277,78 @@ if (window.initSapPidTcodePair) {
 }
 
 const container = document.getElementById('sections-container');
-let sectionCount = container.querySelectorAll('.code-section').length || 1;
+if (!container) {
+  // no-op
+} else {
+  let sectionCount = 0;
+  container.querySelectorAll('.code-section').forEach(function (el) {
+    var n = parseInt(el.getAttribute('data-section-id'), 10);
+    if (!isNaN(n) && n >= sectionCount) sectionCount = n + 1;
+  });
+  if (sectionCount < 1) sectionCount = 1;
 
-document.getElementById('add-section-btn').addEventListener('click', () => {
-  const id = sectionCount++;
-  const div = document.createElement('div');
-  div.className = 'code-section';
-  div.dataset.sectionId = id;
-  div.innerHTML = `
+  function wireSectionPid(elBlock) {
+    var input = elBlock.querySelector('.section-name-input');
+    var fb = elBlock.querySelector('.section-pid-fb');
+    if (input && window.initSapProgramIdOnly) {
+      if (input.getAttribute('data-sap-pid-initialized') === '1') return;
+      initSapProgramIdOnly({
+        programEl: input,
+        feedbackEl: fb,
+        maxLen: 40,
+        onChange: function () {},
+      });
+    }
+  }
+
+  function updateRemoveButtonStates() {
+    var n = container.querySelectorAll('.code-section').length;
+    container.querySelectorAll('.remove-section-btn').forEach(function (btn) {
+      btn.disabled = n <= 1;
+    });
+  }
+
+  function bindSection(div) {
+    var ta = div.querySelector('.section-code');
+    var stat = div.querySelector('.section-stat');
+    wireSectionPid(div);
+    if (ta) {
+      ta.addEventListener('input', function () {
+        if (stat) stat.textContent = ta.value.split('\n').length.toLocaleString() + '줄';
+        updateStats();
+      });
+    }
+  }
+
+  function updateStats() {
+    var sections = container.querySelectorAll('.code-section');
+    var totalLines = 0, totalChars = 0;
+    sections.forEach(function (s) {
+      var t = s.querySelector('.section-code');
+      if (t && t.value) {
+        totalLines += t.value.split('\n').length;
+        totalChars += t.value.length;
+      }
+    });
+    var sc = document.getElementById('section-count');
+    var tl = document.getElementById('total-lines');
+    var tc = document.getElementById('total-chars');
+    if (sc) sc.textContent = String(sections.length);
+    if (tl) tl.textContent = totalLines.toLocaleString();
+    if (tc) tc.textContent = totalChars.toLocaleString();
+  }
+
+  var addBtn = document.getElementById('add-section-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', function () {
+      var id = sectionCount++;
+      var div = document.createElement('div');
+      div.className = 'code-section';
+      div.setAttribute('data-section-id', String(id));
+      div.innerHTML = `
     <div class="code-section-header">
-      <div class="d-flex align-items-center gap-2 flex-grow-1">
-        <div class="section-drag-handle"><i class="fa-solid fa-grip-vertical"></i></div>
+      <div class="d-flex align-items-start gap-2 flex-grow-1 flex-wrap">
+        <div class="section-drag-handle pt-1"><i class="fa-solid fa-grip-vertical"></i></div>
         <select class="form-select form-select-sm section-type-select" style="max-width:220px">
           <option value="TOP Include">TOP Include</option>
           <option value="Selection Screen">Selection Screen Include</option>
@@ -291,9 +358,12 @@ document.getElementById('add-section-btn').addEventListener('click', () => {
           <option value="Class">Class / Interface</option>
           <option value="기타 Include">기타 Include</option>
         </select>
-        <input type="text" class="form-control form-control-sm section-name-input"
-               style="max-width:200px"/>
-        <span class="ms-auto small text-muted section-stat">0줄</span>
+        <div class="d-flex flex-column" style="min-width: 140px; max-width: 220px">
+          <label class="small text-muted mb-0">Include·프로그램 ID <span class="fw-normal">(선택)</span></label>
+          <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off"/>
+          <div class="section-pid-fb small text-warning" style="min-height:1rem"></div>
+        </div>
+        <span class="ms-auto small text-muted section-stat pt-1">0줄</span>
       </div>
       <div class="section-actions ms-3">
         <button type="button" class="btn btn-ghost btn-sm text-danger remove-section-btn">
@@ -302,67 +372,64 @@ document.getElementById('add-section-btn').addEventListener('click', () => {
       </div>
     </div>
     <textarea class="form-control section-code" rows="10"></textarea>`;
-  container.appendChild(div);
-  bindSection(div);
+      container.appendChild(div);
+      bindSection(div);
+      updateRemoveButtonStates();
+      updateStats();
+    });
+  }
+
+  container.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest && e.target.closest('.remove-section-btn');
+    if (!btn || btn.disabled) return;
+    var row = btn.closest('.code-section');
+    if (row) {
+      row.remove();
+      updateRemoveButtonStates();
+      updateStats();
+    }
+  });
+
+  var formEl = document.getElementById('upload-form');
+  if (formEl) {
+    formEl.addEventListener('submit', function (e) {
+      var sections = container.querySelectorAll('.code-section');
+      var combined = '';
+      sections.forEach(function (sec, idx) {
+        var typeEl = sec.querySelector('.section-type-select');
+        var nameEl = sec.querySelector('.section-name-input');
+        var codeEl = sec.querySelector('.section-code');
+        var type = typeEl ? typeEl.value : '';
+        var name = nameEl ? nameEl.value.trim() : '';
+        var code = codeEl ? codeEl.value.trim() : '';
+        if (!code) return;
+        var label = name ? (type + ' – ' + name) : type;
+        combined += '*&======================================================\n';
+        combined += '*& [' + (idx + 1) + '] ' + label + '\n';
+        combined += '*&======================================================\n';
+        combined += code + '\n\n';
+      });
+
+      if (combined.trim().length < 50) {
+        e.preventDefault();
+        alert('최소 한 개 섹션에 ABAP 소스를 입력해 주세요.');
+        return;
+      }
+
+      var hid = document.getElementById('source-code-combined');
+      if (hid) hid.value = combined;
+      var isDraft = document.getElementById('is-draft-field') && document.getElementById('is-draft-field').value === '1';
+      var submitBtn = document.getElementById('submit-btn');
+      if (!isDraft && submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Hannah 분석 중... (10~30초 소요)';
+      }
+    });
+  }
+
+  container.querySelectorAll('.code-section').forEach(bindSection);
+  updateRemoveButtonStates();
   updateStats();
-});
-
-function bindSection(div) {
-  const ta = div.querySelector('.section-code');
-  const stat = div.querySelector('.section-stat');
-  const removeBtn = div.querySelector('.remove-section-btn');
-  ta.addEventListener('input', () => {
-    stat.textContent = ta.value.split('\n').length.toLocaleString() + '줄';
-    updateStats();
-  });
-  if (removeBtn && !removeBtn.disabled) {
-    removeBtn.addEventListener('click', () => { div.remove(); updateStats(); });
-  }
 }
-
-function updateStats() {
-  const sections = container.querySelectorAll('.code-section');
-  let totalLines = 0, totalChars = 0;
-  sections.forEach(s => {
-    const ta = s.querySelector('.section-code');
-    if (ta.value) { totalLines += ta.value.split('\n').length; totalChars += ta.value.length; }
-  });
-  document.getElementById('section-count').textContent = sections.length;
-  document.getElementById('total-lines').textContent = totalLines.toLocaleString();
-  document.getElementById('total-chars').textContent = totalChars.toLocaleString();
-}
-
-document.getElementById('upload-form').addEventListener('submit', (e) => {
-  const sections = container.querySelectorAll('.code-section');
-  let combined = '';
-  sections.forEach((sec, idx) => {
-    const type = sec.querySelector('.section-type-select').value;
-    const name = sec.querySelector('.section-name-input').value.trim();
-    const code = sec.querySelector('.section-code').value.trim();
-    if (!code) return;
-    const label = name ? `${type} – ${name}` : type;
-    combined += `*&======================================================\n`;
-    combined += `*& [${idx + 1}] ${label}\n`;
-    combined += `*&======================================================\n`;
-    combined += code + '\n\n';
-  });
-
-  if (combined.trim().length < 50) {
-    e.preventDefault();
-    alert('최소 한 개 섹션에 ABAP 소스를 입력해 주세요.');
-    return;
-  }
-
-  document.getElementById('source-code-combined').value = combined;
-  const isDraft = document.getElementById('is-draft-field').value === '1';
-  const btn = document.getElementById('submit-btn');
-  if (!isDraft) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Hannah 분석 중... (10~30초 소요)';
-  }
-});
-
-container.querySelectorAll('.code-section').forEach(bindSection);
-updateStats();
 </script>
 {% endblock %}
