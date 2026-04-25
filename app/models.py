@@ -57,6 +57,8 @@ class RFPMessage(Base):
     round_number = Column(Integer, nullable=False)
     questions_json = Column(Text, nullable=False)
     answers_text = Column(Text, nullable=True)
+    # 순차 인터뷰(JSON): answers_so_far, library_pool 등(레거시 메시지는 null)
+    intra_state_json = Column(Text, nullable=True)
     source_label = Column(String, nullable=True)
     is_answered = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)

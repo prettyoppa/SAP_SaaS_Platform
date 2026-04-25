@@ -16,6 +16,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import Optional
 
 from crewai import Agent, Task, Crew, Process, LLM
 from dotenv import load_dotenv
@@ -25,6 +26,7 @@ from ..gemini_model import get_gemini_model_id
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 MAX_ROUNDS = 3
+MAX_SUGGESTED_ANSWERS = 5
 
 
 def _parse_code_library_context(code_library_context: str) -> tuple[str, dict]:
@@ -162,10 +164,14 @@ IT 전문 용어는 고객 친화적 언어로 풀어서 설명하며,
 def _fmt_rfp(rfp: dict) -> str:
     modules = [_MODULE_LABELS.get(m, m) for m in rfp.get("sap_modules", [])]
     devtypes = [_DEVTYPE_LABELS.get(d, d) for d in rfp.get("dev_types", [])]
+    pid = (rfp.get("program_id") or "").strip()
+    tcode = (rfp.get("transaction_code") or "").strip()
     return (
         f"- 요청 제목: {rfp.get('title', '(없음)')}\n"
         f"- SAP 모듈: {', '.join(modules) or '(미선택)'}\n"
         f"- 개발 유형: {', '.join(devtypes) or '(미선택)'}\n"
+        f"- 고객이 지정한 프로그램 ID(있으면 이 이름/식별자로 확정): {pid or '(미입력·제안서에서 임의 Z/Y는 금지)'}\n"
+        f"- 고객이 지정한 트랜잭션 코드(있으면 실행 경로는 이 코드로만): {tcode or '(미입력·제안서에서 임의 T-Code는 금지)'}\n"
         f"- 요구사항:\n{rfp.get('description', '(없음)')}"
     )
 
@@ -210,34 +216,183 @@ _DEFAULT_QUESTIONS = [
 ]
 
 
-# ── Public API ────────────────────────────────────────
+def _fmt_in_round(in_round: list[tuple[str, str]]) -> str:
+    if not in_round:
+        return "(이번 라운드 아직 답이 없음)"
+    lines = []
+    for i, (q, a) in enumerate(in_round, 1):
+        lines.append(f"  Q{i}. {q}\n  A{i}. {a}")
+    return "\n".join(lines)
 
-def generate_round_questions(
+
+def _normalize_suggested_answers(items) -> list[str]:
+    """중복 제거, 공백 제거, 최대 MAX_SUGGESTED_ANSWERS."""
+    if not items:
+        return []
+    seen = set()
+    out: list[str] = []
+    for x in items:
+        t = str(x).strip()
+        if not t or len(t) > 500:
+            continue
+        k = t.lower()[:80]
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(t)
+        if len(out) >= MAX_SUGGESTED_ANSWERS:
+            break
+    return out
+
+
+def _parse_one_question(raw: str) -> str:
+    q, _ = _parse_question_and_suggestions(raw)
+    return q
+
+
+def _parse_question_and_suggestions(raw: str) -> tuple[str, list[str]]:
+    """크루 출력에서 question + suggested_answers(있으면) 추출."""
+    s = (raw or "").strip()
+    sugg: list[str] = []
+    if not s:
+        return "", []
+    src = s
+    if "```" in s:
+        m = re.search(r"```(?:json)?\s*([\s\S]*?)```", s)
+        if m:
+            src = m.group(1).strip()
+    try:
+        j = json.loads(src)
+        if isinstance(j, dict):
+            q = (j.get("question") or "").strip()
+            sa = j.get("suggested_answers")
+            if isinstance(sa, list):
+                sugg = _normalize_suggested_answers(sa)
+            if q:
+                return q[:2000], sugg
+    except Exception:
+        pass
+    # 폴백: 질문만
+    qonly = _parse_one_question_legacy_block(s)
+    return qonly, sugg
+
+
+def _parse_one_question_legacy_block(s: str) -> str:
+    src = s
+    if "```" in s:
+        m = re.search(r"```(?:json)?\s*([\s\S]*?)```", s)
+        if m:
+            src = m.group(1).strip()
+    try:
+        j = json.loads(src)
+        if isinstance(j, dict) and "question" in j:
+            return (j.get("question") or "").strip()[:2000]
+        if isinstance(j, list) and j:
+            return str(j[0]).strip()[:2000]
+    except Exception:
+        pass
+    m = re.search(r'"question"\s*:\s*"((?:[^"\\]|\\.)*)"', s)
+    if m:
+        return m.group(1).replace('\\"', '"').strip()[:2000]
+    for ln in s.splitlines():
+        t = ln.strip()
+        if len(t) > 20:
+            return t[:2000]
+    return s[:2000] if len(s) > 20 else ""
+
+
+def generate_suggested_answers_for_question(
+    rfp_data: dict,
+    question: str,
+    round_num: int,
+    step_in_round: int,
+) -> list[str]:
+    """
+    질문 1개에 대해 일반회원이 고를 수 있는 답안 후보(2~5개, 최대 MAX_SUGGESTED_ANSWERS).
+    """
+    q = (question or "").strip()
+    if not q:
+        return []
+    try:
+        llm = _get_llm()
+        _, f_questioner, _, _ = _make_agents(llm)
+        rfp_ctx = _fmt_rfp(rfp_data)
+        t = Task(
+            description=f"""다음은 SAP 맞춤개발 RFP 인터뷰 질문입니다. **비전문가(일반 업무 담당자)** 가 버튼만 눌러 답할 수 있게, **짧은 답안 후보**를 만드세요.
+
+[RFP 요약]
+{rfp_ctx}
+
+[인터뷰 질문]
+{q}
+
+(라운드 {round_num}, 이 라운드 {step_in_round}번째 질문)
+
+규칙:
+- 2개 이상, **최대 {MAX_SUGGESTED_ANSWERS}개**
+- 항목마다 1문장(약 100자 이내), 쉬운 말, 서로 다른 선택지
+- "잘 모르겠다" / "담당자와 상의" / "우리 회사 정책에 따름" 류는 **최대 1개**만
+- 질문이 요구하는 **서로 다른 결정**이 드러나게
+
+JSON만 출력:
+{{"suggested_answers": ["...", "..."]}}""",
+            agent=f_questioner,
+            expected_output='{"suggested_answers": []}',
+        )
+        crew = Crew(agents=[f_questioner], tasks=[t], process=Process.sequential, verbose=False)
+        raw = str(crew.kickoff())
+        return _parse_suggested_answers_only(raw)
+    except Exception:
+        return []
+
+
+def _parse_suggested_answers_only(raw: str) -> list[str]:
+    """JSON 본문에서 suggested_answers 배열만 추출."""
+    s = (raw or "").strip()
+    if not s:
+        return []
+    blob = s
+    if "```" in s:
+        m = re.search(r"```(?:json)?\s*([\s\S]*?)```", s)
+        if m:
+            blob = m.group(1).strip()
+    try:
+        j = json.loads(blob)
+        if isinstance(j, dict) and isinstance(j.get("suggested_answers"), list):
+            return _normalize_suggested_answers(j["suggested_answers"])
+    except Exception:
+        pass
+    return []
+
+
+def generate_sequential_start(
     rfp_data: dict,
     conversation: list[dict],
     round_num: int,
     code_library_context: str = "",
 ) -> dict:
     """
-    한 라운드의 인터뷰 질문 3개를 생성합니다.
-    1라운드이고 코드 라이브러리 매칭이 있으면 그 질문을 우선 사용합니다.
-
+    라운드의 첫 질문 1개 + (1라운드·라이브러리) 나머지 질문 풀.
     Returns:
-        {"questions": [...], "is_complete": False, "source": "..."}
+        {"questions": [Q1], "library_pool": [...], "suggested_answers": [...], "source": "..."}
     """
     analysis_summary, lib_ctx = _parse_code_library_context(code_library_context)
     member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
 
-    # 1라운드: 코드 라이브러리 질문 우선 사용 (회원 참고 ABAP이 있으면 전체 크루로 넘겨 반영)
     if round_num == 1 and code_library_context and not member_ref:
         try:
             ctx = lib_ctx if lib_ctx else json.loads(code_library_context)
-            qs = ctx.get("questions", [])
+            qs = [str(q).strip() for q in (ctx.get("questions") or []) if str(q).strip()]
             if qs:
+                rest = [q for q in qs[1:4] if q][:2]
+                su = generate_suggested_answers_for_question(
+                    rfp_data, qs[0], round_num, 1
+                )
                 return {
-                    "questions": qs[:3],
-                    "is_complete": False,
+                    "questions": [qs[0]],
+                    "library_pool": rest,
                     "source": ctx.get("source", "코드 라이브러리 기반"),
+                    "suggested_answers": su,
                 }
         except Exception:
             pass
@@ -254,7 +409,6 @@ def generate_round_questions(
 [서버 코드 라이브러리 – 유사 프로그램 요약 (고객 PC 로컬 참고 코드와 별개, 패턴 참고용)]
 {analysis_summary}
 """
-
     member_ref_block = ""
     if member_ref:
         member_ref_block = f"""
@@ -262,8 +416,6 @@ def generate_round_questions(
 [회원이 본 개발 요청에 제공한 참고 ABAP]
 {member_ref}
 """
-
-    # Task 1: Hannah – 현재 상태 분석
     analyze_task = Task(
         description=f"""아래 RFP와 지금까지의 인터뷰 내용을 분석하세요.
 
@@ -278,58 +430,176 @@ def generate_round_questions(
 다음 항목을 간결하게 분석하세요:
 1. 현재까지 파악된 핵심 요구사항 (2~3줄)
 2. 아직 불명확하거나 확인이 필요한 사항 목록
-3. 이번 라운드에서 반드시 확인해야 할 우선순위 3가지
+3. 이번 라운드에서 **첫** 인터뷰 질문 1개로 꼭 확인해야 할 우선 사항(한 줄)
 
-※ 내부 유사 사례 요약·회원 제공 참고 ABAP이 있으면 RFP·인터뷰와의 차이·공통점을 구분해 반영하세요. 충돌 시 RFP·인터뷰를 우선합니다.""",
+※ 내부 유사 사례·회원 참고 ABAP이 있으면 RFP·인터뷰와의 차이를 구분해 반영하세요.""",
         agent=f_analyst,
         expected_output="요구사항 현황 분석 결과 (텍스트)",
     )
-
-    # Task 2: Mia – 질문 생성
     mia_member = member_ref if member_ref else "없음"
     question_task = Task(
-        description=f"""Hannah의 분석을 바탕으로 {round_num}라운드 인터뷰 질문 3개를 생성하세요.
+        description=f"""Hannah의 분석을 바탕으로 {round_num}라운드 **첫** 인터뷰 질문 1개만** 생성하세요.
 
-[내부 참고 자료 – 역추출 질문·유사 사례 요약]
+[내부 참고 자료]
 {_format_library_block_for_mia(code_library_context)}
 
 [회원이 본 요청에 제공한 참고 ABAP]
 {mia_member}
 
-작성 원칙:
-- "기능이 필요한가요? (예: 구체적 사례) 필요하다면 어떤 기준으로?" 구조
-- 고객(비개발자)이 이해하고 답할 수 있는 언어
-- 개발 방향이 달라지는 비즈니스 의사결정에 집중
-- 이미 답변된 내용은 다시 묻지 마세요
+원칙: 고객(비개발자)이 이해할 수 있는 말, 개발 방향이 달라지는 의사결정 1가지만 묻는다. 이미 이전 라운드에서 답이 나온 주제는 반복하지 않는다.
 
-반드시 아래 JSON 형식으로만 출력:
-{{"questions": ["질문1", "질문2", "질문3"]}}""",
+또한 **같은 JSON**에 비전문가가 버튼으로 고를 **답안 후보** suggested_answers를 2~{MAX_SUGGESTED_ANSWERS}개(최대 {MAX_SUGGESTED_ANSWERS}개) 넣는다. 각 항목은 1문장, 서로 겹치지 않게.
+
+출력(반드시 JSON, 한 블록):
+{{"question": "...", "suggested_answers": ["...", "..."]}}""",
         agent=f_questioner,
-        expected_output='{"questions": ["질문1", "질문2", "질문3"]}',
+        expected_output='{"question": "...", "suggested_answers": []}',
         context=[analyze_task],
     )
-
     crew = Crew(
         agents=[f_analyst, f_questioner],
         tasks=[analyze_task, question_task],
         process=Process.sequential,
         verbose=False,
     )
-
     try:
         result = crew.kickoff()
-        questions = _parse_questions(str(result))
+        q1, sugg = _parse_question_and_suggestions(str(result))
     except Exception:
-        questions = []
-
-    if not questions:
-        questions = _DEFAULT_QUESTIONS
-
+        q1, sugg = "", []
+    if not q1:
+        q1 = _DEFAULT_QUESTIONS[0]
+    if len(sugg) < 2:
+        more = generate_suggested_answers_for_question(rfp_data, q1, round_num, 1)
+        sugg = _normalize_suggested_answers(list(sugg) + list(more))
     return {
-        "questions": questions[:3],
-        "is_complete": False,
+        "questions": [q1],
+        "library_pool": [],
+        "suggested_answers": sugg,
         "source": "AI 에이전트 생성 (Hannah + Mia)",
     }
+
+
+def generate_sequential_followup(
+    rfp_data: dict,
+    conversation: list[dict],
+    round_num: int,
+    in_round_qa: list[tuple[str, str]],
+    code_library_context: str = "",
+    library_pool: Optional[list] = None,
+) -> dict:
+    """
+    같은 라운드의 다음 질문 1개(회원이 이전 답을 본 뒤 생성).
+    """
+    library_pool = list(library_pool or [])
+    if library_pool:
+        nq = library_pool.pop(0).strip()
+        if nq:
+            step = len(in_round_qa) + 1
+            su = generate_suggested_answers_for_question(
+                rfp_data, nq, round_num, step
+            )
+            return {
+                "next_question": nq,
+                "library_pool": library_pool,
+                "suggested_answers": su,
+                "source": "코드 라이브러리 기반",
+            }
+
+    analysis_summary, _ = _parse_code_library_context(code_library_context)
+    member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
+    rfp_ctx = _fmt_rfp(rfp_data)
+    conv_ctx = _fmt_conv(conversation)
+    inr = _fmt_in_round(in_round_qa)
+    q_index = len(in_round_qa) + 1
+    done_topics = " / ".join(q[:50] for q, _ in in_round_qa) if in_round_qa else "(없음)"
+
+    lib_for = ""
+    if analysis_summary:
+        lib_for = f"\n[유사 사례 요약]\n{analysis_summary[:2400]}\n"
+    mref = ""
+    if member_ref:
+        mref = f"\n[회원 참고 ABAP]\n{member_ref}\n"
+    lib_block = _format_library_block_for_mia(code_library_context)
+    anti_dup = f"""[이번 라운드에서 **이미 나온 질문(주제)**]
+{done_topics}
+위와 **같은 시나리오·같은 결론(예: 오류 1건만 나와도 전체 취소 vs 부분 성공)을 다시 묻지 마라. 이미 답이 나온 **비즈니스 결정**을 다른 표현으로 반복해 질문하지 말고, **다음 측면**(권한, 감사, UI, 운영 예외, 통합, 성능, 데이터 정합, 알림/재시도 등)만 다루어라. 만약 **반드시** 이전 답의 디테일을 좁혀야 하면, 질문 첫 문장에 '(앞서 답하신 '전체 취소' 전제로)' 처럼 **전제**를 밝혀 **중복 질문이 아님**을 드러내라."""
+    llm = _get_llm()
+    f_analyst, f_questioner, _, _ = _make_agents(llm)
+    analyze_task = Task(
+        description=f"""RFP·이전 라운드·이번 라운드까지의 Q&A를 읽고, 다음 1문항이 필요한 이유를 한 줄로 쓰세요 (내부용).
+
+RFP: {rfp_ctx}
+[이전 라운드]
+{conv_ctx}
+[이번 라운드 {round_num} – 지금까지]
+{inr}
+{lib_for}{mref}
+{anti_dup}""",
+        agent=f_analyst,
+        expected_output="다음 질문이 필요한 이유(한 문장)",
+    )
+    follow_task = Task(
+        description=f"""Hannah의 요약·아래 '이번 라운드' 답변을 반드시 반영해 **다음 질문 1개**만 JSON으로 쓰세요.
+
+[이번 라운드 1~{q_index-1}번 Q&A (반드시 반영)]
+{inr}
+
+[내부 질문 후보(참고, 그대로 복붙 금지)]
+{lib_block}
+
+{anti_dup}
+
+같은 JSON에 suggested_answers 배열(2~{MAX_SUGGESTED_ANSWERS}개, 최대 {MAX_SUGGESTED_ANSWERS}개) — 비전문가용 짧은 답 버튼 문구, 서로 다르게.
+
+출력만:
+{{"question": "...", "suggested_answers": ["..."]}}""",
+        agent=f_questioner,
+        expected_output='{"question": "...", "suggested_answers": []}',
+        context=[analyze_task],
+    )
+    crew = Crew(
+        agents=[f_analyst, f_questioner],
+        tasks=[analyze_task, follow_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+    try:
+        out = str(crew.kickoff())
+        nq, sugg = _parse_question_and_suggestions(out)
+    except Exception:
+        nq, sugg = "", []
+    if not nq or len(nq) < 15:
+        i = min(len(in_round_qa), len(_DEFAULT_QUESTIONS) - 1)
+        nq = _DEFAULT_QUESTIONS[min(i + 1, len(_DEFAULT_QUESTIONS) - 1)]
+    if len(sugg) < 2:
+        more = generate_suggested_answers_for_question(
+            rfp_data, nq, round_num, len(in_round_qa) + 1
+        )
+        sugg = _normalize_suggested_answers(list(sugg) + list(more))
+    return {
+        "next_question": nq,
+        "library_pool": library_pool,
+        "suggested_answers": sugg,
+        "source": "AI 에이전트 생성 (Hannah + Mia)",
+    }
+
+
+# ── Public API ────────────────────────────────────────
+
+def generate_round_questions(
+    rfp_data: dict,
+    conversation: list[dict],
+    round_num: int,
+    code_library_context: str = "",
+) -> dict:
+    """
+    (호환) 한 라운드의 첫 질문 1개 + 라이브러리 풀. 레거시 코드가 3문항을 기대할 경우
+    generate_sequential_start 후 연속 호출로 채울 수 있습니다.
+    """
+    return generate_sequential_start(
+        rfp_data, conversation, round_num, code_library_context
+    )
 
 
 def generate_proposal(
@@ -385,19 +655,31 @@ def generate_proposal(
         expected_output="구조화된 최종 요구사항 명세 (텍스트)",
     )
 
+    pid = (rfp_data.get("program_id") or "").strip()
+    tcode = (rfp_data.get("transaction_code") or "").strip()
+    customer_id_rule = ""
+    if pid or tcode:
+        customer_id_rule = f"""
+
+**필수 (고객 입력 ID·T-Code):**
+- RFP에 고객이 입력한 프로그램 ID가 있으면(`{pid or "없음"}`) 제안서·마크다운 전체에서 **프로그램명·실행 객체는 이 식별자만** 사용한다. 다른 Z/Y 이름을 임의로 제시하지 않는다.
+- RFP에 고객이 입력한 트랜잭션 코드가 있으면(`{tcode or "없음"}`) **프로그램 실행은 이 T-Code만** 기술한다. 다른 트랜잭션 코드는 쓰지 않는다.
+- 둘 다 없을 때만 Z/Y 프로그램명·T-Code를 합리적으로 제안할 수 있다."""
+
     # Task 2: Jun – Proposal 작성
     write_task = Task(
-        description="""Hannah의 요구사항 명세를 바탕으로 Development Proposal을 작성하세요.
+        description=f"""Hannah의 요구사항 명세를 바탕으로 Development Proposal을 작성하세요.
+{customer_id_rule}
 
 아래 6개 섹션을 마크다운 형식으로 반드시 포함하세요:
 
 # Development Proposal
 
 ## 1. 개발 개요
-- 프로그램명 (제안): Z 또는 Y로 시작하는 SAP 커스텀 프로그램명
+- 프로그램명: 고객이 RFP에 지정한 ID가 있으면 그 ID, 없을 때만 Z 또는 Y로 시작하는 제안명
 - 개발 목적 및 배경
 - 기대 효과 (비즈니스 관점으로 서술)
-- 관련 SAP 표준 프로세스 및 T-Code
+- 관련 SAP 표준 프로세스 및 T-Code(고객이 지정한 T-Code가 있으면 그것만)
 
 ## 2. 구현 기능
 (고객이 이해할 수 있는 언어로 기능 목록 작성, 각 기능의 비즈니스 가치 포함)

@@ -1,5 +1,10 @@
+# Railway: Root directory를 이 폴더(SAP_SaaS_Platform)로 맞추고 배포하세요.
+# (모노레포 루트에 연결한 경우 Service → Settings → Root Directory)
+
 [build]
 builder = "nixpacks"
 
 [deploy]
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

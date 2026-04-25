@@ -174,9 +174,9 @@
                       <option value="Class" {% if sec.type == 'Class' %}selected{% endif %}>Class / Interface</option>
                       <option value="기타 Include" {% if sec.type == '기타 Include' %}selected{% endif %}>기타 Include</option>
                     </select>
-                    <div class="d-flex flex-column" style="min-width: 140px; max-width: 220px">
-                      <label class="small text-muted mb-0">Include·프로그램 ID <span class="fw-normal">(선택)</span></label>
-                      <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off" value="{{ sec.name }}"/>
+                    <div class="flex-grow-1" style="min-width: 160px; max-width: 280px">
+                      <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off" value="{{ sec.name }}"
+                        placeholder="Include 프로그램 ID (선택)" aria-label="Include 프로그램 ID (선택)"/>
                       <div class="section-pid-fb small text-warning" style="min-height:1rem"></div>
                     </div>
                     <span class="ms-auto small text-muted section-stat pt-1">{{ sec.code.splitlines()|length }}줄</span>
@@ -205,9 +205,9 @@
                       <option value="Class">Class / Interface</option>
                       <option value="기타 Include">기타 Include</option>
                     </select>
-                    <div class="d-flex flex-column" style="min-width: 140px; max-width: 220px">
-                      <label class="small text-muted mb-0">Include·프로그램 ID <span class="fw-normal">(선택)</span></label>
-                      <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off"/>
+                    <div class="flex-grow-1" style="min-width: 160px; max-width: 280px">
+                      <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off"
+                        placeholder="Include 프로그램 ID (선택)" aria-label="Include 프로그램 ID (선택)"/>
                       <div class="section-pid-fb small text-warning" style="min-height:1rem"></div>
                     </div>
                     <span class="ms-auto small text-muted section-stat pt-1">0줄</span>
@@ -358,9 +358,9 @@ if (!container) {
           <option value="Class">Class / Interface</option>
           <option value="기타 Include">기타 Include</option>
         </select>
-        <div class="d-flex flex-column" style="min-width: 140px; max-width: 220px">
-          <label class="small text-muted mb-0">Include·프로그램 ID <span class="fw-normal">(선택)</span></label>
-          <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off"/>
+        <div class="flex-grow-1" style="min-width: 160px; max-width: 280px">
+          <input type="text" class="form-control form-control-sm section-name-input" maxlength="40" autocomplete="off"
+            placeholder="Include 프로그램 ID (선택)" aria-label="Include 프로그램 ID (선택)"/>
           <div class="section-pid-fb small text-warning" style="min-height:1rem"></div>
         </div>
         <span class="ms-auto small text-muted section-stat pt-1">0줄</span>

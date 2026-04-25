@@ -199,24 +199,45 @@ def _extract_key_sections(source_code: str, max_lines: int = 300) -> str:
     return "\n".join(combined[:max_lines])
 
 
+def _questions_from_code_analysis(code) -> list[str]:
+    """abap_codes.analysis_json 에서 역추출 질문 목록을 읽습니다 (questions_json 컬럼은 없음)."""
+    raw = getattr(code, "analysis_json", None)
+    if not raw:
+        return []
+    try:
+        j = json.loads(raw)
+        qs = j.get("questions")
+        if isinstance(qs, list):
+            return [str(q).strip() for q in qs if str(q).strip()]
+    except Exception:
+        pass
+    return []
+
+
 def find_similar_codes(db_session, sap_modules: list[str], dev_types: list[str]) -> list:
     """
-    DB에서 모듈·개발유형이 겹치는 분석 완료된 ABAP 코드를 검색합니다.
+    DB에서 모듈·개발유형이 겹치는 분석 완료·비임시 ABAP 코드를 검색합니다.
+    (기존 코드는 존재하지 않는 questions_json 컬럼을 참조해 매칭이 항상 실패할 수 있었음)
     매칭 점수(겹치는 항목 수)가 높은 순으로 반환합니다.
     """
     from .models import ABAPCode
 
-    all_codes = db_session.query(ABAPCode).filter(
-        ABAPCode.is_analyzed == True,
-        ABAPCode.questions_json != None,
-    ).all()
+    req_modules = {x.strip() for x in sap_modules if x and str(x).strip()}
+    req_devtypes = {x.strip() for x in dev_types if x and str(x).strip()}
+
+    all_codes = (
+        db_session.query(ABAPCode)
+        .filter(
+            ABAPCode.is_analyzed == True,
+            ABAPCode.is_draft == False,
+        )
+        .all()
+    )
 
     scored = []
     for code in all_codes:
-        code_modules = set(code.sap_modules.split(",")) if code.sap_modules else set()
-        code_devtypes = set(code.dev_types.split(",")) if code.dev_types else set()
-        req_modules = set(sap_modules)
-        req_devtypes = set(dev_types)
+        code_modules = {x.strip() for x in (code.sap_modules or "").split(",") if x.strip()}
+        code_devtypes = {x.strip() for x in (code.dev_types or "").split(",") if x.strip()}
 
         module_score = len(code_modules & req_modules)
         devtype_score = len(code_devtypes & req_devtypes) * 2  # 개발유형 일치를 더 중요하게
@@ -232,21 +253,16 @@ def find_similar_codes(db_session, sap_modules: list[str], dev_types: list[str])
 def extract_questions_from_codes(similar_codes: list) -> list[str]:
     """
     유사 코드들에서 역추출된 질문을 합쳐서 중복 없이 반환합니다.
+    (질문은 abap_codes.analysis_json 의 questions 배열에 저장됨)
     """
     seen = set()
     merged = []
     for code in similar_codes:
-        if not code.questions_json:
-            continue
-        try:
-            questions = json.loads(code.questions_json)
-            for q in questions:
-                q_key = q.strip().lower()[:50]
-                if q_key not in seen:
-                    seen.add(q_key)
-                    merged.append(q)
-        except Exception:
-            pass
+        for q in _questions_from_code_analysis(code):
+            q_key = q.strip().lower()[:50]
+            if q_key not in seen:
+                seen.add(q_key)
+                merged.append(q)
     return merged[:5]  # 최대 5개
 
 

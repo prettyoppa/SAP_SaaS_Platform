@@ -12,7 +12,8 @@
           <a href="/dashboard" class="btn btn-ghost mb-3">
             <i class="fa-solid fa-arrow-left me-1"></i> 대시보드로
           </a>
-          <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+            <div class="d-flex align-items-center gap-3">
             <div class="interview-ai-icon">
               <i class="fa-solid fa-robot"></i>
             </div>
@@ -20,6 +21,17 @@
               <h2 class="mb-0">AI 인터뷰</h2>
               <p class="text-muted mb-0 small">SAP 컨설턴트 AI가 요구사항을 분석하고 있습니다</p>
             </div>
+            </div>
+            {% if current_message is defined and current_message and interview_sequential|default(true) %}
+            <form method="post" action="/rfp/{{ rfp.id }}/interview/answer-step" class="d-inline" id="save-exit-form">
+              <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
+              <input type="hidden" name="action" value="save_exit"/>
+              <input type="hidden" name="current_answer" id="save-exit-answer" value=""/>
+              <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="fa-solid fa-floppy-disk me-1"></i> 임시저장하고 나가기
+              </button>
+            </form>
+            {% endif %}
           </div>
 
           <!-- RFP Summary -->
@@ -41,15 +53,14 @@
             <div class="small text-muted mt-2 p-3 rounded" style="background:var(--surface2);border:1px solid var(--border);">
               <p class="mb-2"><strong class="text-body">코드 라이브러리 매칭:</strong>
                 {% if interview_trust.library_matched %}
-                  <span class="text-success">유사 예제를 찾았습니다.</span>
+                  <span class="text-success">분석·등록이 완료된 코드 중, 이 RFP의 SAP 모듈·개발 유형과 <em>겹침(점수)</em>이 큰 항목을 찾아 역추출 질문·요약을 씁니다.</span>
                   {% if interview_trust.library_line %}<span class="d-block mt-1">{{ interview_trust.library_line }}</span>{% endif %}
                 {% else %}
-                  <span>이번 요청과 모듈·개발 유형이 같은 등록 코드가 없거나, 질문을 추출하지 못했습니다. Mia가 RFP만 보고 질문을 생성합니다.</span>
+                  <span>분석·등록(비임시) 완료된 코드를 위 기준으로 찾았는데, 모듈/유형이 겹치지 않거나(또는) 분석 JSON에 질문이 없으면 밑 문구가 뜹니다. Mia는 RFP·이전 답을 보고 질문을 냅니다.</span>
                 {% endif %}
               </p>
-              <p class="mb-0"><strong class="text-body">알고리즘 요약:</strong>
-                1라운드는 코드 라이브러리에서 <em>추출한 질문</em>이 있으면 그것을 우선 사용합니다. 없으면 <strong>Hannah</strong>가 RFP·이전 답을 분석하고 <strong>Mia</strong>가 질문 3개를 JSON으로 만듭니다.
-                2~3라운드는 항상 Hannah → Mia 순서로, 이미 나온 답을 반영해 같은 방식으로 3문항을 만듭니다.
+              <p class="mb-0"><strong class="text-body">진행 방식(순차):</strong>
+                1라운드 첫 질문은(가능하면) 코드 라이브러리에 추출해 둔 <strong>1문항</strong>으로 시작합니다. 그 다음은 회원이 직전에 쓴 답이 서버에 기록된 뒤, Hannah·Mia가 <strong>다음 1문항</strong>을 생성합니다(2·3라운드도 동일, 라운드마다 3문항). 같은 취지의 질문이 반복되지 않게 프롬프트를 둡니다.
               </p>
             </div>
           </details>
@@ -59,7 +70,7 @@
         <!-- Progress Bar -->
         <div class="interview-progress mb-5">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="small text-muted">인터뷰 진행도</span>
+            <span class="text-muted small">인터뷰 진행도</span>
             <span class="small fw-semibold text-primary-light">{{ current_round }} / {{ max_rounds }} 라운드</span>
           </div>
           <div class="progress" style="height:6px; background:var(--surface2); border-radius:3px;">
@@ -78,6 +89,12 @@
           <div class="mt-2 small">
             SAP_SaaS_Platform 폴더의 <code>.env</code> 파일에 <code>GOOGLE_API_KEY=키값</code>을 설정했는지 확인하세요.
           </div>
+        </div>
+        {% endif %}
+        {% if request.query_params.get('ans') == 'empty' %}
+        <div class="alert alert-warning mb-4">
+          <i class="fa-solid fa-circle-exclamation me-2"></i>
+          답을 한 글자 이상(예: <strong>잘 모르겠다</strong>)으로 입력하거나, 임시저장하려면 <strong>임시저장하고 나가기</strong>를 눌러 주세요.
         </div>
         {% endif %}
 
@@ -106,7 +123,7 @@
         </div>
         {% endif %}
 
-        <!-- Current Round Questions -->
+        <!-- Current Round -->
         {% if current_message and not error %}
         <div class="current-round-card">
           <div class="current-round-header">
@@ -116,27 +133,68 @@
             <div>
               <div class="fw-semibold">SAP 컨설턴트 AI</div>
               <div class="text-muted small">
-                {{ current_round }}라운드 질문
+                {{ current_round }}라운드
+                — 질문 {{ interview_step_index|default(1) }} / 3
                 {% if question_source and '코드 라이브러리' in question_source %}
                 &nbsp;·&nbsp;
                 <span style="color:#4ade80">
-                  <i class="fa-solid fa-database me-1"></i>실제 프로젝트 코드 기반
+                  <i class="fa-solid fa-database me-1"></i>참고
                 </span>
                 {% endif %}
               </div>
             </div>
           </div>
 
+          {% if interview_sequential|default(true) and current_question %}
+          <p class="text-muted small mb-3">
+            답을 보내면 서버에서 읽은 뒤 <strong>다음 질문 1개</strong>를 만듭니다. 답이 없는 경우 같은 라운드에서 다시 요청하거나, &quot;잘 모르겠다&quot;처럼 쓰시면 이후 제안·설계는 에이전트가 합리적으로 정합니다.
+          </p>
+          {% if prior_in_round and prior_in_round|length > 0 %}
+          <div class="mb-4 small" style="border-left:2px solid var(--border);padding-left:0.75rem;">
+            <div class="text-muted mb-1">이번 라운드 지금까지</div>
+            {% for row in prior_in_round %}
+            <div class="mb-2">
+              <div class="text-body">{{ row.q }}</div>
+              <div class="text-success">{{ row.a }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <form method="post" action="/rfp/{{ rfp.id }}/interview/answer-step" id="iv-seq-form">
+            <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
+            <input type="hidden" name="action" value="next"/>
+            <div class="question-item mb-2">
+              <div class="question-num">Q{{ interview_step_index|default(1) }}</div>
+              <div class="question-text">{{ current_question }}</div>
+            </div>
+            {% if answer_suggestions is defined and answer_suggestions|length > 0 %}
+            <div class="mb-3">
+              <div class="small text-muted mb-2">답 선택(누르면 아래 입력란에 들어갑니다. 필요하면 고쳐 쓰거나 직접 입력하세요)</div>
+              <div class="d-flex flex-wrap gap-2" id="answer-suggestion-btns" role="group" aria-label="답안 예시"></div>
+              <script type="application/json" id="answer-suggestions-data">{{ answer_suggestions|tojson }}</script>
+            </div>
+            {% endif %}
+            <label class="form-label small text-muted">답변 <span class="fw-normal">(자유 입력)</span></label>
+            <textarea class="form-control rfp-textarea" rows="5" name="current_answer" id="seq-answer-input" required
+              placeholder="답을 입력하세요. (모를 때: 잘 모르겠다/표준에 맡긴다 등)">{% if interview_draft_wip is defined and interview_draft_wip %}{{ interview_draft_wip }}{% endif %}</textarea>
+            <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
+              <button type="submit" class="btn btn-primary btn-lg px-4" id="seq-next-btn">
+                <i class="fa-solid fa-arrow-right me-2"></i>
+                {% if interview_step_index|default(1) < 3 %}다음 질문(생성 중…){% else %}라운드 제출{% endif %}
+              </button>
+            </div>
+          </form>
+
+          {% elif interview_legacy_batch|default(false) %}
           <div class="current-questions mb-3">
             <p class="text-muted small mb-3">
-              질문이 하나씩 표시됩니다. 답을 입력한 뒤 <strong>다음 질문</strong>을 눌러 주세요. 마지막 질문에서 제출합니다.
+              질문이 하나씩 표시됩니다(이전에 시작한 인터뷰). 답을 입력한 뒤 <strong>다음 질문</strong>을 눌러 주세요.
             </p>
           </div>
-
           <form method="post" action="/rfp/{{ rfp.id }}/interview/answer" id="iv-answer-form">
             <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
             <input type="hidden" name="answers_text" id="answers-combined" value=""/>
-
             <div id="seq-question-stack">
               {% for q in current_questions %}
               <div class="seq-q-block mb-4 {% if not loop.first %}d-none{% endif %}" data-step="{{ loop.index0 }}">
@@ -155,7 +213,6 @@
               </div>
               {% endfor %}
             </div>
-
             <div class="d-flex justify-content-end mt-3">
               <button type="submit" class="btn btn-primary btn-lg px-5 d-none" id="answer-btn">
                 <i class="fa-solid fa-paper-plane me-2"></i>
@@ -167,10 +224,12 @@
               </button>
             </div>
           </form>
+          {% else %}
+          <p class="text-warning small">질문을 불러올 수 없습니다. 대시보드로 돌아갔다가 다시 시도해 주세요.</p>
+          {% endif %}
         </div>
 
         {% elif not error %}
-        <!-- 로딩 상태 (다음 질문 생성 중) -->
         <div class="loading-card text-center py-5">
           <div class="spinner-border text-primary mb-3" role="status"></div>
           <p class="fw-semibold">AI가 다음 질문을 생성하고 있습니다...</p>
@@ -178,7 +237,6 @@
         </div>
         {% endif %}
 
-        <!-- Tip -->
         <div class="interview-tip mt-4">
           <i class="fa-solid fa-lightbulb text-warning me-2"></i>
           <span class="small text-muted">
@@ -196,13 +254,61 @@
 {% block extra_js %}
 <script>
 (function () {
+  const form = document.getElementById('iv-answer-form');
+  const hiddenAns = document.getElementById('answers-combined');
+  const saveExitForm = document.getElementById('save-exit-form');
+  const seqIn = document.getElementById('seq-answer-input');
+
+  if (saveExitForm) {
+    saveExitForm.addEventListener('submit', function () {
+      var h = document.getElementById('save-exit-answer');
+      var ta = document.getElementById('seq-answer-input');
+      if (h) h.value = ta ? (ta.value || '').trim() : '';
+    });
+  }
+
+  const seqForm = document.getElementById('iv-seq-form');
+  const seqBtn = document.getElementById('seq-next-btn');
+  var suggData = document.getElementById('answer-suggestions-data');
+  var suggHost = document.getElementById('answer-suggestion-btns');
+  if (suggData && suggHost && seqIn) {
+    try {
+      var items = JSON.parse(suggData.textContent || '[]');
+      if (Array.isArray(items)) {
+        items.forEach(function (txt) {
+          if (!txt || String(txt).trim().length < 1) return;
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn btn-outline-secondary btn-sm text-start interview-suggest-btn';
+          b.style.whiteSpace = 'normal';
+          b.style.maxWidth = '100%';
+          b.textContent = String(txt).trim();
+          b.addEventListener('click', function () {
+            seqIn.value = b.textContent;
+            seqIn.focus();
+          });
+          suggHost.appendChild(b);
+        });
+      }
+    } catch (e) {}
+  }
+  if (seqForm && seqBtn) {
+    seqForm.addEventListener('submit', function (e) {
+      var v = (seqIn && seqIn.value) ? seqIn.value.trim() : '';
+      if (v.length < 1) {
+        e.preventDefault();
+        alert('답을 한 글자 이상 입력하거나, 임시저장하려면 위쪽 "임시저장하고 나가기"를 눌러 주세요.');
+        return;
+      }
+      seqBtn.disabled = true;
+      seqBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>생성 중...';
+    });
+  }
+
+  if (!form || !hiddenAns) return;
   const blocks = document.querySelectorAll('.seq-q-block');
   const nextBtns = document.querySelectorAll('.seq-next-btn');
   const submitBtn = document.getElementById('answer-btn');
-  const form = document.getElementById('iv-answer-form');
-  const hiddenAns = document.getElementById('answers-combined');
-  if (!blocks.length || !form || !hiddenAns) return;
-
   nextBtns.forEach(function (btn) {
     btn.addEventListener('click', function () {
       const block = btn.closest('.seq-q-block');
@@ -220,9 +326,7 @@
       }
     });
   });
-
   if (blocks.length === 1 && submitBtn) submitBtn.classList.remove('d-none');
-
   form.addEventListener('submit', function (e) {
     const parts = [];
     document.querySelectorAll('.seq-answer-input').forEach(function (ta, i) {
