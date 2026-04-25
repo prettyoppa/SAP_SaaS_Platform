@@ -164,7 +164,8 @@ def interview_page(rfp_id: int, request: Request,
     if rfp.status == "draft":
         return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
 
-    trust = _interview_trust_panel(db, rfp)
+    # 내부 동작·라이브러리 기준은 관리자 검증용으로만 HTML에 실음(일반회원에겐 비노출)
+    trust = _interview_trust_panel(db, rfp) if user.is_admin else None
 
     # Proposal 생성 완료 → 바로 proposal 페이지
     if rfp.interview_status == "completed" and rfp.proposal_text:

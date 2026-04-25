@@ -28,6 +28,25 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 MAX_ROUNDS = 3
 MAX_SUGGESTED_ANSWERS = 5
 
+# Mia 인터뷰: RFP 범위·SAP 용어·답안 버튼 일관성
+MIA_INTERVIEW_SCOPE_AND_STYLE = """
+[질문 범위 — 반드시 준수]
+- RFP 본문·첨부·이전 인터뷰 답에 **없는** 편의 기능·부가 UX는 **질문에 넣지 마라.**  
+  예: 엑셀/외부파일 복붙, ‘담당자에게 알림’, 이메일·승인 워크플로, RFP에 없는 일반 알림 기능.  
+  (RFP에 명시된 경우만 예외.)
+- 묻는 것은 **이 프로그램을 구현하려면 반드시 정해야 하는 것** 위주: 데이터 범위, 오류·롤백/트랜잭션, 필수 통제, 인터페이스 경계, 실패 건 처리 등. “있으면 좋은” 편의는 제안하지 마라.
+
+[SAP 용어 — 영어 표기]
+- 업무 문장은 한국어로 써도 되나, **SAP 개념명은 영어**로 쓴다: **Sales Order**(‘영업주문’ 표기 지양), **Plant**, **Material**, **Incoterms**, **Payment terms**, sold-to, ship-to 등.  
+- ‘공장’·‘운송 조건’·‘결제 조건’ 한글 직역 대신 **Plant**, **Incoterms**, **Payment terms** 를 쓴다.
+
+[suggested_answers 답안 버튼 — 동일 질문에 대한 대안만]
+- 각 항목은 **이 질문 하나**에 대한 **서로 다른 완성 답(정책/선택)** 이어야 한다. (A안 / B안 / C안)
+- **금지:** Plant 한 줄, Incoterms 한 줄처럼 **서로 다른 주제**를 옵션 여러 개로 쪼개 넣는 것. 한 질문에 여러 필드 축을 섞지 말고, 질문을 **한 결정 축**으로 좁혀라.
+- **금지:** 내용이 사실상 같은 문장을 두 번 넣기.
+- 질문이 “실패 시 추가 조치”처럼 **복수 수단을 동시에** 요구할 수 있는 주제면, 옵션은 **정책 단위**로 써라. (예: ‘화면에서만 재처리’, ‘상세 메시지 필수’, ‘둘 다’) — 서로 배타적이어야 할 때만 배타적으로.
+"""
+
 
 def _parse_code_library_context(code_library_context: str) -> tuple[str, dict]:
     """JSON code_library_context → (analysis_summary, 전체 dict)."""
@@ -318,7 +337,7 @@ def generate_suggested_answers_for_question(
         _, f_questioner, _, _ = _make_agents(llm)
         rfp_ctx = _fmt_rfp(rfp_data)
         t = Task(
-            description=f"""다음은 SAP 맞춤개발 RFP 인터뷰 질문입니다. **비전문가(일반 업무 담당자)** 가 버튼만 눌러 답할 수 있게, **짧은 답안 후보**를 만드세요.
+            description=f"""다음은 SAP 맞춤개발 RFP 인터뷰 질문입니다. **비전문가**가 버튼만 눌러 **한 가지 질문**에 답하도록, **짧은 답안 후보**만 만드세요.
 
 [RFP 요약]
 {rfp_ctx}
@@ -328,11 +347,9 @@ def generate_suggested_answers_for_question(
 
 (라운드 {round_num}, 이 라운드 {step_in_round}번째 질문)
 
-규칙:
-- 2개 이상, **최대 {MAX_SUGGESTED_ANSWERS}개**
-- 항목마다 1문장(약 100자 이내), 쉬운 말, 서로 다른 선택지
-- "잘 모르겠다" / "담당자와 상의" / "우리 회사 정책에 따름" 류는 **최대 1개**만
-- 질문이 요구하는 **서로 다른 결정**이 드러나게
+{MIA_INTERVIEW_SCOPE_AND_STYLE}
+
+출력 규칙: 2개 이상 **최대 {MAX_SUGGESTED_ANSWERS}개**, 항목마다 1문장(약 120자). "잘 모르겠다" 류는 최대 1개.
 
 JSON만 출력:
 {{"suggested_answers": ["...", "..."]}}""",
@@ -428,11 +445,12 @@ def generate_sequential_start(
 [현재 라운드: {round_num} / 전체: {MAX_ROUNDS}]
 
 다음 항목을 간결하게 분석하세요:
-1. 현재까지 파악된 핵심 요구사항 (2~3줄)
-2. 아직 불명확하거나 확인이 필요한 사항 목록
-3. 이번 라운드에서 **첫** 인터뷰 질문 1개로 꼭 확인해야 할 우선 사항(한 줄)
+1. 현재까지 파악된 핵심 요구사항 (2~3줄) — RFP·이전 답에 근거
+2. **구현에 반드시 필요한** 미확정 사항만 (편의·부가기능 제외)
+3. 이번 라운드 **첫** 질문으로 물을 **한 가지** 결정(한 줄)
 
-※ 내부 유사 사례·회원 참고 ABAP이 있으면 RFP·인터뷰와의 차이를 구분해 반영하세요.""",
+{MIA_INTERVIEW_SCOPE_AND_STYLE}
+※ 내부 유사 사례·회원 참고 ABAP이 있으면 RFP·인터뷰를 최우선으로, 라이브러리는 힌트일 뿐.""",
         agent=f_analyst,
         expected_output="요구사항 현황 분석 결과 (텍스트)",
     )
@@ -446,9 +464,11 @@ def generate_sequential_start(
 [회원이 본 요청에 제공한 참고 ABAP]
 {mia_member}
 
-원칙: 고객(비개발자)이 이해할 수 있는 말, 개발 방향이 달라지는 의사결정 1가지만 묻는다. 이미 이전 라운드에서 답이 나온 주제는 반복하지 않는다.
+{MIA_INTERVIEW_SCOPE_AND_STYLE}
 
-또한 **같은 JSON**에 비전문가가 버튼으로 고를 **답안 후보** suggested_answers를 2~{MAX_SUGGESTED_ANSWERS}개(최대 {MAX_SUGGESTED_ANSWERS}개) 넣는다. 각 항목은 1문장, 서로 겹치지 않게.
+질문은 **한 가지 결정**만 담는다. 고객(비전문가)이 이해할 수 있는 말로, 이전 라운드에서 끝난 주제는 반복하지 않는다.
+
+또한 **같은 JSON**에 suggested_answers: 2~{MAX_SUGGESTED_ANSWERS}개(최대 {MAX_SUGGESTED_ANSWERS}개), 위 [답안 버튼] 규칙 준수.
 
 출력(반드시 JSON, 한 블록):
 {{"question": "...", "suggested_answers": ["...", "..."]}}""",
@@ -523,7 +543,9 @@ def generate_sequential_followup(
     lib_block = _format_library_block_for_mia(code_library_context)
     anti_dup = f"""[이번 라운드에서 **이미 나온 질문(주제)**]
 {done_topics}
-위와 **같은 시나리오·같은 결론(예: 오류 1건만 나와도 전체 취소 vs 부분 성공)을 다시 묻지 마라. 이미 답이 나온 **비즈니스 결정**을 다른 표현으로 반복해 질문하지 말고, **다음 측면**(권한, 감사, UI, 운영 예외, 통합, 성능, 데이터 정합, 알림/재시도 등)만 다루어라. 만약 **반드시** 이전 답의 디테일을 좁혀야 하면, 질문 첫 문장에 '(앞서 답하신 '전체 취소' 전제로)' 처럼 **전제**를 밝혀 **중복 질문이 아님**을 드러내라."""
+위와 **같은 시나리오·같은 결론**을 다시 묻지 마라. 이미 답이 나온 **비즈니스 결정**을 다른 말로 반복하지 마라.
+**RFP·구현에 필요한 다른 측면**만: 데이터 정합, 검증, 실패/오류 처리, 트랜잭션, 인터페이스, 성능 등. RFP에 없으면 알림·승인·‘특정 담당자’·워크플로는 묻지 마라.
+이전 답만 좁힐 때는 질문 앞에 전제를 밝혀 중복이 아님을 드러내라."""
     llm = _get_llm()
     f_analyst, f_questioner, _, _ = _make_agents(llm)
     analyze_task = Task(
@@ -535,7 +557,8 @@ RFP: {rfp_ctx}
 [이번 라운드 {round_num} – 지금까지]
 {inr}
 {lib_for}{mref}
-{anti_dup}""",
+{anti_dup}
+{MIA_INTERVIEW_SCOPE_AND_STYLE}""",
         agent=f_analyst,
         expected_output="다음 질문이 필요한 이유(한 문장)",
     )
@@ -550,7 +573,9 @@ RFP: {rfp_ctx}
 
 {anti_dup}
 
-같은 JSON에 suggested_answers 배열(2~{MAX_SUGGESTED_ANSWERS}개, 최대 {MAX_SUGGESTED_ANSWERS}개) — 비전문가용 짧은 답 버튼 문구, 서로 다르게.
+{MIA_INTERVIEW_SCOPE_AND_STYLE}
+
+질문 **한 개**는 **한 가지 결정**만. 같은 JSON에 suggested_answers (2~{MAX_SUGGESTED_ANSWERS}개, 최대 {MAX_SUGGESTED_ANSWERS}개), 위 [답안 버튼] 규칙.
 
 출력만:
 {{"question": "...", "suggested_answers": ["..."]}}""",
