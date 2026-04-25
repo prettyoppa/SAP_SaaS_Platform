@@ -8,7 +8,7 @@ Free Tier Crew – SAP Dev Hub
   f_reviewer    (Sara)  – Proposal 품질 검토 및 최종 승인
 
 플로우:
-  [라운드 질문 생성] f_analyst → f_questioner (라운드마다 호출)
+  [라운드 질문 생성] f_analyst → f_questioner → (선택) 요구분석 합불 + 질의 1회 재작성 + f_reviewer 최종(INTERVIEW_QA_ENHANCE, 기본 on)
   [Proposal 생성]   f_analyst → f_writer → f_reviewer (인터뷰 완료 후 1회 호출)
 """
 
@@ -30,6 +30,219 @@ MAX_ROUNDS = 3
 MAX_SUGGESTED_ANSWERS = 5
 # 한 인터뷰 라운드당 질문 개수 상한(조기 완료 시 그 전에 끊김)
 MAX_QUESTIONS_PER_ROUND = 3
+
+
+def _interview_qa_enhance_enabled() -> bool:
+    """false/0/off 이 아니면 인터뷰 질+선지 품질 파이프라인 사용."""
+    v = (os.environ.get("INTERVIEW_QA_ENHANCE") or "1").strip().lower()
+    return v not in ("0", "false", "no", "off")
+
+
+def _parse_analyst_gate_json(raw: str) -> tuple[bool, str]:
+    s = (raw or "").strip()
+    if not s:
+        return True, ""
+    src = s
+    if "```" in s:
+        m = re.search(r"```(?:json)?\s*([\s\S]*?)```", s)
+        if m:
+            src = m.group(1).strip()
+    try:
+        j = json.loads(src)
+        if isinstance(j, dict):
+            p = j.get("pass", True)
+            if isinstance(p, str):
+                p = p.lower() in ("true", "1", "yes")
+            issues = (j.get("issues") or "").strip()
+            return bool(p), issues[:2500]
+    except Exception:
+        pass
+    return True, ""
+
+
+def run_interview_qa_enhancement(
+    llm: LLM,
+    rfp_data: dict,
+    conversation: list[dict],
+    round_num: int,
+    step_label: str,
+    in_round_qa: Optional[list[tuple[str, str]]],
+    code_library_context: str,
+    question: str,
+    suggested_answers: list,
+) -> tuple[str, list[str]]:
+    """
+    B: 요구분석 합불 → 불합이면 질의 1회 재작성 → A: 제안검수 최종(질문·선지 전면 대체 가능).
+    """
+    q0 = (question or "").strip()
+    sa0 = _normalize_suggested_answers(list(suggested_answers or []))
+    if not _interview_qa_enhance_enabled() or not q0:
+        return q0, sa0
+
+    f_analyst, f_questioner, _, f_reviewer = _make_agents(llm)
+    rfp_ctx = _fmt_rfp(rfp_data)
+    conv_ctx = _fmt_conv(conversation)
+    if len(conv_ctx) > 6000:
+        conv_ctx = conv_ctx[:6000] + "\n…(생략)"
+    inr = (
+        _fmt_in_round(in_round_qa)
+        if in_round_qa
+        else "(이번 라운드 첫 질문 — 아직 답 없음)"
+    )
+    lib_snip = ""
+    if code_library_context:
+        summ, _ = _parse_code_library_context(code_library_context)
+        if summ:
+            lib_snip = f"\n[유사 코드 요약 일부]\n{summ[:1500]}\n"
+
+    q, sa = q0, sa0
+    sa_lines = "\n".join(f"- {x}" for x in sa[:MAX_SUGGESTED_ANSWERS]) or "(없음)"
+
+    gate_task = Task(
+        description=f"""당신은 SAP 요구분석 담당이다. 아래 **후보 인터뷰 질문 1개**와 **선택 답안**이
+이 RFP와 인터뷰 맥락에 맞는지 **엄격히** 판정하라.
+
+[라운드 {round_num}] · {step_label}
+
+[RFP]
+{rfp_ctx}
+
+[이전까지 인터뷰]
+{conv_ctx}
+
+[이번 라운드]
+{inr}
+{lib_snip}
+
+[후보 질문]
+{q}
+
+[후보 선택 답안]
+{sa_lines}
+
+판정 (하나라도 심각하면 pass=false):
+- 이 질문이 RFP·구현에 필요한 **한 가지 결정**을 묻는가? (일반론·이미 답한 주제 반복·비현실적 가정이면 불합)
+- SAP 실무 시니어 관점에서 질문·답안이 **어설프거나** 비전문적이면 불합
+- 선택 답안은 서로 다른 **완성된 답**이어야 하며 2~{MAX_SUGGESTED_ANSWERS}개
+
+출력 JSON 한 블록만:
+{{"pass": true 또는 false, "issues": "불합이면 질문 작성자가 고칠 점(한국어). 합격이면 빈 문자열."}}""",
+        agent=f_analyst,
+        expected_output='{"pass": ..., "issues": "..."}',
+    )
+    try:
+        gate_crew = Crew(
+            agents=[f_analyst],
+            tasks=[gate_task],
+            process=Process.sequential,
+            verbose=False,
+        )
+        ok, issues = _parse_analyst_gate_json(str(gate_crew.kickoff()))
+    except Exception:
+        ok, issues = True, ""
+
+    if not ok and issues.strip():
+        retry_task = Task(
+            description=f"""아래 **검토 사유**를 반드시 반영해 인터뷰 질문 1개와 suggested_answers 를 **다시** 작성하라.
+
+[검토 사유]
+{issues}
+
+[참고용 이전 후보(필요 시 전면 폐기)]
+질문: {q}
+답안:
+{sa_lines}
+
+[RFP]
+{rfp_ctx[:4000]}
+
+[이번 라운드]
+{inr}
+
+{MIA_INTERVIEW_SCOPE_AND_STYLE}
+{SAP_INTERVIEW_CREDIBILITY}
+
+출력 JSON 한 블록만:
+{{"question": "...", "suggested_answers": ["...", "..."]}} (2~{MAX_SUGGESTED_ANSWERS}개)""",
+            agent=f_questioner,
+            expected_output="JSON",
+        )
+        try:
+            rc = Crew(
+                agents=[f_questioner],
+                tasks=[retry_task],
+                process=Process.sequential,
+                verbose=False,
+            )
+            rq, rsa = _parse_question_and_suggestions(str(rc.kickoff()))
+            if rq:
+                q, sa = rq, _normalize_suggested_answers(rsa)
+                if len(sa) < 2:
+                    more = generate_suggested_answers_for_question(
+                        rfp_data, q, round_num, 1
+                    )
+                    sa = _normalize_suggested_answers(list(sa) + list(more))
+        except Exception:
+            pass
+
+    sa_lines2 = "\n".join(f"- {x}" for x in sa[:MAX_SUGGESTED_ANSWERS]) or "(없음)"
+    rev_task = Task(
+        description=f"""당신은 제안서·인터뷰 품질 검수자다. 아래 **인터뷰 질문·선택 답안 세트**를 최종 확정하라.
+
+**질문 핵심이 틀렸다면 질문을 완전히 바꿔도 된다.** 문장만 다듬기에 그치지 말고, SAP 시니어 컨설턴트 수준으로 날카롭게.
+
+[RFP 핵심]
+{rfp_ctx[:3500]}
+
+[인터뷰 맥락 일부]
+{conv_ctx[:3500]}
+
+[이번 라운드]
+{inr}
+
+[현재 세트]
+질문: {q}
+선택 답안:
+{sa_lines2}
+
+{MIA_INTERVIEW_SCOPE_AND_STYLE}
+{SAP_INTERVIEW_CREDIBILITY}
+
+- 고객(IT 비전문가)이 읽을 수 있는 한국어, SAP 용어는 앞서 규칙 따름
+- suggested_answers 는 2~{MAX_SUGGESTED_ANSWERS}개, 복수 선택 가능한 완성 답
+
+출력 JSON 한 블록만:
+{{"question": "...", "suggested_answers": ["...", "..."]}}""",
+        agent=f_reviewer,
+        expected_output="JSON",
+    )
+    try:
+        rev_crew = Crew(
+            agents=[f_reviewer],
+            tasks=[rev_task],
+            process=Process.sequential,
+            verbose=False,
+        )
+        fq, fsa = _parse_question_and_suggestions(str(rev_crew.kickoff()))
+        if fq:
+            if len(fsa) < 2:
+                more = generate_suggested_answers_for_question(
+                    rfp_data, fq, round_num, 1
+                )
+                fsa = _normalize_suggested_answers(list(fsa) + list(more))
+            return fq[:2000], fsa
+    except Exception:
+        pass
+    if len(sa) < 2 and q:
+        more = generate_suggested_answers_for_question(
+            rfp_data, q, round_num, 1
+        )
+        sa = _normalize_suggested_answers(list(sa) + list(more))
+    return q, sa
+
+
+def _interview_source_after_enhance() -> str:
+    return agents_ai_source_ko("f_analyst", "f_questioner", "f_reviewer")
 
 # Mia 인터뷰: RFP 범위·SAP 용어·답안 버튼 일관성
 MIA_INTERVIEW_SCOPE_AND_STYLE = """
@@ -463,11 +676,35 @@ def generate_sequential_start(
                 su = generate_suggested_answers_for_question(
                     rfp_data, qs[0], round_num, 1
                 )
+                q_out, su_out = qs[0], su
+                out_src = ctx.get("source", "코드 라이브러리 기반")
+                if _interview_qa_enhance_enabled() and (q_out or "").strip():
+                    try:
+                        llm_lib = _get_llm()
+                        q2, a2 = run_interview_qa_enhancement(
+                            llm_lib,
+                            rfp_data,
+                            conversation,
+                            round_num,
+                            "codelib-start",
+                            None,
+                            code_library_context,
+                            str(qs[0]),
+                            su or [],
+                        )
+                        if q2 and str(q2).strip():
+                            q_out, su_out, out_src = (
+                                str(q2).strip(),
+                                a2,
+                                _interview_source_after_enhance(),
+                            )
+                    except Exception:
+                        pass
                 return {
-                    "questions": [qs[0]],
+                    "questions": [q_out],
                     "library_pool": rest,
-                    "source": ctx.get("source", "코드 라이브러리 기반"),
-                    "suggested_answers": su,
+                    "source": out_src,
+                    "suggested_answers": su_out,
                 }
         except Exception:
             pass
@@ -552,11 +789,28 @@ def generate_sequential_start(
     if len(sugg) < 2:
         more = generate_suggested_answers_for_question(rfp_data, q1, round_num, 1)
         sugg = _normalize_suggested_answers(list(sugg) + list(more))
+    src_out = agents_ai_source_ko("f_analyst", "f_questioner")
+    if _interview_qa_enhance_enabled() and (q1 or "").strip():
+        try:
+            q1, sugg = run_interview_qa_enhancement(
+                llm,
+                rfp_data,
+                conversation,
+                round_num,
+                "round-start",
+                None,
+                code_library_context,
+                q1,
+                sugg,
+            )
+            src_out = _interview_source_after_enhance()
+        except Exception:
+            pass
     return {
         "questions": [q1],
         "library_pool": [],
         "suggested_answers": sugg,
-        "source": agents_ai_source_ko("f_analyst", "f_questioner"),
+        "source": src_out,
     }
 
 
@@ -709,12 +963,29 @@ RFP: {rfp_ctx}
             rfp_data, nq, round_num, q_index
         )
         sugg = _normalize_suggested_answers(list(sugg) + list(more))
+    src_fu = agents_ai_source_ko("f_analyst", "f_questioner")
+    if nq and _interview_qa_enhance_enabled():
+        try:
+            nq, sugg = run_interview_qa_enhancement(
+                llm,
+                rfp_data,
+                conversation,
+                round_num,
+                f"r{round_num}-q{q_index}",
+                in_round_qa,
+                code_library_context,
+                nq,
+                sugg,
+            )
+            src_fu = _interview_source_after_enhance()
+        except Exception:
+            pass
     return {
         "round_complete": False,
         "next_question": nq,
         "library_pool": library_pool,
         "suggested_answers": sugg,
-        "source": agents_ai_source_ko("f_analyst", "f_questioner"),
+        "source": src_fu,
     }
 
 
