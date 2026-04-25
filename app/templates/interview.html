@@ -5,6 +5,7 @@
 <style>
   .interview-page .interview-em { font-weight: 600; }
   .interview-page .interview-answer-block { white-space: pre-wrap; }
+  .interview-page .interview-qa-raw { margin: 0; padding: 0; text-indent: 0; text-align: left; }
 </style>
 <div class="interview-page py-5">
   <div class="container">
@@ -121,17 +122,10 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
               </div>
               <div class="modal-body">
-                {% for q in msg.questions %}
-                <div class="mb-3">
-                  <div class="text-muted small mb-1">Q{{ loop.index }}</div>
-                  <div>{{ q|interview_bold }}</div>
-                </div>
-                {% endfor %}
                 {% if msg.answers_text %}
-                <div class="mt-2 pt-2 border-top border-secondary">
-                  <div class="text-muted small mb-1">답변</div>
-                  <div class="interview-answer-block">{{ msg.answers_text }}</div>
-                </div>
+                <div class="interview-answer-block interview-qa-raw">{{ msg.answers_text|interview_bold }}</div>
+                {% else %}
+                <p class="text-muted small">(답변이 없습니다.)</p>
                 {% endif %}
               </div>
             </div>
