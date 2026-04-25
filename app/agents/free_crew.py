@@ -27,24 +27,36 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 MAX_ROUNDS = 3
 MAX_SUGGESTED_ANSWERS = 5
+# 한 인터뷰 라운드당 질문 개수 상한(조기 완료 시 그 전에 끊김)
+MAX_QUESTIONS_PER_ROUND = 3
 
 # Mia 인터뷰: RFP 범위·SAP 용어·답안 버튼 일관성
 MIA_INTERVIEW_SCOPE_AND_STYLE = """
 [질문 범위 — 반드시 준수]
-- RFP 본문·첨부·이전 인터뷰 답에 **없는** 편의 기능·부가 UX는 **질문에 넣지 마라.**  
-  예: 엑셀/외부파일 복붙, ‘담당자에게 알림’, 이메일·승인 워크플로, RFP에 없는 일반 알림 기능.  
+- RFP 본문·첨부·이전 인터뷰 답에 없는 편의 기능·부가 UX는 질문에 넣지 마라.
+  예: 엑셀/외부파일 복붙, ‘담당자에게 알림’, 이메일·승인 워크플로, RFP에 없는 일반 알림 기능.
   (RFP에 명시된 경우만 예외.)
-- 묻는 것은 **이 프로그램을 구현하려면 반드시 정해야 하는 것** 위주: 데이터 범위, 오류·롤백/트랜잭션, 필수 통제, 인터페이스 경계, 실패 건 처리 등. “있으면 좋은” 편의는 제안하지 마라.
+- 묻는 것은 이 프로그램을 구현하려면 반드시 정해야 할 것 위주: 데이터 범위, 오류·롤백/트랜잭션, 필수 통제, 인터페이스 경계, 실패 건 처리 등. “있으면 좋은” 편의는 제안하지 마라.
 
 [SAP 용어 — 영어 표기]
-- 업무 문장은 한국어로 써도 되나, **SAP 개념명은 영어**로 쓴다: **Sales Order**(‘영업주문’ 표기 지양), **Plant**, **Material**, **Incoterms**, **Payment terms**, sold-to, ship-to 등.  
-- ‘공장’·‘운송 조건’·‘결제 조건’ 한글 직역 대신 **Plant**, **Incoterms**, **Payment terms** 를 쓴다.
+- 업무 문장은 한국어로 써도 되나, SAP 개념명은 영어로 쓴다: Sales Order(‘영업주문’ 표기 지양), Plant, Material, Incoterms, Payment terms, sold-to, ship-to 등.
+- ‘공장’·‘운송 조건’·‘결제 조건’ 한글 직역 대신 Plant, Incoterms, Payment terms 를 쓴다.
+
+[출력 형식]
+- JSON 문자열 안에 ** 처럼 별표 둘로 감싸 강조하지 마라. (UI에서 볼드로 바꾸기 어려움) 개념명은 그냥 영어로 쓴다.
 
 [suggested_answers 답안 버튼 — 동일 질문에 대한 대안만]
-- 각 항목은 **이 질문 하나**에 대한 **서로 다른 완성 답(정책/선택)** 이어야 한다. (A안 / B안 / C안)
-- **금지:** Plant 한 줄, Incoterms 한 줄처럼 **서로 다른 주제**를 옵션 여러 개로 쪼개 넣는 것. 한 질문에 여러 필드 축을 섞지 말고, 질문을 **한 결정 축**으로 좁혀라.
-- **금지:** 내용이 사실상 같은 문장을 두 번 넣기.
-- 질문이 “실패 시 추가 조치”처럼 **복수 수단을 동시에** 요구할 수 있는 주제면, 옵션은 **정책 단위**로 써라. (예: ‘화면에서만 재처리’, ‘상세 메시지 필수’, ‘둘 다’) — 서로 배타적이어야 할 때만 배타적으로.
+- 각 항목은 이 질문 하나에 대한 서로 다른 완성 답(정책/선택)이어야 한다. (A안 / B안 / C안)
+- 금지: Plant 한 줄, Incoterms 한 줄처럼 서로 다른 주제를 옵션 여러 개로 쪼개 넣는 것. 한 질문에 여러 필드 축을 섞지 말고, 질문을 한 결정 축으로 좁혀라.
+- 금지: 내용이 사실상 같은 문장을 두 번 넣기.
+- 질문이 “실패 시 추가 조치”처럼 복수 수단을 동시에 요구할 수 있는 주제면, 옵션은 정책 단위로 써라. (예: ‘화면에서만 재처리’, ‘상세 메시지 필수’, ‘둘 다’) — 서로 배타적이어야 할 때만 배타적으로.
+"""
+
+SAP_INTERVIEW_CREDIBILITY = """
+[SAP 사실·질문 품질 — 반드시 준수]
+- SD 등에서 Sales Order 생성 시 Sold-to Party처럼 트랜잭션/BAPI에 필수인 헤더 키를 “없을 때 자동으로 어떻게 정하나”처럼 선택 사항처럼 묻지 마라. SAP에 익숙한 사용자에게 비전문가 오류로 보인다. 필수 키는 RFP·업무에서 이미 정해졌다고 가정하거나, RFP에 정말 누락됐을 때만 구체적 입력·매핑을 묻는다.
+- “필수 필드가 있나?”, “마스터를 조회해 볼가?”처럼 모든 개발·인터페이스에 당연한 일반론만 나열하는 객관식·질문은 만들지 마라. RFP·도메인에 특유한 정책, 경계 조건, 예외, 통제(실패/재처리)만 다룬다.
+- RFP·이전 답만으로 이 라운드가 이미 구현·제안에 충분하면 round_complete 를 true로: 굳이 라운드당 질문을 3개까지 채울 필요 없다. (한 라운드 최대 3문항, 그 전에 끊어도 된다.)
 """
 
 
@@ -296,6 +308,47 @@ def _parse_question_and_suggestions(raw: str) -> tuple[str, list[str]]:
     return qonly, sugg
 
 
+def _parse_followup_result(raw: str) -> dict:
+    """
+    Mia 후속: round_complete, next_question, suggested_answers.
+    하위호환: question 키만 있으면 next_question으로 승급, round_complete는 False.
+    """
+    out: dict = {"round_complete": False, "next_question": "", "suggested_answers": []}
+    s = (raw or "").strip()
+    if not s:
+        return out
+    src = s
+    if "```" in s:
+        m = re.search(r"```(?:json)?\s*([\s\S]*?)```", s)
+        if m:
+            src = m.group(1).strip()
+    try:
+        j = json.loads(src)
+        if isinstance(j, dict):
+            rc = j.get("round_complete")
+            if isinstance(rc, str):
+                rc = rc.lower() in ("true", "1", "yes")
+            out["round_complete"] = bool(rc)
+            nq = (j.get("next_question") or "").strip()
+            if not nq and not out["round_complete"]:
+                nq = (j.get("question") or "").strip()
+            out["next_question"] = nq[:2000] if nq else ""
+            sa = j.get("suggested_answers")
+            if isinstance(sa, list):
+                out["suggested_answers"] = _normalize_suggested_answers(sa)
+            if out["round_complete"]:
+                out["next_question"] = ""
+            return out
+    except Exception:
+        pass
+    # 레거시: question + suggested_answers
+    nq, sugg = _parse_question_and_suggestions(raw)
+    if nq:
+        out["next_question"] = nq
+    out["suggested_answers"] = sugg
+    return out
+
+
 def _parse_one_question_legacy_block(s: str) -> str:
     src = s
     if "```" in s:
@@ -337,7 +390,7 @@ def generate_suggested_answers_for_question(
         _, f_questioner, _, _ = _make_agents(llm)
         rfp_ctx = _fmt_rfp(rfp_data)
         t = Task(
-            description=f"""다음은 SAP 맞춤개발 RFP 인터뷰 질문입니다. **비전문가**가 버튼만 눌러 **한 가지 질문**에 답하도록, **짧은 답안 후보**만 만드세요.
+            description=f"""다음은 SAP 맞춤개발 RFP 인터뷰 질문입니다. 비전문가가 버튼만 눌러 한 질문에 답하도록, 짧은 답안 후보만 만드세요.
 
 [RFP 요약]
 {rfp_ctx}
@@ -348,8 +401,11 @@ def generate_suggested_answers_for_question(
 (라운드 {round_num}, 이 라운드 {step_in_round}번째 질문)
 
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
+{SAP_INTERVIEW_CREDIBILITY}
 
-출력 규칙: 2개 이상 **최대 {MAX_SUGGESTED_ANSWERS}개**, 항목마다 1문장(약 120자). "잘 모르겠다" 류는 최대 1개.
+참고: 별표 둘로 감싼 강조(**)는 쓰지 말 것.
+
+출력 규칙: 2개 이상 최대 {MAX_SUGGESTED_ANSWERS}개, 항목마다 1문장(약 120자). "잘 모르겠다" 류는 최대 1개.
 
 JSON만 출력:
 {{"suggested_answers": ["...", "..."]}}""",
@@ -446,17 +502,18 @@ def generate_sequential_start(
 
 다음 항목을 간결하게 분석하세요:
 1. 현재까지 파악된 핵심 요구사항 (2~3줄) — RFP·이전 답에 근거
-2. **구현에 반드시 필요한** 미확정 사항만 (편의·부가기능 제외)
-3. 이번 라운드 **첫** 질문으로 물을 **한 가지** 결정(한 줄)
+2. 구현에 반드시 필요한 미확정 사항만 (편의·부가기능 제외)
+3. 이번 라운드 첫 질문으로 물을 한 가지 결정(한 줄)
 
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
+{SAP_INTERVIEW_CREDIBILITY}
 ※ 내부 유사 사례·회원 참고 ABAP이 있으면 RFP·인터뷰를 최우선으로, 라이브러리는 힌트일 뿐.""",
         agent=f_analyst,
         expected_output="요구사항 현황 분석 결과 (텍스트)",
     )
     mia_member = member_ref if member_ref else "없음"
     question_task = Task(
-        description=f"""Hannah의 분석을 바탕으로 {round_num}라운드 **첫** 인터뷰 질문 1개만** 생성하세요.
+        description=f"""Hannah의 분석을 바탕으로 {round_num}라운드 첫 인터뷰 질문 1개만 생성하세요.
 
 [내부 참고 자료]
 {_format_library_block_for_mia(code_library_context)}
@@ -465,10 +522,11 @@ def generate_sequential_start(
 {mia_member}
 
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
+{SAP_INTERVIEW_CREDIBILITY}
 
-질문은 **한 가지 결정**만 담는다. 고객(비전문가)이 이해할 수 있는 말로, 이전 라운드에서 끝난 주제는 반복하지 않는다.
+질문은 한 가지 결정만 담는다. 고객(비전문가)이 이해할 수 있는 말로, 이전 라운드에서 끝난 주제는 반복하지 않는다.
 
-또한 **같은 JSON**에 suggested_answers: 2~{MAX_SUGGESTED_ANSWERS}개(최대 {MAX_SUGGESTED_ANSWERS}개), 위 [답안 버튼] 규칙 준수.
+또한 같은 JSON에 suggested_answers: 2~{MAX_SUGGESTED_ANSWERS}개(최대 {MAX_SUGGESTED_ANSWERS}개), 위 [답안 버튼] 규칙 준수.
 
 출력(반드시 JSON, 한 블록):
 {{"question": "...", "suggested_answers": ["...", "..."]}}""",
@@ -509,29 +567,18 @@ def generate_sequential_followup(
     library_pool: Optional[list] = None,
 ) -> dict:
     """
-    같은 라운드의 다음 질문 1개(회원이 이전 답을 본 뒤 생성).
+    이번 라운드: 조기 완료(round_complete) 또는 다음 질문 1개.
+    library_pool 은 소모하지 않고 힌트로만 LLM에 넘깁니다(강제로 3문항 채우지 않음).
     """
-    library_pool = list(library_pool or [])
-    if library_pool:
-        nq = library_pool.pop(0).strip()
-        if nq:
-            step = len(in_round_qa) + 1
-            su = generate_suggested_answers_for_question(
-                rfp_data, nq, round_num, step
-            )
-            return {
-                "next_question": nq,
-                "library_pool": library_pool,
-                "suggested_answers": su,
-                "source": "코드 라이브러리 기반",
-            }
+    library_pool = [str(x).strip() for x in (library_pool or []) if str(x).strip()]
 
     analysis_summary, _ = _parse_code_library_context(code_library_context)
     member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
     rfp_ctx = _fmt_rfp(rfp_data)
     conv_ctx = _fmt_conv(conversation)
     inr = _fmt_in_round(in_round_qa)
-    q_index = len(in_round_qa) + 1
+    n_done = len(in_round_qa)
+    q_index = n_done + 1
     done_topics = " / ".join(q[:50] for q, _ in in_round_qa) if in_round_qa else "(없음)"
 
     lib_for = ""
@@ -541,15 +588,33 @@ def generate_sequential_followup(
     if member_ref:
         mref = f"\n[회원 참고 ABAP]\n{member_ref}\n"
     lib_block = _format_library_block_for_mia(code_library_context)
-    anti_dup = f"""[이번 라운드에서 **이미 나온 질문(주제)**]
+    lib_from_pool = ""
+    if library_pool:
+        lib_from_pool = (
+            "코드 라이브러리에서 뽑은 질문 후보(필수 아님, RFP에 맞지 않으면 무시. "
+            "round_complete 로 이번 라운드를 먼저 끊어도 됨):\n"
+            + "\n".join(f"- {p[:400]}" for p in library_pool[:5])
+        )
+    else:
+        lib_from_pool = "(라이브러리 추가 후보 없음)"
+
+    anti_dup = f"""[이번 라운드에서 이미 나온 질문(주제)]
 {done_topics}
-위와 **같은 시나리오·같은 결론**을 다시 묻지 마라. 이미 답이 나온 **비즈니스 결정**을 다른 말로 반복하지 마라.
-**RFP·구현에 필요한 다른 측면**만: 데이터 정합, 검증, 실패/오류 처리, 트랜잭션, 인터페이스, 성능 등. RFP에 없으면 알림·승인·‘특정 담당자’·워크플로는 묻지 마라.
+위와 같은 시나리오·같은 결론을 다시 묻지 마라. 이미 답이 나온 비즈니스 결정을 다른 말로 반복하지 마라.
+RFP·구현에 필요한 다른 측면만: 데이터 정합, 정책, 실패/오류 처리, 트랜잭션, 인터페이스, 성능 등. RFP에 없으면 알림·승인·’특정 담당자’·워크플로는 묻지 마라.
 이전 답만 좁힐 때는 질문 앞에 전제를 밝혀 중복이 아님을 드러내라."""
+
+    hard_cap = MAX_QUESTIONS_PER_ROUND
+    decision_help = f"""[이번 라운드 현황]
+- 지금 막 {n_done}개의 Q&A가 반영됨(회원이 방금 n_done번째 질문에 답함). 한 라운드 최대 {hard_cap}문항.
+- RFP·답이 이미 충분하면 {{"round_complete": true, "next_question": null, "suggested_answers": []}} 만 반환(다음 질문 없음). 억지로 질문을 더 만들지 마라.
+- 아직 꼭 물을 것이 있으면 round_complete: false, next_question(한 가지 결정) + suggested_answers.
+- 지금 n_done이 {hard_cap}이면(이번 라운드에서 3문항을 모두 답한 경우) 반드시 round_complete: true. (다음 JSON에서는 next_question을 비운다)"""
+
     llm = _get_llm()
     f_analyst, f_questioner, _, _ = _make_agents(llm)
     analyze_task = Task(
-        description=f"""RFP·이전 라운드·이번 라운드까지의 Q&A를 읽고, 다음 1문항이 필요한 이유를 한 줄로 쓰세요 (내부용).
+        description=f"""RFP·이전 라운드·이번 라운드까지의 Q&A를 읽고, 질문을 더 둘 필요가 있으면 한 문장 이유(내부용).
 
 RFP: {rfp_ctx}
 [이전 라운드]
@@ -557,30 +622,39 @@ RFP: {rfp_ctx}
 [이번 라운드 {round_num} – 지금까지]
 {inr}
 {lib_for}{mref}
+{lib_from_pool}
 {anti_dup}
-{MIA_INTERVIEW_SCOPE_AND_STYLE}""",
+{MIA_INTERVIEW_SCOPE_AND_STYLE}
+{SAP_INTERVIEW_CREDIBILITY}""",
         agent=f_analyst,
-        expected_output="다음 질문이 필요한 이유(한 문장)",
+        expected_output="질문을 더할지, 이미 충분한지(한 문장)",
     )
     follow_task = Task(
-        description=f"""Hannah의 요약·아래 '이번 라운드' 답변을 반드시 반영해 **다음 질문 1개**만 JSON으로 쓰세요.
+        description=f"""Hannah의 요약과 아래 '이번 라운드' 답변을 반드시 반영해 JSON 한 덩어리만 출력하라.
 
-[이번 라운드 1~{q_index-1}번 Q&A (반드시 반영)]
+[이번 라운드 Q&A (반드시 반영)]
 {inr}
 
-[내부 질문 후보(참고, 그대로 복붙 금지)]
+{decision_help}
+
+[내부 질문/요약(참고, 그대로 복붙 금지)]
 {lib_block}
+
+{lib_from_pool}
 
 {anti_dup}
 
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
+{SAP_INTERVIEW_CREDIBILITY}
 
-질문 **한 개**는 **한 가지 결정**만. 같은 JSON에 suggested_answers (2~{MAX_SUGGESTED_ANSWERS}개, 최대 {MAX_SUGGESTED_ANSWERS}개), 위 [답안 버튼] 규칙.
+- round_complete 가 true이면 next_question 은 null 또는 "" 이고, suggested_answers 는 빈 배열이어도 된다.
+- round_complete 가 false이면 next_question 은 15자 이상, 한 가지 결정만. suggested_answers 는 2~{MAX_SUGGESTED_ANSWERS}개(위 [답안 버튼] 규칙).
 
-출력만:
-{{"question": "...", "suggested_answers": ["..."]}}""",
+출력 예시(형식만 참고, 내용은 RFP·답에 맞게):
+{{"round_complete": false, "next_question": "...", "suggested_answers": ["...", "..."]}}
+{{"round_complete": true, "next_question": null, "suggested_answers": []}}""",
         agent=f_questioner,
-        expected_output='{"question": "...", "suggested_answers": []}',
+        expected_output='{"round_complete": true/false, "next_question": "...", "suggested_answers": []}',
         context=[analyze_task],
     )
     crew = Crew(
@@ -591,18 +665,50 @@ RFP: {rfp_ctx}
     )
     try:
         out = str(crew.kickoff())
-        nq, sugg = _parse_question_and_suggestions(out)
+        parsed = _parse_followup_result(out)
     except Exception:
-        nq, sugg = "", []
+        parsed = {"round_complete": False, "next_question": "", "suggested_answers": []}
+
+    rc = bool(parsed.get("round_complete"))
+    nq = (parsed.get("next_question") or "").strip()
+    sugg = list(parsed.get("suggested_answers") or [])
+
+    if n_done >= hard_cap:
+        return {
+            "round_complete": True,
+            "next_question": "",
+            "library_pool": library_pool,
+            "suggested_answers": [],
+            "source": "AI 에이전트 생성 (Hannah + Mia)",
+        }
+
+    if rc:
+        return {
+            "round_complete": True,
+            "next_question": "",
+            "library_pool": library_pool,
+            "suggested_answers": [],
+            "source": "AI 에이전트 생성 (Hannah + Mia)",
+        }
+
     if not nq or len(nq) < 15:
-        i = min(len(in_round_qa), len(_DEFAULT_QUESTIONS) - 1)
+        if n_done >= 2:
+            return {
+                "round_complete": True,
+                "next_question": "",
+                "library_pool": library_pool,
+                "suggested_answers": [],
+                "source": "AI 에이전트 생성 (Hannah + Mia)",
+            }
+        i = min(n_done, len(_DEFAULT_QUESTIONS) - 1)
         nq = _DEFAULT_QUESTIONS[min(i + 1, len(_DEFAULT_QUESTIONS) - 1)]
-    if len(sugg) < 2:
+    if len(sugg) < 2 and nq:
         more = generate_suggested_answers_for_question(
-            rfp_data, nq, round_num, len(in_round_qa) + 1
+            rfp_data, nq, round_num, q_index
         )
         sugg = _normalize_suggested_answers(list(sugg) + list(more))
     return {
+        "round_complete": False,
         "next_question": nq,
         "library_pool": library_pool,
         "suggested_answers": sugg,

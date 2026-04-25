@@ -194,6 +194,7 @@ def interview_page(rfp_id: int, request: Request,
             "current_question": None,
             "prior_in_round": [],
             "interview_step_index": 1,
+            "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
             "interview_draft_wip": (intra or {}).get("draft_wip", "") or "",
             "answer_suggestions": [],
         }
@@ -206,7 +207,7 @@ def interview_page(rfp_id: int, request: Request,
                 ctx_extra["current_question"] = current_questions[qi]
             else:
                 err_extra = "이 라운드 질문 상태를 읽을 수 없습니다. 임시저장이 있었다면 복구를 시도하거나, 대시보드에서 인터뷰를 다시 열어 주세요."
-            ctx_extra["interview_step_index"] = min(qi + 1, 3)
+            ctx_extra["interview_step_index"] = qi + 1
             ctx_extra["prior_in_round"] = [
                 {"q": current_questions[i], "a": ans[i]} for i in range(min(qi, len(current_questions)))
             ]
@@ -268,6 +269,7 @@ def interview_page(rfp_id: int, request: Request,
             "current_question": None,
             "prior_in_round": [],
             "interview_step_index": 1,
+            "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
             "interview_draft_wip": "",
             "answer_suggestions": [],
         })
@@ -309,6 +311,7 @@ def interview_page(rfp_id: int, request: Request,
         "current_question": cq[0] if cq else None,
         "prior_in_round": [],
         "interview_step_index": 1,
+        "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
         "interview_draft_wip": intra_r.get("draft_wip", "") or "",
         "answer_suggestions": intra_r.get("current_suggestions") or [],
     })
@@ -417,7 +420,8 @@ def interview_answer_step(
         return RedirectResponse(url="/dashboard", status_code=302)
 
     intra.pop("draft_wip", None)
-    if len(answers_so) >= 3:
+    max_per_round = _fc().MAX_QUESTIONS_PER_ROUND
+    if len(answers_so) >= max_per_round:
         return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
     # 다음에 답할 질문은 all_q[len(answers_so)]
     if len(answers_so) > len(all_q):
@@ -433,49 +437,61 @@ def interview_answer_step(
     code_ctx = get_code_library_context(
         db, rfp_dict.get("sap_modules", []), rfp_dict.get("dev_types", [])
     )
-    in_round: list = list(zip([all_q[i] for i in range(len(answers_so))], answers_so))
+    in_round: list = list(
+        zip([all_q[i] for i in range(len(answers_so))], answers_so)
+    )
 
-    if len(answers_so) < 3:
-        fol = _fc().generate_sequential_followup(
-            rfp_data=rfp_dict,
-            conversation=conv,
-            round_num=msg.round_number,
-            in_round_qa=in_round,
-            code_library_context=code_ctx,
-            library_pool=lib_pool,
-        )
-        nq = (fol.get("next_question") or "").strip()
-        if not nq:
-            return RedirectResponse(url=f"/rfp/{rfp_id}/interview?ans=gen", status_code=302)
-        all_q = all_q + [nq]
-        lib_pool = list(fol.get("library_pool") or [])
-        if msg.source_label and "코드 라이브러리" in (msg.source_label or "") and fol.get("source"):
-            msg.source_label = fol.get("source", msg.source_label)
-        msg.questions_json = json.dumps(all_q, ensure_ascii=False)
-        intra["answers_so_far"] = answers_so
-        intra["library_pool"] = lib_pool
-        su = fol.get("suggested_answers")
-        if isinstance(su, list):
-            intra["current_suggestions"] = [
-                str(x).strip() for x in su if str(x).strip()
-            ][:5]
-        else:
-            intra["current_suggestions"] = []
-        intra["v"] = 2
-        msg.intra_state_json = json.dumps(intra, ensure_ascii=False)
-        from datetime import datetime as _dt2
-        msg.updated_at = _dt2.utcnow()
-        db.commit()
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
-
-    # 3번째 답 — 라운드 완료
-    if len(answers_so) == 3 and len(all_q) >= 3:
-        msg.answers_text = _format_round_answers(all_q[:3], answers_so)
+    def _finalize_message_row():
+        n = min(len(answers_so), len(all_q))
+        msg.answers_text = _format_round_answers(all_q[:n], answers_so[:n])
         msg.is_answered = True
         msg.intra_state_json = None
         from datetime import datetime as _dt3
+
         msg.updated_at = _dt3.utcnow()
         db.commit()
+
+    if len(answers_so) >= max_per_round:
+        _finalize_message_row()
+        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+
+    fol = _fc().generate_sequential_followup(
+        rfp_data=rfp_dict,
+        conversation=conv,
+        round_num=msg.round_number,
+        in_round_qa=in_round,
+        code_library_context=code_ctx,
+        library_pool=lib_pool,
+    )
+    if bool(fol.get("round_complete")):
+        _finalize_message_row()
+        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+
+    nq = (fol.get("next_question") or "").strip()
+    if not nq:
+        _finalize_message_row()
+        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+
+    all_q = all_q + [nq]
+    lib_pool = list(fol.get("library_pool") or [])
+    if msg.source_label and "코드 라이브러리" in (msg.source_label or "") and fol.get("source"):
+        msg.source_label = fol.get("source", msg.source_label)
+    msg.questions_json = json.dumps(all_q, ensure_ascii=False)
+    intra["answers_so_far"] = answers_so
+    intra["library_pool"] = lib_pool
+    su = fol.get("suggested_answers")
+    if isinstance(su, list):
+        intra["current_suggestions"] = [
+            str(x).strip() for x in su if str(x).strip()
+        ][:5]
+    else:
+        intra["current_suggestions"] = []
+    intra["v"] = 2
+    msg.intra_state_json = json.dumps(intra, ensure_ascii=False)
+    from datetime import datetime as _dt2
+
+    msg.updated_at = _dt2.utcnow()
+    db.commit()
     return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
 
 
