@@ -6,6 +6,16 @@
   .interview-page .interview-em { font-weight: 600; }
   .interview-page .interview-answer-block { white-space: pre-wrap; }
   .interview-page .interview-qa-raw { margin: 0; padding: 0; text-indent: 0; text-align: left; }
+  .interview-suggestion-row {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    padding: 0.65rem 0.75rem; margin-bottom: 0.5rem;
+    background: var(--surface2, #1a222d); border: 1px solid var(--border, #2d3a4a); border-radius: 0.4rem;
+  }
+  .interview-suggestion-row .sug-text { flex: 1; min-width: 0; font-size: 0.95rem; line-height: 1.45; }
+  .interview-suggestion-row .sug-vote { flex-shrink: 0; display: flex; gap: 0.35rem; }
+  .interview-suggestion-row .sug-vote .btn { padding: 0.25rem 0.5rem; line-height: 1; }
+  .interview-suggestion-row.is-like { border-color: rgba(34, 197, 94, 0.45); }
+  .interview-suggestion-row.is-dislike { border-color: rgba(239, 68, 68, 0.45); }
 </style>
 <div class="interview-page py-5">
   <div class="container">
@@ -32,6 +42,7 @@
               <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
               <input type="hidden" name="action" value="save_exit"/>
               <input type="hidden" name="current_answer" id="save-exit-answer" value=""/>
+              <input type="hidden" name="answer_payload" id="save-exit-payload" value=""/>
               <button type="submit" class="btn btn-outline-secondary btn-sm">
                 <i class="fa-solid fa-floppy-disk me-1"></i> 임시저장하고 나가기
               </button>
@@ -61,11 +72,11 @@
                   <span class="text-success">분석·등록이 완료된 코드 중, 이 RFP의 SAP 모듈·개발 유형과 <em>겹침(점수)</em>이 큰 항목을 찾아 역추출 질문·요약을 씁니다.</span>
                   {% if interview_trust.library_line %}<span class="d-block mt-1">{{ interview_trust.library_line }}</span>{% endif %}
                 {% else %}
-                  <span>분석·등록(비임시) 완료된 코드를 위 기준으로 찾았는데, 모듈/유형이 겹치지 않거나(또는) 분석 JSON에 질문이 없으면 밑 문구가 뜹니다. Mia는 RFP·이전 답을 보고 질문을 냅니다.</span>
+                  <span>분석·등록(비임시) 완료된 코드를 위 기준으로 찾았는데, 모듈/유형이 겹치지 않거나(또는) 분석 JSON에 질문이 없으면 밑 문구가 뜹니다. {{ 'f_questioner'|agent_label }}는 RFP·이전 답을 보고 질문을 냅니다.</span>
                 {% endif %}
               </p>
               <p class="mb-0"><strong class="text-body">진행 방식(순차):</strong>
-                가능하면 첫 질문은 코드 라이브러리·RFP에 맞게 1문항으로 시작합니다. 답이 저장된 뒤 Hannah·Mia가 다음 1문항을 냅니다. 라운드마다 <strong>최대 3문항</strong>이나, RFP가 단순하면 그 전에 라운드가 끝날 수 있습니다. 같은 취지의 질문이 반복되지 않게 합니다.
+                가능하면 첫 질문은 코드 라이브러리·RFP에 맞게 1문항으로 시작합니다. 답이 저장된 뒤 {{ 'f_analyst'|agent_label }}와 {{ 'f_questioner'|agent_label }}가 다음 1문항을 냅니다. 라운드마다 <strong>최대 3문항</strong>이나, RFP가 단순하면 그 전에 라운드가 끝날 수 있습니다. 같은 취지의 질문이 반복되지 않게 합니다.
               </p>
             </div>
           </details>
@@ -99,7 +110,7 @@
         {% if request.query_params.get('ans') == 'empty' %}
         <div class="alert alert-warning mb-4">
           <i class="fa-solid fa-circle-exclamation me-2"></i>
-          답을 한 글자 이상(예: <strong>잘 모르겠다</strong>)으로 입력하거나, 임시저장하려면 <strong>임시저장하고 나가기</strong>를 눌러 주세요.
+          예시 답안이 있으면 <strong>좋아요/싫어요</strong>로 선택하거나, 보충 란에 2자 이상 입력하세요. 예시가 없는 질문은 답을 2자 이상 입력하세요. 임시저장은 <strong>임시저장하고 나가기</strong>를 눌러 주세요.
         </div>
         {% endif %}
 
@@ -197,14 +208,16 @@
             </div>
             {% if answer_suggestions is defined and answer_suggestions|length > 0 %}
             <div class="mb-3">
-              <div class="small text-muted mb-2">답 선택(누르면 아래 입력란에 들어갑니다. 필요하면 고쳐 쓰거나 직접 입력하세요)</div>
-              <div class="d-flex flex-wrap gap-2" id="answer-suggestion-btns" role="group" aria-label="답안 예시"></div>
+              <div class="small text-muted mb-2">예시 답안: <strong>좋아요</strong>는 복수 선택, <strong>싫어요</strong>는 그렇지 않다고 표시합니다. (한 줄에 좋아요·싫어요 중 하나만)</div>
+              <div id="answer-suggestion-rows" class="mb-1" role="list" aria-label="제안 답안"></div>
               <script type="application/json" id="answer-suggestions-data">{{ answer_suggestions|tojson }}</script>
+              <script type="application/json" id="interview-draft-payload">{{ (interview_draft_payload|default({}))|tojson|safe }}</script>
             </div>
             {% endif %}
-            <label class="form-label small text-muted">답변 <span class="fw-normal">(자유 입력)</span></label>
-            <textarea class="form-control rfp-textarea" rows="5" name="current_answer" id="seq-answer-input" required
-              placeholder="답을 입력하세요. (모를 때: 잘 모르겠다/표준에 맡긴다 등)">{% if interview_draft_wip is defined and interview_draft_wip %}{{ interview_draft_wip }}{% endif %}</textarea>
+            <label class="form-label small text-muted">{% if answer_suggestions is defined and answer_suggestions|length > 0 %}보충·추가 (선택){% else %}답변{% endif %} <span class="fw-normal">{% if answer_suggestions is defined and answer_suggestions|length > 0 %}(선택한 답을 덧붙이거나, 직접만 써도 됩니다){% else %}(필수){% endif %}</span></label>
+            <textarea class="form-control rfp-textarea" rows="5" name="current_answer" id="seq-answer-input" {% if not (answer_suggestions is defined and answer_suggestions|length > 0) %}required{% endif %}
+              placeholder="{% if answer_suggestions is defined and answer_suggestions|length > 0 %}선택한 답에 덧붙일 내용(없으면 비워도 됨). 모를 때: 잘 모르겠다 등.{% else %}답을 입력하세요. (모를 때: 잘 모르겠다/표준에 맡긴다 등){% endif %}">{% if interview_draft_wip is defined and interview_draft_wip %}{{ interview_draft_wip }}{% endif %}</textarea>
+            <input type="hidden" name="answer_payload" id="answer-payload-json" value=""/>
             <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
               <button type="submit" class="btn btn-primary btn-lg px-4" id="seq-next-btn">
                 <i class="fa-solid fa-arrow-right me-2"></i>
@@ -281,6 +294,36 @@
 {% block extra_js %}
 <script>
 (function () {
+  function buildPayload() {
+    var rows = document.querySelectorAll('.interview-suggestion-row');
+    var like = [];
+    var dislike = [];
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var t = row.getAttribute('data-suggestion') || '';
+      t = t.trim();
+      if (!t) continue;
+      var v = row.dataset.vote || 'none';
+      if (v === 'like') like.push(t);
+      else if (v === 'dislike') dislike.push(t);
+    }
+    var ta = document.getElementById('seq-answer-input');
+    var free = ta ? (ta.value || '').trim() : '';
+    return { v: 1, like: like, dislike: dislike, free: free };
+  }
+  function isPayloadValid(p) {
+    if (!p) return false;
+    var text = '';
+    if (p.like && p.like.length) text += p.like.join(' ');
+    if (p.dislike && p.dislike.length) text += p.dislike.join(' ');
+    if (p.free) text += p.free;
+    return text.replace(/\s/g, '').length >= 2;
+  }
+  function syncHiddenPayload() {
+    var hid = document.getElementById('answer-payload-json');
+    if (hid) hid.value = JSON.stringify(buildPayload());
+  }
+
   const form = document.getElementById('iv-answer-form');
   const hiddenAns = document.getElementById('answers-combined');
   const saveExitForm = document.getElementById('save-exit-form');
@@ -289,42 +332,101 @@
   if (saveExitForm) {
     saveExitForm.addEventListener('submit', function () {
       var h = document.getElementById('save-exit-answer');
+      var hp = document.getElementById('save-exit-payload');
       var ta = document.getElementById('seq-answer-input');
+      syncHiddenPayload();
       if (h) h.value = ta ? (ta.value || '').trim() : '';
+      if (hp) {
+        var ap = document.getElementById('answer-payload-json');
+        hp.value = ap ? ap.value : JSON.stringify(buildPayload());
+      }
     });
   }
 
   const seqForm = document.getElementById('iv-seq-form');
   const seqBtn = document.getElementById('seq-next-btn');
   var suggData = document.getElementById('answer-suggestions-data');
-  var suggHost = document.getElementById('answer-suggestion-btns');
+  var suggHost = document.getElementById('answer-suggestion-rows');
   if (suggData && suggHost && seqIn) {
     try {
       var items = JSON.parse(suggData.textContent || '[]');
+      var draftEl = document.getElementById('interview-draft-payload');
+      var draft = { v: 1, like: [], dislike: [], free: '' };
+      if (draftEl) {
+        try { draft = JSON.parse(draftEl.textContent || '{}'); } catch (e1) {}
+      }
       if (Array.isArray(items)) {
+        var likeSet = {};
+        (draft.like || []).forEach(function (x) { if (x) likeSet[String(x).trim()] = true; });
+        var dislikeSet = {};
+        (draft.dislike || []).forEach(function (x) { if (x) dislikeSet[String(x).trim()] = true; });
         items.forEach(function (txt) {
           if (!txt || String(txt).trim().length < 1) return;
-          var b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'btn btn-outline-secondary btn-sm text-start interview-suggest-btn';
-          b.style.whiteSpace = 'normal';
-          b.style.maxWidth = '100%';
-          b.textContent = String(txt).trim();
-          b.addEventListener('click', function () {
-            seqIn.value = b.textContent;
-            seqIn.focus();
+          var t = String(txt).trim();
+          var row = document.createElement('div');
+          row.className = 'interview-suggestion-row';
+          row.setAttribute('data-suggestion', t);
+          if (likeSet[t]) { row.classList.add('is-like'); }
+          else if (dislikeSet[t]) { row.classList.add('is-dislike'); }
+          var span = document.createElement('span');
+          span.className = 'sug-text';
+          span.textContent = t;
+          var vote = document.createElement('div');
+          vote.className = 'sug-vote';
+          var btnL = document.createElement('button');
+          btnL.type = 'button';
+          btnL.className = 'btn btn-outline-success btn-sm';
+          btnL.title = '좋아요(선택)';
+          btnL.setAttribute('aria-pressed', row.classList.contains('is-like') ? 'true' : 'false');
+          btnL.innerHTML = '<i class="fa-regular fa-thumbs-up"></i>';
+          var btnD = document.createElement('button');
+          btnD.type = 'button';
+          btnD.className = 'btn btn-outline-danger btn-sm';
+          btnD.title = '싫어요';
+          btnD.setAttribute('aria-pressed', row.classList.contains('is-dislike') ? 'true' : 'false');
+          btnD.innerHTML = '<i class="fa-regular fa-thumbs-down"></i>';
+          function syncRowStyle() {
+            row.classList.remove('is-like', 'is-dislike');
+            if (row.dataset.vote === 'like') row.classList.add('is-like');
+            if (row.dataset.vote === 'dislike') row.classList.add('is-dislike');
+            btnL.classList.toggle('active', row.dataset.vote === 'like');
+            btnD.classList.toggle('active', row.dataset.vote === 'dislike');
+            syncHiddenPayload();
+          }
+          row.dataset.vote = 'none';
+          if (row.classList.contains('is-like')) row.dataset.vote = 'like';
+          if (row.classList.contains('is-dislike')) row.dataset.vote = 'dislike';
+          syncRowStyle();
+          btnL.addEventListener('click', function () {
+            if (row.dataset.vote === 'like') { row.dataset.vote = 'none'; }
+            else { row.dataset.vote = 'like'; }
+            syncRowStyle();
           });
-          suggHost.appendChild(b);
+          btnD.addEventListener('click', function () {
+            if (row.dataset.vote === 'dislike') { row.dataset.vote = 'none'; }
+            else { row.dataset.vote = 'dislike'; }
+            syncRowStyle();
+          });
+          vote.appendChild(btnL);
+          vote.appendChild(btnD);
+          row.appendChild(span);
+          row.appendChild(vote);
+          suggHost.appendChild(row);
         });
       }
     } catch (e) {}
   }
+  if (seqIn) {
+    seqIn.addEventListener('input', function () { syncHiddenPayload(); });
+  }
+  syncHiddenPayload();
   if (seqForm && seqBtn) {
     seqForm.addEventListener('submit', function (e) {
-      var v = (seqIn && seqIn.value) ? seqIn.value.trim() : '';
-      if (v.length < 1) {
+      syncHiddenPayload();
+      var p = buildPayload();
+      if (!isPayloadValid(p)) {
         e.preventDefault();
-        alert('답을 한 글자 이상 입력하거나, 임시저장하려면 위쪽 "임시저장하고 나가기"를 눌러 주세요.');
+        alert('좋아요·싫어요로 선택하거나, 보충/추가 란에 답을 입력해 주세요. (임시저장은 위쪽 버튼)');
         return;
       }
       seqBtn.disabled = true;

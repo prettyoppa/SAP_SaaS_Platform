@@ -21,6 +21,7 @@ from typing import Optional
 from crewai import Agent, Task, Crew, Process, LLM
 from dotenv import load_dotenv
 
+from ..agent_display import agent_label_ko, agents_ai_source_ko
 from ..gemini_model import get_gemini_model_id
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
@@ -45,11 +46,12 @@ MIA_INTERVIEW_SCOPE_AND_STYLE = """
 [출력 형식]
 - JSON 문자열 안에 ** 처럼 별표 둘로 감싸 강조하지 마라. (UI에서 볼드로 바꾸기 어려움) 개념명은 그냥 영어로 쓴다.
 
-[suggested_answers 답안 버튼 — 동일 질문에 대한 대안만]
-- 각 항목은 이 질문 하나에 대한 서로 다른 완성 답(정책/선택)이어야 한다. (A안 / B안 / C안)
-- 금지: Plant 한 줄, Incoterms 한 줄처럼 서로 다른 주제를 옵션 여러 개로 쪼개 넣는 것. 한 질문에 여러 필드 축을 섞지 말고, 질문을 한 결정 축으로 좁혀라.
+[suggested_answers — 회원이 좋아요(복수 선택)·싫어요로 고르는 예시 답]
+- 2~5개. 각 항목은 **질문에 부합하는** 전형적인 완성 답 한 줄씩(정책/가정이 드러나게).
+- **서로를 배타(A/B)로 맞출 필요 없음** — 정책·관점이 달라도, 회원이 **여러 옵션을 동시에 선택**할 수 있으므로 **보완·동시에 적용** 가능한 쪽도 괜찮다(단, 뜻이 같은 중복은 금지).
+- 금지: Plant 한 줄, Incoterms 한 줄처럼 **서로 다른 주제**를 옵션 여러 개로 쪼개서 넣기(한 질문에 맞는 한 축으로).
 - 금지: 내용이 사실상 같은 문장을 두 번 넣기.
-- 질문이 “실패 시 추가 조치”처럼 복수 수단을 동시에 요구할 수 있는 주제면, 옵션은 정책 단위로 써라. (예: ‘화면에서만 재처리’, ‘상세 메시지 필수’, ‘둘 다’) — 서로 배타적이어야 할 때만 배타적으로.
+- 질문이 “실패 시 추가 조치”처럼 **복수 수단이 동시에** 의미가 있을 수 있으면, 옵션은 **각기 다른 보완책**으로 써도 된다(회원이 복수 선택).
 """
 
 SAP_INTERVIEW_CREDIBILITY = """
@@ -554,7 +556,7 @@ def generate_sequential_start(
         "questions": [q1],
         "library_pool": [],
         "suggested_answers": sugg,
-        "source": "AI 에이전트 생성 (Hannah + Mia)",
+        "source": agents_ai_source_ko("f_analyst", "f_questioner"),
     }
 
 
@@ -679,7 +681,7 @@ RFP: {rfp_ctx}
             "next_question": "",
             "library_pool": library_pool,
             "suggested_answers": [],
-            "source": "AI 에이전트 생성 (Hannah + Mia)",
+            "source": agents_ai_source_ko("f_analyst", "f_questioner"),
         }
 
     if rc:
@@ -688,7 +690,7 @@ RFP: {rfp_ctx}
             "next_question": "",
             "library_pool": library_pool,
             "suggested_answers": [],
-            "source": "AI 에이전트 생성 (Hannah + Mia)",
+            "source": agents_ai_source_ko("f_analyst", "f_questioner"),
         }
 
     if not nq or len(nq) < 15:
@@ -698,7 +700,7 @@ RFP: {rfp_ctx}
                 "next_question": "",
                 "library_pool": library_pool,
                 "suggested_answers": [],
-                "source": "AI 에이전트 생성 (Hannah + Mia)",
+                "source": agents_ai_source_ko("f_analyst", "f_questioner"),
             }
         i = min(n_done, len(_DEFAULT_QUESTIONS) - 1)
         nq = _DEFAULT_QUESTIONS[min(i + 1, len(_DEFAULT_QUESTIONS) - 1)]
@@ -712,7 +714,7 @@ RFP: {rfp_ctx}
         "next_question": nq,
         "library_pool": library_pool,
         "suggested_answers": sugg,
-        "source": "AI 에이전트 생성 (Hannah + Mia)",
+        "source": agents_ai_source_ko("f_analyst", "f_questioner"),
     }
 
 
@@ -740,7 +742,7 @@ def generate_proposal(
 ) -> str:
     """
     전체 인터뷰 내용으로 Development Proposal을 생성합니다.
-    Hannah(최종 분석) → Jun(작성) → Sara(검토/승인) 순서로 진행합니다.
+    f_analyst(최종 분석) → f_writer(작성) → f_reviewer(검토/승인) 순서로 진행합니다.
     """
     llm = _get_llm()
     f_analyst, _, f_writer, f_reviewer = _make_agents(llm)
@@ -830,7 +832,8 @@ def generate_proposal(
 ## 6. 확인 필요 사항
 (구현 전 고객과 반드시 확인해야 할 사항 목록)
 
-작성 원칙: IT 비전문가도 이해 가능한 언어, SAP 용어는 괄호 안에 간단한 설명 추가. 리스트/표가 길어지면 **짧은 문단 + 표**로 정리해 스캔하기 쉽게 한다.""",
+작성 원칙: IT 비전문가도 이해 가능한 언어, SAP 용어는 괄호 안에 간단한 설명 추가. 리스트/표가 길어지면 **짧은 문단 + 표**로 정리해 스캔하기 쉽게 한다.
+- **에이전트 표기:** AI 역할을 언급할 때는 인명/별명을 쓰지 말고, **「요구분석」 에이전트**, **「질의」 에이전트**, **「제안서」 에이전트**, **「제안검수」 에이전트**처럼 **대외명만「」** 로 감싼 뒤 공백 + **에이전트**로 쓴다.""",
         agent=f_writer,
         expected_output="완성된 Development Proposal (마크다운)",
         context=[final_analysis],
@@ -1021,7 +1024,7 @@ def analyze_code_for_library(
                 return {
                     **base,
                     "error": (
-                        "Hannah 분석 응답 텍스트를 찾지 못했습니다. "
+                        f"{agent_label_ko('f_analyst')}의 분석 응답 텍스트를 찾지 못했습니다. "
                         "CrewAI 출력 필드가 비어 있거나 형식이 바뀌었을 수 있습니다."
                     ),
                 }
@@ -1029,7 +1032,7 @@ def analyze_code_for_library(
                 return {
                     **base,
                     "error": (
-                        "Hannah 분석 응답을 JSON으로 읽지 못했습니다. "
+                        f"{agent_label_ko('f_analyst')}의 분석 응답을 JSON으로 읽지 못했습니다. "
                         "잠시 후 재분석하거나, 서버 로그에서 Crew 출력을 확인해 주세요."
                     ),
                 }

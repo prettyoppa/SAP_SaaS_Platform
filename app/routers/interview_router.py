@@ -10,6 +10,7 @@ from ..database import get_db
 from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
 from ..rfp_reference_code import format_reference_code_for_llm
+from ..agent_display import wrap_unbracketed_agent_names
 
 router = APIRouter()
 
@@ -93,11 +94,122 @@ def _is_sequential_v2(msg: models.RFPMessage) -> bool:
     return bool(intra and intra.get("v") == 2)
 
 
+def _parse_stored_step_answer(s: str) -> Optional[dict]:
+    """answers_so 한 항목: v1 JSON 또는 레거시(일반 문자열)."""
+    t = (s or "").strip()
+    if not t.startswith("{"):
+        return None
+    try:
+        o = json.loads(t)
+        if isinstance(o, dict) and o.get("v") == 1:
+            return o
+    except Exception:
+        return None
+    return None
+
+
+def _format_parsed_step_answer(o: dict) -> str:
+    """조회·Proposal·LLM용: 좋아요/싫어요/보충을 한 블록으로."""
+    like = o.get("like") or []
+    if not isinstance(like, list):
+        like = []
+    like = [str(x).strip() for x in like if str(x).strip()]
+    dis = o.get("dislike") or []
+    if not isinstance(dis, list):
+        dis = []
+    dis = [str(x).strip() for x in dis if str(x).strip()]
+    free = (o.get("free") or "").strip()
+    parts = []
+    if like:
+        parts.append("【선택(좋아요)】\n" + "\n".join(f"· {x}" for x in like))
+    if dis:
+        parts.append("【비선택(싫어요)】\n" + "\n".join(f"· {x}" for x in dis))
+    if free:
+        parts.append("【보충/추가】\n" + free)
+    if parts:
+        return "\n\n".join(parts)
+    return free
+
+
+def _answer_block_for_export(stored: str) -> str:
+    """answers_so 한 항목 → Q/A 본문에 넣을 문자열."""
+    p = _parse_stored_step_answer(stored)
+    if p is not None:
+        return _format_parsed_step_answer(p)
+    return (stored or "").strip()
+
+
 def _format_round_answers(all_q: list[str], answers: list[str]) -> str:
     parts = []
     for i, (q, a) in enumerate(zip(all_q, answers), 1):
-        parts.append(f"Q{i}:\n{q}\n\nA{i}:\n{a}")
+        block = _answer_block_for_export(a)
+        parts.append(f"Q{i}:\n{q}\n\nA{i}:\n{block}")
     return "\n\n".join(parts)
+
+
+def _parse_answer_payload_form(
+    answer_payload: str,
+    current_answer: str,
+) -> dict:
+    """제출 폼 → v1 dict (like / dislike / free)."""
+    raw = (answer_payload or "").strip()
+    if raw.startswith("{"):
+        try:
+            o = json.loads(raw)
+            if isinstance(o, dict):
+                like = o.get("like") if isinstance(o.get("like"), list) else []
+                dis = o.get("dislike") if isinstance(o.get("dislike"), list) else []
+                free_val = o.get("free", "")
+                free = (
+                    (str(free_val).strip() if free_val is not None else "")
+                    if isinstance(free_val, (str, int, float))
+                    else ""
+                )
+                return {
+                    "v": 1,
+                    "like": [str(x).strip() for x in like if str(x).strip()],
+                    "dislike": [str(x).strip() for x in dis if str(x).strip()],
+                    "free": free,
+                }
+        except Exception:
+            pass
+    fr = (current_answer or "").strip()
+    return {"v": 1, "like": [], "dislike": [], "free": fr}
+
+
+def _step_payload_valid(o: dict) -> bool:
+    return _answer_valid(_format_parsed_step_answer(o))
+
+
+def _draft_wip_free_text(draft: str) -> str:
+    """draft_wip가 v1 JSON이면 보충 란만, 아니면 전체(레거시)."""
+    t = (draft or "").strip()
+    if t.startswith("{"):
+        try:
+            o = json.loads(t)
+            if isinstance(o, dict) and o.get("v") == 1:
+                return (o.get("free") or "").strip() if isinstance(o.get("free"), str) else ""
+        except Exception:
+            return draft or ""
+    return t
+
+
+def _draft_wip_as_dict(draft: str) -> dict:
+    """UI·스크립트 복원용 v1 dict."""
+    t = (draft or "").strip()
+    if t.startswith("{"):
+        try:
+            o = json.loads(t)
+            if isinstance(o, dict) and o.get("v") == 1:
+                o.setdefault("like", [])
+                o.setdefault("dislike", [])
+                o.setdefault("free", "")
+                return o
+        except Exception:
+            pass
+    if t:
+        return {"v": 1, "like": [], "dislike": [], "free": t}
+    return {"v": 1, "like": [], "dislike": [], "free": ""}
 
 
 def _answer_valid(s: str) -> bool:
@@ -196,10 +308,17 @@ def interview_page(rfp_id: int, request: Request,
             "prior_in_round": [],
             "interview_step_index": 1,
             "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
-            "interview_draft_wip": (intra or {}).get("draft_wip", "") or "",
+            "interview_draft_wip": "",
+            "interview_draft_payload": {"v": 1, "like": [], "dislike": [], "free": ""},
             "answer_suggestions": [],
         }
         if seq and intra is not None:
+            ctx_extra["interview_draft_wip"] = _draft_wip_free_text(
+                (intra or {}).get("draft_wip", "") or ""
+            )
+            ctx_extra["interview_draft_payload"] = _draft_wip_as_dict(
+                (intra or {}).get("draft_wip", "") or ""
+            )
             ans = intra.get("answers_so_far", [])
             if not isinstance(ans, list):
                 ans = []
@@ -210,7 +329,11 @@ def interview_page(rfp_id: int, request: Request,
                 err_extra = "이 라운드 질문 상태를 읽을 수 없습니다. 임시저장이 있었다면 복구를 시도하거나, 대시보드에서 인터뷰를 다시 열어 주세요."
             ctx_extra["interview_step_index"] = qi + 1
             ctx_extra["prior_in_round"] = [
-                {"q": current_questions[i], "a": ans[i]} for i in range(min(qi, len(current_questions)))
+                {
+                    "q": current_questions[i],
+                    "a": _answer_block_for_export(ans[i]),
+                }
+                for i in range(min(qi, len(current_questions)))
             ]
             ctx_extra["answer_suggestions"] = _cap_suggestions(
                 (intra or {}).get("current_suggestions")
@@ -272,6 +395,7 @@ def interview_page(rfp_id: int, request: Request,
             "interview_step_index": 1,
             "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
             "interview_draft_wip": "",
+            "interview_draft_payload": {"v": 1, "like": [], "dislike": [], "free": ""},
             "answer_suggestions": [],
         })
 
@@ -313,7 +437,8 @@ def interview_page(rfp_id: int, request: Request,
         "prior_in_round": [],
         "interview_step_index": 1,
         "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
-        "interview_draft_wip": intra_r.get("draft_wip", "") or "",
+        "interview_draft_wip": _draft_wip_free_text(intra_r.get("draft_wip", "") or ""),
+        "interview_draft_payload": _draft_wip_as_dict(intra_r.get("draft_wip", "") or ""),
         "answer_suggestions": intra_r.get("current_suggestions") or [],
     })
 
@@ -373,6 +498,7 @@ def interview_answer_step(
     request: Request,
     message_id: int = Form(...),
     current_answer: str = Form(""),
+    answer_payload: str = Form(""),
     action: str = Form("next"),
     db: Session = Depends(get_db),
 ):
@@ -410,7 +536,8 @@ def interview_answer_step(
         answers_so = []
 
     if action == "save_exit":
-        intra["draft_wip"] = (current_answer or "").strip()
+        o = _parse_answer_payload_form(answer_payload, current_answer)
+        intra["draft_wip"] = json.dumps(o, ensure_ascii=False)
         intra["v"] = 2
         intra["answers_so_far"] = answers_so
         intra["library_pool"] = lib_pool
@@ -428,9 +555,10 @@ def interview_answer_step(
     if len(answers_so) > len(all_q):
         return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
 
-    ans = (current_answer or "").strip()
-    if not _answer_valid(ans):
+    o = _parse_answer_payload_form(answer_payload, current_answer)
+    if not _step_payload_valid(o):
         return RedirectResponse(url=f"/rfp/{rfp_id}/interview?ans=empty", status_code=302)
+    ans = json.dumps(o, ensure_ascii=False)
 
     answers_so = answers_so + [ans]
     rfp_dict = _rfp_to_dict(rfp)
@@ -439,7 +567,10 @@ def interview_answer_step(
         db, rfp_dict.get("sap_modules", []), rfp_dict.get("dev_types", [])
     )
     in_round: list = list(
-        zip([all_q[i] for i in range(len(answers_so))], answers_so)
+        zip(
+            [all_q[i] for i in range(len(answers_so))],
+            [_answer_block_for_export(answers_so[i]) for i in range(len(answers_so))],
+        )
     )
 
     def _finalize_message_row():
@@ -619,9 +750,7 @@ def download_proposal(rfp_id: int, request: Request, db: Session = Depends(get_d
         return RedirectResponse(url="/dashboard", status_code=302)
 
     # ASCII 파일명만 사용(한글 파일명은 Content-Disposition에서 500 유발 가능)
-    body = rfp.proposal_text
-    if isinstance(body, str):
-        body = body.encode("utf-8")
+    body = wrap_unbracketed_agent_names(rfp.proposal_text or "").encode("utf-8")
     filename = f"proposal_rfp_{rfp_id}.md"
     return Response(
         content=body,
@@ -749,6 +878,7 @@ def _extract_md_tables_to_placeholders(md: str) -> tuple[str, list[str]]:
 
 
 def _markdown_to_html(md: str) -> str:
+    md = wrap_unbracketed_agent_names(md or "")
     md, table_parts = _extract_md_tables_to_placeholders(md)
     html = md
     html = re.sub(r"^# (.+)$", r"<h1>\1</h1>", html, flags=re.MULTILINE)
@@ -793,4 +923,4 @@ def _markdown_to_html(md: str) -> str:
 
     if in_list:
         result.append(f"</{list_type}>")
-    return "\n".join(result)
+    return wrap_unbracketed_agent_names("\n".join(result))
