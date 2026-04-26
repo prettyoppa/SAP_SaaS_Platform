@@ -110,6 +110,7 @@ def _run_analysis(requirement_text: str, source_code: str) -> dict:
         title=title_snip,
         modules=[],
         dev_types=[],
+        include_interview_questions=False,
     )
     out = dict(structural)
     if not structural.get("error"):

@@ -1192,6 +1192,17 @@ def generate_proposal(
     return raw
 
 
+# ── 코드 라이브러리 / ABAP 분석 공통: 한국어 서술 품질 ─────────────────
+SAP_KOREAN_CODE_ANALYSIS_STYLE = """
+★ 한국어 서술 — SAP 실무자에게 익숙한 표현 (반드시)
+- 영→한 직역어, 일반 비즈니스 잡어, 기계 번역체·과한 문어체를 피한다.
+- SD/MM/PP 등 맥락에 맞게 **현장에서 통하는 용어**를 쓴다.
+  (예: 맥락에 따라 납품·출고·미납, 오더 블록, 대금청구/빌링, 오픈 오더, 스케줄 라인 등.
+  "미출 주문" 같이 쓰이지 않는 낯선 표현은 쓰지 말고, 소스·도메인에 맞는 표현으로 바꾼다.)
+- program_purpose·screens의 title·summary_bullets·validations 등 **모든 한글 설명**에 동일하게 적용한다.
+"""
+
+
 # ── 코드 라이브러리 분석 (Hannah → Mia) ─────────────────
 
 def analyze_code_for_library(
@@ -1199,9 +1210,12 @@ def analyze_code_for_library(
     title: str,
     modules: list[str],
     dev_types: list[str],
+    *,
+    include_interview_questions: bool = True,
 ) -> dict:
     """
-    ABAP 소스를 Hannah(기술 분석)→ Mia(범용 질문 추출) 2단계로 분석합니다.
+    ABAP 소스를 Hannah(기술 분석)로 분석하고, include_interview_questions=True일 때만
+    Mia(신규 개발 인터뷰용 질문 추출)를 이어서 실행합니다.
     반환 dict는 DB `analysis_json`에 저장되며, 상세 화면은 `codelib_detail.html`에서 표시한다.
 
     Returns:
@@ -1239,6 +1253,7 @@ def analyze_code_for_library(
 - "program_purpose"에 위 [프로그램 정보]의 제목만 그대로 넣지 마세요. 소스 분석에 근거한 목적·역할을 2~3문장으로 서술하세요.
 - "screens" 배열에는 이 프로그램에서 식별한 UI·실행 면을 최소 1개 포함하세요. (순수 배치면 그 성격을 한 항목으로 명시)
 한국어로 작성하되, 기술 용어(BAPI명, FM명, 필드명, 화면 번호 등)는 영문 그대로 사용하세요.
+{SAP_KOREAN_CODE_ANALYSIS_STYLE}
 
 ★ 스크린 분석 (매우 중요)
 - "실행 조건 화면 / 실행 결과 화면" 같은 고정 2분류를 쓰지 마세요. 프로그램마다 UI가 다릅니다.
@@ -1270,9 +1285,11 @@ def analyze_code_for_library(
         expected_output="기술 분석 JSON",
     )
 
-    # ── Task 2: Mia – 범용 인터뷰 질문 추출 ──────────────
-    question_task = Task(
-        description=f"""Hannah의 분석을 바탕으로,
+    question_task = None
+    if include_interview_questions:
+        # ── Task 2: Mia – 코드 라이브러리용 신규 개발 인터뷰 질문 ──────────────
+        question_task = Task(
+            description=f"""Hannah의 분석을 바탕으로,
 신규 고객에게 공통으로 물어야 할 인터뷰 질문 3~5개를 추출하세요.
 (참고: 폼의 "{module_str} + {devtype_str}" 태그는 **신뢰하지 말고**, Hannah가 **소스에서** 파악한 맥락을 따른다.)
 {_classify_advisory}
@@ -1304,26 +1321,38 @@ def analyze_code_for_library(
 
 반드시 아래 JSON 형식으로만 출력:
 {{"questions": ["질문1", "질문2", "질문3", "질문4", "질문5"]}}""",
-        agent=f_questioner,
-        expected_output='{"questions": ["질문1", ...]} 형식 JSON',
-        context=[analysis_task],
-    )
+            agent=f_questioner,
+            expected_output='{"questions": ["질문1", ...]} 형식 JSON',
+            context=[analysis_task],
+        )
 
-    crew = Crew(
-        agents=[f_analyst, f_questioner],
-        tasks=[analysis_task, question_task],
-        process=Process.sequential,
-        verbose=True,
-    )
+    if include_interview_questions and question_task is not None:
+        crew = Crew(
+            agents=[f_analyst, f_questioner],
+            tasks=[analysis_task, question_task],
+            process=Process.sequential,
+            verbose=True,
+        )
+    else:
+        crew = Crew(
+            agents=[f_analyst],
+            tasks=[analysis_task],
+            process=Process.sequential,
+            verbose=True,
+        )
 
     try:
         crew.kickoff()
 
         analysis_raw = _crew_task_output_text(analysis_task)
-        question_raw = _crew_task_output_text(question_task)
+        question_raw = _crew_task_output_text(question_task) if question_task else ""
 
         analysis_data = _parse_json_block(analysis_raw, default={})
-        question_data = _parse_json_block(question_raw, default={"questions": []})
+        question_data = (
+            _parse_json_block(question_raw, default={"questions": []})
+            if include_interview_questions
+            else {"questions": []}
+        )
 
         incomplete = (not analysis_data) or (
             not _analysis_looks_complete(analysis_data, title)
@@ -1432,14 +1461,18 @@ def augment_abap_analysis_with_requirement(
 [ABAP 소스 일부]
 {excerpt}
 
+{SAP_KOREAN_CODE_ANALYSIS_STYLE}
+
 출력 JSON 한 블록만 (한국어, 마크다운 제목 금지):
+- "open_questions": **회원 요구사항**과 위 코드·요약에 **근거한** 확인만 (3개 이하 권장). 요구에 없는 신규 기능·범위를 가정한 질문·RFP식 인터뷰는 넣지 마라.
+
 {{
   "interpretation": "요구사항을 기술 관점에서 짧게 요약",
   "mapping": "요구와 코드상 어느 부분이 관련될 수 있는지",
   "suspected_areas": ["살펴볼 Include·폼·루틴·키워드"],
   "hypotheses": ["원인 또는 구현 가설"],
   "verification_suggestions": ["확인 방법(데이터, 브레이크포인트, T-Code 등)"],
-  "open_questions": ["회원에게 추가 확인이 필요한 질문"]
+  "open_questions": ["위 맥락에 맞는 확인 질문"]
 }}""",
         agent=f_analyst,
         expected_output="JSON",
