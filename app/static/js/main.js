@@ -18,8 +18,8 @@ function _syncThemeSwitchAria(theme) {
   btn.setAttribute('aria-checked', theme === 'light' ? 'true' : 'false');
 }
 
-const _LOGO_LIGHT = '/static/img/catch_lab_sap_dev_hub_logo.png?v=20260427logo';
-const _LOGO_DARK = '/static/img/catch_lab_sap_dev_hub_logo_dark.png?v=20260427logo';
+const _LOGO_LIGHT = '/static/img/catch_lab_sap_dev_hub_logo.png?v=20260428cat';
+const _LOGO_DARK = '/static/img/catch_lab_sap_dev_hub_logo_dark.png?v=20260428cat';
 
 function _syncFaviconForTheme(theme) {
   const href = theme === 'dark' ? _LOGO_DARK : _LOGO_LIGHT;
