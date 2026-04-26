@@ -237,65 +237,11 @@
         {% endif %}
 
         {% if chat_enabled %}
-        <div id="abap-followup-chat" class="proposal-card mb-4">
-          <div class="proposal-body">
-            <h4 class="mb-3" style="border-left:3px solid #6366f1;padding-left:.75rem;margin-top:0">
-              <i class="fa-solid fa-comments me-2 text-primary-light"></i>이 분석에 대해 이어서 질문하기
-            </h4>
-            <p class="small text-muted mb-3">
-              같은 제출 코드·분석 결과를 맥락으로 추가 질문에 답합니다. 회당 최대 <strong>{{ max_followup_user_turns }}</strong>번까지 보낼 수 있습니다.
-            </p>
-            {% if chat_error %}
-            <div class="alert alert-warning py-2 mb-3">{{ chat_error }}</div>
-            {% endif %}
-            {% if followup_turns and followup_turns|length > 0 %}
-            <div class="abap-chat-log mb-4 px-1" style="max-height:28rem;overflow-y:auto;border:1px solid var(--border);border-radius:.5rem;background:var(--surface2);padding:.5rem;">
-              {% for turn in followup_turns %}
-              <details class="analysis-fold mb-2 abap-followup-turn" {% if loop.last %}open{% endif %}>
-                <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2 w-100">
-                  <span class="fw-semibold text-nowrap">대화 {{ loop.index }}</span>
-                  {% if turn.question %}
-                  <span class="small text-muted text-nowrap">{{ turn.question.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                  <span class="small text-muted flex-grow-1 text-truncate" style="min-width:120px;" title="{{ turn.question.content }}">
-                    {{ turn.question.content[:100] }}{% if turn.question.content|length > 100 %}…{% endif %}
-                  </span>
-                  {% else %}
-                  <span class="small text-muted">응답만 있음</span>
-                  {% endif %}
-                </summary>
-                <div class="analysis-fold-body pt-1">
-                  {% if turn.question %}
-                  <div class="mb-3">
-                    <div class="small fw-semibold text-muted mb-1">질문</div>
-                    <div class="abap-followup-q">{{ turn.question.content }}</div>
-                  </div>
-                  {% endif %}
-                  {% if turn.answer %}
-                  <div>
-                    <div class="small fw-semibold text-muted mb-1">응답</div>
-                    <div class="abap-followup-a">{{ turn.answer.content }}</div>
-                  </div>
-                  {% elif turn.question %}
-                  <p class="small text-muted mb-0">응답이 아직 없습니다.</p>
-                  {% endif %}
-                </div>
-              </details>
-              {% endfor %}
-            </div>
-            {% endif %}
-            {% if chat_limit_reached %}
-            <p class="small text-muted mb-0">이 분석 건의 후속 질문 횟수에 도달했습니다. 새 분석이 필요하면 목록에서 다시 제출해 주세요.</p>
-            {% else %}
-            <form method="post" action="/abap-analysis/{{ row.id }}/chat" class="abap-followup-form">
-              <label class="form-label small text-muted mb-1" for="abap-followup-msg">메시지</label>
-              <textarea id="abap-followup-msg" name="message" class="form-control" rows="4" maxlength="4000" required placeholder="예: 이 프로그램에서 납품 블록 해제 시 어떤 함수를 호출하는지 설명해 주세요."></textarea>
-              <button type="submit" class="btn btn-primary mt-2">
-                <i class="fa-solid fa-paper-plane me-1"></i>보내기
-              </button>
-            </form>
-            {% endif %}
-          </div>
-        </div>
+        <p class="small text-muted mb-4">
+          <i class="fa-solid fa-comments me-1 text-primary-light"></i>
+          이 분석에 대한 <strong>추가 질문·응답</strong>은 화면 <strong>오른쪽 아래</strong> 채팅 버튼에서 이어서 할 수 있습니다.
+          (회당 최대 {{ max_followup_user_turns }}회)
+        </p>
         {% endif %}
 
         <details class="interview-summary-toggle codelib-source-details mb-5">
@@ -312,4 +258,126 @@
     </div>
   </div>
 </div>
+
+{% if chat_enabled %}
+<div id="abap-followup-chat" class="abap-float-chat" aria-live="polite">
+  <div id="abapFloatChatPanel" class="abap-float-chat-panel" hidden>
+    <div class="abap-float-chat-header">
+      <span class="abap-float-chat-header-title">이 분석에 대해 질문하기</span>
+      <button type="button" class="abap-float-chat-close" id="abapFloatChatClose" title="닫기" aria-label="채팅 패널 닫기">
+        <i class="fa-solid fa-xmark fa-lg"></i>
+      </button>
+    </div>
+    <div class="abap-float-chat-body">
+      <p class="small text-muted mb-2 mb-md-3">
+        같은 제출 코드·분석 결과를 맥락으로 답합니다.
+      </p>
+      {% if chat_error %}
+      <div class="alert alert-warning py-2 small mb-3">{{ chat_error }}</div>
+      {% endif %}
+      {% if followup_turns and followup_turns|length > 0 %}
+      <div class="abap-chat-log abap-chat-log-panel mb-0">
+        {% for turn in followup_turns %}
+        <details class="analysis-fold mb-2 abap-followup-turn" {% if loop.last %}open{% endif %}>
+          <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2 w-100">
+            <span class="fw-semibold text-nowrap">대화 {{ loop.index }}</span>
+            {% if turn.question %}
+            <span class="small text-muted text-nowrap">{{ turn.question.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            <span class="small text-muted flex-grow-1 text-truncate" style="min-width:100px;" title="{{ turn.question.content }}">
+              {{ turn.question.content[:80] }}{% if turn.question.content|length > 80 %}…{% endif %}
+            </span>
+            {% else %}
+            <span class="small text-muted">응답만 있음</span>
+            {% endif %}
+          </summary>
+          <div class="analysis-fold-body pt-1">
+            {% if turn.question %}
+            <div class="mb-2">
+              <div class="small fw-semibold text-muted mb-1">질문</div>
+              <div class="abap-followup-q">{{ turn.question.content }}</div>
+            </div>
+            {% endif %}
+            {% if turn.answer %}
+            <div>
+              <div class="small fw-semibold text-muted mb-1">응답</div>
+              <div class="abap-followup-a">{{ turn.answer.content }}</div>
+            </div>
+            {% elif turn.question %}
+            <p class="small text-muted mb-0">응답이 아직 없습니다.</p>
+            {% endif %}
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="small text-muted fst-italic mb-0">아직 대화가 없습니다. 아래에서 질문을 보내 보세요.</p>
+      {% endif %}
+    </div>
+    <div class="abap-float-chat-footer">
+      {% if chat_limit_reached %}
+      <p class="small text-muted mb-0">후속 질문 횟수에 도달했습니다.</p>
+      {% else %}
+      <form method="post" action="/abap-analysis/{{ row.id }}/chat" class="abap-followup-form mb-0">
+        <label class="form-label small text-muted mb-1" for="abap-followup-msg">메시지</label>
+        <textarea id="abap-followup-msg" name="message" class="form-control form-control-sm" rows="3" maxlength="4000" required placeholder="추가로 궁금한 점을 입력하세요."></textarea>
+        <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">
+          <i class="fa-solid fa-paper-plane me-1"></i>보내기
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <button type="button" class="abap-float-chat-launcher" id="abapFloatChatLauncher" aria-expanded="false" aria-controls="abapFloatChatPanel">
+    <i class="fa-solid fa-comments fa-lg abap-float-chat-launcher-icon" aria-hidden="true"></i>
+    <span class="abap-float-chat-launcher-text">이어서 질문</span>
+    {% if followup_turns and followup_turns|length > 0 %}
+    <span class="abap-float-chat-count" aria-hidden="true">{{ followup_turns|length }}</span>
+    {% endif %}
+  </button>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if chat_enabled %}
+<script>
+(function () {
+  var root = document.getElementById('abap-followup-chat');
+  if (!root) return;
+  var panel = document.getElementById('abapFloatChatPanel');
+  var launcher = document.getElementById('abapFloatChatLauncher');
+  var closeBtn = document.getElementById('abapFloatChatClose');
+  if (!panel || !launcher) return;
+
+  function openPanel() {
+    panel.removeAttribute('hidden');
+    launcher.setAttribute('aria-expanded', 'true');
+  }
+  function closePanel() {
+    panel.setAttribute('hidden', '');
+    launcher.setAttribute('aria-expanded', 'false');
+  }
+  function togglePanel() {
+    if (panel.hasAttribute('hidden')) openPanel();
+    else closePanel();
+  }
+
+  launcher.addEventListener('click', function (e) {
+    e.stopPropagation();
+    togglePanel();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', function () { closePanel(); });
+
+  function shouldAutoOpen() {
+    if (window.location.hash === '#abap-followup-chat') return true;
+    try {
+      return new URLSearchParams(window.location.search).has('chat_err');
+    } catch (e) {
+      return false;
+    }
+  }
+  if (shouldAutoOpen()) openPanel();
+})();
+</script>
+{% endif %}
 {% endblock %}
