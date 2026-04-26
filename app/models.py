@@ -37,7 +37,7 @@ class RFP(Base):
     file_path = Column(String, nullable=True)
     file_name = Column(String, nullable=True)
     attachments_json = Column(Text, nullable=True)   # JSON [{path, filename, note}, ...] 최대 5
-    # 회원 참고 ABAP(본 RFP 전용, abap_codes 미등록). 에이전트 프롬프트용.
+    # 회원 제출 ABAP 코드(본 RFP 전용, abap_codes 미등록). 에이전트 프롬프트용.
     reference_code_payload = Column(Text, nullable=True)
     status = Column(String, default="draft")           # draft | submitted | in_review | completed
     interview_status = Column(String, default="pending")  # pending | in_progress | generating_proposal | completed
@@ -114,19 +114,20 @@ class ABAPCode(Base):
 
 
 class AbapAnalysisRequest(Base):
-    """회원 전용: 기존 ABAP 정밀 분석(코드 라이브러리 공개 목록과 별도)."""
+    """회원 전용 ABAP 정밀 분석(abap_codes와 별도 저장)."""
 
     __tablename__ = "abap_analysis_requests"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    requirement_text = Column(Text, nullable=False)
-    # RFP 참고 코드와 동일 JSON 스키마(슬롯·섹션); 에이전트는 분류 태그를 전적으로 신뢰하지 않음
+    requirement_text = Column(Text, nullable=False, default="")
+    # RFP와 동일 JSON 스키마(슬롯·섹션)
     reference_code_payload = Column(Text, nullable=True)
-    source_code = Column(Text, nullable=False)
+    source_code = Column(Text, nullable=False, default="")
     attachments_json = Column(Text, nullable=True)
     analysis_json = Column(Text, nullable=True)
     is_analyzed = Column(Boolean, default=False)
+    is_draft = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
 

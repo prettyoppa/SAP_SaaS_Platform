@@ -10,20 +10,21 @@
           <a href="/abap-analysis" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> 목록</a>
         </div>
         <h2 class="mb-3">SAP ABAP 분석 요청</h2>
-        <p class="text-muted">요구사항 상세, 참고 ABAP(섹션별), 첨부 파일을 제출합니다. 코드 라이브러리와는 별도로 저장됩니다.</p>
+        <p class="text-muted mb-0">요구사항 상세, ABAP 코드(섹션별), 첨부 파일을 제출합니다.</p>
+        <p class="small text-muted">ABAP 코드 JSON 전체는 UTF-8 기준 약 6MB까지, 섹션당 약 50만 자까지 허용됩니다.</p>
 
         {% if error == 'need_requirement' %}
         <div class="alert alert-warning">요구사항을 20자 이상 입력해 주세요.</div>
         {% elif error == 'need_reference_code' %}
-        <div class="alert alert-warning">참고 코드(ABAP 본문)를 한 건 이상 입력해 주세요.</div>
+        <div class="alert alert-warning">ABAP 코드(본문)를 한 건 이상 입력해 주세요.</div>
         {% elif error == 'code_too_short' %}
-        <div class="alert alert-warning">참고 ABAP 본문이 너무 짧습니다. 분석 가능한 분량을 입력해 주세요.</div>
+        <div class="alert alert-warning">ABAP 본문이 너무 짧습니다. 분석 가능한 분량을 입력해 주세요.</div>
         {% elif error == 'need_attachments' %}
         <div class="alert alert-warning">첨부 파일을 1개 이상 추가해 주세요.</div>
         {% elif error == 'too_many_attachments' %}
         <div class="alert alert-warning">첨부는 최대 {{ 5 }}개까지입니다.</div>
         {% elif error == 'reference_code_too_large' %}
-        <div class="alert alert-warning">참고 코드 정보가 허용 용량을 초과했습니다. ABAP 섹션을 줄이거나 항목 수를 조정해 주세요.</div>
+        <div class="alert alert-warning">코드 정보가 허용 용량을 초과했습니다. ABAP 섹션을 줄이거나 항목 수를 조정해 주세요. (대략 JSON 6MB·UTF-8 기준)</div>
         {% elif error == 'invalid_file' %}
         <div class="alert alert-warning">허용되지 않는 파일 형식입니다.</div>
         {% elif error == 'file_too_large' %}
@@ -37,8 +38,11 @@
         {% if ref_code_initial %}
         <script type="application/json" id="rfp-refcode-initial">{{ ref_code_initial | tojson }}</script>
         {% endif %}
+        {% if notes_prefill %}
+        <script type="application/json" id="rfp-notes-prefill">{{ notes_prefill | tojson }}</script>
+        {% endif %}
 
-        <form method="post" action="/abap-analysis/new" enctype="multipart/form-data" id="abap-analysis-form">
+        <form method="post" action="{% if edit_row %}/abap-analysis/{{ edit_row.id }}/edit{% else %}/abap-analysis/new{% endif %}" enctype="multipart/form-data" id="abap-analysis-form">
           <input type="hidden" name="reference_code_json" id="reference-code-json-field" value=""/>
 
           <div class="rfp-section mb-4">
@@ -46,45 +50,58 @@
               <span class="rfp-section-num">01</span>
               <div>
                 <h4 class="mb-0">요구사항 상세</h4>
-                <small class="text-muted">개선 목표, 증상, 기대 동작 등을 구체적으로 적어 주세요.</small>
+                <small class="text-muted">개선 목표, 증상, 기대 동작 등을 구체적으로 적어 주세요. (임시저장 시 비워 둘 수 있습니다)</small>
               </div>
             </div>
-            <textarea class="form-control" name="requirement_text" rows="10" required
-                      placeholder="예: 배치가 특정 조건에서 짧게 끊기는 것 같다. 로그상 SY-SUBRC는 …">{{ form_requirement or '' }}</textarea>
+            <textarea class="form-control" name="requirement_text" rows="10">{{ form_requirement or '' }}</textarea>
           </div>
 
-          <div class="rfp-section mb-4">
+          <div class="rfp-section mb-4" id="section-abap-attach">
             <div class="rfp-section-header">
               <span class="rfp-section-num">02</span>
               <div>
                 <h4 class="mb-0">첨부 파일</h4>
-                <small class="text-muted">스펙, 덤프, 샘플 데이터 등 1개 이상 필수 (최대 5개, RFP와 동일 규칙).</small>
+                <small class="text-muted">SAP ABAP 개발(RFP) 요청과 동일한 방식으로 추가합니다. 파일명을 누르면 저장 전에도 새 탭에서 열 수 있습니다. 제출 시 1개 이상 필요합니다.</small>
               </div>
             </div>
-            <input type="file" name="attachments" class="form-control" multiple
-                   accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg"/>
-            <p class="small text-muted mt-2 mb-3">1개 이상 선택해 주세요. PDF, Excel, Word, 이미지, TXT · 최대 5개 · 파일당 20MB (RFP와 동일).</p>
-            <div class="row g-2">
-              {% for i in [0, 1, 2, 3, 4] %}
-              <div class="col-md-6">
-                <label class="form-label small mb-0">첨부 {{ i + 1 }} 메모 (선택)</label>
-                <input type="text" class="form-control form-control-sm" name="note_{{ i }}" maxlength="200"/>
+
+            {% if edit_row and attachment_entries %}
+            <div class="border rounded p-3 mb-3" style="background:var(--surface2);border-color:var(--border)!important;">
+              <div class="fw-semibold mb-2"><i class="fa-solid fa-paperclip me-1"></i>저장된 첨부</div>
+              {% for att in attachment_entries %}
+              <div class="small mb-1">
+                <a href="/abap-analysis/{{ edit_row.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename }}</a>
+                {% if att.note %}<span class="text-muted">— {{ att.note }}</span>{% endif %}
               </div>
               {% endfor %}
+              <p class="small text-muted mb-0 mt-2">추가 첨부는 아래 영역에서 선택합니다. 기존 파일과 합쳐 최대 5개입니다.</p>
             </div>
+            {% endif %}
+
+            <div class="file-drop-zone" id="drop-zone" data-max-files="5">
+              <input type="file" name="attachments" id="attachments" class="d-none" multiple
+                     accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg"/>
+              <div class="file-drop-content" id="drop-content">
+                <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
+                <p class="fw-semibold mb-1">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+                <p class="text-muted small mb-0">PDF, Excel, Word, 이미지, TXT · 파일당 최대 20MB · 최대 5개</p>
+              </div>
+              <div id="attachment-list" class="w-100 px-1"></div>
+            </div>
+            <p class="small text-muted mt-2 mb-0">파일마다 설명을 적을 수 있습니다. 목록에서 파일 이름을 누르면 미리 열어볼 수 있습니다.</p>
           </div>
 
           <div class="rfp-section mb-4" id="section-ref-code">
             <div class="rfp-section-header">
               <span class="rfp-section-num">03</span>
               <div>
-                <h4 class="mb-0">참고 코드 정보</h4>
+                <h4 class="mb-0">ABAP 코드 정보</h4>
                 <small class="text-muted">회원이 올리는 코드는 해당 요청 이해 및 최적의 제안서 작성을 위해서 이용됩니다. 광고, 제3자 제공, AI 모델 학습·재학습 등 그 밖의 목적으로는 사용하지 않습니다. 회원이 직접 삭제하신 경우, 지체 없이 복구 불가능한 방식으로 삭제합니다.</small>
               </div>
             </div>
 
             <button class="btn btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-abap-ref-code" aria-expanded="true" aria-controls="collapse-abap-ref-code">
-              <i class="fa-solid fa-code me-2"></i>참고 ABAP 입력란 펼치기 / 접기
+              <i class="fa-solid fa-code me-2"></i>ABAP 코드 입력란 펼치기 / 접기
             </button>
 
             <div class="collapse show" id="collapse-abap-ref-code">
@@ -92,9 +109,9 @@
                 {% for rs in [0, 1, 2] %}
                 <div class="ref-code-slot card mb-4 border" data-ref-slot="{{ rs }}" style="background:var(--surface2);border-color:var(--border)!important;">
                   <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <strong>참고 코드 {{ rs + 1 }}</strong>
+                    <strong>ABAP 코드 {{ rs + 1 }}</strong>
                     <div class="d-flex align-items-center gap-2">
-                      <button type="button" class="btn btn-sm btn-outline-secondary js-ref-remove-last d-none" data-slot="{{ rs }}" title="가장 마지막에 연 참고 코드 항목만 닫을 수 있습니다">이 항목 닫기</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary js-ref-remove-last d-none" data-slot="{{ rs }}" title="가장 마지막에 연 항목만 닫을 수 있습니다">이 항목 닫기</button>
                       <span class="badge bg-secondary small">분석 전용</span>
                     </div>
                   </div>
@@ -110,17 +127,20 @@
               </div>
               <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="ref-add-slot-btn">
-                  <i class="fa-solid fa-plus me-1"></i>참고 코드 추가 (최대 3건)
+                  <i class="fa-solid fa-plus me-1"></i>코드 블록 추가 (최대 3건)
                 </button>
                 <button type="button" class="btn btn-outline-danger btn-sm" id="ref-delete-all-btn">
-                  <i class="fa-solid fa-trash me-1"></i>입력한 참고 코드 모두 지우기
+                  <i class="fa-solid fa-trash me-1"></i>입력한 코드 모두 지우기
                 </button>
               </div>
             </div>
           </div>
 
           <div class="d-flex flex-wrap gap-2">
-            <button type="submit" class="btn btn-primary btn-lg">
+            <button type="submit" name="save_action" value="draft" class="btn btn-outline-secondary btn-lg">
+              <i class="fa-solid fa-floppy-disk me-2"></i>임시저장
+            </button>
+            <button type="submit" name="save_action" value="submit" class="btn btn-primary btn-lg">
               <i class="fa-solid fa-paper-plane me-2"></i>제출 및 분석
             </button>
             <a href="/abap-analysis" class="btn btn-outline-secondary btn-lg">취소</a>
@@ -133,10 +153,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/rfp_local_ref_code.js?v=20260420a"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  if (window.initRfpLocalRefCode) window.initRfpLocalRefCode();
-});
-</script>
+<script src="/static/js/rfp_local_ref_code.js?v=20260421a"></script>
+<script src="/static/js/rfp_form.js?v=20260421a"></script>
 {% endblock %}

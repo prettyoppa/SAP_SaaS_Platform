@@ -273,6 +273,29 @@ SAP_INTERVIEW_CREDIBILITY = """
 - RFP·이전 답이 충분하면 followup JSON에서 **round_complete: true** (억지로 3문항을 채우지 않는다. 한 라운드 최대 3문항).
 """
 
+_MEMBER_FACING_NO_STORAGE_NAMES = """
+[고객 서면 필수 — 일반 회원 RFP]
+생성하는 질문·제안서·요약 등 **고객에게 보이는 모든 문장**에
+'코드 라이브러리', '서버 라이브러리', '내부 코드 DB', 'Code Library' 등 **내부 코드 보관함을 특정하는 표현을 넣지 마라.**
+내부 패턴을 언급할 때는 '유사 구현 사례', '이전에 다룬 유사 흐름'처럼 중립적으로만 쓴다.
+"""
+
+
+def _lib_block_heading(member_safe_output: bool) -> str:
+    if member_safe_output:
+        return "[내부 유사 구현 사례 요약 — 모델 내부용; 고객 문서에 이 제목·저장소 명칭을 인용하지 마세요]"
+    return "[서버 코드 라이브러리 – 유사 프로그램 요약 (고객 PC 로컬 ABAP 코드와 별개, 패턴 파악용)]"
+
+
+def _member_abap_block(member_ref: str) -> str:
+    if not (member_ref or "").strip():
+        return ""
+    return f"""
+
+[회원이 본 요청에 제출한 ABAP 코드]
+{member_ref}
+"""
+
 
 def _parse_code_library_context(code_library_context: str) -> tuple[str, dict]:
     """JSON code_library_context → (analysis_summary, 전체 dict)."""
@@ -651,6 +674,7 @@ def generate_sequential_start(
     conversation: list[dict],
     round_num: int,
     code_library_context: str = "",
+    member_safe_output: bool = False,
 ) -> dict:
     """
     라운드의 첫 질문 1개 + (1라운드·라이브러리) 나머지 질문 풀.
@@ -670,7 +694,10 @@ def generate_sequential_start(
                     rfp_data, qs[0], round_num, 1
                 )
                 q_out, su_out = qs[0], su
-                out_src = ctx.get("source", "코드 라이브러리 기반")
+                out_src = ctx.get(
+                    "source",
+                    "내부 유사 사례 기반" if member_safe_output else "코드 라이브러리 기반",
+                )
                 if _interview_qa_enhance_enabled() and (q_out or "").strip():
                     try:
                         llm_lib = _get_llm()
@@ -711,16 +738,11 @@ def generate_sequential_start(
     if analysis_summary:
         lib_for_hannah = f"""
 
-[서버 코드 라이브러리 – 유사 프로그램 요약 (고객 PC 로컬 참고 코드와 별개, 패턴 참고용)]
+{_lib_block_heading(member_safe_output)}
 {analysis_summary}
 """
-    member_ref_block = ""
-    if member_ref:
-        member_ref_block = f"""
-
-[회원이 본 개발 요청에 제공한 참고 ABAP]
-{member_ref}
-"""
+    member_ref_block = _member_abap_block(member_ref)
+    _ms_rule = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
     analyze_task = Task(
         description=f"""아래 RFP와 지금까지의 인터뷰 내용을 분석하세요.
 
@@ -731,6 +753,7 @@ def generate_sequential_start(
 {conv_ctx}
 {lib_for_hannah}{member_ref_block}
 [현재 라운드: {round_num} / 전체: {MAX_ROUNDS}]
+{_ms_rule}
 
 다음 항목을 간결하게 분석하세요:
 1. 현재까지 파악된 핵심 요구사항 (2~3줄) — RFP·이전 답에 근거
@@ -739,7 +762,7 @@ def generate_sequential_start(
 
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
 {SAP_INTERVIEW_CREDIBILITY}
-※ 내부 유사 사례·회원 참고 ABAP이 있으면 RFP·인터뷰를 최우선으로, 라이브러리는 힌트일 뿐.""",
+※ 내부 유사 사례·회원 제출 ABAP 코드가 있으면 RFP·인터뷰를 최우선으로, 유사 사례는 힌트일 뿐.""",
         agent=f_analyst,
         expected_output="요구사항 현황 분석 결과 (텍스트)",
     )
@@ -747,11 +770,12 @@ def generate_sequential_start(
     question_task = Task(
         description=f"""Hannah의 분석을 바탕으로 {round_num}라운드 첫 인터뷰 질문 1개만 생성하세요.
 
-[내부 참고 자료]
+[내부 유사 사례·질문 후보]
 {_format_library_block_for_mia(code_library_context)}
 
-[회원이 본 요청에 제공한 참고 ABAP]
+[회원이 본 요청에 제출한 ABAP 코드]
 {mia_member}
+{_ms_rule}
 
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
 {SAP_INTERVIEW_CREDIBILITY}
@@ -814,6 +838,7 @@ def generate_sequential_followup(
     in_round_qa: list[tuple[str, str]],
     code_library_context: str = "",
     library_pool: Optional[list] = None,
+    member_safe_output: bool = False,
 ) -> dict:
     """
     이번 라운드: 조기 완료(round_complete) 또는 다음 질문 1개.
@@ -838,17 +863,23 @@ def generate_sequential_followup(
         lib_for = f"\n[유사 사례 요약]\n{analysis_summary[:2400]}\n"
     mref = ""
     if member_ref:
-        mref = f"\n[회원 참고 ABAP]\n{member_ref}\n"
+        mref = f"\n[회원이 본 요청에 제출한 ABAP 코드]\n{member_ref}\n"
     lib_block = _format_library_block_for_mia(code_library_context)
     lib_from_pool = ""
-    if library_pool:
-        lib_from_pool = (
+    pool_intro = (
+        "유사 사례에서 뽑은 질문 후보(필수 아님, RFP에 맞지 않으면 무시. "
+        "round_complete 로 이번 라운드를 먼저 끊어도 됨):\n"
+        if member_safe_output
+        else (
             "코드 라이브러리에서 뽑은 질문 후보(필수 아님, RFP에 맞지 않으면 무시. "
             "round_complete 로 이번 라운드를 먼저 끊어도 됨):\n"
-            + "\n".join(f"- {p[:400]}" for p in library_pool[:5])
         )
+    )
+    if library_pool:
+        lib_from_pool = pool_intro + "\n".join(f"- {p[:400]}" for p in library_pool[:5])
     else:
-        lib_from_pool = "(라이브러리 추가 후보 없음)"
+        lib_from_pool = "(추가 질문 후보 없음)"
+    _fol_ms = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
 
     anti_dup = f"""[이번 라운드·이미 오간 Q&A(반복 금지 — **답 내용**까지 읽을 것)]
 {done_brief}
@@ -876,6 +907,7 @@ RFP: {rfp_ctx}
 {lib_for}{mref}
 {lib_from_pool}
 {anti_dup}
+{_fol_ms}
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
 {SAP_INTERVIEW_CREDIBILITY}""",
         agent=f_analyst,
@@ -888,8 +920,9 @@ RFP: {rfp_ctx}
 {inr}
 
 {decision_help}
+{_fol_ms}
 
-[내부 질문/요약(참고, 그대로 복붙 금지)]
+[내부 질문·요약(형식만 활용, 그대로 복붙 금지)]
 {lib_block}
 
 {lib_from_pool}
@@ -993,13 +1026,18 @@ def generate_round_questions(
     conversation: list[dict],
     round_num: int,
     code_library_context: str = "",
+    member_safe_output: bool = False,
 ) -> dict:
     """
     (호환) 한 라운드의 첫 질문 1개 + 라이브러리 풀. 레거시 코드가 3문항을 기대할 경우
     generate_sequential_start 후 연속 호출로 채울 수 있습니다.
     """
     return generate_sequential_start(
-        rfp_data, conversation, round_num, code_library_context
+        rfp_data,
+        conversation,
+        round_num,
+        code_library_context,
+        member_safe_output=member_safe_output,
     )
 
 
@@ -1007,6 +1045,7 @@ def generate_proposal(
     rfp_data: dict,
     conversation: list[dict],
     code_library_context: str = "",
+    member_safe_output: bool = False,
 ) -> str:
     """
     전체 인터뷰 내용으로 Development Proposal을 생성합니다.
@@ -1022,16 +1061,11 @@ def generate_proposal(
     if analysis_summary:
         lib_for_hannah = f"""
 
-[서버 코드 라이브러리 – 유사 프로그램 요약 (Proposal 기술·화면 설계 참고; 고객 로컬 참고 코드 미포함)]
+{_lib_block_heading(member_safe_output)}
 {analysis_summary}
 """
-    member_ref_block = ""
-    if member_ref:
-        member_ref_block = f"""
-
-[회원이 본 개발 요청에 제공한 참고 ABAP]
-{member_ref}
-"""
+    member_ref_block = _member_abap_block(member_ref)
+    _prop_ms = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
 
     # Task 1: Hannah – 최종 요구사항 명세
     final_analysis = Task(
@@ -1042,6 +1076,7 @@ def generate_proposal(
 {lib_for_hannah}{member_ref_block}
 [전체 인터뷰 내용]
 {conv_ctx}
+{_prop_ms}
 
 다음 항목을 포함한 구조화된 분석 결과를 작성하세요:
 1. 프로그램 목적 및 배경
@@ -1051,7 +1086,7 @@ def generate_proposal(
 5. 특이사항 및 제약조건
 6. 복잡도 평가 (Low/Medium/High) 및 근거
 
-※ 내부 유사 사례 요약·회원 제공 참고 ABAP이 있으면 화면·기술 패턴을 참고하되, 고객 RFP·인터뷰를 최우선으로 반영하세요.""",
+※ 내부 유사 사례 요약·회원 제출 ABAP 코드가 있으면 화면·기술 패턴을 파악하는 데만 쓰고, 고객 RFP·인터뷰를 최우선으로 반영하세요.""",
         agent=f_analyst,
         expected_output="구조화된 최종 요구사항 명세 (텍스트)",
     )
@@ -1071,6 +1106,7 @@ def generate_proposal(
     write_task = Task(
         description=f"""Hannah의 요구사항 명세를 바탕으로 Development Proposal을 작성하세요.
 {customer_id_rule}
+{_prop_ms}
 
 아래 6개 섹션을 마크다운 형식으로 반드시 포함하세요:
 
@@ -1110,10 +1146,17 @@ def generate_proposal(
     )
 
     # Task 3: Sara – 검토 및 최종 승인
+    _rev_extra = (
+        "□ '코드 라이브러리', '서버 라이브러리', '내부 코드 DB' 등 저장소를 드러내는 문구가 있으면 중립적 표현으로 고친다\n"
+        if member_safe_output
+        else ""
+    )
     review_task = Task(
-        description="""Jun이 작성한 Development Proposal을 검토하세요.
+        description=f"""Jun이 작성한 Development Proposal을 검토하세요.
+{_prop_ms}
 
 체크리스트:
+{_rev_extra}
 □ 6개 필수 섹션 (개발 개요, 구현 기능, 화면 구성, 처리 흐름, 기술 사항, 확인 필요 사항) 모두 포함
 □ 프로그램명 (Z/Y로 시작) 포함
 □ 기대 효과가 비즈니스 언어로 구체적으로 기술

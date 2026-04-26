@@ -18,7 +18,7 @@
             <i class="fa-solid fa-arrow-left me-1"></i>연동 개발 안내로
           </a>
           <h2 class="rfp-title">SAP 연동 개발 요청</h2>
-          <p class="text-muted mb-0">구현 형태·SAP 접점·환경을 입력하고 필요 시 파일과 참고 코드를 첨부합니다.</p>
+          <p class="text-muted mb-0">구현 형태·SAP 접점·환경을 입력하고 필요 시 파일과 ABAP 코드를 첨부합니다.</p>
 
           <div class="rfp-progress mt-4">
             <div class="rfp-step active" id="int-prog-1">
@@ -38,7 +38,7 @@
             <div class="rfp-step-line"></div>
             <div class="rfp-step" id="int-prog-4">
               <div class="rfp-step-circle">4</div>
-              <div class="rfp-step-label">참고 코드</div>
+              <div class="rfp-step-label">ABAP 코드</div>
             </div>
             <div class="rfp-step-line"></div>
             <div class="rfp-step" id="int-prog-5">
@@ -63,7 +63,7 @@
         {% if error == 'reference_code_too_large' %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>참고 코드 정보가 허용 용량을 초과했습니다.</span>
+          <span>코드 정보가 허용 용량을 초과했습니다. (대략 JSON 6MB·UTF-8 기준)</span>
         </div>
         {% endif %}
         {% if error and error not in ['need_impl_types', 'too_many_attachments', 'reference_code_too_large'] %}
@@ -142,7 +142,7 @@
             <div class="rfp-section-header">
               <span class="rfp-section-num">03</span>
               <div>
-                <h4 class="mb-0">참고 파일 첨부</h4>
+                <h4 class="mb-0">첨부 파일</h4>
                 <small class="text-muted">명세, 샘플 Excel, 캡처 등 (PDF, Office, 이미지, TXT · 최대 5개)</small>
               </div>
             </div>
@@ -170,14 +170,14 @@
               </div>
             </div>
             <button class="btn btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#int-collapse-ref" aria-expanded="false">
-              <i class="fa-solid fa-code me-2"></i>참고 코드 입력란 펼치기 / 접기
+              <i class="fa-solid fa-code me-2"></i>ABAP 코드 입력란 펼치기 / 접기
             </button>
             <div class="collapse" id="int-collapse-ref">
               <div id="ref-code-slots-host">
                 {% for rs in [0, 1, 2] %}
                 <div class="ref-code-slot card mb-4 border" data-ref-slot="{{ rs }}" style="background:var(--surface2);border-color:var(--border)!important;">
                   <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <strong>참고 코드 {{ rs + 1 }}</strong>
+                    <strong>ABAP 코드 {{ rs + 1 }}</strong>
                     <div class="d-flex align-items-center gap-2">
                       <button type="button" class="btn btn-sm btn-outline-secondary js-ref-remove-last d-none" data-slot="{{ rs }}">이 항목 닫기</button>
                       <span class="badge bg-secondary small">본 요청 분석용</span>
@@ -268,7 +268,7 @@
                 <span class="review-value" id="int-review-files"><em class="text-muted">없음</em></span>
               </div>
               <div class="review-row">
-                <span class="review-label">참고 코드:</span>
+                <span class="review-label">ABAP 코드:</span>
                 <span class="review-value" id="int-review-ref"><em class="text-muted">없음</em></span>
               </div>
             </div>

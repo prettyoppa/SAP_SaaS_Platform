@@ -1,5 +1,5 @@
 /**
- * 신규 요청 – 참고 코드 정보 (본 RFP DB 행에 저장, 에이전트 전용. abap_codes 미사용)
+ * RFP·ABAP 분석 – ABAP 코드 정보 (로컬 JSON → RFP/분석 요청 행에 저장)
  */
 (function () {
   'use strict';
@@ -397,7 +397,7 @@
     var delAll = document.getElementById('ref-delete-all-btn');
     if (delAll) {
       delAll.addEventListener('click', function () {
-        if (!confirm('저장된 참고 코드를 모두 삭제할까요? 이 요청 분석·제안서에 더 이상 반영되지 않습니다.')) return;
+        if (!confirm('입력한 ABAP 코드를 모두 삭제할까요? 이 요청 분석·제안서에 더 이상 반영되지 않습니다.')) return;
         var id = rfpId();
         function wipeLocal() {
           visibleSlotCount = 1;

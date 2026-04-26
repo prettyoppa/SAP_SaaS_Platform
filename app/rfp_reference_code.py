@@ -1,15 +1,15 @@
 """
-RFP 참고 ABAP — 서버에 본 RFP 행에만 저장(코드 라이브러리 테이블 미사용), 에이전트 프롬프트용 서식.
+RFP ABAP 코드 — 본 RFP 행에만 저장(abap_codes 미사용), 에이전트 프롬프트용 서식.
 """
 from __future__ import annotations
 
 import json
 import re
 
-# 전체 JSON UTF-8 기준 상한 (대략 512KB)
-MAX_REFERENCE_CODE_BYTES = 512 * 1024
+# 전체 JSON UTF-8 기준 상한 (대용량 단일 프로그램 대응)
+MAX_REFERENCE_CODE_BYTES = 6 * 1024 * 1024
 # 슬롯당 ABAP 섹션 코드 최대 길이
-MAX_SECTION_CODE_CHARS = 120_000
+MAX_SECTION_CODE_CHARS = 500_000
 
 
 def normalize_reference_code_payload(raw: str | None) -> str | None:
@@ -164,7 +164,7 @@ def format_reference_code_for_llm(payload: str | None) -> str:
         if not _slot_nonempty(sl):
             continue
         shown += 1
-        block: list[str] = [f"=== 참고 ABAP #{shown} ==="]
+        block: list[str] = [f"=== ABAP 코드 #{shown} ==="]
         if (sl.get("program_id") or "").strip():
             block.append(f"프로그램 ID: {sl['program_id'].strip()}")
         if (sl.get("transaction_code") or "").strip():
@@ -197,7 +197,7 @@ def format_reference_code_for_llm(payload: str | None) -> str:
     if not parts:
         return ""
     intro = (
-        "아래는 회원이 본 개발 요청에 첨부한 참고 ABAP입니다. "
+        "아래는 회원이 본 개발 요청에 제출한 ABAP 코드입니다. "
         "요청 이해·개발 제안서 작성에만 활용하고, RFP·인터뷰 내용과 모순되면 RFP·인터뷰를 우선합니다.\n"
     )
     return intro + "\n\n".join(parts)
@@ -205,7 +205,7 @@ def format_reference_code_for_llm(payload: str | None) -> str:
 
 def abap_source_only_from_reference_payload(payload: str | None) -> str:
     """
-    참고 코드 JSON에서 ABAP 본문만 이어붙인다(에이전트·분석 입력용).
+    ABAP 코드 JSON에서 본문만 이어붙인다(에이전트·분석 입력용).
     슬롯 메타(프로그램 ID, 모듈 태그 등)는 제외.
     """
     if not payload or not str(payload).strip():

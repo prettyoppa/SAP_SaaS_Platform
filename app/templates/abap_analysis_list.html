@@ -12,8 +12,8 @@
             SAP ABAP 분석
           </h2>
           <p class="text-muted mb-0">
-            요구사항과 참고 ABAP를 제출하면 구조 분석과 요구사항 연계 해석을 제공합니다.
-            <span class="d-block small mt-1">코드 라이브러리 공개 목록과는 별도로 저장되며, 본인 요청만 조회됩니다. 관리자는 전체를 볼 수 있습니다.</span>
+            요구사항과 ABAP 코드를 제출하면 구조 분석과 요구사항 연계 해석을 제공합니다.
+            <span class="d-block small mt-1">본인이 제출한 요청만 조회됩니다. 관리자는 전체를 볼 수 있습니다.</span>
           </p>
         </div>
         <div class="col-auto">
@@ -28,19 +28,21 @@
     <div class="row g-3">
       {% for row in rows %}
       <div class="col-12">
-        <a href="/abap-analysis/{{ row.id }}" class="text-decoration-none text-reset">
+        <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-decoration-none text-reset">
           <div class="rfp-list-card">
             <div class="rfp-list-left">
-              <div class="rfp-list-status {% if row.is_analyzed %}status-completed{% else %}status-submitted{% endif %}">
-                <i class="fa-solid {% if row.is_analyzed %}fa-circle-check{% else %}fa-clock{% endif %}"></i>
+              <div class="rfp-list-status {% if row.is_draft %}status-draft{% elif row.is_analyzed %}status-completed{% else %}status-submitted{% endif %}">
+                <i class="fa-solid {% if row.is_draft %}fa-floppy-disk{% elif row.is_analyzed %}fa-circle-check{% else %}fa-clock{% endif %}"></i>
               </div>
               <div class="rfp-list-body">
                 <div class="rfp-list-title">
                   #{{ row.id }}
-                  {% if row.is_analyzed %}
+                  {% if row.is_draft %}
+                  <span class="badge bg-secondary ms-2">임시저장</span>
+                  {% elif row.is_analyzed %}
                   <span class="badge bg-success ms-2">분석 완료</span>
                   {% else %}
-                  <span class="badge bg-secondary ms-2">분석 오류/미완료</span>
+                  <span class="badge bg-warning text-dark ms-2">분석 오류/미완료</span>
                   {% endif %}
                 </div>
                 <div class="rfp-list-meta small text-muted">

@@ -184,10 +184,10 @@
               <div class="text-muted small">
                 {{ current_round }}라운드
                 — 이 라운드 질문 {{ interview_step_index|default(1) }} / 최대 {{ interview_max_questions|default(3) }}
-                {% if user.is_admin and question_source and '코드 라이브러리' in question_source %}
+                {% if user.is_admin and question_source and ('유사 사례' in question_source or '내부 유사' in question_source or '코드 라이브러리' in question_source) %}
                 &nbsp;·&nbsp;
                 <span style="color:#4ade80">
-                  <i class="fa-solid fa-database me-1"></i>참고
+                  <i class="fa-solid fa-database me-1"></i>유사 사례 연계
                 </span>
                 {% endif %}
               </div>

@@ -397,7 +397,7 @@
     var delAll = document.getElementById('ref-delete-all-btn');
     if (delAll) {
       delAll.addEventListener('click', function () {
-        if (!confirm('저장된 참고 코드를 모두 삭제할까요? 이 요청 분석·제안서에 더 이상 반영되지 않습니다.')) return;
+        if (!confirm('입력한 ABAP 코드를 모두 삭제할까요? 이 요청 분석·제안서에 더 이상 반영되지 않습니다.')) return;
         var id = requestId();
         function wipeLocal() {
           visibleSlotCount = 1;

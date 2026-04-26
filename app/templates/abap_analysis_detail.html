@@ -31,18 +31,26 @@
             </div>
 
             <div class="d-flex gap-2 flex-wrap">
+              {% if row.is_draft %}
+              <a href="/abap-analysis/{{ row.id }}/edit" class="btn btn-outline-primary btn-sm">
+                <i class="fa-solid fa-pen me-1"></i>계속 작성
+              </a>
+              {% else %}
               <form method="post" action="/abap-analysis/{{ row.id }}/reanalyze" style="display:inline">
                 <button type="submit" class="btn btn-outline-primary btn-sm">
                   <i class="fa-solid fa-rotate me-1"></i>재분석
                 </button>
               </form>
+              {% endif %}
               <form method="post" action="/abap-analysis/{{ row.id }}/delete" style="display:inline"
                     onsubmit="return confirm('이 분석 요청을 삭제할까요? 첨부 파일과 분석 결과가 함께 삭제되며 되돌릴 수 없습니다.')">
                 <button type="submit" class="btn btn-outline-danger btn-sm">
                   <i class="fa-solid fa-trash me-1"></i>삭제
                 </button>
               </form>
-              {% if row.is_analyzed %}
+              {% if row.is_draft %}
+              <span class="rfp-status-badge ms-2" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
+              {% elif row.is_analyzed %}
               <span class="rfp-status-badge status-badge-completed ms-2">분석 완료</span>
               {% else %}
               <span class="rfp-status-badge status-badge-submitted ms-2">분석 오류/미완료</span>
@@ -74,13 +82,20 @@
         </div>
         {% endif %}
 
-        {% if analysis and analysis.get('error') %}
+        {% if row.is_draft %}
+        <div class="alert alert-info mb-4">
+          <i class="fa-solid fa-floppy-disk me-2"></i>
+          임시저장된 요청입니다. 제출 및 분석을 완료하려면 <a href="/abap-analysis/{{ row.id }}/edit">계속 작성</a>에서 <strong>제출 및 분석</strong>을 누르세요.
+        </div>
+        {% endif %}
+
+        {% if not row.is_draft and analysis and analysis.get('error') %}
         <div class="alert alert-danger mb-4">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           분석 오류: {{ analysis.error }}
           <div class="mt-2 small">재분석 버튼으로 다시 시도해 주세요.</div>
         </div>
-        {% elif analysis %}
+        {% elif not row.is_draft and analysis %}
         <div class="proposal-card mb-4">
           <div class="proposal-body">
             <h4 style="border-left:3px solid var(--primary);padding-left:.75rem;margin-top:0;margin-bottom:1.25rem">
@@ -160,7 +175,7 @@
 
             {% if analysis.get('questions') %}
             <details class="analysis-fold mb-0 mt-3">
-              <summary class="analysis-fold-summary"><i class="fa-solid fa-comments me-2 text-info"></i>추가 확인 질문 (참고)</summary>
+              <summary class="analysis-fold-summary"><i class="fa-solid fa-comments me-2 text-info"></i>추가 확인 질문</summary>
               <div class="analysis-fold-body">
                 <ul class="analysis-list mb-0">{% for q in analysis.questions %}<li>{{ q }}</li>{% endfor %}</ul>
               </div>
@@ -224,8 +239,8 @@
         <details class="interview-summary-toggle codelib-source-details mb-5">
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <i class="fa-solid fa-code me-1"></i>
-            <span>분석에 사용된 ABAP 본문 (참고 코드에서 추출)</span>
-            <span class="small text-muted">({{ row.source_code.splitlines()|length }}줄)</span>
+            <span>분석에 사용된 ABAP 본문 (제출 코드에서 추출)</span>
+            <span class="small text-muted">({{ (row.source_code or '').splitlines()|length }}줄)</span>
           </summary>
           <div class="interview-summary-body p-0">
             <pre class="mb-0 p-3 small" style="max-height:28rem;overflow:auto;background:var(--surface2);border-top:1px solid var(--border);"><code>{{ row.source_code }}</code></pre>

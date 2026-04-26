@@ -89,10 +89,18 @@ function renderAttachmentRows(input, maxFiles, notePreset) {
     iconWrap.className = 'flex-shrink-0';
     iconWrap.innerHTML = '<i class="fa-solid fa-file text-muted"></i>';
 
-    const nameEl = document.createElement('div');
-    nameEl.className = 'flex-grow-1 text-break small fw-medium';
+    const nameEl = document.createElement('a');
+    nameEl.href = '#';
+    nameEl.className = 'flex-grow-1 text-break small fw-medium rfp-att-open';
     nameEl.textContent = file.name;
-    nameEl.title = file.name;
+    nameEl.title = file.name + ' (클릭하여 미리 보기)';
+    nameEl.addEventListener('click', ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const url = URL.createObjectURL(file);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 180000);
+    });
 
     const rm = document.createElement('button');
     rm.type = 'button';
@@ -150,6 +158,7 @@ function initAttachmentDropZone() {
 
   dz.addEventListener('click', e => {
     if (e.target.closest('.rfp-att-remove')) return;
+    if (e.target.closest('.rfp-att-open')) return;
     if (e.target.closest('input[name^="note_"]')) return;
     e.preventDefault();
     input.click();

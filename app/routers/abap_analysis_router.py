@@ -1,5 +1,5 @@
 """
-SAP ABAP 분석 요청 — 코드 라이브러리(abap_codes)와 별도 테이블(abap_analysis_requests).
+SAP ABAP 분석 요청 — abap_codes와 별도 테이블(abap_analysis_requests).
 로그인 회원: 본인 건만. 관리자: 전체.
 """
 
@@ -38,6 +38,17 @@ def _ref_initial_from_raw(reference_code_json: str) -> Optional[dict]:
         return None
     try:
         data = json.loads(reference_code_json)
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _ref_initial_from_row(row: models.AbapAnalysisRequest) -> Optional[dict]:
+    p = getattr(row, "reference_code_payload", None)
+    if not p or not str(p).strip():
+        return None
+    try:
+        data = json.loads(p)
         return data if isinstance(data, dict) else None
     except Exception:
         return None
@@ -86,6 +97,10 @@ def _set_attachments(row: models.AbapAnalysisRequest, entries: list[dict]) -> No
     row.attachments_json = json.dumps(entries, ensure_ascii=False)
 
 
+def _notes_from_entries(entries: list[dict]) -> list[str]:
+    return [(e.get("note") or "")[:200] for e in entries] + [""] * 5
+
+
 def _run_analysis(requirement_text: str, source_code: str) -> dict:
     from ..agents.free_crew import analyze_code_for_library, augment_abap_analysis_with_requirement
 
@@ -104,6 +119,35 @@ def _run_analysis(requirement_text: str, source_code: str) -> dict:
         else:
             out["requirement_analysis"] = {k: v for k, v in aug.items() if k != "error"}
     return out
+
+
+def _form_template_response(
+    request: Request,
+    user: models.User,
+    *,
+    error: Optional[str],
+    form_requirement: str,
+    ref_code_initial: Optional[dict],
+    edit_row: Optional[models.AbapAnalysisRequest] = None,
+    attachment_entries: Optional[list[dict]] = None,
+    notes_prefill: Optional[list[str]] = None,
+    status_code: int = 200,
+):
+    return templates.TemplateResponse(
+        request,
+        "abap_analysis_form.html",
+        {
+            "request": request,
+            "user": user,
+            "error": error,
+            "form_requirement": form_requirement,
+            "ref_code_initial": ref_code_initial,
+            "edit_row": edit_row,
+            "attachment_entries": attachment_entries or [],
+            "notes_prefill": notes_prefill,
+        },
+        status_code=status_code,
+    )
 
 
 @router.get("", response_class=HTMLResponse)
@@ -126,16 +170,13 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
 @router.get("/new", response_class=HTMLResponse)
 def abap_analysis_new_form(request: Request, db: Session = Depends(get_db)):
     user = _require_user(request, db)
-    return templates.TemplateResponse(
+    return _form_template_response(
         request,
-        "abap_analysis_form.html",
-        {
-            "request": request,
-            "user": user,
-            "error": None,
-            "form_requirement": "",
-            "ref_code_initial": None,
-        },
+        user,
+        error=None,
+        form_requirement="",
+        ref_code_initial=None,
+        notes_prefill=None,
     )
 
 
@@ -150,52 +191,66 @@ async def abap_analysis_create(
     note_2: str = Form(""),
     note_3: str = Form(""),
     note_4: str = Form(""),
+    save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
-    req_clean = (requirement_text or "").strip()
+    req_raw = requirement_text or ""
+    req_clean = req_raw.strip()
     notes_in = [note_0, note_1, note_2, note_3, note_4]
-
     ref_initial = _ref_initial_from_raw(reference_code_json)
+    is_draft_save = (save_action or "").strip().lower() == "draft"
 
-    def _form_response(err: str, ref_init=None):
-        return templates.TemplateResponse(
+    def _bad(err: str, ref_init=None):
+        return _form_template_response(
             request,
-            "abap_analysis_form.html",
-            {
-                "request": request,
-                "user": user,
-                "error": err,
-                "form_requirement": requirement_text or "",
-                "ref_code_initial": ref_init if ref_init is not None else ref_initial,
-            },
+            user,
+            error=err,
+            form_requirement=req_raw,
+            ref_code_initial=ref_init if ref_init is not None else ref_initial,
             status_code=400,
         )
-
-    if len(req_clean) < MIN_REQUIREMENT_LEN:
-        return _form_response("need_requirement")
 
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
-        return _form_response("reference_code_too_large", ref_init=ref_initial)
-
-    if not norm_ref:
-        return _form_response("need_reference_code")
-
-    src = abap_source_only_from_reference_payload(norm_ref).strip()
-    if len(src) < MIN_ABAP_SOURCE_LEN:
-        return _form_response("code_too_short")
+        return _bad("reference_code_too_large", ref_init=ref_initial)
 
     n_uploads = sum(1 for f in attachments if f.filename)
-    if n_uploads < 1:
-        return _form_response("need_attachments")
     if n_uploads > MAX_RFP_ATTACHMENTS:
-        return _form_response("too_many_attachments")
+        return _bad("too_many_attachments")
 
-    att_entries, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
-    if err_a:
-        return _form_response(err_a)
+    att_entries: list[dict] = []
+    if n_uploads > 0:
+        att_entries, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
+        if err_a:
+            return _bad(err_a)
+    src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
+
+    if is_draft_save:
+        row = models.AbapAnalysisRequest(
+            user_id=user.id,
+            requirement_text=req_clean,
+            reference_code_payload=norm_ref,
+            source_code=src,
+            analysis_json=None,
+            is_analyzed=False,
+            is_draft=True,
+        )
+        _set_attachments(row, att_entries)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
+
+    if len(req_clean) < MIN_REQUIREMENT_LEN:
+        return _bad("need_requirement")
+    if not norm_ref:
+        return _bad("need_reference_code")
+    if len(src) < MIN_ABAP_SOURCE_LEN:
+        return _bad("code_too_short")
+    if len(att_entries) < 1:
+        return _bad("need_attachments")
 
     analysis = _run_analysis(req_clean, src)
     analyzed = not bool(analysis.get("error"))
@@ -207,11 +262,126 @@ async def abap_analysis_create(
         source_code=src,
         analysis_json=json.dumps(analysis, ensure_ascii=False),
         is_analyzed=analyzed,
+        is_draft=False,
     )
-    _set_attachments(row, att_entries or [])
+    _set_attachments(row, att_entries)
     db.add(row)
     db.commit()
     db.refresh(row)
+    return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
+
+
+@router.get("/{req_id}/edit", response_class=HTMLResponse)
+def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user(request, db)
+    row = _get_request_for_user(db, user, req_id)
+    if not row or not row.is_draft:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    notes = _notes_from_entries(_attachment_entries(row))[:5]
+    return _form_template_response(
+        request,
+        user,
+        error=None,
+        form_requirement=row.requirement_text or "",
+        ref_code_initial=_ref_initial_from_row(row),
+        edit_row=row,
+        attachment_entries=_attachment_entries(row),
+        notes_prefill=notes,
+    )
+
+
+@router.post("/{req_id}/edit")
+async def abap_analysis_edit_save(
+    req_id: int,
+    request: Request,
+    requirement_text: str = Form(""),
+    reference_code_json: str = Form(""),
+    attachments: List[UploadFile] = File(default=[]),
+    note_0: str = Form(""),
+    note_1: str = Form(""),
+    note_2: str = Form(""),
+    note_3: str = Form(""),
+    note_4: str = Form(""),
+    save_action: str = Form("submit"),
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _get_request_for_user(db, user, req_id)
+    if not row or not row.is_draft:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+
+    req_raw = requirement_text or ""
+    req_clean = req_raw.strip()
+    notes_in = [note_0, note_1, note_2, note_3, note_4]
+    ref_initial = _ref_initial_from_raw(reference_code_json)
+    is_draft_save = (save_action or "").strip().lower() == "draft"
+    existing_att = _attachment_entries(row)
+
+    def _bad(err: str, ref_init=None):
+        return _form_template_response(
+            request,
+            user,
+            error=err,
+            form_requirement=req_raw,
+            ref_code_initial=ref_init if ref_init is not None else ref_initial,
+            edit_row=row,
+            attachment_entries=existing_att,
+            notes_prefill=notes_in,
+            status_code=400,
+        )
+
+    try:
+        norm_ref = normalize_reference_code_payload(reference_code_json)
+    except ValueError:
+        return _bad("reference_code_too_large", ref_init=ref_initial)
+
+    n_uploads = sum(1 for f in attachments if f.filename)
+    if n_uploads > MAX_RFP_ATTACHMENTS:
+        return _bad("too_many_attachments")
+
+    merged_att = list(existing_att)
+    if n_uploads > 0:
+        new_e, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
+        if err_a:
+            return _bad(err_a)
+        merged_att = merged_att + (new_e or [])
+        if len(merged_att) > MAX_RFP_ATTACHMENTS:
+            return _bad("too_many_attachments")
+
+    src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
+
+    if is_draft_save:
+        row.requirement_text = req_clean
+        row.reference_code_payload = norm_ref
+        row.source_code = src
+        row.is_draft = True
+        row.is_analyzed = False
+        row.analysis_json = None
+        _set_attachments(row, merged_att)
+        db.add(row)
+        db.commit()
+        return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
+
+    if len(req_clean) < MIN_REQUIREMENT_LEN:
+        return _bad("need_requirement")
+    if not norm_ref:
+        return _bad("need_reference_code")
+    if len(src) < MIN_ABAP_SOURCE_LEN:
+        return _bad("code_too_short")
+    if len(merged_att) < 1:
+        return _bad("need_attachments")
+
+    analysis = _run_analysis(req_clean, src)
+    analyzed = not bool(analysis.get("error"))
+    row.requirement_text = req_clean
+    row.reference_code_payload = norm_ref
+    row.source_code = src
+    row.analysis_json = json.dumps(analysis, ensure_ascii=False)
+    row.is_analyzed = analyzed
+    row.is_draft = False
+    _set_attachments(row, merged_att)
+    db.add(row)
+    db.commit()
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
 
 
@@ -280,6 +450,8 @@ def abap_analysis_reanalyze(req_id: int, request: Request, db: Session = Depends
     row = _get_request_for_user(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
+    if row.is_draft:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     analysis = _run_analysis(row.requirement_text or "", row.source_code or "")
     analyzed = not bool(analysis.get("error"))
     row.analysis_json = json.dumps(analysis, ensure_ascii=False)

@@ -15,11 +15,19 @@ from ..agent_display import wrap_unbracketed_agent_names
 router = APIRouter()
 
 
+def _member_safe_for_rfp(db: Session, rfp: Optional[models.RFP]) -> bool:
+    """일반 회원이 소유한 RFP이면 True — 에이전트 산출물에서 저장소 명칭 제거."""
+    if not rfp or not rfp.user_id:
+        return True
+    owner = db.query(models.User).filter(models.User.id == rfp.user_id).first()
+    return not (owner and owner.is_admin)
+
+
 def _interview_trust_panel(db: Session, rfp: models.RFP) -> dict:
     """코드 라이브러리 매칭 여부 등 인터뷰 신뢰 UI용."""
     modules = [x.strip() for x in (rfp.sap_modules or "").split(",") if x.strip()]
     dev_types = [x.strip() for x in (rfp.dev_types or "").split(",") if x.strip()]
-    ctx_raw = get_code_library_context(db, modules, dev_types)
+    ctx_raw = get_code_library_context(db, modules, dev_types, member_safe_output=False)
     out = {"library_matched": False, "library_line": ""}
     if ctx_raw:
         try:
@@ -28,7 +36,7 @@ def _interview_trust_panel(db: Session, rfp: models.RFP) -> dict:
             has_summary = bool((cj.get("analysis_summary") or "").strip())
             out["library_matched"] = len(qs) > 0 or has_summary
             out["library_line"] = cj.get("source", "") or (
-                "코드 라이브러리 유사 프로그램 요약" if has_summary else ""
+                "유사 프로그램 분석 요약" if has_summary else ""
             )
         except Exception:
             pass
@@ -279,7 +287,7 @@ def _cap_suggestions(xs) -> list:
     return out
 
 
-def _run_proposal_background(rfp_id: int, rfp_dict: dict, conv: list[dict]):
+def _run_proposal_background(rfp_id: int):
     """BackgroundTask: 에이전트 Crew를 실행하여 Proposal을 생성하고 DB에 저장합니다."""
     from ..database import SessionLocal
     db = SessionLocal()
@@ -290,12 +298,19 @@ def _run_proposal_background(rfp_id: int, rfp_dict: dict, conv: list[dict]):
         try:
             rfp_dict = _rfp_to_dict(rfp)
             conv = _conversation_list_for_llm(rfp)
+            ms = _member_safe_for_rfp(db, rfp)
             code_ctx = get_code_library_context(
                 db,
                 rfp_dict.get("sap_modules", []),
                 rfp_dict.get("dev_types", []),
+                member_safe_output=ms,
             )
-            proposal = _fc().generate_proposal(rfp_dict, conv, code_library_context=code_ctx)
+            proposal = _fc().generate_proposal(
+                rfp_dict,
+                conv,
+                code_library_context=code_ctx,
+                member_safe_output=ms,
+            )
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
         rfp.proposal_text = proposal
@@ -408,16 +423,18 @@ def interview_page(rfp_id: int, request: Request,
     if next_round > _fc().MAX_ROUNDS or (answered and len(answered) >= _fc().MAX_ROUNDS):
         rfp.interview_status = "generating_proposal"
         db.commit()
-        background_tasks.add_task(_run_proposal_background, rfp.id, rfp_dict, _conversation_list_for_llm(rfp))
+        background_tasks.add_task(_run_proposal_background, rfp.id)
         return templates.TemplateResponse(request, "proposal_generating.html", {
             "request": request, "user": user, "rfp": rfp,
         })
 
     # 다음 라운드 질문 생성 (에이전트 호출)
+    _ms = _member_safe_for_rfp(db, rfp)
     code_ctx = get_code_library_context(
         db,
         rfp_dict.get("sap_modules", []),
         rfp_dict.get("dev_types", []),
+        member_safe_output=_ms,
     )
     try:
         result = _fc().generate_sequential_start(
@@ -425,6 +442,7 @@ def interview_page(rfp_id: int, request: Request,
             conversation=conv,
             round_num=next_round,
             code_library_context=code_ctx,
+            member_safe_output=_ms,
         )
     except RuntimeError as e:
         return templates.TemplateResponse(request, "interview.html", {
@@ -520,7 +538,7 @@ def request_proposal_now(
     rfp_dict = _rfp_to_dict(rfp)
     rfp.interview_status = "generating_proposal"
     db.commit()
-    background_tasks.add_task(_run_proposal_background, rfp.id, rfp_dict, [])
+    background_tasks.add_task(_run_proposal_background, rfp.id)
     return RedirectResponse(url=f"/rfp/{rfp_id}/proposal/generating", status_code=302)
 
 
@@ -644,8 +662,12 @@ def interview_answer_step(
     answers_so = answers_so + [ans]
     rfp_dict = _rfp_to_dict(rfp)
     conv = _messages_to_list([m for m in rfp.messages if m.is_answered])
+    _ms_ans = _member_safe_for_rfp(db, rfp)
     code_ctx = get_code_library_context(
-        db, rfp_dict.get("sap_modules", []), rfp_dict.get("dev_types", [])
+        db,
+        rfp_dict.get("sap_modules", []),
+        rfp_dict.get("dev_types", []),
+        member_safe_output=_ms_ans,
     )
     in_round: list = list(
         zip(
@@ -675,6 +697,7 @@ def interview_answer_step(
         in_round_qa=in_round,
         code_library_context=code_ctx,
         library_pool=lib_pool,
+        member_safe_output=_ms_ans,
     )
     if bool(fol.get("round_complete")):
         _finalize_message_row()
@@ -687,8 +710,12 @@ def interview_answer_step(
 
     all_q = all_q + [nq]
     lib_pool = list(fol.get("library_pool") or [])
-    if msg.source_label and "코드 라이브러리" in (msg.source_label or "") and fol.get("source"):
-        msg.source_label = fol.get("source", msg.source_label)
+    if msg.source_label and fol.get("source"):
+        if (
+            "코드 라이브러리" in (msg.source_label or "")
+            or "내부 유사" in (msg.source_label or "")
+        ):
+            msg.source_label = fol.get("source", msg.source_label)
     msg.questions_json = json.dumps(all_q, ensure_ascii=False)
     intra["answers_so_far"] = answers_so
     intra["library_pool"] = lib_pool
@@ -797,7 +824,7 @@ def regenerate_proposal(
     rfp.interview_status = "generating_proposal"
     rfp.proposal_text = None
     db.commit()
-    background_tasks.add_task(_run_proposal_background, rfp.id, rfp_dict, conv)
+    background_tasks.add_task(_run_proposal_background, rfp.id)
     return RedirectResponse(url=f"/rfp/{rfp_id}/proposal/generating", status_code=302)
 
 

@@ -266,19 +266,31 @@ def extract_questions_from_codes(similar_codes: list) -> list[str]:
     return merged[:5]  # 최대 5개
 
 
-def format_similar_codes_analysis_summary(similar_codes: list, max_total: int = 4500) -> str:
+def format_similar_codes_analysis_summary(
+    similar_codes: list,
+    max_total: int = 4500,
+    *,
+    for_member_output: bool = False,
+) -> str:
     """
-    DB 코드 라이브러리의 유사 항목을 Hannah / Proposal 프롬프트용 요약 문자열로 만듭니다.
-    (고객이 RFP 폼에 로컬 저장한 참고 ABAP은 서버로 오지 않으므로 여기 포함되지 않습니다.)
+    유사 ABAP 분석 사례를 Hannah / Proposal 프롬프트용 요약 문자열로 만듭니다.
+    for_member_output=True 이면 저장소 명칭을 쓰지 않는 서술(고객 산출물 유출 완화).
     """
     if not similar_codes:
         return ""
 
-    intro = (
-        "아래는 서버 코드 라이브러리에서 본 요청의 SAP 모듈·개발 유형과 겹치는 "
-        "분석 완료 사례입니다. 고객 브라우저에만 있는 참고 소스와는 별개이며, "
-        "인터뷰·제안서 작성 시 유사 패턴 참고용으로만 활용하세요.\n"
-    )
+    if for_member_output:
+        intro = (
+            "아래는 본 요청의 SAP 모듈·개발 유형과 겹치는 내부 분석 사례입니다. "
+            "고객이 요청에 제출한 ABAP 코드와는 별개입니다. "
+            "유사 패턴만 파악하는 용도이며, **최종 질문·제안서에는 저장소·라이브러리를 드러내는 표현을 쓰지 마세요.**\n"
+        )
+    else:
+        intro = (
+            "아래는 관리용 코드 목록에서 본 요청의 SAP 모듈·개발 유형과 겹치는 "
+            "분석 완료 사례입니다. 고객이 요청에 제출한 ABAP 코드와는 별개이며, "
+            "인터뷰·제안서 작성 시 유사 패턴 파악용으로만 활용하세요.\n"
+        )
 
     parts: list[str] = []
     total = len(intro)

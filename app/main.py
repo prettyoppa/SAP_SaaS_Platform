@@ -43,6 +43,7 @@ def _run_migrations():
         ("rfps", "reference_code_payload", "TEXT", "TEXT"),
         ("users", "email_verified", "BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT true"),
         ("rfp_messages", "intra_state_json", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "is_draft", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

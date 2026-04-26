@@ -120,7 +120,7 @@ def generate_questions(rfp_data: dict, conversation: list[dict], db_session=None
                     "questions": questions,
                     "is_complete": False,
                     "completion_reason": "",
-                    "source": f"코드 라이브러리 기반 ({matched_titles})",
+                    "source": f"내부 유사 사례 기반 ({matched_titles})",
                 }
 
     model = _get_model()

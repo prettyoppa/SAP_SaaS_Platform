@@ -69,7 +69,7 @@
 
     {% if ref_parsed and ref_parsed.slots %}
     <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">참고 코드 요약</h5>
+      <h5 class="small text-uppercase text-muted">ABAP 코드 요약</h5>
       {% for slot in ref_parsed.slots %}
       {% if slot.program_id or slot.title or (slot.sections and slot.sections|length) %}
       <div class="border rounded p-3 mb-2" style="background:var(--surface2);border-color:var(--border)!important;">
