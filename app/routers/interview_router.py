@@ -78,6 +78,53 @@ def _messages_to_list(messages) -> list[dict]:
     return result
 
 
+def _conversation_list_for_llm(rfp: models.RFP) -> list[dict]:
+    """답이 완료된 라운드 + 순차 v2 **진행 중** 라운드(일부 답)까지 Proposal·LLM용으로 합친다."""
+    out: list[dict] = []
+    for m in sorted(rfp.messages, key=lambda x: (x.round_number, x.id)):
+        if m.is_answered:
+            out.extend(_messages_to_list([m]))
+            continue
+        if not _is_sequential_v2(m):
+            continue
+        intra = _parse_intra(m) or {}
+        ans = intra.get("answers_so_far", [])
+        if not isinstance(ans, list) or not ans:
+            continue
+        try:
+            all_q = json.loads(m.questions_json)
+        except Exception:
+            all_q = []
+        if not isinstance(all_q, list) or not all_q:
+            continue
+        n = min(len(all_q), len(ans))
+        if n < 1:
+            continue
+        atext = _format_round_answers(all_q[:n], ans[:n])
+        out.append({
+            "id": m.id,
+            "round_number": m.round_number,
+            "questions": all_q[:n],
+            "answers_text": "[이 라운드: 일부 답만 제출·제안서용으로 포함]\n" + atext,
+            "is_answered": False,
+        })
+    return out
+
+
+def _interview_has_substance(rfp: models.RFP) -> bool:
+    """완료된 답 또는 순차 v2에 저장된 답 1개 이상이 있으면 True."""
+    for m in rfp.messages:
+        if m.is_answered and (m.answers_text or "").strip():
+            return True
+        if not _is_sequential_v2(m):
+            continue
+        intra = _parse_intra(m) or {}
+        a = intra.get("answers_so_far", [])
+        if isinstance(a, list) and len(a) > 0:
+            return True
+    return False
+
+
 def _parse_intra(msg: models.RFPMessage) -> Optional[dict]:
     raw = getattr(msg, "intra_state_json", None)
     if not raw:
@@ -242,7 +289,7 @@ def _run_proposal_background(rfp_id: int, rfp_dict: dict, conv: list[dict]):
             return
         try:
             rfp_dict = _rfp_to_dict(rfp)
-            conv = _messages_to_list(rfp.messages)
+            conv = _conversation_list_for_llm(rfp)
             code_ctx = get_code_library_context(
                 db,
                 rfp_dict.get("sap_modules", []),
@@ -279,6 +326,7 @@ def interview_page(rfp_id: int, request: Request,
 
     # 내부 동작·라이브러리 기준은 관리자 검증용으로만 HTML에 실음(일반회원에겐 비노출)
     trust = _interview_trust_panel(db, rfp) if user.is_admin else None
+    can_request_proposal = _interview_has_substance(rfp) and (rfp.interview_status or "") == "in_progress"
 
     # Proposal 생성 완료 → 바로 proposal 페이지
     if rfp.interview_status == "completed" and rfp.proposal_text:
@@ -348,18 +396,19 @@ def interview_page(rfp_id: int, request: Request,
             "question_source": current_msg.source_label or "AI 에이전트 생성",
             "error": err_extra,
             "interview_trust": trust,
+            "can_request_proposal": can_request_proposal,
             **ctx_extra,
         })
 
     # 모든 라운드 완료 → Proposal 생성 시작
     rfp_dict = _rfp_to_dict(rfp)
-    conv = _messages_to_list(rfp.messages)
+    conv = _messages_to_list([m for m in rfp.messages if m.is_answered])
     next_round = len(rfp.messages) + 1
 
     if next_round > _fc().MAX_ROUNDS or (answered and len(answered) >= _fc().MAX_ROUNDS):
         rfp.interview_status = "generating_proposal"
         db.commit()
-        background_tasks.add_task(_run_proposal_background, rfp.id, rfp_dict, conv)
+        background_tasks.add_task(_run_proposal_background, rfp.id, rfp_dict, _conversation_list_for_llm(rfp))
         return templates.TemplateResponse(request, "proposal_generating.html", {
             "request": request, "user": user, "rfp": rfp,
         })
@@ -387,6 +436,7 @@ def interview_page(rfp_id: int, request: Request,
             "max_rounds": _fc().MAX_ROUNDS,
             "error": str(e),
             "interview_trust": trust,
+            "can_request_proposal": can_request_proposal,
             "question_source": "",
             "interview_sequential": True,
             "interview_legacy_batch": False,
@@ -397,6 +447,7 @@ def interview_page(rfp_id: int, request: Request,
             "interview_draft_wip": "",
             "interview_draft_payload": {"v": 1, "like": [], "dislike": [], "free": ""},
             "answer_suggestions": [],
+            "can_request_proposal": can_request_proposal,
         })
 
     intra_new = {
@@ -431,6 +482,7 @@ def interview_page(rfp_id: int, request: Request,
         "question_source": result.get("source", "AI 에이전트 생성"),
         "error": None,
         "interview_trust": trust,
+        "can_request_proposal": can_request_proposal,
         "interview_sequential": True,
         "interview_legacy_batch": False,
         "current_question": cq[0] if cq else None,
@@ -441,6 +493,35 @@ def interview_page(rfp_id: int, request: Request,
         "interview_draft_payload": _draft_wip_as_dict(intra_r.get("draft_wip", "") or ""),
         "answer_suggestions": intra_r.get("current_suggestions") or [],
     })
+
+
+@router.post("/rfp/{rfp_id}/interview/request-proposal-now")
+def request_proposal_now(
+    rfp_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """인터뷰를 끝까지 가지 않고, 지금까지의 답(진행 중 라운드·일부 답 포함)으로 제안서 생성."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = db.query(models.RFP).filter(
+        models.RFP.id == rfp_id, models.RFP.user_id == user.id
+    ).first()
+    if not rfp:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    if rfp.interview_status == "generating_proposal":
+        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal/generating", status_code=302)
+    if rfp.interview_status == "completed" and rfp.proposal_text:
+        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
+    if not _interview_has_substance(rfp):
+        return RedirectResponse(url=f"/rfp/{rfp_id}/interview?err=proposal", status_code=302)
+    rfp_dict = _rfp_to_dict(rfp)
+    rfp.interview_status = "generating_proposal"
+    db.commit()
+    background_tasks.add_task(_run_proposal_background, rfp.id, rfp_dict, [])
+    return RedirectResponse(url=f"/rfp/{rfp_id}/proposal/generating", status_code=302)
 
 
 @router.post("/rfp/{rfp_id}/interview/reset")

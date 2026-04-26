@@ -83,6 +83,15 @@ html[data-theme="light"] .form-label.text-muted,
 html[data-theme="light"] .form-label.small.text-muted {
   color: var(--label) !important;
 }
+
+/* Modals (다크): 본문·닫기(X) — 배경과 대비 */
+html[data-theme="dark"] .modal-content { background: var(--surface); color: var(--text); border-color: var(--border); }
+html[data-theme="dark"] .modal-header,
+html[data-theme="dark"] .modal-footer { border-color: var(--border); }
+html[data-theme="dark"] .modal-header .modal-title,
+html[data-theme="dark"] .modal-body { color: var(--text); }
+html[data-theme="dark"] .btn-close { filter: invert(1) brightness(1.15); opacity: 0.88; }
+
 html[data-theme="light"] .navbar-custom {
   background: var(--navbar-bg);
   border-bottom-color: var(--border);
