@@ -1168,9 +1168,16 @@ def analyze_code_for_library(
     llm = _get_llm()
     f_analyst, f_questioner, _, _ = _make_agents(llm)
 
-    module_str  = ", ".join(modules)
-    devtype_str = ", ".join(dev_types)
+    module_str = ", ".join(modules) if modules else "(미입력)"
+    devtype_str = ", ".join(dev_types) if dev_types else "(미입력)"
     code_excerpt = _trim_code(source_code)
+
+    _classify_advisory = """
+★ 사용자 분류·태그 (반드시 준수)
+- [프로그램 정보]의 SAP 모듈·개발 유형은 회원이 폼에서 선택·입력한 **태그**일 뿐이며 **오분류·누락이 흔하다**.
+- 모듈 추정, 프로그램 성격, 구조·로직 해석은 **오직 ABAP 소스**에서 도출한다.
+- 폼 태그와 소스 분석이 다르면 **소스 기준**으로 서술한다. 폼 태그는 참고용으로만 취급한다.
+"""
 
     # ── Task 1: Hannah – 기술 분석 ────────────────────────
     analysis_task = Task(
@@ -1180,7 +1187,7 @@ def analyze_code_for_library(
 - 제목: {title}
 - SAP 모듈: {module_str}
 - 개발 유형: {devtype_str}
-
+{_classify_advisory}
 [ABAP 소스]
 {code_excerpt}
 
@@ -1223,9 +1230,9 @@ def analyze_code_for_library(
     # ── Task 2: Mia – 범용 인터뷰 질문 추출 ──────────────
     question_task = Task(
         description=f"""Hannah의 분석을 바탕으로,
-"{module_str} + {devtype_str}" 유형의 개발을 요청하는 신규 고객에게
-공통으로 물어야 할 인터뷰 질문 3~5개를 추출하세요.
-
+신규 고객에게 공통으로 물어야 할 인터뷰 질문 3~5개를 추출하세요.
+(참고: 폼의 "{module_str} + {devtype_str}" 태그는 **신뢰하지 말고**, Hannah가 **소스에서** 파악한 맥락을 따른다.)
+{_classify_advisory}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ★ 반드시 이 4개 예시와 동일한 형식과 수준으로 작성하세요
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1344,6 +1351,71 @@ def analyze_code_for_library(
             "questions": [],
             "error": str(e),
         }
+
+
+def augment_abap_analysis_with_requirement(
+    requirement_text: str,
+    structural: dict,
+    source_code: str,
+) -> dict:
+    """
+    코드 구조 분석(structural)에 더해, 회원이 입력한 요구사항과 연계한 추가 분석(JSON).
+    """
+    req = (requirement_text or "").strip()
+    if not req:
+        return {"error": "요구사항이 비었습니다."}
+    llm = _get_llm()
+    f_analyst, _, _, _ = _make_agents(llm)
+    excerpt = _trim_code(source_code)
+    summ = json.dumps(
+        {
+            "program_purpose": structural.get("program_purpose"),
+            "key_bapis": structural.get("key_bapis"),
+            "key_fms": structural.get("key_fms"),
+            "screens": structural.get("screens"),
+        },
+        ensure_ascii=False,
+    )[:12000]
+    aug_task = Task(
+        description=f"""회원이 작성한 **요구사항**과, 이미 수행된 **코드 구조 요약**·소스 일부를 바탕으로
+오류 원인 추정, 개선/추가 시 영향, 확인할 점을 JSON으로 출력하라.
+
+[요구사항 — 회원 입력]
+{req[:15000]}
+
+[구조 분석 요약 — 소스 기반]
+{summ}
+
+[ABAP 소스 일부]
+{excerpt}
+
+출력 JSON 한 블록만 (한국어, 마크다운 제목 금지):
+{{
+  "interpretation": "요구사항을 기술 관점에서 짧게 요약",
+  "mapping": "요구와 코드상 어느 부분이 관련될 수 있는지",
+  "suspected_areas": ["살펴볼 Include·폼·루틴·키워드"],
+  "hypotheses": ["원인 또는 구현 가설"],
+  "verification_suggestions": ["확인 방법(데이터, 브레이크포인트, T-Code 등)"],
+  "open_questions": ["회원에게 추가 확인이 필요한 질문"]
+}}""",
+        agent=f_analyst,
+        expected_output="JSON",
+    )
+    try:
+        aug_crew = Crew(
+            agents=[f_analyst],
+            tasks=[aug_task],
+            process=Process.sequential,
+            verbose=False,
+        )
+        aug_crew.kickoff()
+        raw = _crew_task_output_text(aug_task)
+        data = _parse_json_block(raw, default={})
+        if not data:
+            return {"error": "요구사항 연계 분석 JSON을 읽지 못했습니다."}
+        return {**data, "error": None}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def _normalize_library_screens(raw) -> list:

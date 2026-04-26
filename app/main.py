@@ -15,7 +15,7 @@ from .database import SessionLocal, db_target_log_line, engine
 from .email_smtp import email_verification_enabled, log_smtp_startup_checks
 from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
 from . import auth, models
-from .routers import auth_router, rfp_router, interview_router, codelib_router
+from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router
 from .templates_config import templates
 
@@ -279,6 +279,7 @@ app.include_router(auth_router.router)
 app.include_router(rfp_router.router)
 app.include_router(interview_router.router)
 app.include_router(codelib_router.router)
+app.include_router(abap_analysis_router.router)
 app.include_router(admin_router.router)
 app.include_router(review_router.router)
 app.include_router(integration_router.router)

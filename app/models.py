@@ -20,6 +20,7 @@ class User(Base):
     rfps = relationship("RFP", back_populates="owner")
     integration_requests = relationship("IntegrationRequest", back_populates="owner")
     abap_codes = relationship("ABAPCode", back_populates="uploader")
+    abap_analysis_requests = relationship("AbapAnalysisRequest", back_populates="owner")
 
 
 class RFP(Base):
@@ -110,6 +111,26 @@ class ABAPCode(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     uploader = relationship("User", back_populates="abap_codes")
+
+
+class AbapAnalysisRequest(Base):
+    """회원 전용: 기존 ABAP 정밀 분석(코드 라이브러리 공개 목록과 별도)."""
+
+    __tablename__ = "abap_analysis_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    requirement_text = Column(Text, nullable=False)
+    # RFP 참고 코드와 동일 JSON 스키마(슬롯·섹션); 에이전트는 분류 태그를 전적으로 신뢰하지 않음
+    reference_code_payload = Column(Text, nullable=True)
+    source_code = Column(Text, nullable=False)
+    attachments_json = Column(Text, nullable=True)
+    analysis_json = Column(Text, nullable=True)
+    is_analyzed = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
+
+    owner = relationship("User", back_populates="abap_analysis_requests")
 
 
 # ── Admin 관리 테이블 ──────────────────────────────────

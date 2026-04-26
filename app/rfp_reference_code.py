@@ -203,6 +203,38 @@ def format_reference_code_for_llm(payload: str | None) -> str:
     return intro + "\n\n".join(parts)
 
 
+def abap_source_only_from_reference_payload(payload: str | None) -> str:
+    """
+    참고 코드 JSON에서 ABAP 본문만 이어붙인다(에이전트·분석 입력용).
+    슬롯 메타(프로그램 ID, 모듈 태그 등)는 제외.
+    """
+    if not payload or not str(payload).strip():
+        return ""
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return ""
+    slots = data.get("slots")
+    if not isinstance(slots, list):
+        return ""
+    vis = data.get("visibleSlotCount")
+    if isinstance(vis, int) and 1 <= vis <= 3:
+        n_vis = vis
+    else:
+        n_vis = _infer_visible_slots(slots)
+    chunks: list[str] = []
+    for sl in slots[:n_vis]:
+        if not isinstance(sl, dict) or not _slot_nonempty(sl):
+            continue
+        for sec in sl.get("sections") or []:
+            if not isinstance(sec, dict):
+                continue
+            c = (sec.get("code") or "").strip()
+            if c:
+                chunks.append(c)
+    return "\n\n".join(chunks)
+
+
 def strip_for_display_log(payload: str | None, max_chars: int = 200) -> str:
     """로그용 초간단 표시 (내용 노출 최소)."""
     if not payload:

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}SAP ABAP 분석 #{{ row.id }} – SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="proposal-page py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+        <div class="mb-4">
+          <a href="/abap-analysis" class="btn btn-ghost mb-3">
+            <i class="fa-solid fa-arrow-left me-1"></i> 목록
+          </a>
+
+          <div class="proposal-header">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="proposal-icon" style="background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.3);color:var(--primary-light)">
+                <i class="fa-solid fa-microscope"></i>
+              </div>
+              <div>
+                <h2 class="mb-1">SAP ABAP 분석 #{{ row.id }}</h2>
+                <div class="small text-muted">{{ row.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                {% if user.is_admin and owner %}
+                <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
+                  <i class="fa-solid fa-user-shield me-1 text-warning"></i>
+                  요청자: <strong>{{ owner.full_name }}</strong>
+                  {% if owner.company %}<span class="text-muted"> · {{ owner.company }}</span>{% endif %}
+                  <span class="text-muted font-monospace"> · {{ owner.email }}</span>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+              <form method="post" action="/abap-analysis/{{ row.id }}/reanalyze" style="display:inline">
+                <button type="submit" class="btn btn-outline-primary btn-sm">
+                  <i class="fa-solid fa-rotate me-1"></i>재분석
+                </button>
+              </form>
+              <form method="post" action="/abap-analysis/{{ row.id }}/delete" style="display:inline"
+                    onsubmit="return confirm('이 분석 요청을 삭제할까요? 첨부 파일과 분석 결과가 함께 삭제되며 되돌릴 수 없습니다.')">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                  <i class="fa-solid fa-trash me-1"></i>삭제
+                </button>
+              </form>
+              {% if row.is_analyzed %}
+              <span class="rfp-status-badge status-badge-completed ms-2">분석 완료</span>
+              {% else %}
+              <span class="rfp-status-badge status-badge-submitted ms-2">분석 오류/미완료</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="proposal-card mb-4">
+          <div class="proposal-body">
+            <h4 class="mb-3" style="border-left:3px solid var(--primary);padding-left:.75rem">요구사항</h4>
+            <div class="small" style="white-space:pre-wrap;">{{ row.requirement_text }}</div>
+          </div>
+        </div>
+
+        {% if attachment_entries %}
+        <div class="proposal-card mb-4">
+          <div class="proposal-body">
+            <h4 class="mb-3" style="border-left:3px solid var(--primary);padding-left:.75rem">첨부</h4>
+            <ul class="mb-0">
+              {% for att in attachment_entries %}
+              <li class="mb-1">
+                <a href="/abap-analysis/{{ row.id }}/attachment?idx={{ loop.index0 }}">{{ att.filename or '파일' }}</a>
+                {% if att.note %}<span class="text-muted small">— {{ att.note }}</span>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if analysis and analysis.get('error') %}
+        <div class="alert alert-danger mb-4">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          분석 오류: {{ analysis.error }}
+          <div class="mt-2 small">재분석 버튼으로 다시 시도해 주세요.</div>
+        </div>
+        {% elif analysis %}
+        <div class="proposal-card mb-4">
+          <div class="proposal-body">
+            <h4 style="border-left:3px solid var(--primary);padding-left:.75rem;margin-top:0;margin-bottom:1.25rem">
+              <i class="fa-solid fa-robot me-2 text-primary-light"></i>{{ 'f_analyst'|agent_label }} – 코드 구조 분석
+            </h4>
+
+            {% if analysis.program_purpose %}
+            <details class="analysis-fold mb-3" open>
+              <summary class="analysis-fold-summary">
+                <i class="fa-solid fa-book me-2 text-info"></i>프로그램 개요
+              </summary>
+              <div class="analysis-fold-body">{{ analysis.program_purpose }}</div>
+            </details>
+            {% endif %}
+
+            {% set screen_list = analysis.get('screens', []) %}
+            {% if screen_list and screen_list|length > 0 %}
+            <div class="mb-2 small text-muted"><i class="fa-solid fa-display me-1"></i>식별된 스크린·UI</div>
+            {% for scr in screen_list %}
+            <details class="analysis-fold mb-3">
+              <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2">
+                <i class="fa-solid fa-window-maximize me-2 text-warning"></i>
+                <span class="font-monospace text-muted small">{{ scr.get('screen_key', '—') }}</span>
+                <span>{{ scr.get('title', '') }}</span>
+              </summary>
+              <div class="analysis-fold-body">
+                {% set bullets = scr.get('summary_bullets', []) %}
+                {% if bullets and bullets|length > 0 %}
+                <ul class="analysis-list mb-0">
+                  {% for b in bullets %}<li>{{ b }}</li>{% endfor %}
+                </ul>
+                {% else %}
+                <p class="mb-0 text-muted small">상세 불릿이 없습니다.</p>
+                {% endif %}
+              </div>
+            </details>
+            {% endfor %}
+            {% endif %}
+
+            <div class="row g-3">
+              {% if analysis.validations %}
+              <div class="col-md-6">
+                <details class="analysis-fold h-100">
+                  <summary class="analysis-fold-summary"><i class="fa-solid fa-shield-halved me-2 text-danger"></i>Validation</summary>
+                  <div class="analysis-fold-body">
+                    <ul class="analysis-list mb-0">{% for v in analysis.validations %}<li>{{ v }}</li>{% endfor %}</ul>
+                  </div>
+                </details>
+              </div>
+              {% endif %}
+              {% if analysis.key_bapis or analysis.key_fms %}
+              <div class="col-md-6">
+                <details class="analysis-fold h-100">
+                  <summary class="analysis-fold-summary"><i class="fa-solid fa-plug me-2 text-primary-light"></i>BAPI / FM</summary>
+                  <div class="analysis-fold-body">
+                    {% for b in analysis.key_bapis or [] %}
+                    <span class="badge-module me-1 mb-1 font-monospace" style="font-size:.78rem">{{ b }}</span>
+                    {% endfor %}
+                    {% for f in analysis.key_fms or [] %}
+                    <span class="badge-devtype me-1 mb-1 font-monospace" style="font-size:.78rem">{{ f }}</span>
+                    {% endfor %}
+                  </div>
+                </details>
+              </div>
+              {% endif %}
+              {% if analysis.applied_techniques %}
+              <div class="col-12">
+                <details class="analysis-fold">
+                  <summary class="analysis-fold-summary"><i class="fa-solid fa-wand-magic-sparkles me-2 text-warning"></i>적용 기법</summary>
+                  <div class="analysis-fold-body">
+                    <ul class="analysis-list mb-0">{% for t in analysis.applied_techniques %}<li>{{ t }}</li>{% endfor %}</ul>
+                  </div>
+                </details>
+              </div>
+              {% endif %}
+            </div>
+
+            {% if analysis.get('questions') %}
+            <details class="analysis-fold mb-0 mt-3">
+              <summary class="analysis-fold-summary"><i class="fa-solid fa-comments me-2 text-info"></i>추가 확인 질문 (참고)</summary>
+              <div class="analysis-fold-body">
+                <ul class="analysis-list mb-0">{% for q in analysis.questions %}<li>{{ q }}</li>{% endfor %}</ul>
+              </div>
+            </details>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if analysis.get('requirement_analysis_error') %}
+        <div class="alert alert-warning mb-4">
+          요구사항 연계 분석 오류: {{ analysis.requirement_analysis_error }}
+        </div>
+        {% elif analysis.get('requirement_analysis') %}
+        {% set ra = analysis.requirement_analysis %}
+        <div class="proposal-card mb-4">
+          <div class="proposal-body">
+            <h4 style="border-left:3px solid #22c55e;padding-left:.75rem;margin-top:0;margin-bottom:1.25rem">
+              <i class="fa-solid fa-link me-2 text-success"></i>요구사항 연계 분석
+            </h4>
+            {% if ra.get('interpretation') %}
+            <details class="analysis-fold mb-3" open>
+              <summary class="analysis-fold-summary">요구사항 해석</summary>
+              <div class="analysis-fold-body">{{ ra.interpretation }}</div>
+            </details>
+            {% endif %}
+            {% if ra.get('mapping') %}
+            <details class="analysis-fold mb-3">
+              <summary class="analysis-fold-summary">코드와의 연관</summary>
+              <div class="analysis-fold-body">{{ ra.mapping }}</div>
+            </details>
+            {% endif %}
+            {% if ra.get('suspected_areas') %}
+            <details class="analysis-fold mb-3">
+              <summary class="analysis-fold-summary">살펴볼 만한 위치</summary>
+              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.suspected_areas %}<li>{{ x }}</li>{% endfor %}</ul></div>
+            </details>
+            {% endif %}
+            {% if ra.get('hypotheses') %}
+            <details class="analysis-fold mb-3">
+              <summary class="analysis-fold-summary">가설</summary>
+              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.hypotheses %}<li>{{ x }}</li>{% endfor %}</ul></div>
+            </details>
+            {% endif %}
+            {% if ra.get('verification_suggestions') %}
+            <details class="analysis-fold mb-3">
+              <summary class="analysis-fold-summary">검증 제안</summary>
+              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.verification_suggestions %}<li>{{ x }}</li>{% endfor %}</ul></div>
+            </details>
+            {% endif %}
+            {% if ra.get('open_questions') %}
+            <details class="analysis-fold mb-0">
+              <summary class="analysis-fold-summary">추가 확인 질문</summary>
+              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.open_questions %}<li>{{ x }}</li>{% endfor %}</ul></div>
+            </details>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <details class="interview-summary-toggle codelib-source-details mb-5">
+          <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+            <i class="fa-solid fa-code me-1"></i>
+            <span>분석에 사용된 ABAP 본문 (참고 코드에서 추출)</span>
+            <span class="small text-muted">({{ row.source_code.splitlines()|length }}줄)</span>
+          </summary>
+          <div class="interview-summary-body p-0">
+            <pre class="mb-0 p-3 small" style="max-height:28rem;overflow:auto;background:var(--surface2);border-top:1px solid var(--border);"><code>{{ row.source_code }}</code></pre>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

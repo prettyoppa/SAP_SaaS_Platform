@@ -432,6 +432,12 @@
         syncHiddenInput();
       });
     }
+    var formAbap = document.getElementById('abap-analysis-form');
+    if (formAbap) {
+      formAbap.addEventListener('submit', function () {
+        syncHiddenInput();
+      });
+    }
 
     syncHiddenInput();
     if (typeof window.updateReview === 'function') window.updateReview();
