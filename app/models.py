@@ -132,6 +132,31 @@ class AbapAnalysisRequest(Base):
     updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
 
     owner = relationship("User", back_populates="abap_analysis_requests")
+    followup_messages = relationship(
+        "AbapAnalysisFollowupMessage",
+        back_populates="request",
+        order_by="AbapAnalysisFollowupMessage.created_at",
+        cascade="all, delete-orphan",
+    )
+
+
+class AbapAnalysisFollowupMessage(Base):
+    """SAP ABAP 분석 상세 — 동일 코드·분석 맥락에서 이어지는 회원 질문·응답."""
+
+    __tablename__ = "abap_analysis_followup_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(
+        Integer,
+        ForeignKey("abap_analysis_requests.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role = Column(String(16), nullable=False)  # user | assistant
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    request = relationship("AbapAnalysisRequest", back_populates="followup_messages")
 
 
 # ── Admin 관리 테이블 ──────────────────────────────────

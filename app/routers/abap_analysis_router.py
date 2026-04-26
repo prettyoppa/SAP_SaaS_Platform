@@ -15,6 +15,11 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 
 from .. import auth, models, r2_storage
+from ..abap_followup_chat import (
+    MAX_USER_TURNS_PER_REQUEST,
+    generate_followup_reply,
+    validate_user_message,
+)
 from ..database import get_db
 from ..rfp_reference_code import (
     abap_source_only_from_reference_payload,
@@ -397,6 +402,18 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
     owner = None
     if user.is_admin:
         owner = db.query(models.User).filter(models.User.id == row.user_id).first()
+
+    followup_messages = (
+        db.query(models.AbapAnalysisFollowupMessage)
+        .filter(models.AbapAnalysisFollowupMessage.request_id == row.id)
+        .order_by(models.AbapAnalysisFollowupMessage.created_at.asc())
+        .all()
+    )
+    n_followup_user = sum(1 for m in followup_messages if (m.role or "") == "user")
+    chat_enabled = (not row.is_draft) and bool((row.source_code or "").strip())
+    chat_limit_reached = n_followup_user >= MAX_USER_TURNS_PER_REQUEST
+    chat_error = (request.query_params.get("chat_err") or "").strip() or None
+
     return templates.TemplateResponse(
         request,
         "abap_analysis_detail.html",
@@ -407,8 +424,94 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
             "analysis": analysis,
             "attachment_entries": _attachment_entries(row),
             "owner": owner,
+            "followup_messages": followup_messages,
+            "chat_enabled": chat_enabled,
+            "chat_limit_reached": chat_limit_reached,
+            "chat_error": chat_error,
+            "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
         },
     )
+
+
+@router.post("/{req_id}/chat")
+def abap_analysis_chat_post(
+    req_id: int,
+    request: Request,
+    message: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _get_request_for_user(db, user, req_id)
+    if not row or row.is_draft:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=303)
+    if not (row.source_code or "").strip():
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?chat_err={quote('분석에 사용된 코드가 없어 대화를 시작할 수 없습니다.')}",
+            status_code=303,
+        )
+
+    msg, verr = validate_user_message(message)
+    if verr:
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?chat_err={quote(verr)}",
+            status_code=303,
+        )
+
+    n_user = (
+        db.query(models.AbapAnalysisFollowupMessage)
+        .filter(
+            models.AbapAnalysisFollowupMessage.request_id == row.id,
+            models.AbapAnalysisFollowupMessage.role == "user",
+        )
+        .count()
+    )
+    if n_user >= MAX_USER_TURNS_PER_REQUEST:
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?chat_err={quote('이 분석 건의 후속 질문은 상한에 도달했습니다.')}",
+            status_code=303,
+        )
+
+    analysis: dict = {}
+    if row.analysis_json:
+        try:
+            analysis = json.loads(row.analysis_json)
+        except Exception:
+            analysis = {}
+
+    prior = (
+        db.query(models.AbapAnalysisFollowupMessage)
+        .filter(models.AbapAnalysisFollowupMessage.request_id == row.id)
+        .order_by(models.AbapAnalysisFollowupMessage.created_at.asc())
+        .all()
+    )
+
+    try:
+        reply = generate_followup_reply(
+            requirement_text=row.requirement_text or "",
+            source_code=row.source_code or "",
+            analysis_obj=analysis,
+            history_messages=prior,
+            user_question=msg,
+        )
+    except Exception:
+        reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+
+    db.add(
+        models.AbapAnalysisFollowupMessage(
+            request_id=row.id,
+            role="user",
+            content=msg,
+        )
+    )
+    db.add(
+        models.AbapAnalysisFollowupMessage(
+            request_id=row.id,
+            role="assistant",
+            content=reply,
+        )
+    )
+    db.commit()
+    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-followup-chat", status_code=303)
 
 
 @router.get("/{req_id}/attachment")

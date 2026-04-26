@@ -236,6 +236,46 @@
         {% endif %}
         {% endif %}
 
+        {% if chat_enabled %}
+        <div id="abap-followup-chat" class="proposal-card mb-4">
+          <div class="proposal-body">
+            <h4 class="mb-3" style="border-left:3px solid #6366f1;padding-left:.75rem;margin-top:0">
+              <i class="fa-solid fa-comments me-2 text-primary-light"></i>이 분석에 대해 이어서 질문하기
+            </h4>
+            <p class="small text-muted mb-3">
+              같은 제출 코드·분석 결과를 맥락으로 추가 질문에 답합니다. 회당 최대 <strong>{{ max_followup_user_turns }}</strong>번까지 보낼 수 있습니다.
+            </p>
+            {% if chat_error %}
+            <div class="alert alert-warning py-2 mb-3">{{ chat_error }}</div>
+            {% endif %}
+            {% if followup_messages and followup_messages|length > 0 %}
+            <div class="abap-chat-log mb-4 px-1" style="max-height:26rem;overflow-y:auto;border:1px solid var(--border);border-radius:.5rem;background:var(--surface2);">
+              {% for m in followup_messages %}
+              <div class="p-3 border-bottom" style="border-color:var(--border)!important;">
+                <div class="d-flex justify-content-between align-items-baseline gap-2 mb-1">
+                  <span class="small fw-semibold">{% if m.role == 'user' %}질문{% else %}응답{% endif %}</span>
+                  <span class="small text-muted">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                <div class="small" style="white-space:pre-wrap;">{{ m.content }}</div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if chat_limit_reached %}
+            <p class="small text-muted mb-0">이 분석 건의 후속 질문 횟수에 도달했습니다. 새 분석이 필요하면 목록에서 다시 제출해 주세요.</p>
+            {% else %}
+            <form method="post" action="/abap-analysis/{{ row.id }}/chat" class="abap-followup-form">
+              <label class="form-label small text-muted mb-1" for="abap-followup-msg">메시지</label>
+              <textarea id="abap-followup-msg" name="message" class="form-control" rows="4" maxlength="4000" required placeholder="예: 이 프로그램에서 납품 블록 해제 시 어떤 함수를 호출하는지 설명해 주세요."></textarea>
+              <button type="submit" class="btn btn-primary mt-2">
+                <i class="fa-solid fa-paper-plane me-1"></i>보내기
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
         <details class="interview-summary-toggle codelib-source-details mb-5">
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <i class="fa-solid fa-code me-1"></i>
