@@ -2,6 +2,25 @@
    SAP Dev Hub – Global Styles
 ───────────────────────────────────────────────── */
 
+/* 테마별 로고(라이트=원본 PNG / 다크=윤곽 PNG) */
+html[data-theme="light"] .brand-logo-dark-only {
+  display: none !important;
+}
+html[data-theme="dark"] .brand-logo-light-only {
+  display: none !important;
+}
+.navbar-brand-logo {
+  max-height: 44px;
+  width: auto;
+  vertical-align: middle;
+}
+.footer-brand-logo {
+  max-height: 36px;
+  width: auto;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 /* ── 다크 테마 (기본) ───────────────────────── */
 :root {
   --primary:      #6366f1;

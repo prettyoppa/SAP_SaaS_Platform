@@ -18,6 +18,17 @@ function _syncThemeSwitchAria(theme) {
   btn.setAttribute('aria-checked', theme === 'light' ? 'true' : 'false');
 }
 
+const _LOGO_LIGHT = '/static/img/catch_lab_sap_dev_hub_logo.png?v=20260415a';
+const _LOGO_DARK = '/static/img/catch_lab_sap_dev_hub_logo_dark.png?v=20260415a';
+
+function _syncFaviconForTheme(theme) {
+  const href = theme === 'dark' ? _LOGO_DARK : _LOGO_LIGHT;
+  const fi = document.getElementById('site-favicon');
+  const ai = document.getElementById('site-apple-icon');
+  if (fi) fi.href = href;
+  if (ai) ai.href = href;
+}
+
 function toggleTheme() {
   const html = document.documentElement;
   const current = html.getAttribute('data-theme') || 'dark';
@@ -25,12 +36,14 @@ function toggleTheme() {
   html.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
   _syncThemeSwitchAria(next);
+  _syncFaviconForTheme(next);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
   _syncThemeSwitchAria(savedTheme);
+  _syncFaviconForTheme(savedTheme);
 
   document.addEventListener(
     'submit',
