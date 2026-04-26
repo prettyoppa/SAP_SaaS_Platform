@@ -9,6 +9,13 @@ html[data-theme="light"] .brand-logo-dark-only {
 html[data-theme="dark"] .brand-logo-light-only {
   display: none !important;
 }
+/* 명시 표시(다른 규칙·캐시 이슈 대비) */
+html[data-theme="light"] .brand-logo-light-only {
+  display: block !important;
+}
+html[data-theme="dark"] .brand-logo-dark-only {
+  display: block !important;
+}
 .navbar-brand-logo {
   max-height: 44px;
   width: auto;
