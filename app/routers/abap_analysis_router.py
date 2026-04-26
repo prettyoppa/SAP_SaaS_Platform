@@ -249,8 +249,6 @@ async def abap_analysis_create(
         return _bad("need_reference_code")
     if len(src) < MIN_ABAP_SOURCE_LEN:
         return _bad("code_too_short")
-    if len(att_entries) < 1:
-        return _bad("need_attachments")
 
     analysis = _run_analysis(req_clean, src)
     analyzed = not bool(analysis.get("error"))
@@ -368,8 +366,6 @@ async def abap_analysis_edit_save(
         return _bad("need_reference_code")
     if len(src) < MIN_ABAP_SOURCE_LEN:
         return _bad("code_too_short")
-    if len(merged_att) < 1:
-        return _bad("need_attachments")
 
     analysis = _run_analysis(req_clean, src)
     analyzed = not bool(analysis.get("error"))

@@ -26,26 +26,68 @@ function setupMaxSelect(cls, countId, max) {
 }
 
 function setFilesOnInput(input, files) {
+  const list = Array.from(files || []).filter(f => f && f.name);
+  const addCopy = (dt, f) => {
+    const body = f.size > 0 ? f.slice(0, f.size) : new Blob();
+    dt.items.add(
+      new File([body], f.name, {
+        type: f.type || 'application/octet-stream',
+        lastModified: f.lastModified,
+      }),
+    );
+  };
   const dt = new DataTransfer();
-  for (const f of files) {
+  for (const f of list) {
     try {
       dt.items.add(f);
     } catch (_) {
       try {
-        dt.items.add(new File([f], f.name, { type: f.type || 'application/octet-stream' }));
-      } catch (_) {
-        dt.items.add(new File([], f.name, { type: f.type || 'application/octet-stream' }));
+        addCopy(dt, f);
+      } catch (e2) {
+        console.warn('setFilesOnInput: skip', f.name, e2);
       }
     }
   }
   input.files = dt.files;
-  if (input.files.length !== files.length && files.length) {
+  if (list.length && input.files.length !== list.length) {
     const dt2 = new DataTransfer();
-    for (const f of files) {
-      dt2.items.add(new File([f], f.name, { type: f.type || 'application/octet-stream' }));
+    for (const f of list) {
+      try {
+        addCopy(dt2, f);
+      } catch (_) {}
     }
-    input.files = dt2.files;
+    if (dt2.files.length) input.files = dt2.files;
   }
+}
+
+function openAttachmentPreview(file) {
+  const name = (file && file.name) || '';
+  const mime = (file && file.type) || '';
+  const textish =
+    /^text\//i.test(mime) ||
+    /(^|\.)(txt|log|md|csv|tsv|json|xml|yml|yaml|ini|env|sh|bat|cmd|sql|abap|properties|gitignore)$/i.test(
+      name,
+    );
+  const maxText = 10 * 1024 * 1024;
+  if (textish && file.size > 0 && file.size <= maxText) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const blob = new Blob([reader.result], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 180000);
+    };
+    reader.onerror = () => {
+      const url = URL.createObjectURL(file);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 180000);
+    };
+    reader.readAsText(file, 'UTF-8');
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  window.setTimeout(() => URL.revokeObjectURL(url), 180000);
 }
 
 function collectNoteValues(n) {
@@ -97,9 +139,7 @@ function renderAttachmentRows(input, maxFiles, notePreset) {
     nameEl.addEventListener('click', ev => {
       ev.preventDefault();
       ev.stopPropagation();
-      const url = URL.createObjectURL(file);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      window.setTimeout(() => URL.revokeObjectURL(url), 180000);
+      openAttachmentPreview(file);
     });
 
     const rm = document.createElement('button');
