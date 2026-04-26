@@ -1331,3 +1331,56 @@ html[data-theme="light"] .codelib-source-tabs .nav-link.active {
   color: var(--primary) !important;
 }
 
+/* ── 전역 처리 중 오버레이 ─────────────────────────────────── */
+.global-busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 17, 23, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.global-busy-overlay[hidden] {
+  display: none !important;
+}
+html[data-theme="light"] .global-busy-overlay {
+  background: rgba(241, 245, 249, 0.65);
+}
+.global-busy-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.75rem 2.25rem;
+  text-align: center;
+  min-width: 260px;
+  max-width: 90vw;
+}
+.global-busy-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--primary-light) !important;
+  border-width: 0.2em;
+}
+.global-busy-title {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+/* ABAP 후속 질문: 턴(질문+응답) 접기 */
+.abap-followup-turn .abap-followup-q,
+.abap-followup-turn .abap-followup-a {
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.abap-followup-turn .abap-followup-a {
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+

@@ -106,6 +106,31 @@ def _notes_from_entries(entries: list[dict]) -> list[str]:
     return [(e.get("note") or "")[:200] for e in entries] + [""] * 5
 
 
+def _pair_abap_followup_turns(msgs: list) -> list[dict]:
+    """user → assistant 순을 한 턴으로 묶어 상세 화면 접이식 UI에 사용."""
+    out: list[dict] = []
+    i = 0
+    n = len(msgs)
+    while i < n:
+        m = msgs[i]
+        role = (getattr(m, "role", None) or "").strip().lower()
+        if role == "user":
+            q = m
+            a = None
+            if i + 1 < n and (getattr(msgs[i + 1], "role", None) or "").strip().lower() == "assistant":
+                a = msgs[i + 1]
+                i += 2
+            else:
+                i += 1
+            out.append({"question": q, "answer": a})
+        elif role == "assistant":
+            out.append({"question": None, "answer": m})
+            i += 1
+        else:
+            i += 1
+    return out
+
+
 def _run_analysis(requirement_text: str, source_code: str) -> dict:
     from ..agents.free_crew import analyze_code_for_library, augment_abap_analysis_with_requirement
 
@@ -410,6 +435,7 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
         .all()
     )
     n_followup_user = sum(1 for m in followup_messages if (m.role or "") == "user")
+    followup_turns = _pair_abap_followup_turns(followup_messages)
     chat_enabled = (not row.is_draft) and bool((row.source_code or "").strip())
     chat_limit_reached = n_followup_user >= MAX_USER_TURNS_PER_REQUEST
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
@@ -424,7 +450,7 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
             "analysis": analysis,
             "attachment_entries": _attachment_entries(row),
             "owner": owner,
-            "followup_messages": followup_messages,
+            "followup_turns": followup_turns,
             "chat_enabled": chat_enabled,
             "chat_limit_reached": chat_limit_reached,
             "chat_error": chat_error,

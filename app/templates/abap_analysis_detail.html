@@ -248,16 +248,38 @@
             {% if chat_error %}
             <div class="alert alert-warning py-2 mb-3">{{ chat_error }}</div>
             {% endif %}
-            {% if followup_messages and followup_messages|length > 0 %}
-            <div class="abap-chat-log mb-4 px-1" style="max-height:26rem;overflow-y:auto;border:1px solid var(--border);border-radius:.5rem;background:var(--surface2);">
-              {% for m in followup_messages %}
-              <div class="p-3 border-bottom" style="border-color:var(--border)!important;">
-                <div class="d-flex justify-content-between align-items-baseline gap-2 mb-1">
-                  <span class="small fw-semibold">{% if m.role == 'user' %}질문{% else %}응답{% endif %}</span>
-                  <span class="small text-muted">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            {% if followup_turns and followup_turns|length > 0 %}
+            <div class="abap-chat-log mb-4 px-1" style="max-height:28rem;overflow-y:auto;border:1px solid var(--border);border-radius:.5rem;background:var(--surface2);padding:.5rem;">
+              {% for turn in followup_turns %}
+              <details class="analysis-fold mb-2 abap-followup-turn" {% if loop.last %}open{% endif %}>
+                <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2 w-100">
+                  <span class="fw-semibold text-nowrap">대화 {{ loop.index }}</span>
+                  {% if turn.question %}
+                  <span class="small text-muted text-nowrap">{{ turn.question.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                  <span class="small text-muted flex-grow-1 text-truncate" style="min-width:120px;" title="{{ turn.question.content }}">
+                    {{ turn.question.content[:100] }}{% if turn.question.content|length > 100 %}…{% endif %}
+                  </span>
+                  {% else %}
+                  <span class="small text-muted">응답만 있음</span>
+                  {% endif %}
+                </summary>
+                <div class="analysis-fold-body pt-1">
+                  {% if turn.question %}
+                  <div class="mb-3">
+                    <div class="small fw-semibold text-muted mb-1">질문</div>
+                    <div class="abap-followup-q">{{ turn.question.content }}</div>
+                  </div>
+                  {% endif %}
+                  {% if turn.answer %}
+                  <div>
+                    <div class="small fw-semibold text-muted mb-1">응답</div>
+                    <div class="abap-followup-a">{{ turn.answer.content }}</div>
+                  </div>
+                  {% elif turn.question %}
+                  <p class="small text-muted mb-0">응답이 아직 없습니다.</p>
+                  {% endif %}
                 </div>
-                <div class="small" style="white-space:pre-wrap;">{{ m.content }}</div>
-              </div>
+              </details>
               {% endfor %}
             </div>
             {% endif %}
