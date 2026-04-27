@@ -1197,6 +1197,13 @@ html[data-theme="light"] .codelib-source-pre {
 }
 /* 테두리만 있는 원 + ? (regular 스타일) */
 .home-feature-icon-outline .fa-circle-question { font-weight: 400; }
+/* 분석 타일: 라이트 solid / 다크 regular (기본값은 다크와 동일하게 regular만) */
+.home-feature-icon-analysis .home-feature-icon-analysis-light { display: none; }
+.home-feature-icon-analysis .home-feature-icon-analysis-dark { display: inline-block; }
+html[data-theme="light"] .home-feature-icon-analysis .home-feature-icon-analysis-light { display: inline-block; }
+html[data-theme="light"] .home-feature-icon-analysis .home-feature-icon-analysis-dark { display: none; }
+html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-light { display: none; }
+html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-dark { display: inline-block; }
 .home-feature-title {
   font-size: clamp(0.92rem, 2.4vw, 1.1rem);
   font-weight: 700;
