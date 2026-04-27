@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -62,18 +63,22 @@ def _run_migrations():
 
 
 def _seed_home_tile_settings():
-    """홈 3타일·이용가이드 PDF URL 등 기본 SiteSettings 시드."""
+    """홈 4타일·이용가이드 PDF URL 등 기본 SiteSettings 시드."""
     defaults = [
-        ("home_tile_guide_title_ko", "이용 가이드"),
-        ("home_tile_guide_title_en", "User Guide"),
+        ("home_tile_guide_title_ko", "사용 안내"),
+        ("home_tile_guide_title_en", "Getting started"),
         ("home_tile_guide_desc_ko", "PDF와 서비스 이용 방법을 확인하세요."),
         ("home_tile_guide_desc_en", "Open the PDF and learn how to use the hub."),
-        ("home_tile_abap_title_ko", "SAP ABAP 개발"),
-        ("home_tile_abap_title_en", "SAP ABAP Development"),
+        ("home_tile_abap_title_ko", "신규 개발"),
+        ("home_tile_abap_title_en", "New development"),
         ("home_tile_abap_desc_ko", "RFP·AI 인터뷰·제안서 기반 전형적인 ABAP 개발 요청"),
         ("home_tile_abap_desc_en", "RFP, AI interview, and proposal for classic ABAP work."),
-        ("home_tile_integration_title_ko", "SAP 연동 개발"),
-        ("home_tile_integration_title_en", "SAP Integration Dev"),
+        ("home_tile_analysis_title_ko", "분석&개선"),
+        ("home_tile_analysis_title_en", "Analyze & improve"),
+        ("home_tile_analysis_desc_ko", "기존 ABAP 코드 분석·진단 및 개선 방향을 제안합니다."),
+        ("home_tile_analysis_desc_en", "Analyze existing ABAP, findings, and improvement suggestions."),
+        ("home_tile_integration_title_ko", "연동 개발"),
+        ("home_tile_integration_title_en", "Integration development"),
         ("home_tile_integration_desc_ko", "VBA, Python, API 등 비-ABAP 연동·자동화 요청"),
         ("home_tile_integration_desc_en", "Non-ABAP automation: VBA, Python, APIs, batch, small web apps."),
         ("user_guide_pdf_url", "/static/docs/user-guide.pdf"),
@@ -179,16 +184,28 @@ def _bootstrap_database():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        _bootstrap_database()
-    except Exception:
-        _log.exception(
-            "[DB] Bootstrap failed (create_all / migrations). "
-            "확인: DATABASE_URL / Postgres 비밀번호. "
-            "host가 postgres.railway.internal 인데 'could not translate host name'이면 "
-            "Postgres 공개 TCP URL을 웹 서비스 변수 DATABASE_PUBLIC_URL 로 넣으세요."
-        )
-        raise
+    """Railway 등에서 웹 컨테이너가 Postgres보다 먼저 뜨면 첫 DB 연결이 실패할 수 있어 재시도합니다."""
+    max_attempts = 8
+    for attempt in range(1, max_attempts + 1):
+        try:
+            _bootstrap_database()
+            break
+        except Exception:
+            wait = min(2 ** (attempt - 1), 30)
+            if attempt >= max_attempts:
+                _log.exception(
+                    "[DB] Bootstrap failed after %s attempts. "
+                    "확인: DATABASE_URL, DATABASE_PUBLIC_URL(app/database.py 참고).",
+                    max_attempts,
+                )
+                raise
+            _log.warning(
+                "[DB] bootstrap attempt %s/%s failed — retry in %ss",
+                attempt,
+                max_attempts,
+                wait,
+            )
+            await asyncio.sleep(wait)
     log_smtp_startup_checks(_log)
     yield
 
@@ -199,6 +216,12 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+
+@app.get("/healthz")
+def healthz():
+    """로드밸런서·Railway 헬스체크용 (DB 없이 응답)."""
+    return {"status": "ok"}
 
 
 @app.exception_handler(RequestValidationError)

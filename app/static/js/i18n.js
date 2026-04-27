@@ -8,7 +8,7 @@ const TRANSLATIONS = {
     /* Nav */
     "nav.home": "Home", "nav.dashboard": "Dashboard", "nav.newRfp": "RFP",
     "nav.integration": "Integration",
-    "nav.codelib": "Code Library", "nav.admin": "Admin",
+    "nav.codelib": "Code Gallery", "nav.admin": "Admin",
     "nav.login": "Login", "nav.signup": "Sign Up", "nav.logout": "Logout",
     /* Footer */
     "footer.tagline": "AI-Powered SAP Development Automation Platform",
@@ -42,6 +42,7 @@ const TRANSLATIONS = {
     "home.review.write": "Write a Review", "home.review.login": "Login to Write",
     "home.features.title": "Get started", "home.features.sub": "User guide, ABAP RFP, or integration development.",
     "home.tile.guideCta": "Open PDF", "home.tile.abapCta": "Learn more", "home.tile.intCta": "Learn more",
+    "home.tile.detail": "Details",
     /* Hero (logged-in) */
     "hero.cta.new": "New Request", "hero.cta.dashboard": "My Dashboard",
     /* How-it-works flow */
@@ -187,6 +188,7 @@ const TRANSLATIONS = {
     "home.review.write": "후기 작성", "home.review.login": "로그인 후 작성",
     "home.features.title": "시작하기", "home.features.sub": "이용 가이드, ABAP RFP, 연동 개발로 이동합니다.",
     "home.tile.guideCta": "PDF 열기", "home.tile.abapCta": "자세히", "home.tile.intCta": "자세히",
+    "home.tile.detail": "상세 보기",
     /* Hero (logged-in) */
     "hero.cta.new": "신규 요청하기", "hero.cta.dashboard": "내 대시보드",
     /* How-it-works flow */

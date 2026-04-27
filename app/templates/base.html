@@ -9,7 +9,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="/static/css/style.css?v=20260428cat" rel="stylesheet"/>
+  <link href="/static/css/style.css?v=20260415home" rel="stylesheet"/>
   <!-- 테마 깜빡임 방지: CSS 로드 전에 테마·파비콘 적용 -->
   <script>
     (function() {
@@ -65,13 +65,13 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {% if path == '/rfp/new' %}active{% endif %}" href="/rfp/new">
-            <span class="nav-ko">SAP ABAP 개발</span><span class="nav-en" style="display:none">SAP ABAP Dev</span>
+          <a class="nav-link {% if path.startswith('/rfp') %}active{% endif %}" href="/rfp/new">
+            <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">New Development</span>
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if path.startswith('/abap-analysis') %}active{% endif %}" href="/abap-analysis">
-            <span class="nav-ko">SAP ABAP 분석</span><span class="nav-en" style="display:none">ABAP Analysis</span>
+            <span class="nav-ko">분석&amp;개선</span><span class="nav-en" style="display:none">Analyze &amp; Improve</span>
           </a>
         </li>
         <li class="nav-item">
@@ -83,13 +83,13 @@
         <li class="nav-item">
           <a class="nav-link {% if '/codelib' in path %}active{% endif %}" href="/codelib">
             <i class="fa-solid fa-database me-1"></i>
-            <span class="nav-ko">코드 라이브러리</span><span class="nav-en" style="display:none">Code Library</span>
+            <span class="nav-ko">코드 갤러리</span><span class="nav-en" style="display:none">Code Gallery</span>
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link nav-link-admin {% if '/admin' in path %}active{% endif %}" href="/admin">
             <i class="fa-solid fa-gear me-1"></i>
-            <span class="nav-ko">관리자 메뉴</span><span class="nav-en" style="display:none">Admin</span>
+            <span class="nav-ko">Admin</span><span class="nav-en" style="display:none">Admin</span>
           </a>
         </li>
         {% endif %}
@@ -130,7 +130,7 @@
             {% if user.is_admin %}
             <li><a class="dropdown-item" href="/admin">
               <i class="fa-solid fa-gear me-2"></i>
-              <span class="nav-ko">관리자 메뉴</span><span class="nav-en" style="display:none">Admin</span>
+              <span class="nav-ko">Admin</span><span class="nav-en" style="display:none">Admin</span>
             </a></li>
             {% endif %}
             <li><hr class="dropdown-divider"></li>
@@ -181,7 +181,7 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/i18n.js?v=20260412c"></script>
+<script src="/static/js/i18n.js?v=20260415home"></script>
 <script src="/static/js/main.js?v=20260428cat"></script>
 {% block extra_js %}{% endblock %}
 </body>

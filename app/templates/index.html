@@ -6,29 +6,17 @@
 <!-- Hero -->
 <section class="hero-section hero-compact">
   <div class="container">
-    <div class="row align-items-center g-5">
+    <div class="row align-items-start g-4 g-lg-5">
       <div class="col-lg-5">
         <h1 class="hero-title">
           {{ settings.get('home_headline_ko', 'SAP 개발을 AI로 혁신하세요') }}<br/>
-          <span class="text-gradient" data-i18n="hero.powerAgents">with 8 Power Agents</span>
+          <span class="hero-power-agents text-gradient" data-i18n="hero.powerAgents">with 8 Power Agents</span>
         </h1>
         <p class="hero-sub">
           {{ settings.get('home_subtitle_ko', '개발 요구사항을 제출하면 AI 에이전트가 심층 인터뷰를 진행하고 전문 수준의 개발 제안서를 무료로 제공합니다.') }}
         </p>
+        {% if not user %}
         <div class="d-flex gap-3 flex-wrap">
-          {% if user %}
-          <a href="/rfp/new" class="btn btn-primary btn-lg px-4">
-            <i class="fa-solid fa-plus me-2"></i>
-            <span data-i18n="hero.cta.newRfp">RFP 작성</span>
-          </a>
-          <a href="/integration/new" class="btn btn-outline-primary btn-lg px-4">
-            <i class="fa-solid fa-link me-2"></i>
-            <span data-i18n="hero.cta.newIntegration">연동 요청</span>
-          </a>
-          <a href="/dashboard" class="btn btn-outline-secondary btn-lg px-4">
-            <span data-i18n="hero.cta.dashboard">내 대시보드</span>
-          </a>
-          {% else %}
           <a href="/register" class="btn btn-primary btn-lg px-4">
             <i class="fa-solid fa-rocket me-2"></i>
             <span data-i18n="hero.cta.start">무료로 시작하기</span>
@@ -37,8 +25,8 @@
             <span data-i18n="hero.cta.features">서비스 둘러보기</span>
             <i class="fa-solid fa-arrow-down ms-2"></i>
           </a>
-          {% endif %}
         </div>
+        {% endif %}
       </div>
 
       <div class="col-lg-7">
@@ -150,59 +138,76 @@
 <!-- 홈 기능 타일 -->
 <section id="home-features" class="section-light py-5">
   <div class="container">
-    <div class="text-center mb-5">
-      <h2 class="section-title" data-i18n="home.features.title">시작하기</h2>
-      <p class="section-sub text-muted" data-i18n="home.features.sub">이용 가이드, ABAP RFP, 연동 개발 중 필요한 경로로 이동하세요.</p>
-    </div>
-
-    <div class="row g-4 home-feature-tiles">
-      <div class="col-md-4">
-        <div class="home-feature-card h-100">
-          <div class="home-feature-icon"><i class="fa-solid fa-book"></i></div>
-          <h3 class="home-feature-title">
-            <span class="nav-ko">{{ settings.get('home_tile_guide_title_ko', '이용 가이드') }}</span>
-            <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_title_en', 'User Guide') }}</span>
-          </h3>
-          <p class="home-feature-desc text-muted small mb-3">
-            <span class="nav-ko">{{ settings.get('home_tile_guide_desc_ko', '') }}</span>
-            <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_desc_en', '') }}</span>
-          </p>
-          <a class="btn btn-outline-primary btn-sm" id="home-guide-pdf-link" href="{{ settings.get('user_guide_pdf_url', '/static/docs/user-guide.pdf') }}" target="_blank" rel="noopener">
-            <i class="fa-solid fa-file-pdf me-1"></i><span data-i18n="home.tile.guideCta">PDF 열기</span>
+    <div class="home-feature-tiles" role="list">
+      <div class="home-feature-card" role="listitem">
+        <div class="home-feature-card-top">
+          <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-circle-question"></i></div>
+          <a class="home-feature-detail-link" id="home-guide-pdf-link" href="{{ settings.get('user_guide_pdf_url', '/static/docs/user-guide.pdf') }}" target="_blank" rel="noopener">
+            <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
+        <h3 class="home-feature-title">
+          <span class="nav-ko">{{ settings.get('home_tile_guide_title_ko', '사용 안내') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_title_en', 'Getting started') }}</span>
+        </h3>
+        <p class="home-feature-desc text-muted small">
+          <span class="nav-ko">{{ settings.get('home_tile_guide_desc_ko', '') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_desc_en', '') }}</span>
+        </p>
       </div>
-      <div class="col-md-4">
-        <div class="home-feature-card h-100">
-          <div class="home-feature-icon"><i class="fa-solid fa-code"></i></div>
-          <h3 class="home-feature-title">
-            <span class="nav-ko">{{ settings.get('home_tile_abap_title_ko', 'SAP ABAP 개발') }}</span>
-            <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_title_en', 'SAP ABAP') }}</span>
-          </h3>
-          <p class="home-feature-desc text-muted small mb-3">
-            <span class="nav-ko">{{ settings.get('home_tile_abap_desc_ko', '') }}</span>
-            <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_desc_en', '') }}</span>
-          </p>
-          <a class="btn btn-primary btn-sm" href="/services/abap">
-            <span data-i18n="home.tile.abapCta">자세히</span>
+      <div class="home-feature-card" role="listitem">
+        <div class="home-feature-card-top">
+          <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-code"></i></div>
+          <a class="home-feature-detail-link" href="/services/abap">
+            <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
+        <h3 class="home-feature-title">
+          <span class="nav-ko">{{ settings.get('home_tile_abap_title_ko', '신규 개발') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_title_en', 'New development') }}</span>
+        </h3>
+        <p class="home-feature-desc text-muted small">
+          <span class="nav-ko">{{ settings.get('home_tile_abap_desc_ko', '') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_desc_en', '') }}</span>
+        </p>
       </div>
-      <div class="col-md-4">
-        <div class="home-feature-card h-100">
-          <div class="home-feature-icon"><i class="fa-solid fa-plug"></i></div>
-          <h3 class="home-feature-title">
-            <span class="nav-ko">{{ settings.get('home_tile_integration_title_ko', 'SAP 연동 개발') }}</span>
-            <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_title_en', 'Integration') }}</span>
-          </h3>
-          <p class="home-feature-desc text-muted small mb-3">
-            <span class="nav-ko">{{ settings.get('home_tile_integration_desc_ko', '') }}</span>
-            <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_desc_en', '') }}</span>
-          </p>
-          <a class="btn btn-primary btn-sm" href="/integration">
-            <span data-i18n="home.tile.intCta">자세히</span>
+      <div class="home-feature-card" role="listitem">
+        <div class="home-feature-card-top">
+          <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></div>
+          <a class="home-feature-detail-link" href="/abap-analysis">
+            <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
+        <h3 class="home-feature-title">
+          <span class="nav-ko">{{ settings.get('home_tile_analysis_title_ko', '분석&개선') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_title_en', 'Analyze & improve') }}</span>
+        </h3>
+        <p class="home-feature-desc text-muted small">
+          <span class="nav-ko">{{ settings.get('home_tile_analysis_desc_ko', '') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_desc_en', '') }}</span>
+        </p>
+      </div>
+      <div class="home-feature-card" role="listitem">
+        <div class="home-feature-card-top">
+          <div class="home-feature-icon home-feature-icon-plugs" aria-hidden="true">
+            <svg class="home-feature-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4 9v6h3.5V9H4zM16.5 9V15H20V9h-3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M7.5 12h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M6 12h.01M18 12h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <a class="home-feature-detail-link" href="/integration">
+            <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
+          </a>
+        </div>
+        <h3 class="home-feature-title">
+          <span class="nav-ko">{{ settings.get('home_tile_integration_title_ko', '연동 개발') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_title_en', 'Integration') }}</span>
+        </h3>
+        <p class="home-feature-desc text-muted small">
+          <span class="nav-ko">{{ settings.get('home_tile_integration_desc_ko', '') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_desc_en', '') }}</span>
+        </p>
       </div>
     </div>
 
@@ -210,20 +215,24 @@
     <div class="admin-home-tiles-editor card border mt-5" style="background:var(--surface2);border-color:var(--border)!important;">
       <div class="card-body">
         <h5 class="card-title"><i class="fa-solid fa-gear me-2"></i>홈 타일 문구 편집 (관리자)</h5>
-        <p class="small text-muted">저장 시 즉시 반영됩니다. PDF는 <code>/static/docs/</code>에 올린 뒤 URL을 맞추면 됩니다.</p>
+        <p class="small text-muted">홈 4개 타일 문구입니다. 저장 시 즉시 반영됩니다. PDF는 <code>/static/docs/</code>에 올린 뒤 URL을 맞추면 됩니다.</p>
         <div class="row g-2 small">
-          <div class="col-md-6"><label class="form-label">가이드 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-gtko" value="{{ settings.get('home_tile_guide_title_ko', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">가이드 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-gten" value="{{ settings.get('home_tile_guide_title_en', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">가이드 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-gdko" rows="2">{{ settings.get('home_tile_guide_desc_ko', '') }}</textarea></div>
-          <div class="col-md-6"><label class="form-label">가이드 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-gden" rows="2">{{ settings.get('home_tile_guide_desc_en', '') }}</textarea></div>
-          <div class="col-md-6"><label class="form-label">ABAP 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-akko" value="{{ settings.get('home_tile_abap_title_ko', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">ABAP 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-aken" value="{{ settings.get('home_tile_abap_title_en', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">ABAP 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-adko" rows="2">{{ settings.get('home_tile_abap_desc_ko', '') }}</textarea></div>
-          <div class="col-md-6"><label class="form-label">ABAP 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-aden" rows="2">{{ settings.get('home_tile_abap_desc_en', '') }}</textarea></div>
-          <div class="col-md-6"><label class="form-label">연동 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-ikko" value="{{ settings.get('home_tile_integration_title_ko', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">연동 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-iken" value="{{ settings.get('home_tile_integration_title_en', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">연동 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-idko" rows="2">{{ settings.get('home_tile_integration_desc_ko', '') }}</textarea></div>
-          <div class="col-md-6"><label class="form-label">연동 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-iden" rows="2">{{ settings.get('home_tile_integration_desc_en', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">사용 안내 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-gtko" value="{{ settings.get('home_tile_guide_title_ko', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">사용 안내 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-gten" value="{{ settings.get('home_tile_guide_title_en', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">사용 안내 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-gdko" rows="3">{{ settings.get('home_tile_guide_desc_ko', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">사용 안내 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-gden" rows="3">{{ settings.get('home_tile_guide_desc_en', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">신규 개발 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-akko" value="{{ settings.get('home_tile_abap_title_ko', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">신규 개발 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-aken" value="{{ settings.get('home_tile_abap_title_en', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">신규 개발 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-adko" rows="3">{{ settings.get('home_tile_abap_desc_ko', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">신규 개발 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-aden" rows="3">{{ settings.get('home_tile_abap_desc_en', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">분석&amp;개선 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-ysko" value="{{ settings.get('home_tile_analysis_title_ko', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">분석&amp;개선 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-ysen" value="{{ settings.get('home_tile_analysis_title_en', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">분석&amp;개선 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-ydko" rows="3">{{ settings.get('home_tile_analysis_desc_ko', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">분석&amp;개선 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-yden" rows="3">{{ settings.get('home_tile_analysis_desc_en', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">연동 개발 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-ikko" value="{{ settings.get('home_tile_integration_title_ko', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">연동 개발 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-iken" value="{{ settings.get('home_tile_integration_title_en', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">연동 개발 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-idko" rows="3">{{ settings.get('home_tile_integration_desc_ko', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">연동 개발 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-iden" rows="3">{{ settings.get('home_tile_integration_desc_en', '') }}</textarea></div>
           <div class="col-12"><label class="form-label">이용 가이드 PDF URL</label><input class="form-control form-control-sm" id="adm-ht-pdf" value="{{ settings.get('user_guide_pdf_url', '') }}"/></div>
         </div>
         <div class="mt-3 d-flex align-items-center gap-2">
@@ -247,6 +256,10 @@
           home_tile_abap_title_en: document.getElementById('adm-ht-aken').value,
           home_tile_abap_desc_ko: document.getElementById('adm-ht-adko').value,
           home_tile_abap_desc_en: document.getElementById('adm-ht-aden').value,
+          home_tile_analysis_title_ko: document.getElementById('adm-ht-ysko').value,
+          home_tile_analysis_title_en: document.getElementById('adm-ht-ysen').value,
+          home_tile_analysis_desc_ko: document.getElementById('adm-ht-ydko').value,
+          home_tile_analysis_desc_en: document.getElementById('adm-ht-yden').value,
           home_tile_integration_title_ko: document.getElementById('adm-ht-ikko').value,
           home_tile_integration_title_en: document.getElementById('adm-ht-iken').value,
           home_tile_integration_desc_ko: document.getElementById('adm-ht-idko').value,
@@ -267,33 +280,6 @@
       });
     })();
     </script>
-    {% endif %}
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="cta-section py-5">
-  <div class="container text-center">
-    <h2 class="mb-3" data-i18n="cta.title">SAP 개발 자동화를 지금 시작하세요</h2>
-    {% if not user %}
-    <p class="text-muted mb-4" data-i18n="cta.sub">무료로 계정을 만들고 첫 번째 요청을 제출해 보세요.</p>
-    {% endif %}
-    {% if user %}
-    <div class="d-flex flex-wrap gap-3 justify-content-center">
-      <a href="/rfp/new" class="btn btn-primary btn-lg px-5">
-        <i class="fa-solid fa-plus me-2"></i>
-        <span data-i18n="cta.btn.rfp">RFP 작성</span>
-      </a>
-      <a href="/integration/new" class="btn btn-outline-primary btn-lg px-5">
-        <i class="fa-solid fa-link me-2"></i>
-        <span data-i18n="cta.btn.integration">연동 요청</span>
-      </a>
-    </div>
-    {% else %}
-    <a href="/register" class="btn btn-primary btn-lg px-5">
-      <i class="fa-solid fa-user-plus me-2"></i>
-      <span data-i18n="cta.btn">무료 시작하기</span>
-    </a>
     {% endif %}
   </div>
 </section>
