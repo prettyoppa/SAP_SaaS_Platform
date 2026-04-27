@@ -3,7 +3,7 @@
 # DATABASE_PUBLIC_URL(또는 전체 공개 URL)을 함께 설정하세요. (app/database.py 참고)
 
 [build]
-builder = "dockerfile"
+builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
