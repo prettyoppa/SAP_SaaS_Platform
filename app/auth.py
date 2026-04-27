@@ -12,7 +12,10 @@ from sqlalchemy.orm import Session
 from . import models
 from .database import get_db
 
-SECRET_KEY = "sap-saas-platform-secret-key-change-in-production"
+SECRET_KEY = (
+    (os.environ.get("JWT_SECRET") or os.environ.get("SECRET_KEY") or "").strip()
+    or "sap-saas-platform-secret-key-change-in-production"
+)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 EMAIL_VERIFY_SALT = "email-verify-v1"
