@@ -1195,12 +1195,19 @@ html[data-theme="light"] .codelib-source-pre {
   color: var(--primary-light);
   line-height: 1;
 }
+/* 테두리만 있는 원 + ? (regular 스타일) */
+.home-feature-icon-outline .fa-circle-question { font-weight: 400; }
 .home-feature-icon-plugs { display: flex; align-items: center; }
 .home-feature-icon-svg {
   width: 1.15em;
   height: 1.15em;
   display: block;
   color: var(--primary-light);
+}
+/* 세로 맞물림 플러그: 살짝 세로로 길게 */
+.home-feature-icon-svg-plugs {
+  width: 1.05em;
+  height: 1.25em;
 }
 .home-feature-title {
   font-size: clamp(0.92rem, 2.4vw, 1.1rem);
