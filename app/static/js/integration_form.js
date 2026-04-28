@@ -12,26 +12,26 @@ function loadIntegrationNotePrefill() {
 }
 
 function intSetFilesOnInput(input, files) {
+  const list = Array.from(files || []).filter(f => f && f.name && f.size > 0);
   const dt = new DataTransfer();
-  for (const f of files) {
+  for (const f of list) {
     try {
       dt.items.add(f);
     } catch (_) {
       try {
-        dt.items.add(new File([f], f.name, { type: f.type || 'application/octet-stream' }));
-      } catch (_) {
-        dt.items.add(new File([], f.name, { type: f.type || 'application/octet-stream' }));
+        const body = f.slice(0, f.size);
+        dt.items.add(
+          new File([body], f.name, {
+            type: f.type || 'application/octet-stream',
+            lastModified: f.lastModified,
+          }),
+        );
+      } catch (e2) {
+        console.warn('intSetFilesOnInput: skip', f.name, e2);
       }
     }
   }
   input.files = dt.files;
-  if (input.files.length !== files.length && files.length) {
-    const dt2 = new DataTransfer();
-    for (const f of files) {
-      dt2.items.add(new File([f], f.name, { type: f.type || 'application/octet-stream' }));
-    }
-    input.files = dt2.files;
-  }
 }
 
 function intCollectNoteValues(n) {
@@ -43,9 +43,27 @@ function intCollectNoteValues(n) {
   return out;
 }
 
+function intFilterEmptyAttachmentsBeforeSubmit(input, maxFiles) {
+  const raw = Array.from(input.files || []);
+  const kept = [];
+  const mapIdx = [];
+  raw.forEach((f, i) => {
+    if (f && f.name && f.size > 0) {
+      kept.push(f);
+      mapIdx.push(i);
+    }
+  });
+  if (kept.length === raw.length) return;
+  const prev = intCollectNoteValues(maxFiles);
+  const newNotes = mapIdx.map(j => prev[j] || '');
+  intSetFilesOnInput(input, kept);
+  intRenderAttachmentRows(input, maxFiles, newNotes);
+}
+
 function intRenderAttachmentRows(input, maxFiles, notePreset) {
   const listEl = document.getElementById('int-attachment-list');
   const dropContent = document.getElementById('int-drop-content');
+  const hit = document.getElementById('int-file-drop-hit-target');
   if (!listEl || !input) return;
 
   const files = Array.from(input.files || []);
@@ -61,10 +79,12 @@ function intRenderAttachmentRows(input, maxFiles, notePreset) {
 
   listEl.innerHTML = '';
   if (!files.length) {
-    if (dropContent) dropContent.classList.remove('d-none');
+    if (hit) hit.classList.remove('d-none');
+    else if (dropContent) dropContent.classList.remove('d-none');
     return;
   }
-  if (dropContent) dropContent.classList.add('d-none');
+  if (hit) hit.classList.add('d-none');
+  else if (dropContent) dropContent.classList.add('d-none');
 
   files.forEach((file, i) => {
     const row = document.createElement('div');
@@ -132,13 +152,6 @@ function initIntegrationAttachmentDropZone() {
 
   const maxFiles = parseInt(dz.getAttribute('data-max-files') || '5', 10) || 5;
 
-  dz.addEventListener('click', e => {
-    if (e.target.closest('.rfp-att-remove')) return;
-    if (e.target.closest('input[name^="note_"]')) return;
-    e.preventDefault();
-    input.click();
-  });
-
   ['dragenter', 'dragover'].forEach(ev => {
     dz.addEventListener(ev, e => {
       e.preventDefault();
@@ -155,9 +168,9 @@ function initIntegrationAttachmentDropZone() {
   });
 
   dz.addEventListener('drop', e => {
-    const incoming = Array.from(e.dataTransfer.files || []);
+    const incoming = Array.from(e.dataTransfer.files || []).filter(f => f && f.name && f.size > 0);
     if (!incoming.length) return;
-    const existing = Array.from(input.files || []);
+    const existing = Array.from(input.files || []).filter(f => f && f.name && f.size > 0);
     const merged = [...existing, ...incoming].slice(0, maxFiles);
     intSetFilesOnInput(input, merged);
     intRenderAttachmentRows(input, maxFiles);
@@ -166,7 +179,7 @@ function initIntegrationAttachmentDropZone() {
   });
 
   input.addEventListener('change', () => {
-    const picked = Array.from(input.files || []).slice(0, maxFiles);
+    const picked = Array.from(input.files || []).filter(f => f && f.name && f.size > 0).slice(0, maxFiles);
     if (picked.length !== input.files.length) intSetFilesOnInput(input, picked);
     intRenderAttachmentRows(input, maxFiles);
     updateIntegrationReview();
@@ -269,6 +282,21 @@ document.addEventListener('DOMContentLoaded', () => {
   intActivateProgressOnScroll();
 
   const form = document.getElementById('integration-form');
+  if (form) {
+    form.addEventListener(
+      'submit',
+      () => {
+        const att = document.getElementById('int-attachments');
+        const dzEl = document.getElementById('int-drop-zone');
+        if (att && dzEl) {
+          const mf = parseInt(dzEl.getAttribute('data-max-files') || '5', 10) || 5;
+          intFilterEmptyAttachmentsBeforeSubmit(att, mf);
+        }
+      },
+      true,
+    );
+  }
+
   const submitBtn = document.getElementById('int-submit-btn');
   if (form && submitBtn) {
     form.addEventListener('submit', () => {

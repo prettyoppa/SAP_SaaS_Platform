@@ -26,7 +26,7 @@ function setupMaxSelect(cls, countId, max) {
 }
 
 function setFilesOnInput(input, files) {
-  const list = Array.from(files || []).filter(f => f && f.name);
+  const list = Array.from(files || []).filter(f => f && f.name && f.size > 0);
   const addCopy = (dt, f) => {
     const body = f.size > 0 ? f.slice(0, f.size) : new Blob();
     dt.items.add(
@@ -99,9 +99,27 @@ function collectNoteValues(n) {
   return out;
 }
 
+function filterEmptyAttachmentsBeforeSubmit(input, maxFiles) {
+  const raw = Array.from(input.files || []);
+  const kept = [];
+  const mapIdx = [];
+  raw.forEach((f, i) => {
+    if (f && f.name && f.size > 0) {
+      kept.push(f);
+      mapIdx.push(i);
+    }
+  });
+  if (kept.length === raw.length) return;
+  const prev = collectNoteValues(maxFiles);
+  const newNotes = mapIdx.map(j => prev[j] || '');
+  setFilesOnInput(input, kept);
+  renderAttachmentRows(input, maxFiles, newNotes);
+}
+
 function renderAttachmentRows(input, maxFiles, notePreset) {
   const listEl = document.getElementById('attachment-list');
   const dropContent = document.getElementById('drop-content');
+  const hit = document.getElementById('file-drop-hit-target');
   if (!listEl || !input) return;
 
   const files = Array.from(input.files || []);
@@ -117,10 +135,12 @@ function renderAttachmentRows(input, maxFiles, notePreset) {
 
   listEl.innerHTML = '';
   if (!files.length) {
-    if (dropContent) dropContent.classList.remove('d-none');
+    if (hit) hit.classList.remove('d-none');
+    else if (dropContent) dropContent.classList.remove('d-none');
     return;
   }
-  if (dropContent) dropContent.classList.add('d-none');
+  if (hit) hit.classList.add('d-none');
+  else if (dropContent) dropContent.classList.add('d-none');
 
   files.forEach((file, i) => {
     const row = document.createElement('div');
@@ -196,14 +216,6 @@ function initAttachmentDropZone() {
 
   const maxFiles = parseInt(dz.getAttribute('data-max-files') || '5', 10) || 5;
 
-  dz.addEventListener('click', e => {
-    if (e.target.closest('.rfp-att-remove')) return;
-    if (e.target.closest('.rfp-att-open')) return;
-    if (e.target.closest('input[name^="note_"]')) return;
-    e.preventDefault();
-    input.click();
-  });
-
   ['dragenter', 'dragover'].forEach(ev => {
     dz.addEventListener(ev, e => {
       e.preventDefault();
@@ -220,9 +232,9 @@ function initAttachmentDropZone() {
   });
 
   dz.addEventListener('drop', e => {
-    const incoming = Array.from(e.dataTransfer.files || []);
+    const incoming = Array.from(e.dataTransfer.files || []).filter(f => f && f.name && f.size > 0);
     if (!incoming.length) return;
-    const existing = Array.from(input.files || []);
+    const existing = Array.from(input.files || []).filter(f => f && f.name && f.size > 0);
     const merged = [...existing, ...incoming].slice(0, maxFiles);
     setFilesOnInput(input, merged);
     renderAttachmentRows(input, maxFiles);
@@ -231,7 +243,7 @@ function initAttachmentDropZone() {
   });
 
   input.addEventListener('change', () => {
-    const picked = Array.from(input.files || []).slice(0, maxFiles);
+    const picked = Array.from(input.files || []).filter(f => f && f.name && f.size > 0).slice(0, maxFiles);
     if (picked.length !== input.files.length) setFilesOnInput(input, picked);
     renderAttachmentRows(input, maxFiles);
     updateReview();
@@ -347,6 +359,22 @@ document.addEventListener('DOMContentLoaded', () => {
   updateReview();
 
   activateProgressOnScroll();
+
+  ;['rfp-form', 'abap-analysis-form'].forEach(fid => {
+    const fEl = document.getElementById(fid);
+    if (!fEl) return;
+    fEl.addEventListener(
+      'submit',
+      () => {
+        const att = document.getElementById('attachments');
+        const dzEl = document.getElementById('drop-zone');
+        if (!att || !dzEl) return;
+        const mf = parseInt(dzEl.getAttribute('data-max-files') || '5', 10) || 5;
+        filterEmptyAttachmentsBeforeSubmit(att, mf);
+      },
+      true,
+    );
+  });
 
   const form = document.getElementById('rfp-form');
   const submitBtn = document.getElementById('submit-btn');

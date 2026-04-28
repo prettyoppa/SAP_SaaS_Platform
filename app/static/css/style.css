@@ -715,6 +715,49 @@ html[data-theme="light"] .codelib-source-pre {
 .file-drop-zone:hover, .file-drop-zone.dragover {
   border-color: var(--primary); background: rgba(99,102,241,.05);
 }
+/* 네이티브 파일 input 오버레이(클릭 가능) 레이아웃 — 표시 숨김 대신 레이어링 */
+.file-drop-zone:has(.file-drop-hit-target) {
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: default;
+}
+.file-drop-hit-target {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  transition: border-color .2s, background .2s;
+  background: var(--surface2);
+}
+.file-drop-zone:has(.file-drop-hit-target):hover .file-drop-hit-target,
+.file-drop-zone.dragover .file-drop-hit-target {
+  border-color: var(--primary);
+  background: rgba(99,102,241,.05);
+}
+.file-drop-native-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  font-size: 0;
+}
+.file-drop-content { pointer-events: none; position: relative; z-index: 0; color: inherit; }
+/* 네비: 분석&개선 — 홈 타일과 동일 (라이트 solid / 다크 regular) */
+.nav-icon-analysis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 1.05em;
+}
+.nav-icon-analysis .nav-icon-analysis-light { display: none; }
+.nav-icon-analysis .nav-icon-analysis-dark { display: inline-block; opacity: 0.92; }
+html[data-theme="light"] .nav-icon-analysis .nav-icon-analysis-light { display: inline-block; }
+html[data-theme="light"] .nav-icon-analysis .nav-icon-analysis-dark { display: none; }
+html[data-theme="dark"] .nav-icon-analysis .nav-icon-analysis-light { display: none; }
+html[data-theme="dark"] .nav-icon-analysis .nav-icon-analysis-dark { display: inline-block; }
 .file-drop-icon { font-size: 2.5rem; color: var(--muted); margin-bottom: .75rem; display: block; }
 
 /* Review Box */

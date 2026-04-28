@@ -147,12 +147,17 @@
               </div>
             </div>
             <div class="file-drop-zone" id="int-drop-zone" data-max-files="5">
-              <input type="file" name="attachments" id="int-attachments" class="d-none" multiple
-                     accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg"/>
-              <div class="file-drop-content" id="int-drop-content">
-                <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
-                <p class="fw-semibold mb-1">클릭하거나 파일을 드래그하세요</p>
-                <p class="text-muted small mb-0">파일당 최대 20MB · 최대 5개</p>
+              <div class="position-relative mb-2 file-drop-hit-target" id="int-file-drop-hit-target" style="min-height: 8.5rem;">
+                <label for="int-attachments" class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
+                  <input type="file" name="attachments" id="int-attachments" multiple
+                         accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg"
+                         class="file-drop-native-input"/>
+                  <span class="file-drop-content d-block text-center py-4 px-2" id="int-drop-content">
+                    <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
+                    <span class="fw-semibold d-block mb-1">클릭하거나 파일을 드래그하세요</span>
+                    <span class="text-muted small d-block mb-0">파일당 최대 20MB · 최대 5개</span>
+                  </span>
+                </label>
               </div>
               <div id="int-attachment-list" class="w-100 px-1"></div>
             </div>
@@ -289,5 +294,5 @@
 {% block extra_js %}
 <script src="/static/js/sap_field_input.js?v=20260415c"></script>
 <script src="/static/js/integration_ref_code.js?v=20260414a"></script>
-<script src="/static/js/integration_form.js?v=20260414a"></script>
+<script src="/static/js/integration_form.js?v=20260417a"></script>
 {% endblock %}
