@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 
 from ..agent_display import agent_label_ko, agents_ai_source_ko
 from ..gemini_model import get_gemini_model_id
+from ..rfp_reference_code import REF_SLOT_MARKER
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
@@ -1212,6 +1213,7 @@ def analyze_code_for_library(
     dev_types: list[str],
     *,
     include_interview_questions: bool = True,
+    attachment_digest: str = "",
 ) -> dict:
     """
     ABAP 소스를 Hannah(기술 분석)로 분석하고, include_interview_questions=True일 때만
@@ -1227,7 +1229,11 @@ def analyze_code_for_library(
 
     module_str = ", ".join(modules) if modules else "(미입력)"
     devtype_str = ", ".join(dev_types) if dev_types else "(미입력)"
-    code_excerpt = _trim_code(source_code)
+    code_excerpt = trim_code_for_abap_analysis(source_code)
+    att_txt = (attachment_digest or "").strip()
+    att_block = ""
+    if att_txt:
+        att_block = f"\n\n[첨부·참고 자료 — 서버에서 추출한 텍스트 요약]\n{att_txt[:12000]}\n"
 
     _classify_advisory = """
 ★ 사용자 분류·태그 (반드시 준수)
@@ -1247,6 +1253,9 @@ def analyze_code_for_library(
 {_classify_advisory}
 [ABAP 소스]
 {code_excerpt}
+{att_block}
+★ 다중 프로그램
+- 소스 상단에 `SAP_DEV_HUB:REF_SLOT` 등의 슬롯 구분 주석이 있거나 여러 목적이 섞여 보이면, **프로그램(슬롯)마다** 역할과 데이터 흐름을 구분해 `program_purpose`에 서술한다(한 문장 통합 요약만 하지 않는다).
 
 다음 규칙을 지켜 반드시 아래 JSON 형식으로만 출력하세요.
 - 출력은 유효한 JSON 객체 하나뿐입니다. JSON 앞뒤에 서론·결론·마크다운 제목을 쓰지 마세요.
@@ -1429,6 +1438,8 @@ def augment_abap_analysis_with_requirement(
     requirement_text: str,
     structural: dict,
     source_code: str,
+    *,
+    attachment_digest: str = "",
 ) -> dict:
     """
     코드 구조 분석(structural)에 더해, 회원이 입력한 요구사항과 연계한 추가 분석(JSON).
@@ -1438,7 +1449,11 @@ def augment_abap_analysis_with_requirement(
         return {"error": "요구사항이 비었습니다."}
     llm = _get_llm()
     f_analyst, _, _, _ = _make_agents(llm)
-    excerpt = _trim_code(source_code)
+    excerpt = trim_code_for_abap_analysis(source_code)
+    att_txt = (attachment_digest or "").strip()
+    att_block = ""
+    if att_txt:
+        att_block = f"\n\n[첨부·참고 자료 — 서버에서 추출한 텍스트 요약]\n{att_txt[:12000]}\n"
     summ = json.dumps(
         {
             "program_purpose": structural.get("program_purpose"),
@@ -1460,11 +1475,12 @@ def augment_abap_analysis_with_requirement(
 
 [ABAP 소스 일부]
 {excerpt}
-
+{att_block}
 {SAP_KOREAN_CODE_ANALYSIS_STYLE}
 
 출력 JSON 한 블록만 (한국어, 마크다운 제목 금지):
 - "open_questions": **회원 요구사항**과 위 코드·요약에 **근거한** 확인만 (3개 이하 권장). 요구에 없는 신규 기능·범위를 가정한 질문·RFP식 인터뷰는 넣지 마라.
+- 여러 프로그램 코드가 제출된 경우(소스에 슬롯 구분 주석이 있으면), 각 프로그램별로 요구사항과의 연계·부족 정보를 **구분해서** 서술하고, JSON 값(interpretation, mapping 등) 안에 프로그램 식별자(예: 프로그램명)를 포함해 가독성 있게 적는다.
 
 {{
   "interpretation": "요구사항을 기술 관점에서 짧게 요약",
@@ -1594,6 +1610,38 @@ def _trim_code(source_code: str, max_lines: int = 300) -> str:
     tail = lines[-30:]
     combined = head + ["... (중략) ..."] + list(dict.fromkeys(important)) + ["... (중략) ..."] + tail
     return "\n".join(combined[:max_lines])
+
+
+def trim_code_for_abap_analysis(source_code: str, max_lines: int = 300) -> str:
+    """
+    `abap_source_only_from_reference_payload`가 넣은 슬롯 마커가 있으면
+    프로그램별로 `_trim_code` 예산을 나눠, 첫 번째 프로그램만 남는 현상을 줄인다.
+    """
+    src = source_code or ""
+    if REF_SLOT_MARKER + "_BEGIN" not in src:
+        return _trim_code(src, max_lines)
+    begin = r"\*& === " + re.escape(REF_SLOT_MARKER) + r"_BEGIN[^\n]*\n"
+    end = r"\n\*& === " + re.escape(REF_SLOT_MARKER) + r"_END[^\n]*"
+    pat = re.compile(f"({begin})([\\s\\S]*?)({end})")
+    ms = list(pat.finditer(src))
+    if not ms:
+        return _trim_code(src, max_lines)
+    n = len(ms)
+    per = max(80, max_lines // n)
+    parts: list[str] = []
+    pos = 0
+    for m in ms:
+        if m.start() > pos:
+            orphan = src[pos : m.start()].strip()
+            if orphan:
+                parts.append(_trim_code(orphan, max(60, max_lines // (n + 1))))
+        parts.append(m.group(1) + _trim_code(m.group(2), per) + m.group(3))
+        pos = m.end()
+    if pos < len(src):
+        tail = src[pos:].strip()
+        if tail:
+            parts.append(_trim_code(tail, max(60, max_lines // (n + 1))))
+    return "\n\n".join(parts).strip()
 
 
 def _parse_json_block(text: str, default) -> dict:

@@ -97,3 +97,24 @@ def presigned_get_url(key: str, download_filename: str, expires_in: int = 3600) 
         },
         ExpiresIn=expires_in,
     )
+
+
+def read_bytes_from_ref(file_path: Optional[str]) -> Optional[bytes]:
+    """로컬 파일 경로 또는 r2:// 객체를 읽습니다. 실패 시 None."""
+    kind, ref = parse_storage_ref(file_path)
+    if kind == "r2":
+        if not ref or not is_configured():
+            return None
+        try:
+            bucket = os.environ["R2_BUCKET_NAME"]
+            r = _client().get_object(Bucket=bucket, Key=ref)
+            return r["Body"].read()
+        except Exception:
+            return None
+    if ref and os.path.isfile(ref):
+        try:
+            with open(ref, "rb") as f:
+                return f.read()
+        except Exception:
+            return None
+    return None

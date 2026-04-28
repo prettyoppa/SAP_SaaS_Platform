@@ -248,10 +248,37 @@
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <i class="fa-solid fa-code me-1"></i>
             <span>분석에 사용된 ABAP 본문 (제출 코드에서 추출)</span>
-            <span class="small text-muted">({{ (row.source_code or '').splitlines()|length }}줄)</span>
+            {% if reference_slots and reference_slots|length > 0 %}
+            <span class="small text-muted">({{ reference_slots|length }}개 프로그램 · 총 {{ abap_source_line_count }}줄)</span>
+            {% else %}
+            <span class="small text-muted">({{ abap_source_line_count }}줄)</span>
+            {% endif %}
           </summary>
           <div class="interview-summary-body p-0">
-            <pre class="mb-0 p-3 small" style="max-height:28rem;overflow:auto;background:var(--surface2);border-top:1px solid var(--border);"><code>{{ row.source_code }}</code></pre>
+            {% if reference_slots and reference_slots|length > 0 %}
+              {% for slot in reference_slots %}
+              <details class="analysis-fold border-bottom" style="border-color:var(--border)" {% if loop.first %}open{% endif %}>
+                <summary class="analysis-fold-summary px-3 py-2" style="background:var(--surface2)">
+                  <span class="fw-semibold">프로그램 {{ slot.index }}</span>
+                  {% if slot.program_id %}<span class="font-monospace text-primary ms-2">{{ slot.program_id }}</span>{% endif %}
+                  {% if slot.transaction_code %}<span class="small text-muted ms-2"> · T-Code {{ slot.transaction_code }}</span>{% endif %}
+                  {% if slot.title %}<span class="small text-muted ms-2">— {{ slot.title }}</span>{% endif %}
+                </summary>
+                <div class="px-3 pb-3 pt-1">
+                  {% for sec in slot.sections %}
+                  {% if sec.code and sec.code.strip() %}
+                  <div class="mb-3">
+                    <div class="small fw-semibold text-muted mb-1">{{ sec.type }}{% if sec.name %} — {{ sec.name }}{% endif %}</div>
+                    <pre class="mb-0 p-3 small" style="max-height:24rem;overflow:auto;background:var(--surface2);border:1px solid var(--border);"><code>{{ sec.code }}</code></pre>
+                  </div>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </details>
+              {% endfor %}
+            {% else %}
+              <pre class="mb-0 p-3 small" style="max-height:28rem;overflow:auto;background:var(--surface2);border-top:1px solid var(--border);"><code>{{ effective_abap_source }}</code></pre>
+            {% endif %}
           </div>
         </details>
       </div>

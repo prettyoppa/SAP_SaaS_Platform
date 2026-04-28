@@ -21,9 +21,11 @@ from ..abap_followup_chat import (
     validate_user_message,
 )
 from ..database import get_db
+from ..attachment_context import build_attachment_llm_digest
 from ..rfp_reference_code import (
     abap_source_only_from_reference_payload,
     normalize_reference_code_payload,
+    reference_slots_for_detail_ui,
 )
 from ..templates_config import templates
 from .rfp_router import (
@@ -102,6 +104,16 @@ def _set_attachments(row: models.AbapAnalysisRequest, entries: list[dict]) -> No
     row.attachments_json = json.dumps(entries, ensure_ascii=False)
 
 
+def _effective_abap_source(row: models.AbapAnalysisRequest) -> str:
+    """저장 시점에 슬롯 마커 없이 합쳐진 본문만 있을 수 있으므로, 참조 JSON이 있으면 항상 재계산해 사용."""
+    p = getattr(row, "reference_code_payload", None)
+    if p and str(p).strip():
+        rec = abap_source_only_from_reference_payload(p).strip()
+        if rec:
+            return rec
+    return (row.source_code or "").strip()
+
+
 def _notes_from_entries(entries: list[dict]) -> list[str]:
     return [(e.get("note") or "")[:200] for e in entries] + [""] * 5
 
@@ -131,8 +143,15 @@ def _pair_abap_followup_turns(msgs: list) -> list[dict]:
     return out
 
 
-def _run_analysis(requirement_text: str, source_code: str) -> dict:
+def _run_analysis(
+    requirement_text: str,
+    source_code: str,
+    attachment_entries: Optional[list[dict]] = None,
+) -> dict:
     from ..agents.free_crew import analyze_code_for_library, augment_abap_analysis_with_requirement
+
+    att = attachment_entries if attachment_entries else []
+    digest = build_attachment_llm_digest(att, max_total_chars=12_000)
 
     title_snip = requirement_text.strip()[:200] or "ABAP 분석"
     structural = analyze_code_for_library(
@@ -141,10 +160,16 @@ def _run_analysis(requirement_text: str, source_code: str) -> dict:
         modules=[],
         dev_types=[],
         include_interview_questions=False,
+        attachment_digest=digest,
     )
     out = dict(structural)
     if not structural.get("error"):
-        aug = augment_abap_analysis_with_requirement(requirement_text, structural, source_code)
+        aug = augment_abap_analysis_with_requirement(
+            requirement_text,
+            structural,
+            source_code,
+            attachment_digest=digest,
+        )
         if aug.get("error"):
             out["requirement_analysis_error"] = aug["error"]
         else:
@@ -281,7 +306,7 @@ async def abap_analysis_create(
     if len(src) < MIN_ABAP_SOURCE_LEN:
         return _bad("code_too_short")
 
-    analysis = _run_analysis(req_clean, src)
+    analysis = _run_analysis(req_clean, src, att_entries)
     analyzed = not bool(analysis.get("error"))
 
     row = models.AbapAnalysisRequest(
@@ -398,7 +423,7 @@ async def abap_analysis_edit_save(
     if len(src) < MIN_ABAP_SOURCE_LEN:
         return _bad("code_too_short")
 
-    analysis = _run_analysis(req_clean, src)
+    analysis = _run_analysis(req_clean, src, att_entries)
     analyzed = not bool(analysis.get("error"))
     row.requirement_text = req_clean
     row.reference_code_payload = norm_ref
@@ -436,9 +461,11 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
     )
     n_followup_user = sum(1 for m in followup_messages if (m.role or "") == "user")
     followup_turns = _pair_abap_followup_turns(followup_messages)
-    chat_enabled = (not row.is_draft) and bool((row.source_code or "").strip())
+    eff_src = _effective_abap_source(row)
+    chat_enabled = (not row.is_draft) and bool(eff_src.strip())
     chat_limit_reached = n_followup_user >= MAX_USER_TURNS_PER_REQUEST
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
+    ref_slots = reference_slots_for_detail_ui(getattr(row, "reference_code_payload", None))
 
     return templates.TemplateResponse(
         request,
@@ -454,6 +481,9 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
             "chat_enabled": chat_enabled,
             "chat_limit_reached": chat_limit_reached,
             "chat_error": chat_error,
+            "reference_slots": ref_slots,
+            "abap_source_line_count": len(eff_src.splitlines()) if eff_src else 0,
+            "effective_abap_source": eff_src,
             "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
         },
     )
@@ -470,7 +500,8 @@ def abap_analysis_chat_post(
     row = _get_request_for_user(db, user, req_id)
     if not row or row.is_draft:
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=303)
-    if not (row.source_code or "").strip():
+    eff_src = _effective_abap_source(row)
+    if not eff_src.strip():
         return RedirectResponse(
             url=f"/abap-analysis/{req_id}?chat_err={quote('분석에 사용된 코드가 없어 대화를 시작할 수 없습니다.')}",
             status_code=303,
@@ -512,12 +543,14 @@ def abap_analysis_chat_post(
     )
 
     try:
+        att_digest = build_attachment_llm_digest(_attachment_entries(row), max_total_chars=10_000)
         reply = generate_followup_reply(
             requirement_text=row.requirement_text or "",
-            source_code=row.source_code or "",
+            source_code=eff_src,
             analysis_obj=analysis,
             history_messages=prior,
             user_question=msg,
+            attachment_digest=att_digest,
         )
     except Exception:
         reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
@@ -578,8 +611,10 @@ def abap_analysis_reanalyze(req_id: int, request: Request, db: Session = Depends
         return RedirectResponse(url="/abap-analysis", status_code=302)
     if row.is_draft:
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-    analysis = _run_analysis(row.requirement_text or "", row.source_code or "")
+    eff_src = _effective_abap_source(row)
+    analysis = _run_analysis(row.requirement_text or "", eff_src, _attachment_entries(row))
     analyzed = not bool(analysis.get("error"))
+    row.source_code = eff_src
     row.analysis_json = json.dumps(analysis, ensure_ascii=False)
     row.is_analyzed = analyzed
     db.add(row)

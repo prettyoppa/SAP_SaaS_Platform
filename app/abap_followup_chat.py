@@ -13,7 +13,7 @@ from pathlib import Path
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-from .agents.free_crew import SAP_KOREAN_CODE_ANALYSIS_STYLE, _trim_code
+from .agents.free_crew import SAP_KOREAN_CODE_ANALYSIS_STYLE, trim_code_for_abap_analysis
 from .gemini_model import get_gemini_model_id
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -51,16 +51,22 @@ def generate_followup_reply(
     analysis_obj: dict,
     history_messages: list,
     user_question: str,
+    attachment_digest: str = "",
 ) -> str:
     """분석 맥락 + 대화 이력 + 새 질문에 대한 한국어 답변(일반 텍스트)."""
     req = (requirement_text or "").strip()[:20_000]
-    code_excerpt = _trim_code(source_code or "", max_lines=320)
+    code_excerpt = trim_code_for_abap_analysis(source_code or "", max_lines=320)
     try:
         aj = json.dumps(analysis_obj, ensure_ascii=False)
     except Exception:
         aj = str(analysis_obj)
     if len(aj) > MAX_ANALYSIS_JSON_CHARS:
         aj = aj[: MAX_ANALYSIS_JSON_CHARS] + "\n…(이하 생략)…"
+
+    att = (attachment_digest or "").strip()
+    att_block = ""
+    if att:
+        att_block = f"\n\n[첨부·참고 자료 — 서버에서 추출한 텍스트 요약]\n{att[:24_000]}\n"
 
     hist = history_messages[-MAX_HISTORY_MESSAGES:] if history_messages else []
     hist_text = _format_history(hist)
@@ -72,6 +78,7 @@ def generate_followup_reply(
 
 규칙:
 - 소스에 없는 기능을 사실처럼 단정하지 마라. 추정이면 추정임을 분명히 한다.
+- **첨부 요약 블록**이 있으면, 회원 질문이 파일·시트에 관한 것이라면 그 내용을 근거로 답한다. 파일을 「직접 열어볼」 수 있는 것처럼 말하지 말고, **서버가 아래에 넣어 준 요약**을 전제로 설명한다.
 - 코드 인용은 필요한 만큼만 짧게. 전체 프로그램을 다시 붙이지 마라.
 - 마크다운 소제목(##)은 쓰지 않아도 된다. 가독성 있게 짧은 문단·불릿 위주.
 - 회원이 한국어로 물었으면 한국어로 답한다.
@@ -86,7 +93,7 @@ def generate_followup_reply(
 ```abap
 {code_excerpt}
 ```
-
+{att_block}
 [지금까지의 후속 대화]
 {hist_text}
 

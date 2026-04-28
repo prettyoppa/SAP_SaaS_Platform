@@ -11,6 +11,9 @@ MAX_REFERENCE_CODE_BYTES = 6 * 1024 * 1024
 # 슬롯당 ABAP 섹션 코드 최대 길이
 MAX_SECTION_CODE_CHARS = 500_000
 
+# abap_source_only_from_reference_payload() 출력에 삽입 — 슬롯별 트림·식별용(에이전트 입력)
+REF_SLOT_MARKER = "SAP_DEV_HUB:REF_SLOT"
+
 
 def normalize_reference_code_payload(raw: str | None) -> str | None:
     """
@@ -206,7 +209,7 @@ def format_reference_code_for_llm(payload: str | None) -> str:
 def abap_source_only_from_reference_payload(payload: str | None) -> str:
     """
     ABAP 코드 JSON에서 본문만 이어붙인다(에이전트·분석 입력용).
-    슬롯 메타(프로그램 ID, 모듈 태그 등)는 제외.
+    슬롯마다 SAP 주석 마커로 구분해, 길이 제한 시 프로그램별로 균형 있게 자를 수 있게 한다.
     """
     if not payload or not str(payload).strip():
         return ""
@@ -223,16 +226,73 @@ def abap_source_only_from_reference_payload(payload: str | None) -> str:
     else:
         n_vis = _infer_visible_slots(slots)
     chunks: list[str] = []
+    slot_idx = 0
     for sl in slots[:n_vis]:
         if not isinstance(sl, dict) or not _slot_nonempty(sl):
             continue
+        sec_parts: list[str] = []
         for sec in sl.get("sections") or []:
             if not isinstance(sec, dict):
                 continue
             c = (sec.get("code") or "").strip()
             if c:
-                chunks.append(c)
+                sec_parts.append(c)
+        if not sec_parts:
+            continue
+        slot_idx += 1
+        pid = (sl.get("program_id") or "").strip()
+        head = f"*& === {REF_SLOT_MARKER}_BEGIN idx={slot_idx}"
+        if pid:
+            head += f" PID={pid}"
+        head += " ==="
+        body = "\n\n".join(sec_parts)
+        tail = f"*& === {REF_SLOT_MARKER}_END idx={slot_idx} ==="
+        chunks.append(f"{head}\n{body}\n{tail}")
     return "\n\n".join(chunks)
+
+
+def reference_slots_for_detail_ui(payload: str | None) -> list[dict]:
+    """
+    상세 화면에서 슬롯·섹션별로 ABAP를 접어 보여주기 위한 데이터.
+    """
+    if not payload or not str(payload).strip():
+        return []
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return []
+    slots_in = data.get("slots")
+    if not isinstance(slots_in, list):
+        return []
+    vis = data.get("visibleSlotCount")
+    if isinstance(vis, int) and 1 <= vis <= 3:
+        n_vis = vis
+    else:
+        n_vis = _infer_visible_slots(slots_in)
+    out: list[dict] = []
+    for sl in slots_in[:n_vis]:
+        if not isinstance(sl, dict) or not _slot_nonempty(sl):
+            continue
+        secs_o: list[dict] = []
+        for sec in sl.get("sections") or []:
+            if not isinstance(sec, dict):
+                continue
+            code = sec.get("code") or ""
+            if not str(code).strip() and not (sec.get("name") or "").strip():
+                continue
+            secs_o.append({
+                "type": (sec.get("type") or "").strip() or "메인 프로그램",
+                "name": (sec.get("name") or "").strip(),
+                "code": code,
+            })
+        out.append({
+            "index": len(out) + 1,
+            "program_id": (sl.get("program_id") or "").strip(),
+            "transaction_code": (sl.get("transaction_code") or "").strip(),
+            "title": (sl.get("title") or "").strip(),
+            "sections": secs_o,
+        })
+    return out
 
 
 def strip_for_display_log(payload: str | None, max_chars: int = 200) -> str:
