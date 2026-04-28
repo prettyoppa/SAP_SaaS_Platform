@@ -1612,11 +1612,16 @@ def _trim_code(source_code: str, max_lines: int = 300) -> str:
     return "\n".join(combined[:max_lines])
 
 
-def trim_code_for_abap_analysis(source_code: str, max_lines: int = 300) -> str:
+def trim_code_for_abap_analysis(source_code: str, max_lines: int | None = None) -> str:
     """
     `abap_source_only_from_reference_payload`가 넣은 슬롯 마커가 있으면
     프로그램별로 `_trim_code` 예산을 나눠, 첫 번째 프로그램만 남는 현상을 줄인다.
     """
+    if max_lines is None:
+        try:
+            max_lines = int(os.environ.get("ABAP_ANALYSIS_TRIM_MAX_LINES", "750"))
+        except ValueError:
+            max_lines = 750
     src = source_code or ""
     if REF_SLOT_MARKER + "_BEGIN" not in src:
         return _trim_code(src, max_lines)
