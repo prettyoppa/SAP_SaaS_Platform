@@ -66,8 +66,10 @@ async def _build_attachment_entries_from_uploads(
             raw = await _read_upload_limited(up)
         except ValueError:
             return None, "file_too_large"
+        # multipart 파싱 후 스트림이 끝에 있으면 read()가 빈 값이 될 수 있어 _read_upload_limited에서 seek(0) 처리함.
+        # 그래도 0바이트면(악의적/깨진 파트) 저장 대상에서 건너뜀.
         if len(raw) == 0:
-            return None, "empty_attachment"
+            continue
         path, fname = _store_rfp_file(user_id, ext, raw, up.filename)
         note = (notes[i] if i < len(notes) else "") or ""
         entries.append({"path": path, "filename": fname, "note": note.strip()})
@@ -75,6 +77,16 @@ async def _build_attachment_entries_from_uploads(
 
 
 async def _read_upload_limited(upload: UploadFile) -> bytes:
+    """멀티파트로 넘어온 업로드 파일을 끝까지 읽습니다. 스트림 포인터가 파일 끝인 경우가 있어 먼저 seek(0)."""
+    try:
+        await upload.seek(0)
+    except Exception:
+        try:
+            # 구형 Starlette / 직접 SpooledTemporaryFile
+            if getattr(upload, "file", None) is not None and hasattr(upload.file, "seek"):
+                upload.file.seek(0)
+        except Exception:
+            pass
     chunks: List[bytes] = []
     total = 0
     while True:
