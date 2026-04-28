@@ -18,6 +18,12 @@ from .gemini_model import get_gemini_model_id
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
+# 후속 채팅 코드 컨텍스트 (문자 수 = Python len. ABAP 한 줄에 대략 수십~백여 자 흔함)
+# 13k 라인 합계는 보통 80만~120만 자 전후 → 전본 포함하려면 백만 자 이상 한도가 필요
+_DEFAULT_FOLLOWUP_FULL_BELOW_CHARS = 1_500_000
+_DEFAULT_FOLLOWUP_HARD_CAP_CHARS = 1_850_000
+_DEFAULT_FOLLOWUP_TRIM_MAX_LINES = 12_000
+
 MAX_USER_MESSAGE_CHARS = 4_000
 MAX_USER_TURNS_PER_REQUEST = 60
 MAX_ANALYSIS_JSON_CHARS = 14_000
@@ -131,9 +137,9 @@ def _build_followup_code_excerpt(source_code: str, user_question: str) -> tuple[
     if not src:
         return "", ""
 
-    full_below = _followup_env_int("ABAP_FOLLOWUP_FULL_BELOW_CHARS", 220_000)
-    hard_cap = _followup_env_int("ABAP_FOLLOWUP_CODE_HARD_CAP_CHARS", 290_000)
-    trim_ml = _followup_env_int("ABAP_FOLLOWUP_TRIM_MAX_LINES", 5000)
+    full_below = _followup_env_int("ABAP_FOLLOWUP_FULL_BELOW_CHARS", _DEFAULT_FOLLOWUP_FULL_BELOW_CHARS)
+    hard_cap = _followup_env_int("ABAP_FOLLOWUP_CODE_HARD_CAP_CHARS", _DEFAULT_FOLLOWUP_HARD_CAP_CHARS)
+    trim_ml = _followup_env_int("ABAP_FOLLOWUP_TRIM_MAX_LINES", _DEFAULT_FOLLOWUP_TRIM_MAX_LINES)
 
     # 짧은 제출: 전본만 넣고 끝(보충으로 중복·토큰만 늘지 않게)
     if len(raw) <= full_below:

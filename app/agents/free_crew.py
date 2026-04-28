@@ -1589,7 +1589,13 @@ def _analysis_looks_complete(data: dict, upload_title: str = "") -> bool:
 
 
 def _trim_code(source_code: str, max_lines: int = 300) -> str:
-    """코드가 길 경우 핵심 섹션(선언부 + 주요 로직)만 추출합니다."""
+    """
+    코드가 길 경우 줄 수를 줄입니다.
+
+    「첫 줄부터 max_lines 줄」이 아니라, 앞 50줄 + 키워드(FORM, SELECT, LOOP 등)가
+    있는 줄과 그 주변 + 마지막 30줄을 모은 뒤 max_lines 줄로 자릅니다.
+    중간의 긴 FORM/SELECT 블록 전체가 빠질 수 있습니다.
+    """
     lines = source_code.splitlines()
     if len(lines) <= max_lines:
         return source_code
@@ -1619,9 +1625,9 @@ def trim_code_for_abap_analysis(source_code: str, max_lines: int | None = None) 
     """
     if max_lines is None:
         try:
-            max_lines = int(os.environ.get("ABAP_ANALYSIS_TRIM_MAX_LINES", "750"))
+            max_lines = int(os.environ.get("ABAP_ANALYSIS_TRIM_MAX_LINES", "4000"))
         except ValueError:
-            max_lines = 750
+            max_lines = 4000
     src = source_code or ""
     if REF_SLOT_MARKER + "_BEGIN" not in src:
         return _trim_code(src, max_lines)
