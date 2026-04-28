@@ -4,6 +4,7 @@ import os
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
@@ -35,7 +36,8 @@ def _ref_code_initial_from_rfp(rfp: Any) -> Optional[dict]:
     except Exception:
         return None
 
-# Railway 등에서는 상대 경로 uploads 쓰기 실패할 수 있어 /tmp 사용
+# Railway 웹 프로세스 로컬 디스크(ephemeral)·/tmp 는 재배포 시 사라질 수 있습니다.
+# 첨부 바이너리는 Postgres에 넣지 않고, 여기 또는 R2(r2_storage)에 저장·DB에는 경로만 JSON 저장.
 UPLOAD_DIR = (
     "/tmp/sap_uploads"
     if (os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
@@ -66,10 +68,8 @@ async def _build_attachment_entries_from_uploads(
             raw = await _read_upload_limited(up)
         except ValueError:
             return None, "file_too_large"
-        # multipart 파싱 후 스트림이 끝에 있으면 read()가 빈 값이 될 수 있어 _read_upload_limited에서 seek(0) 처리함.
-        # 그래도 0바이트면(악의적/깨진 파트) 저장 대상에서 건너뜀.
         if len(raw) == 0:
-            continue
+            return None, "empty_attachment"
         path, fname = _store_rfp_file(user_id, ext, raw, up.filename)
         note = (notes[i] if i < len(notes) else "") or ""
         entries.append({"path": path, "filename": fname, "note": note.strip()})
@@ -77,26 +77,40 @@ async def _build_attachment_entries_from_uploads(
 
 
 async def _read_upload_limited(upload: UploadFile) -> bytes:
-    """멀티파트로 넘어온 업로드 파일을 끝까지 읽습니다. 스트림 포인터가 파일 끝인 경우가 있어 먼저 seek(0)."""
-    try:
-        await upload.seek(0)
-    except Exception:
+    """멀티파트 업로드 본문을 읽습니다.
+
+    일부 환경에서 비동기 read() 첫 호출만 빈 값이 되는 경우가 있어 seek(0) 후 단일 read() 시도,
+    그래도 비면 동기 파일 객체에서 재시도합니다. (PostgreSQL에는 바이너리가 들어가지 않고 R2 또는 로컬 경로만 저장.)
+    """
+
+    async def _async_read_all() -> bytes:
         try:
-            # 구형 Starlette / 직접 SpooledTemporaryFile
-            if getattr(upload, "file", None) is not None and hasattr(upload.file, "seek"):
-                upload.file.seek(0)
+            await upload.seek(0)
         except Exception:
             pass
-    chunks: List[bytes] = []
-    total = 0
-    while True:
-        chunk = await upload.read(64 * 1024)
-        if not chunk:
-            break
-        total += len(chunk)
-        if total > MAX_FILE_SIZE_BYTES:
-            raise ValueError("file_too_large")
-    return b"".join(chunks)
+        return await upload.read()
+
+    raw = await _async_read_all()
+    if len(raw) > MAX_FILE_SIZE_BYTES:
+        raise ValueError("file_too_large")
+
+    if not raw and getattr(upload, "file", None) is not None:
+        def _sync_read_all() -> bytes:
+            uf = upload.file
+            try:
+                uf.seek(0)
+            except Exception:
+                pass
+            try:
+                return uf.read() or b""
+            except Exception:
+                return b""
+
+        raw = await run_in_threadpool(_sync_read_all)
+
+    if len(raw) > MAX_FILE_SIZE_BYTES:
+        raise ValueError("file_too_large")
+    return raw
 
 
 def _save_attachment_local(user_id: int, ext: str, data: bytes) -> str:
