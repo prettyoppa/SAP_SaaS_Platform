@@ -60,7 +60,7 @@
         </li>
         {% if user %}
         <li class="nav-item">
-          <a class="nav-link {% if path.startswith('/rfp') %}active{% endif %}" href="/rfp/new">
+          <a class="nav-link {% if path.startswith('/services/abap') or path.startswith('/rfp') %}active{% endif %}" href="/services/abap">
             <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">New Development</span>
           </a>
         </li>

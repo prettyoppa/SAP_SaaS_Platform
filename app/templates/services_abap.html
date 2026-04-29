@@ -2,36 +2,84 @@
 {% block title %}SAP ABAP 개발 – SAP 개발 파트너{% endblock %}
 
 {% block content %}
-<div class="py-5">
-  <div class="container col-lg-9">
-    <nav aria-label="breadcrumb" class="mb-3">
-      <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="/">홈</a></li>
-        <li class="breadcrumb-item active" aria-current="page">SAP ABAP 개발</li>
-      </ol>
-    </nav>
-    <h1 class="mb-3">SAP ABAP 개발</h1>
-    <p class="lead text-muted">
-      표준 RFP(개발제안요청)를 제출하면 AI 에이전트가 심층 인터뷰를 진행하고, 무료 개발 제안서를 생성합니다.
-      프로그램 ID·SAP 모듈·개발 유형을 중심으로 한 전형적인 ABAP 과제에 적합합니다.
-    </p>
-    <ul class="text-muted">
-      <li>리포트, 다이얼로그, 인터페이스, BAPI·Enhancement 등</li>
-      <li>첨부 파일·ABAP 코드로 맥락 공유</li>
-      <li>대시보드에서 RFP·인터뷰·제안서 상태를 한눈에 확인</li>
-    </ul>
-    <div class="d-flex flex-wrap gap-3 mt-4">
-      {% if user %}
-      <a href="/rfp/new" class="btn btn-primary btn-lg">
-        <i class="fa-solid fa-plus me-2"></i>신규 ABAP 요청 (RFP)
-      </a>
-      <a href="/" class="btn btn-outline-secondary btn-lg">내 ABAP 요청만 보기</a>
-      {% else %}
-      <a href="/register" class="btn btn-primary btn-lg">무료로 시작하기</a>
-      <a href="/login" class="btn btn-outline-secondary btn-lg">로그인</a>
-      {% endif %}
-      <a href="/integration" class="btn btn-outline-primary btn-lg">SAP 연동 개발(비-ABAP) 안내</a>
+<div class="dashboard-page py-4">
+  <div class="container">
+    <div class="dashboard-header mb-4">
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="mb-1 d-flex align-items-center gap-2 flex-wrap">
+            <i class="fa-solid fa-code text-primary-light" aria-hidden="true"></i>
+            <span>SAP ABAP 개발</span>
+          </h2>
+        </div>
+        <div class="col-auto">
+          {% if user %}
+          <a href="/rfp/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>신규 요청</a>
+          {% else %}
+          <a href="/login?next=/rfp/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>신규 요청</a>
+          {% endif %}
+        </div>
+      </div>
     </div>
+
+    <div class="service-abap-intro markdown-body-lite text-muted mb-4 small">
+      {{ service_abap_intro_html | safe }}
+    </div>
+
+    {% if user %}
+    <div class="row g-3 mb-4 row-cols-2 row-cols-sm-3 row-cols-xl-5">
+      {% for key in rfp_bucket_order %}
+      {% set m = bucket_meta[key] %}
+      <div class="col">
+        <a href="#rfp-bucket-{{ key }}" class="stat-card stat-card-sm stat-card-link text-decoration-none h-100 d-flex">
+          <div class="stat-card-icon" style="background: {{ m.bg }}; color: {{ m.fg }}">
+            <i class="fa-solid {{ m.icon }}"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{{ rfp_landing_counts[key] }}</div>
+            <div class="stat-card-label">{{ m.label }}</div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% for key in rfp_bucket_order %}
+    {% set m = bucket_meta[key] %}
+    <section class="mb-4" id="rfp-bucket-{{ key }}">
+      <h5 class="mb-2 d-flex align-items-center gap-2 flex-wrap">
+        <i class="fa-solid {{ m.icon }} small" style="color: {{ m.fg }}"></i>
+        {{ m.label }}
+        <span class="text-muted small fw-normal">({{ rfp_landing_counts[key] }}건)</span>
+        {% if key == 'delivery' %}
+        <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
+        {% endif %}
+      </h5>
+      {% if key == 'delivery' %}
+      <p class="text-muted small mb-3">FS 작성부터 ABAP 최종 납품까지의 단계는 추후 서비스에 반영될 예정입니다.</p>
+      {% endif %}
+      {% if rfp_landing_buckets[key]|length %}
+      <div class="row g-3">
+        {% for rfp in rfp_landing_buckets[key] %}
+        <div class="col-12">
+          {% include "partials/rfp_user_list_card.html" %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-muted small mb-0">해당 단계의 요청이 없습니다.</p>
+      {% endif %}
+    </section>
+    {% endfor %}
+
+    {% else %}
+    <div class="alert alert-info border-0 mb-0" style="background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.25)!important;">
+      <i class="fa-solid fa-user-lock me-2"></i>
+      <strong>로그인</strong>하면 나의 RFP 목록·진행 현황판·단계별 카드가 표시됩니다.
+      <a href="/login?next=/services/abap" class="alert-link">로그인</a>
+      · <a href="/register" class="alert-link">회원가입</a>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

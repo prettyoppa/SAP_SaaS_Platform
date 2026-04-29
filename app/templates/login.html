@@ -60,6 +60,9 @@
           {% endif %}
 
           <form method="post" action="/login">
+            {% if login_next %}
+            <input type="hidden" name="next_path" value="{{ login_next }}" />
+            {% endif %}
             <div class="mb-3">
               <label class="form-label" data-i18n="login.email">Email</label>
               <div class="input-icon-wrap">

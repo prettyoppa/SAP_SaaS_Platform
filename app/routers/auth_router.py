@@ -2,9 +2,8 @@ import logging
 import os
 import threading
 from datetime import datetime, timedelta
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
-from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -17,6 +16,15 @@ from ..templates_config import templates
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
+def _safe_login_redirect_next(raw: str | None) -> str | None:
+    """로그인 후 이동: 같은 사이트 내 상대 경로만 허용."""
+    if raw is None:
+        return None
+    p = (raw or "").strip()
+    if not p.startswith("/") or p.startswith("//"):
+        return None
+    return p
 
 def _send_verification_email_bg(to_addr: str, verify_url: str) -> None:
     """HTTP 응답을 막지 않기 위해 별도 스레드에서 발송. 실패 시 로그만 남김(재발송으로 복구)."""
@@ -73,6 +81,9 @@ def login_page(
     if user:
         return RedirectResponse(url="/", status_code=302)
     ctx = {}
+    nxt = _safe_login_redirect_next(request.query_params.get("next"))
+    if nxt:
+        ctx["login_next"] = nxt
     if verified == "1":
         ctx["verified_ok"] = True
     if verify == "invalid":
@@ -87,14 +98,21 @@ def login(
     request: Request,
     email: str = Form(...),
     password: str = Form(...),
+    next_path: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    def _ctx(**kw):
+        nx = _safe_login_redirect_next((next_path or "").strip())
+        if nx:
+            kw["login_next"] = nx
+        return kw
+
     email_norm = _normalize_email_strict(email)
     if not email_norm:
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": True},
+            _ctx(error=True),
             status_code=400,
         )
     user = db.query(models.User).filter(models.User.email == email_norm).first()
@@ -102,18 +120,19 @@ def login(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": True},
+            _ctx(error=True),
             status_code=400,
         )
     if email_verification_enabled() and not user.email_verified:
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "email_not_verified", "email": email_norm},
+            _ctx(error="email_not_verified", email=email_norm),
             status_code=400,
         )
     token = auth.create_access_token({"sub": user.email})
-    response = RedirectResponse(url="/", status_code=302)
+    redirect_url = _safe_login_redirect_next((next_path or "").strip()) or "/"
+    response = RedirectResponse(url=redirect_url, status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
     return response
 

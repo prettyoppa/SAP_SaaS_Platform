@@ -1366,6 +1366,16 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 .analysis-mini-title { font-size: .85rem; font-weight: 600; margin-bottom: .6rem; }
 .analysis-list { padding-left: 1.2rem; margin: 0; font-size: .85rem; line-height: 1.75; }
 
+/* 신규 개발 랜딩 등: Proposal과 동일 규칙의 간단 Markdown 렌더 */
+.markdown-body-lite h1 { font-size: 1.15rem; margin: .5rem 0; font-weight: 700; }
+.markdown-body-lite h2 { font-size: 1.05rem; margin: .75rem 0 .35rem; font-weight: 600; }
+.markdown-body-lite h3 { font-size: .98rem; margin: .65rem 0 .3rem; font-weight: 600; }
+.markdown-body-lite p { margin-bottom: .5rem; }
+.markdown-body-lite p:last-child { margin-bottom: 0; }
+.markdown-body-lite ul, .markdown-body-lite ol { margin-bottom: .65rem; padding-left: 1.25rem; }
+.markdown-body-lite hr { opacity: .35; margin: .75rem 0; border: 0; border-top: 1px solid var(--border); }
+.service-abap-intro.markdown-body-lite strong { color: var(--text); }
+
 /* stat-card-sm */
 .stat-card-sm .stat-card-num { font-size: 1.5rem; }
 .stat-card-sm { padding: .75rem 1rem; }

@@ -12,7 +12,13 @@ from sqlalchemy.orm import Session
 from .. import models, auth
 from ..database import get_db
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
+from ..rfp_landing import (
+    BUCKET_ORDER,
+    DEFAULT_SERVICE_ABAP_INTRO_MD_KO,
+    user_rfp_landing_data,
+)
 from ..templates_config import templates
+from ..routers.interview_router import _markdown_to_html
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
@@ -54,10 +60,40 @@ def _set_attachments(ir: models.IntegrationRequest, entries: list[dict]) -> None
 @router.get("/services/abap", response_class=HTMLResponse)
 def services_abap_page(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
+    raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    intro_md = (raw.get("service_abap_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ABAP_INTRO_MD_KO
+    intro_html = _markdown_to_html(intro_md)
+
+    rfp_landing_counts = {k: 0 for k in BUCKET_ORDER}
+    rfp_landing_buckets = {k: [] for k in BUCKET_ORDER}
+    if user:
+        rfp_landing_counts, rfp_landing_buckets = user_rfp_landing_data(db, user.id)
+
+    bucket_meta = {
+        "delivery": {
+            "label": "납품",
+            "icon": "fa-truck",
+            "fg": "#94a3b8",
+            "bg": "rgba(148,163,184,.22)",
+            "hint": "FS·최종 코드 납품(추후)",
+        },
+        "proposal": {"label": "제안", "icon": "fa-file-lines", "fg": "#22c55e", "bg": "rgba(34,197,94,.18)"},
+        "analysis": {"label": "분석", "icon": "fa-magnifying-glass-chart", "fg": "#6366f1", "bg": "rgba(99,102,241,.18)"},
+        "in_progress": {"label": "진행중", "icon": "fa-spinner", "fg": "#eab308", "bg": "rgba(234,179,8,.2)"},
+        "draft": {"label": "임시저장", "icon": "fa-floppy-disk", "fg": "#64748b", "bg": "rgba(100,116,139,.2)"},
+    }
     return templates.TemplateResponse(
         request,
         "services_abap.html",
-        {"request": request, "user": user},
+        {
+            "request": request,
+            "user": user,
+            "service_abap_intro_html": intro_html,
+            "rfp_landing_counts": rfp_landing_counts,
+            "rfp_landing_buckets": rfp_landing_buckets,
+            "rfp_bucket_order": list(BUCKET_ORDER),
+            "bucket_meta": bucket_meta,
+        },
     )
 
 
