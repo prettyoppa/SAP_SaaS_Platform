@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .database import SessionLocal, db_target_log_line, engine
 from .email_smtp import email_verification_enabled, log_smtp_startup_checks
 from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
@@ -28,7 +28,6 @@ _log = logging.getLogger("uvicorn.error")
 def _run_migrations():
     """신규 컬럼이 기존 DB에 없을 경우 자동으로 추가합니다 (SQLite / PostgreSQL)."""
     dialect = engine.dialect.name
-    insp = inspect(engine)
     # (table, column, sqlite_def, postgres_def)
     migrations = [
         ("rfps", "interview_status", "VARCHAR DEFAULT 'pending'", "VARCHAR DEFAULT 'pending'"),
@@ -46,13 +45,23 @@ def _run_migrations():
         ("rfps", "reference_code_payload", "TEXT", "TEXT"),
         ("users", "email_verified", "BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT true"),
         ("rfp_messages", "intra_state_json", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "requirement_text", "TEXT DEFAULT ''", "TEXT DEFAULT ''"),
+        ("abap_analysis_requests", "reference_code_payload", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "source_code", "TEXT DEFAULT ''", "TEXT DEFAULT ''"),
+        ("abap_analysis_requests", "attachments_json", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "analysis_json", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "updated_at", "DATETIME", "TIMESTAMP"),
         ("abap_analysis_requests", "is_analyzed", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("abap_analysis_requests", "is_draft", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("integration_requests", "proposal_text", "TEXT", "TEXT"),
+        ("integration_requests", "proposal_generated_at", "DATETIME", "TIMESTAMP"),
+        ("integration_requests", "interview_status", "VARCHAR DEFAULT 'pending'", "VARCHAR DEFAULT 'pending'"),
+        ("integration_requests", "reference_code_payload", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
             try:
-                existing = [c["name"] for c in insp.get_columns(table)]
+                existing = [c["name"] for c in inspect(engine).get_columns(table)]
             except Exception:
                 continue
             if column in existing:
@@ -321,7 +330,11 @@ def index(request: Request):
         user = auth.get_current_user(request, _db)
         home_counts = None
         if user:
-            home_counts = home_tile_counts(_db, user.id)
+            try:
+                home_counts = home_tile_counts(_db, user.id)
+            except Exception:
+                _log.exception("home_tile_counts failed user_id=%s", getattr(user, "id", None))
+                home_counts = None
         raw_settings = _db.query(models.SiteSettings).all()
         settings = {s.key: s.value for s in raw_settings}
         notices = (_db.query(models.Notice)
@@ -333,6 +346,7 @@ def index(request: Request):
                 .order_by(models.FAQ.sort_order)
                 .all())
         reviews = (_db.query(models.Review)
+                   .options(joinedload(models.Review.author))
                    .filter(models.Review.is_public == True)
                    .order_by(models.Review.created_at.desc())
                    .limit(10).all())
