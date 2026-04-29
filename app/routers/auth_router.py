@@ -4,6 +4,7 @@ import threading
 from datetime import datetime, timedelta
 from urllib.parse import quote, urlparse
 
+from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
