@@ -146,6 +146,13 @@ const TRANSLATIONS = {
     "success.next2.title": "Expert Review", "success.next2.desc": "An SAP consultant reviews and enriches the proposal with professional insights.",
     "success.next3.title": "Proposal Delivered", "success.next3.desc": "You'll receive your free Development Proposal within 24 hours via email.",
     "success.newRequest": "New Request", "success.dashboard": "Go to Dashboard",
+    /* Services ABAP landing */
+    "svcAbap.createdFrom": "Created date",
+    "svcAbap.searchTitle": "Title",
+    "svcAbap.btnSearch": "Search",
+    "svcAbap.placeholderDate": "MM/DD/YYYY",
+    "svcAbap.placeholderTitle": "Search by title…",
+    "svcAbap.hintNoBucket": "Select a status tile above to load the list.",
   },
 
   ko: {
@@ -292,6 +299,13 @@ const TRANSLATIONS = {
     "success.next2.title": "전문가 검토", "success.next2.desc": "SAP 컨설턴트가 제안서를 검토하고 전문적인 인사이트를 추가합니다.",
     "success.next3.title": "제안서 발송", "success.next3.desc": "무료 개발 제안서가 24시간 이내에 이메일로 발송됩니다.",
     "success.newRequest": "새 요청 만들기", "success.dashboard": "대시보드로",
+    /* Services ABAP landing */
+    "svcAbap.createdFrom": "생성일",
+    "svcAbap.searchTitle": "제목",
+    "svcAbap.btnSearch": "검색",
+    "svcAbap.placeholderDate": "YYYY/MM/DD",
+    "svcAbap.placeholderTitle": "제목 검색…",
+    "svcAbap.hintNoBucket": "위에서 진행 상태 타일을 선택하면 목록이 표시됩니다.",
   }
 };
 

@@ -801,6 +801,10 @@ html[data-theme="dark"] .nav-icon-analysis .nav-icon-analysis-dark { display: in
 }
 .stat-card-num { font-size: 1.8rem; font-weight: 700; line-height: 1; }
 .stat-card-label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.stat-card-link.stat-card-tile-active {
+  border: 2px solid var(--primary-light);
+  box-shadow: 0 0 0 1px rgba(129,140,248,.35);
+}
 
 /* RFP List Cards */
 .rfp-list-card {

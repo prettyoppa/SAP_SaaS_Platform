@@ -19,6 +19,11 @@
         <span class="text-muted small ms-2 font-monospace">{{ rfp.program_id }}</span>
         {% endif %}
       </div>
+      {% if show_rfp_owner and rfp.owner %}
+      <div class="text-muted small mt-1">
+        <i class="fa-solid fa-user me-1"></i>{{ rfp.owner.full_name }} · {{ rfp.owner.email }}
+      </div>
+      {% endif %}
       <div class="rfp-list-meta">
         {% if rfp.sap_modules %}
           {% for m in rfp.sap_modules.split(',') %}{% if m %}<span class="badge-module">{{ m }}</span>{% endif %}{% endfor %}

@@ -331,7 +331,7 @@ def index(request: Request):
         home_counts = None
         if user:
             try:
-                home_counts = home_tile_counts(_db, user.id)
+                home_counts = home_tile_counts(_db, user.id, is_admin=bool(user.is_admin))
             except Exception:
                 _log.exception("home_tile_counts failed user_id=%s", getattr(user, "id", None))
                 home_counts = None

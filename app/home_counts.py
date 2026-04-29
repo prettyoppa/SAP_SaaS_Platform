@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from . import models
 
 
-def home_tile_counts(db: Session, user_id: int) -> dict:
+def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> dict:
     """
     각 메뉴별 건수 키 (모두 동일한 라벨):
 
@@ -16,10 +16,15 @@ def home_tile_counts(db: Session, user_id: int) -> dict:
     analysis — 분석 단계(중간 상태)
     in_progress — 진행 중
     draft — 임시저장
+
+    is_admin이면 각 메뉴의 집계는 전체 사용자 기준(홈 타일 제목 옆 “전체 N”용).
     """
     uid = user_id
 
-    rfps = db.query(models.RFP).filter(models.RFP.user_id == uid).all()
+    rfp_q = db.query(models.RFP)
+    if not is_admin:
+        rfp_q = rfp_q.filter(models.RFP.user_id == uid)
+    rfps = rfp_q.all()
 
     def _has_prop(r: models.RFP) -> bool:
         return bool((r.proposal_text or "").strip())
@@ -38,9 +43,10 @@ def home_tile_counts(db: Session, user_id: int) -> dict:
     )
     r_draft = sum(1 for r in rfps if (r.status or "") == "draft")
 
-    analyses = (
-        db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.user_id == uid).all()
-    )
+    a_q = db.query(models.AbapAnalysisRequest)
+    if not is_admin:
+        a_q = a_q.filter(models.AbapAnalysisRequest.user_id == uid)
+    analyses = a_q.all()
 
     a_delivery = 0
     a_proposal = 0  # 이 메뉴 제안 기능 미연동
@@ -48,9 +54,10 @@ def home_tile_counts(db: Session, user_id: int) -> dict:
     a_in_progress = sum(1 for a in analyses if not a.is_draft and a.is_analyzed)
     a_draft = sum(1 for a in analyses if a.is_draft)
 
-    integrations = (
-        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.user_id == uid).all()
-    )
+    ir_q = db.query(models.IntegrationRequest)
+    if not is_admin:
+        ir_q = ir_q.filter(models.IntegrationRequest.user_id == uid)
+    integrations = ir_q.all()
 
     # 연동: 상태 분류 로직 추후 — 타일 반영만
     ir_delivery = 0
@@ -67,6 +74,7 @@ def home_tile_counts(db: Session, user_id: int) -> dict:
             "in_progress": r_in_progress,
             "draft": r_draft,
         },
+        "rfp_total": len(rfps),
         "abap_analysis": {
             "delivery": a_delivery,
             "proposal": a_proposal,
@@ -74,6 +82,7 @@ def home_tile_counts(db: Session, user_id: int) -> dict:
             "in_progress": a_in_progress,
             "draft": a_draft,
         },
+        "abap_analysis_total": len(analyses),
         "integration": {
             "delivery": ir_delivery,
             "proposal": ir_proposal,
@@ -81,4 +90,5 @@ def home_tile_counts(db: Session, user_id: int) -> dict:
             "in_progress": ir_in_progress,
             "draft": ir_draft,
         },
+        "integration_total": len(integrations),
     }

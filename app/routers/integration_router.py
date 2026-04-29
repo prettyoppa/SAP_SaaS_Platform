@@ -5,6 +5,8 @@ import json
 import os
 from typing import List
 
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -13,9 +15,12 @@ from .. import models, auth
 from ..database import get_db
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..rfp_landing import (
-    BUCKET_ORDER,
     DEFAULT_SERVICE_ABAP_INTRO_MD_KO,
-    user_rfp_landing_data,
+    TILE_ORDER_WITH_ALL,
+    VALID_URL_BUCKETS,
+    filtered_rfp_list_for_landing,
+    parse_slashed_date,
+    rfp_landing_aggregate,
 )
 from ..templates_config import templates
 from ..routers.interview_router import _markdown_to_html
@@ -57,6 +62,23 @@ def _set_attachments(ir: models.IntegrationRequest, entries: list[dict]) -> None
     ir.attachments_json = json.dumps(entries, ensure_ascii=False)
 
 
+def _svc_abap_query_presets(request: Request) -> dict[str, str]:
+    """타일 클릭 시 유지할 검색 필드만."""
+    m: dict[str, str] = {}
+    qp = request.query_params
+    for k in ("title", "date_from", "date_to"):
+        v = qp.get(k)
+        if v and str(v).strip():
+            m[k] = str(v).strip()
+    return m
+
+
+def _svc_abap_build_url(bucket: str, presets: dict[str, str]) -> str:
+    m = dict(presets)
+    m["bucket"] = bucket
+    return "/services/abap?" + urlencode(m)
+
+
 @router.get("/services/abap", response_class=HTMLResponse)
 def services_abap_page(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
@@ -64,12 +86,57 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
     intro_md = (raw.get("service_abap_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ABAP_INTRO_MD_KO
     intro_html = _markdown_to_html(intro_md)
 
-    rfp_landing_counts = {k: 0 for k in BUCKET_ORDER}
-    rfp_landing_buckets = {k: [] for k in BUCKET_ORDER}
+    qp = request.query_params
+    bucket_raw = (qp.get("bucket") or "").strip() or None
+    if bucket_raw and bucket_raw not in VALID_URL_BUCKETS:
+        bucket_raw = None
+    selected_bucket = bucket_raw
+
+    title_search = (qp.get("title") or "").strip() or None
+    date_from_raw = (qp.get("date_from") or "").strip() or None
+    date_to_raw = (qp.get("date_to") or "").strip() or None
+    date_from_dt = parse_slashed_date(date_from_raw)
+    date_to_dt = parse_slashed_date(date_to_raw)
+
+    is_admin = bool(user and user.is_admin)
+
+    rfp_total_rows = 0
+    rfp_landing_counts = {k: 0 for k in ("delivery", "proposal", "analysis", "in_progress", "draft")}
+    svc_abap_tile_links: dict[str, str] = {}
+    rfps_filtered: list = []
+
+    show_rfp_owner = False
     if user:
-        rfp_landing_counts, rfp_landing_buckets = user_rfp_landing_data(db, user.id)
+        admin_view = is_admin
+        show_rfp_owner = admin_view
+
+        cnt, _buckets = rfp_landing_aggregate(db, admin=admin_view, user_id=user.id)
+        rfp_landing_counts = cnt
+        rfp_total_rows = sum(
+            rfp_landing_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft")
+        )
+        presets = _svc_abap_query_presets(request)
+        svc_abap_tile_links = {k: _svc_abap_build_url(k, presets) for k in TILE_ORDER_WITH_ALL}
+
+        if selected_bucket:
+            rfps_filtered = filtered_rfp_list_for_landing(
+                db,
+                admin=admin_view,
+                user_id=user.id,
+                bucket=selected_bucket,
+                title_q=title_search,
+                date_from=date_from_dt,
+                date_to=date_to_dt,
+            )
 
     bucket_meta = {
+        "all": {
+            "label": "전체",
+            "icon": "fa-layer-group",
+            "fg": "#a78bfa",
+            "bg": "rgba(167,139,250,.22)",
+            "hint": "모든 진행 상태",
+        },
         "delivery": {
             "label": "납품",
             "icon": "fa-truck",
@@ -90,8 +157,16 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "service_abap_intro_html": intro_html,
             "rfp_landing_counts": rfp_landing_counts,
-            "rfp_landing_buckets": rfp_landing_buckets,
-            "rfp_bucket_order": list(BUCKET_ORDER),
+            "rfp_total_rows": rfp_total_rows,
+            "svc_abap_filtered_rfps": rfps_filtered if user else [],
+            "svc_abap_tile_links": svc_abap_tile_links,
+            "svc_abap_tile_order": list(TILE_ORDER_WITH_ALL),
+            "selected_svc_abap_bucket": selected_bucket,
+            "svc_abap_show_list": bool(user and selected_bucket),
+            "svc_abap_search_title": title_search or "",
+            "svc_abap_date_from_raw": date_from_raw or "",
+            "svc_abap_date_to_raw": date_to_raw or "",
+            "show_rfp_owner": show_rfp_owner,
             "bucket_meta": bucket_meta,
         },
     )

@@ -2,15 +2,23 @@
 {% block title %}SAP ABAP 개발 – SAP 개발 파트너{% endblock %}
 
 {% block content %}
-<div class="dashboard-page py-4">
+<div class="dashboard-page dashboard-page-service-abap py-4">
   <div class="container">
     <div class="dashboard-header mb-4">
-      <div class="row align-items-center">
+      <div class="row align-items-start">
         <div class="col">
-          <h2 class="mb-1 d-flex align-items-center gap-2 flex-wrap">
+          <h2 class="mb-2 d-flex align-items-center gap-2 flex-wrap">
             <i class="fa-solid fa-code text-primary-light" aria-hidden="true"></i>
             <span>SAP ABAP 개발</span>
           </h2>
+          <div class="service-abap-intro markdown-body-lite text-muted mb-0 small">
+            {{ service_abap_intro_html | safe }}
+          </div>
+          {% if user and user.is_admin %}
+          <p class="text-muted small mb-0 mt-2">
+            <i class="fa-solid fa-user-shield me-1"></i>관리자 모드: 전체 회원의 RFP가 표시됩니다.
+          </p>
+          {% endif %}
         </div>
         <div class="col-auto">
           {% if user %}
@@ -22,21 +30,18 @@
       </div>
     </div>
 
-    <div class="service-abap-intro markdown-body-lite text-muted mb-4 small">
-      {{ service_abap_intro_html | safe }}
-    </div>
-
     {% if user %}
-    <div class="row g-3 mb-4 row-cols-2 row-cols-sm-3 row-cols-xl-5">
-      {% for key in rfp_bucket_order %}
+    <div class="row g-3 mb-3 row-cols-2 row-cols-sm-3 row-cols-xl-6">
+      {% for key in svc_abap_tile_order %}
       {% set m = bucket_meta[key] %}
       <div class="col">
-        <a href="#rfp-bucket-{{ key }}" class="stat-card stat-card-sm stat-card-link text-decoration-none h-100 d-flex">
+        <a href="{{ svc_abap_tile_links[key] }}"
+           class="stat-card stat-card-sm stat-card-link text-decoration-none h-100 d-flex{% if selected_svc_abap_bucket == key %} stat-card-tile-active{% endif %}">
           <div class="stat-card-icon" style="background: {{ m.bg }}; color: {{ m.fg }}">
             <i class="fa-solid {{ m.icon }}"></i>
           </div>
           <div>
-            <div class="stat-card-num">{{ rfp_landing_counts[key] }}</div>
+            <div class="stat-card-num">{% if key == 'all' %}{{ rfp_total_rows }}{% else %}{{ rfp_landing_counts.get(key, 0) }}{% endif %}</div>
             <div class="stat-card-label">{{ m.label }}</div>
           </div>
         </a>
@@ -44,33 +49,65 @@
       {% endfor %}
     </div>
 
-    {% for key in rfp_bucket_order %}
-    {% set m = bucket_meta[key] %}
-    <section class="mb-4" id="rfp-bucket-{{ key }}">
-      <h5 class="mb-2 d-flex align-items-center gap-2 flex-wrap">
-        <i class="fa-solid {{ m.icon }} small" style="color: {{ m.fg }}"></i>
-        {{ m.label }}
-        <span class="text-muted small fw-normal">({{ rfp_landing_counts[key] }}건)</span>
-        {% if key == 'delivery' %}
-        <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
-        {% endif %}
-      </h5>
-      {% if key == 'delivery' %}
+    <form method="get" action="/services/abap" class="row g-2 align-items-end mb-4" id="svc-abap-filter-form">
+      {% if selected_svc_abap_bucket %}
+      <input type="hidden" name="bucket" value="{{ selected_svc_abap_bucket }}" />
+      {% endif %}
+      <div class="col-12 col-md-auto">
+        <label class="form-label small mb-1 text-muted" data-i18n="svcAbap.createdFrom">생성일</label>
+        <input type="text" name="date_from" id="svc-abap-date-from" class="form-control form-control-sm" autocomplete="off"
+               value="{{ svc_abap_date_from_raw }}" data-i18n-placeholder="svcAbap.placeholderDate" />
+      </div>
+      <div class="col-12 col-sm-auto pt-md-4 text-muted small d-none d-md-block">–</div>
+      <div class="col-12 col-md-auto">
+        <label class="form-label small mb-1 text-muted">&nbsp;</label>
+        <input type="text" name="date_to" id="svc-abap-date-to" class="form-control form-control-sm" autocomplete="off"
+               value="{{ svc_abap_date_to_raw }}" data-i18n-placeholder="svcAbap.placeholderDate" />
+      </div>
+      <div class="col-12 col-md">
+        <label class="form-label small mb-1 text-muted" data-i18n="svcAbap.searchTitle">제목</label>
+        <input type="search" name="title" class="form-control form-control-sm" autocomplete="off"
+               value="{{ svc_abap_search_title }}" data-i18n-placeholder="svcAbap.placeholderTitle" />
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-secondary" data-i18n="svcAbap.btnSearch">검색</button>
+      </div>
+    </form>
+
+    {% if svc_abap_show_list %}
+      {% if selected_svc_abap_bucket == 'delivery' %}
       <p class="text-muted small mb-3">FS 작성부터 ABAP 최종 납품까지의 단계는 추후 서비스에 반영될 예정입니다.</p>
       {% endif %}
-      {% if rfp_landing_buckets[key]|length %}
-      <div class="row g-3">
-        {% for rfp in rfp_landing_buckets[key] %}
-        <div class="col-12">
-          {% include "partials/rfp_user_list_card.html" %}
+      {% if svc_abap_filtered_rfps|length %}
+      <section class="mb-4">
+        <h5 class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+          <i class="fa-solid {{ bucket_meta[selected_svc_abap_bucket].icon }} small" style="color: {{ bucket_meta[selected_svc_abap_bucket].fg }}"></i>
+          {{ bucket_meta[selected_svc_abap_bucket].label }}
+          <span class="text-muted small fw-normal">({{ svc_abap_filtered_rfps|length }}건)</span>
+          {% if selected_svc_abap_bucket == 'delivery' %}
+          <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
+          {% endif %}
+        </h5>
+        <div class="row g-3">
+          {% for rfp in svc_abap_filtered_rfps %}
+          <div class="col-12">
+            {% include "partials/rfp_user_list_card.html" %}
+          </div>
+          {% endfor %}
         </div>
-        {% endfor %}
-      </div>
+      </section>
       {% else %}
-      <p class="text-muted small mb-0">해당 단계의 요청이 없습니다.</p>
+      <div class="alert alert-secondary border-0 small mb-0">
+        <span class="nav-ko">조건에 맞는 요청이 없습니다.</span>
+        <span class="nav-en" style="display:none">No requests match your filters.</span>
+      </div>
       {% endif %}
-    </section>
-    {% endfor %}
+    {% else %}
+    <div class="alert alert-light border small mb-0" style="background:var(--surface2);border-color:var(--border)!important;">
+      <i class="fa-solid fa-hand-pointer me-2 text-primary"></i>
+      <span data-i18n="svcAbap.hintNoBucket">위에서 진행 상태 타일을 선택하면 목록이 표시됩니다.</span>
+    </div>
+    {% endif %}
 
     {% else %}
     <div class="alert alert-info border-0 mb-0" style="background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.25)!important;">
