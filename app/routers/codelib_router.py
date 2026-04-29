@@ -40,7 +40,7 @@ def require_code_library_access(request: Request, db: Session = Depends(get_db))
     if not user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
-            headers={"Location": "/dashboard"},
+            headers={"Location": "/"},
         )
     return user
 
@@ -232,7 +232,7 @@ def codelib_unlock_page(request: Request, next: str = "/codelib", db: Session = 
         nu = quote(f"/codelib/unlock?next={_safe_next_url(next)}", safe="")
         return RedirectResponse(url=f"/login?next={nu}", status_code=302)
     if not user.is_admin:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     return RedirectResponse(url=_safe_next_url(next), status_code=302)
 
 
@@ -246,7 +246,7 @@ def codelib_unlock_post(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     if not user.is_admin:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     return RedirectResponse(url=_safe_next_url(next), status_code=302)
 
 

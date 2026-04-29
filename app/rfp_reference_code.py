@@ -295,6 +295,43 @@ def reference_slots_for_detail_ui(payload: str | None) -> list[dict]:
     return out
 
 
+def reference_code_sections_for_tabs(payload: str | None) -> list[dict]:
+    """
+    코드 갤러리 상세와 같은 탭 UX: 슬롯 내 섹션을 순서대로 평탄화.
+
+    각 항목: tab_label, code, include_name(선택), program_id, transaction_code
+    """
+    slots_data = reference_slots_for_detail_ui(payload)
+    rows: list[dict] = []
+    for slot in slots_data:
+        pid = (slot.get("program_id") or "").strip()
+        tcode = (slot.get("transaction_code") or "").strip()
+        for j, sec in enumerate(slot.get("sections") or [], start=1):
+            code = sec.get("code") or ""
+            if not str(code).strip():
+                continue
+            name = (sec.get("name") or "").strip()
+            typ = (sec.get("type") or "").strip() or "메인 프로그램"
+            parts: list[str] = []
+            if pid:
+                parts.append(pid)
+            if name:
+                parts.append(name)
+            elif typ != "메인 프로그램":
+                parts.append(typ)
+            else:
+                parts.append(f"섹션{j}")
+            tab_label = " · ".join(parts)
+            rows.append({
+                "tab_label": tab_label,
+                "code": code,
+                "include_name": name or None,
+                "program_id": pid,
+                "transaction_code": tcode,
+            })
+    return rows
+
+
 def strip_for_display_log(payload: str | None, max_chars: int = 200) -> str:
     """로그용 초간단 표시 (내용 노출 최소)."""
     if not payload:

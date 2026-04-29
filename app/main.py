@@ -16,6 +16,7 @@ from .database import SessionLocal, db_target_log_line, engine
 from .email_smtp import email_verification_enabled, log_smtp_startup_checks
 from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
 from . import auth, models
+from .home_counts import home_tile_counts
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router
 from .templates_config import templates
@@ -315,6 +316,9 @@ def index(request: Request):
     _db = _SL()
     try:
         user = auth.get_current_user(request, _db)
+        home_counts = None
+        if user:
+            home_counts = home_tile_counts(_db, user.id)
         raw_settings = _db.query(models.SiteSettings).all()
         settings = {s.key: s.value for s in raw_settings}
         notices = (_db.query(models.Notice)
@@ -338,4 +342,5 @@ def index(request: Request):
         "notices": notices,
         "faqs": faqs,
         "reviews": reviews,
+        "home_counts": home_counts,
     })

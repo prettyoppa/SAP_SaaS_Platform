@@ -60,21 +60,12 @@
         </li>
         {% if user %}
         <li class="nav-item">
-          <a class="nav-link {% if '/dashboard' in path %}active{% endif %}" href="/dashboard">
-            <span class="nav-ko">대시보드</span><span class="nav-en" style="display:none">Dashboard</span>
-          </a>
-        </li>
-        <li class="nav-item">
           <a class="nav-link {% if path.startswith('/rfp') %}active{% endif %}" href="/rfp/new">
             <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">New Development</span>
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link d-inline-flex align-items-center gap-2 {% if path.startswith('/abap-analysis') %}active{% endif %}" href="/abap-analysis">
-            <span class="nav-item-icon nav-icon-analysis" aria-hidden="true">
-              <i class="fa-solid fa-hospital nav-icon-analysis-light"></i>
-              <i class="fa-regular fa-hospital nav-icon-analysis-dark"></i>
-            </span>
+          <a class="nav-link {% if path.startswith('/abap-analysis') %}active{% endif %}" href="/abap-analysis">
             <span class="nav-ko">분석&amp;개선</span><span class="nav-en" style="display:none">Analyze &amp; Improve</span>
           </a>
         </li>
@@ -127,9 +118,9 @@
             <i class="fa-solid fa-user-circle me-1"></i>{{ user.full_name }}
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="/dashboard">
-              <i class="fa-solid fa-gauge me-2"></i>
-              <span class="nav-ko">대시보드</span><span class="nav-en" style="display:none">Dashboard</span>
+            <li><a class="dropdown-item" href="/">
+              <i class="fa-solid fa-house me-2"></i>
+              <span class="nav-ko">홈</span><span class="nav-en" style="display:none">Home</span>
             </a></li>
             {% if user.is_admin %}
             <li><a class="dropdown-item" href="/admin">

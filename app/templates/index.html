@@ -170,13 +170,21 @@
           <span class="nav-ko">{{ settings.get('home_tile_abap_desc_ko', '') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_desc_en', '') }}</span>
         </p>
+        {% if user and home_counts %}
+        <div class="home-tile-stats mt-2 pt-2 border-top small" style="border-color:var(--border)!important;font-size:.76rem;">
+          <div class="d-flex flex-wrap gap-x-3 gap-y-1 justify-content-start">
+            <span><span class="text-muted">납품</span> <strong>{{ home_counts.rfp.delivery }}</strong></span>
+            <span><span class="text-muted">제안</span> <strong>{{ home_counts.rfp.proposal }}</strong></span>
+            <span><span class="text-muted">분석</span> <strong>{{ home_counts.rfp.analysis }}</strong></span>
+            <span><span class="text-muted">진행중</span> <strong>{{ home_counts.rfp.in_progress }}</strong></span>
+            <span><span class="text-muted">임시저장</span> <strong>{{ home_counts.rfp.draft }}</strong></span>
+          </div>
+        </div>
+        {% endif %}
       </div>
       <div class="home-feature-card" role="listitem">
         <div class="home-feature-card-top">
-          <div class="home-feature-icon home-feature-icon-analysis" aria-hidden="true">
-            <i class="fa-solid fa-hospital home-feature-icon-analysis-light"></i>
-            <i class="fa-regular fa-hospital home-feature-icon-analysis-dark"></i>
-          </div>
+          <div class="home-feature-icon home-feature-icon-analysis" aria-hidden="true"><i class="fa-solid fa-wrench"></i></div>
           <a class="home-feature-detail-link" href="/abap-analysis">
             <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
@@ -189,6 +197,17 @@
           <span class="nav-ko">{{ settings.get('home_tile_analysis_desc_ko', '') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_desc_en', '') }}</span>
         </p>
+        {% if user and home_counts %}
+        <div class="home-tile-stats mt-2 pt-2 border-top small" style="border-color:var(--border)!important;font-size:.76rem;">
+          <div class="d-flex flex-wrap gap-x-3 gap-y-1 justify-content-start">
+            <span><span class="text-muted">납품</span> <strong>{{ home_counts.abap_analysis.delivery }}</strong></span>
+            <span><span class="text-muted">제안</span> <strong>{{ home_counts.abap_analysis.proposal }}</strong></span>
+            <span><span class="text-muted">분석</span> <strong>{{ home_counts.abap_analysis.analysis }}</strong></span>
+            <span><span class="text-muted">진행중</span> <strong>{{ home_counts.abap_analysis.in_progress }}</strong></span>
+            <span><span class="text-muted">임시저장</span> <strong>{{ home_counts.abap_analysis.draft }}</strong></span>
+          </div>
+        </div>
+        {% endif %}
       </div>
       <div class="home-feature-card" role="listitem">
         <div class="home-feature-card-top">
@@ -205,6 +224,17 @@
           <span class="nav-ko">{{ settings.get('home_tile_integration_desc_ko', '') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_desc_en', '') }}</span>
         </p>
+        {% if user and home_counts %}
+        <div class="home-tile-stats mt-2 pt-2 border-top small" style="border-color:var(--border)!important;font-size:.76rem;">
+          <div class="d-flex flex-wrap gap-x-3 gap-y-1 justify-content-start">
+            <span><span class="text-muted">납품</span> <strong>{{ home_counts.integration.delivery }}</strong></span>
+            <span><span class="text-muted">제안</span> <strong>{{ home_counts.integration.proposal }}</strong></span>
+            <span><span class="text-muted">분석</span> <strong>{{ home_counts.integration.analysis }}</strong></span>
+            <span><span class="text-muted">진행중</span> <strong>{{ home_counts.integration.in_progress }}</strong></span>
+            <span><span class="text-muted">임시저장</span> <strong>{{ home_counts.integration.draft }}</strong></span>
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
 

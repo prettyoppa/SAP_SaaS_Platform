@@ -1,0 +1,29 @@
+{# 코드 갤러리 상세와 동일 UX — 탭 + 단일 pre 폴백. context: source_sections [{tab_label, code}], tabs_id #}
+{% if source_sections and source_sections|length > 1 %}
+<ul class="nav nav-tabs codelib-source-tabs px-3 pt-2" id="{{ tabs_id|default('ref-src-tabs') }}" role="tablist"
+    style="background:var(--surface2);border-bottom:1px solid var(--border)">
+  {% for sec in source_sections %}
+  <li class="nav-item" role="presentation">
+    <button class="nav-link codelib-src-tab-btn {% if loop.first %}active{% endif %} small py-2 px-3"
+            id="{{ tabs_id|default('ref-src-tabs') }}-btn-{{ loop.index }}"
+            data-bs-toggle="tab"
+            data-bs-target="#{{ tabs_id|default('ref-src-tabs') }}-pane-{{ loop.index }}"
+            type="button" role="tab">
+      <i class="fa-solid fa-file-code me-1 codelib-tab-ic"></i>
+      <span class="font-monospace text-start">{{ sec.tab_label }}</span>
+      <span class="ms-1 codelib-tab-meta">({{ (sec.code or '').splitlines()|length }}줄)</span>
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+<div class="tab-content">
+  {% for sec in source_sections %}
+  <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+       id="{{ tabs_id|default('ref-src-tabs') }}-pane-{{ loop.index }}" role="tabpanel">
+    <pre class="codelib-source-pre rounded-0 mb-0"><code>{{ sec.code }}</code></pre>
+  </div>
+  {% endfor %}
+</div>
+{% elif source_sections and source_sections|length == 1 %}
+<pre class="codelib-source-pre mb-0" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)"><code>{{ source_sections[0].code }}</code></pre>
+{% endif %}

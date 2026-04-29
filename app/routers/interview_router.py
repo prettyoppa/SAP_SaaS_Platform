@@ -334,7 +334,7 @@ def interview_page(rfp_id: int, request: Request,
         models.RFP.id == rfp_id, models.RFP.user_id == user.id
     ).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     if rfp.status == "draft":
         return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
@@ -528,7 +528,7 @@ def request_proposal_now(
         models.RFP.id == rfp_id, models.RFP.user_id == user.id
     ).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     if rfp.interview_status == "generating_proposal":
         return RedirectResponse(url=f"/rfp/{rfp_id}/proposal/generating", status_code=302)
     if rfp.interview_status == "completed" and rfp.proposal_text:
@@ -552,7 +552,7 @@ def reset_interview(rfp_id: int, request: Request, db: Session = Depends(get_db)
         models.RFP.id == rfp_id, models.RFP.user_id == user.id
     ).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     for msg in rfp.messages:
         db.delete(msg)
@@ -560,7 +560,7 @@ def reset_interview(rfp_id: int, request: Request, db: Session = Depends(get_db)
     rfp.proposal_text = None
     rfp.status = "submitted"
     db.commit()
-    return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url="/", status_code=302)
 
 
 @router.post("/rfp/{rfp_id}/interview/answer")
@@ -579,7 +579,7 @@ def submit_answer(
         models.RFPMessage.rfp_id == rfp_id,
     ).first()
     if not msg:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     # 순차 인터뷰는 /interview/answer-step 사용
     if _is_sequential_v2(msg):
@@ -610,7 +610,7 @@ def interview_answer_step(
         models.RFP.id == rfp_id, models.RFP.user_id == user.id
     ).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     msg = db.query(models.RFPMessage).filter(
         models.RFPMessage.id == message_id,
@@ -644,7 +644,7 @@ def interview_answer_step(
         from datetime import datetime as _dt
         msg.updated_at = _dt.utcnow()
         db.commit()
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     intra.pop("draft_wip", None)
     max_per_round = _fc().MAX_QUESTIONS_PER_ROUND
@@ -759,7 +759,7 @@ def proposal_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         models.RFP.id == rfp_id, models.RFP.user_id == user.id
     ).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     if rfp.interview_status == "generating_proposal":
         return templates.TemplateResponse(request, "proposal_generating.html", {
@@ -793,7 +793,7 @@ def edit_answer(
         models.RFPMessage.rfp_id == rfp_id,
     ).first()
     if not msg:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     from datetime import datetime as _dt
     msg.answers_text = answers_text.strip()
@@ -817,7 +817,7 @@ def regenerate_proposal(
         models.RFP.id == rfp_id, models.RFP.user_id == user.id
     ).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     rfp_dict = _rfp_to_dict(rfp)
     conv = _messages_to_list(rfp.messages)
@@ -837,7 +837,7 @@ def proposal_generating_page(rfp_id: int, request: Request, db: Session = Depend
         models.RFP.id == rfp_id, models.RFP.user_id == user.id
     ).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     if rfp.interview_status == "completed" and rfp.proposal_text:
         return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
     return templates.TemplateResponse(request, "proposal_generating.html", {
@@ -855,7 +855,7 @@ def download_proposal(rfp_id: int, request: Request, db: Session = Depends(get_d
         models.RFP.id == rfp_id, models.RFP.user_id == user.id
     ).first()
     if not rfp or not rfp.proposal_text:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     # ASCII 파일명만 사용(한글 파일명은 Content-Disposition에서 500 유발 가능)
     body = wrap_unbracketed_agent_names(rfp.proposal_text or "").encode("utf-8")

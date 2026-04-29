@@ -405,7 +405,7 @@ def rfp_success(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/login", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse(request, "rfp_success.html", {"user": user, "rfp": rfp})
 
 
@@ -424,23 +424,23 @@ def rfp_download_attachment(
         q = q.filter(models.RFP.user_id == user.id)
     rfp = q.first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     entries = _rfp_attachment_entries(rfp)
     if idx < 0 or idx >= len(entries):
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     ent = entries[idx]
     path = ent.get("path")
     fname = ent.get("filename") or "attachment"
     if not path:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     kind, ref = r2_storage.parse_storage_ref(path)
     if kind == "r2":
         if not r2_storage.is_configured():
-            return RedirectResponse(url="/dashboard", status_code=302)
+            return RedirectResponse(url="/", status_code=302)
         url = r2_storage.presigned_get_url(ref, fname)
         return RedirectResponse(url=url, status_code=302)
     if not os.path.isfile(ref):
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     return FileResponse(ref, filename=fname)
 
 
@@ -451,7 +451,7 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/login", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     modules, devtypes = _get_modules_devtypes(db)
     writing_tip_setting = db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
@@ -499,7 +499,7 @@ async def rfp_edit_submit(
         return RedirectResponse(url="/login", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
     if not rfp:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     is_draft = (save_action.strip().lower() == "draft")
     if rfp.status != "draft":
@@ -687,7 +687,7 @@ async def rfp_edit_submit(
     db.commit()
     if is_draft:
         return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
-    return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url="/", status_code=302)
 
 
 @router.patch("/rfp/{rfp_id}/reference-codes")
@@ -739,104 +739,6 @@ def delete_rfp_reference_codes(
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def dashboard(
-    request: Request,
-    status_filter: str = "",
-    kind_filter: str = "",
-    date_from: str = "",
-    date_to: str = "",
-    sort_by: str = "newest",
-    db: Session = Depends(get_db),
-):
-    from datetime import datetime as _dt
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
-    query = db.query(models.RFP)
-    if not user.is_admin:
-        query = query.filter(models.RFP.user_id == user.id)
-    all_rfps = query.order_by(models.RFP.created_at.desc()).all()
-
-    iq = db.query(models.IntegrationRequest)
-    if not user.is_admin:
-        iq = iq.filter(models.IntegrationRequest.user_id == user.id)
-    all_irs = iq.order_by(models.IntegrationRequest.created_at.desc()).all()
-
-    total = len(all_rfps)
-    completed = sum(1 for r in all_rfps if r.interview_status == "completed")
-    in_review = sum(1 for r in all_rfps if r.interview_status == "in_progress")
-    submitted = sum(1 for r in all_rfps if r.interview_status == "pending" and r.status == "submitted")
-
-    if status_filter == "completed":
-        rfps_by_status = [r for r in all_rfps if r.interview_status == "completed"]
-    elif status_filter == "in_review":
-        rfps_by_status = [r for r in all_rfps if r.interview_status == "in_progress"]
-    elif status_filter == "submitted":
-        rfps_by_status = [r for r in all_rfps if r.interview_status == "pending" and r.status == "submitted"]
-    else:
-        rfps_by_status = all_rfps
-
-    if kind_filter == "rfp":
-        pool_rfp = rfps_by_status
-        pool_ir: List[models.IntegrationRequest] = []
-    elif kind_filter == "integration":
-        pool_rfp = []
-        pool_ir = list(all_irs)
-    else:
-        pool_rfp = rfps_by_status
-        pool_ir = list(all_irs)
-
-    try:
-        dt_from = _dt.strptime(date_from, "%Y-%m-%d") if date_from else None
-    except ValueError:
-        dt_from = None
-    try:
-        dt_to_parsed = _dt.strptime(date_to, "%Y-%m-%d") if date_to else None
-        if dt_to_parsed:
-            dt_to_parsed = dt_to_parsed.replace(hour=23, minute=59, second=59)
-    except ValueError:
-        dt_to_parsed = None
-
-    if dt_from:
-        pool_rfp = [r for r in pool_rfp if r.created_at >= dt_from]
-        pool_ir = [ir for ir in pool_ir if ir.created_at >= dt_from]
-    if dt_to_parsed:
-        pool_rfp = [r for r in pool_rfp if r.created_at <= dt_to_parsed]
-        pool_ir = [ir for ir in pool_ir if ir.created_at <= dt_to_parsed]
-
-    display_items: List[Tuple[str, Any]] = [("rfp", r) for r in pool_rfp] + [("integration", ir) for ir in pool_ir]
-
-    if sort_by == "oldest":
-        display_items.sort(key=lambda t: t[1].created_at)
-    elif sort_by == "status":
-        order = {"completed": 0, "in_progress": 1, "generating_proposal": 2, "pending": 3}
-
-        def _sk(t: tuple[str, Any]) -> tuple:
-            obj = t[1]
-            return (order.get(obj.interview_status, 9), -obj.created_at.timestamp())
-
-        display_items.sort(key=_sk)
-    else:
-        display_items.sort(key=lambda t: t[1].created_at, reverse=True)
-
-    return templates.TemplateResponse(request, "dashboard.html", {
-        "request": request,
-        "user": user,
-        "display_items": display_items,
-        "kind_filter": kind_filter,
-        "status_filter": status_filter,
-        "date_from": date_from,
-        "date_to": date_to,
-        "sort_by": sort_by,
-        "counts": {
-            "total": total,
-            "completed": completed,
-            "in_review": in_review,
-            "submitted": submitted,
-            "all_kinds": len(all_rfps) + len(all_irs),
-            "rfp_only": len(all_rfps),
-            "integration_only": len(all_irs),
-        },
-        "integration_impl_labels": INTEGRATION_IMPL_LABELS,
-    })
+def dashboard_legacy_redirect(request: Request):
+    """레거시 URL — 홈으로 리다이렉트(진행 건수는 홈 타일)."""
+    return RedirectResponse(url="/", status_code=302)

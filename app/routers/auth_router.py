@@ -71,7 +71,7 @@ def login_page(
 ):
     user = auth.get_current_user(request, next(get_db()))
     if user:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     ctx = {}
     if verified == "1":
         ctx["verified_ok"] = True
@@ -113,7 +113,7 @@ def login(
             status_code=400,
         )
     token = auth.create_access_token({"sub": user.email})
-    response = RedirectResponse(url="/dashboard", status_code=302)
+    response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
     return response
 
@@ -298,7 +298,7 @@ def register(
         return RedirectResponse(url="/login?registered=1", status_code=302)
 
     token = auth.create_access_token({"sub": new_user.email})
-    response = RedirectResponse(url="/dashboard", status_code=302)
+    response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
     return response
 

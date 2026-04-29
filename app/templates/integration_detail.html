@@ -67,17 +67,19 @@
     </div>
     {% endif %}
 
-    {% if ref_parsed and ref_parsed.slots %}
+    {% if source_sections and source_sections|length %}
     <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">ABAP 코드 요약</h5>
-      {% for slot in ref_parsed.slots %}
-      {% if slot.program_id or slot.title or (slot.sections and slot.sections|length) %}
-      <div class="border rounded p-3 mb-2" style="background:var(--surface2);border-color:var(--border)!important;">
-        <div class="fw-semibold">{{ slot.program_id or '—' }} {% if slot.transaction_code %}· {{ slot.transaction_code }}{% endif %}</div>
-        {% if slot.title %}<div class="small text-muted">{{ slot.title }}</div>{% endif %}
-      </div>
-      {% endif %}
-      {% endfor %}
+      <details class="interview-summary-toggle codelib-source-details mb-0" open>
+        <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+          <i class="fa-solid fa-code me-1"></i>
+          <span>첨부 ABAP 코드</span>
+          <span class="small text-muted">({{ source_sections|length }}개 섹션)</span>
+        </summary>
+        <div class="interview-summary-body p-0">
+          {% set tabs_id = 'integration-ref-src-tabs' %}
+          {% include "partials/reference_code_source_tabs.html" %}
+        </div>
+      </details>
     </div>
     {% endif %}
 
@@ -87,10 +89,10 @@
       <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.proposal_text }}</div>
     </div>
     {% else %}
-    <p class="text-muted small">연동 요청용 AI 인터뷰·제안서 파이프라인은 준비 중입니다. 제출하신 내용은 대시보드에 표시됩니다.</p>
+    <p class="text-muted small">연동 요청용 AI 인터뷰·제안서 파이프라인은 준비 중입니다. 제출하신 내용은 로그인 후 <strong>홈</strong> 화면 타일에서 진행 현황을 확인할 수 있습니다.</p>
     {% endif %}
 
-    <a href="/dashboard" class="btn btn-outline-secondary">대시보드</a>
+    <a href="/" class="btn btn-outline-secondary"><i class="fa-solid fa-house me-1"></i>홈</a>
   </div>
 </div>
 {% endblock %}

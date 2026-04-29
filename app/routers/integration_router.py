@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
-from ..rfp_reference_code import normalize_reference_code_payload
+from ..rfp_reference_code import normalize_reference_code_payload, reference_code_sections_for_tabs
 from ..templates_config import templates
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
@@ -241,14 +241,9 @@ def integration_detail(
         models.IntegrationRequest.id == req_id
     ).first()
     if not ir or (ir.user_id != user.id and not user.is_admin):
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     types_list = [t for t in (ir.impl_types or "").split(",") if t.strip()]
-    ref_parsed = None
-    if ir.reference_code_payload:
-        try:
-            ref_parsed = json.loads(ir.reference_code_payload)
-        except Exception:
-            ref_parsed = None
+    src_secs = reference_code_sections_for_tabs(ir.reference_code_payload)
     return templates.TemplateResponse(
         request,
         "integration_detail.html",
@@ -259,7 +254,7 @@ def integration_detail(
             "attachment_entries": _attachment_entries(ir),
             "impl_labels": IMPL_LABELS,
             "types_list": types_list,
-            "ref_parsed": ref_parsed,
+            "source_sections": src_secs,
         },
     )
 
@@ -279,23 +274,23 @@ def integration_download_attachment(
         q = q.filter(models.IntegrationRequest.user_id == user.id)
     ir = q.first()
     if not ir:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     entries = _attachment_entries(ir)
     if idx < 0 or idx >= len(entries):
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     ent = entries[idx]
     path = ent.get("path")
     fname = ent.get("filename") or "attachment"
     if not path:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     kind, ref = r2_storage.parse_storage_ref(path)
     if kind == "r2":
         if not r2_storage.is_configured():
-            return RedirectResponse(url="/dashboard", status_code=302)
+            return RedirectResponse(url="/", status_code=302)
         url = r2_storage.presigned_get_url(ref, fname)
         return RedirectResponse(url=url, status_code=302)
     if not os.path.isfile(ref):
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     return FileResponse(ref, filename=fname)
 
 
