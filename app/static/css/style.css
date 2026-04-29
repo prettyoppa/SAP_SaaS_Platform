@@ -1263,6 +1263,32 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   margin-bottom: 0;
 }
 
+/* 홈 타일: 진행 건수 — 세로 목록 (영문 라벨 대비) */
+.home-tile-stats {
+  border-color: var(--border) !important;
+  font-size: clamp(0.72rem, 1.6vw, 0.82rem);
+  flex-shrink: 0;
+}
+.home-tile-stats-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+.home-tile-stats-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+.home-tile-stats-item strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95em;
+  color: var(--text);
+}
+
 /* ── Flow Diagram ───────────────────────────── */
 .flow-diagram {
   display: flex; align-items: flex-start; justify-content: center;

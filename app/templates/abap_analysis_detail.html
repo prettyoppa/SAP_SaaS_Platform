@@ -244,17 +244,19 @@
         </p>
         {% endif %}
 
+        {% if reference_section_count > 0 %}
         <details class="interview-summary-toggle codelib-source-details mb-5">
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <i class="fa-solid fa-code me-1"></i>
             <span>분석에 사용된 ABAP 본문 (제출 코드에서 추출)</span>
-            <span class="small text-muted">({{ source_sections|length }}개 섹션 · 총 {{ abap_source_line_count }}줄)</span>
+            <span class="small text-muted">({{ reference_section_count }}개 섹션{% if source_program_groups and source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %} · 총 {{ abap_source_line_count }}줄)</span>
           </summary>
-          <div class="interview-summary-body p-0">
-            {% set tabs_id = 'abap-ref-src-tabs' %}
-            {% include "partials/reference_code_source_tabs.html" %}
+          <div class="interview-summary-body p-0 px-0 pt-2">
+            {% set tabs_base_id = 'abap-ref-src' %}
+            {% include "partials/reference_code_program_boxes.html" %}
           </div>
         </details>
+        {% endif %}
       </div>
     </div>
   </div>

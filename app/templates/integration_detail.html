@@ -67,17 +67,17 @@
     </div>
     {% endif %}
 
-    {% if source_sections and source_sections|length %}
+    {% if source_program_groups and source_program_groups|length %}
     <div class="mb-4">
       <details class="interview-summary-toggle codelib-source-details mb-0" open>
         <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
           <i class="fa-solid fa-code me-1"></i>
           <span>첨부 ABAP 코드</span>
-          <span class="small text-muted">({{ source_sections|length }}개 섹션)</span>
+          <span class="small text-muted">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
         </summary>
-        <div class="interview-summary-body p-0">
-          {% set tabs_id = 'integration-ref-src-tabs' %}
-          {% include "partials/reference_code_source_tabs.html" %}
+        <div class="interview-summary-body p-0 px-0 pt-2">
+          {% set tabs_base_id = 'integration-ref-src' %}
+          {% include "partials/reference_code_program_boxes.html" %}
         </div>
       </details>
     </div>

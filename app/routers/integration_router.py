@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
-from ..rfp_reference_code import normalize_reference_code_payload, reference_code_sections_for_tabs
+from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..templates_config import templates
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
@@ -243,7 +243,8 @@ def integration_detail(
     if not ir or (ir.user_id != user.id and not user.is_admin):
         return RedirectResponse(url="/", status_code=302)
     types_list = [t for t in (ir.impl_types or "").split(",") if t.strip()]
-    src_secs = reference_code_sections_for_tabs(ir.reference_code_payload)
+    program_groups = reference_code_program_groups_for_tabs(ir.reference_code_payload)
+    ref_section_count = sum(len(g["sections"]) for g in program_groups)
     return templates.TemplateResponse(
         request,
         "integration_detail.html",
@@ -254,7 +255,8 @@ def integration_detail(
             "attachment_entries": _attachment_entries(ir),
             "impl_labels": IMPL_LABELS,
             "types_list": types_list,
-            "source_sections": src_secs,
+            "source_program_groups": program_groups,
+            "reference_section_count": ref_section_count,
         },
     )
 

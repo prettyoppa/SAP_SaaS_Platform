@@ -25,7 +25,7 @@ from ..attachment_context import build_attachment_llm_digest
 from ..rfp_reference_code import (
     abap_source_only_from_reference_payload,
     normalize_reference_code_payload,
-    reference_code_sections_for_tabs,
+    reference_code_program_groups_for_tabs,
 )
 from ..templates_config import templates
 from .rfp_router import (
@@ -465,19 +465,17 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
     chat_enabled = (not row.is_draft) and bool(eff_src.strip())
     chat_limit_reached = n_followup_user >= MAX_USER_TURNS_PER_REQUEST
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
-    src_secs = reference_code_sections_for_tabs(getattr(row, "reference_code_payload", None))
-    if not src_secs:
-        eff_only = _effective_abap_source(row)
-        if eff_only.strip():
-            src_secs = [
-                {
-                    "tab_label": "소스",
-                    "code": eff_only,
-                    "include_name": None,
-                    "program_id": "",
-                    "transaction_code": "",
-                }
-            ]
+    program_groups = reference_code_program_groups_for_tabs(getattr(row, "reference_code_payload", None))
+    if not program_groups and eff_src.strip():
+        program_groups = [
+            {
+                "program_id": "",
+                "transaction_code": "",
+                "title": "",
+                "sections": [{"tab_label": "소스", "code": eff_src}],
+            }
+        ]
+    ref_section_count = sum(len(g["sections"]) for g in program_groups)
 
     return templates.TemplateResponse(
         request,
@@ -493,7 +491,8 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
             "chat_enabled": chat_enabled,
             "chat_limit_reached": chat_limit_reached,
             "chat_error": chat_error,
-            "source_sections": src_secs,
+            "source_program_groups": program_groups,
+            "reference_section_count": ref_section_count,
             "abap_source_line_count": len(eff_src.splitlines()) if eff_src else 0,
             "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
         },

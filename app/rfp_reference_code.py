@@ -295,41 +295,44 @@ def reference_slots_for_detail_ui(payload: str | None) -> list[dict]:
     return out
 
 
-def reference_code_sections_for_tabs(payload: str | None) -> list[dict]:
-    """
-    코드 갤러리 상세와 같은 탭 UX: 슬롯 내 섹션을 순서대로 평탄화.
+def _section_short_tab_label(sec: dict, j: int) -> str:
+    """프로그램 헤더와 분리: 탭에는 서브프로그램(섹션) 이름·유형만."""
+    name = (sec.get("name") or "").strip()
+    typ = (sec.get("type") or "").strip() or "메인 프로그램"
+    if name:
+        return name
+    if typ != "메인 프로그램":
+        return typ
+    return f"섹션{j}"
 
-    각 항목: tab_label, code, include_name(선택), program_id, transaction_code
+
+def reference_code_program_groups_for_tabs(payload: str | None) -> list[dict]:
+    """
+    프로그램(슬롯)별 박스 → 각 박스 안에서 섹션 탭 UX.
+
+    각 그룹: program_id, transaction_code, title, sections: [{tab_label, code}]
     """
     slots_data = reference_slots_for_detail_ui(payload)
-    rows: list[dict] = []
+    groups: list[dict] = []
     for slot in slots_data:
-        pid = (slot.get("program_id") or "").strip()
-        tcode = (slot.get("transaction_code") or "").strip()
+        secs_out: list[dict] = []
         for j, sec in enumerate(slot.get("sections") or [], start=1):
             code = sec.get("code") or ""
             if not str(code).strip():
                 continue
-            name = (sec.get("name") or "").strip()
-            typ = (sec.get("type") or "").strip() or "메인 프로그램"
-            parts: list[str] = []
-            if pid:
-                parts.append(pid)
-            if name:
-                parts.append(name)
-            elif typ != "메인 프로그램":
-                parts.append(typ)
-            else:
-                parts.append(f"섹션{j}")
-            tab_label = " · ".join(parts)
-            rows.append({
-                "tab_label": tab_label,
+            secs_out.append({
+                "tab_label": _section_short_tab_label(sec, j),
                 "code": code,
-                "include_name": name or None,
-                "program_id": pid,
-                "transaction_code": tcode,
             })
-    return rows
+        if not secs_out:
+            continue
+        groups.append({
+            "program_id": (slot.get("program_id") or "").strip(),
+            "transaction_code": (slot.get("transaction_code") or "").strip(),
+            "title": (slot.get("title") or "").strip(),
+            "sections": secs_out,
+        })
+    return groups
 
 
 def strip_for_display_log(payload: str | None, max_chars: int = 200) -> str:

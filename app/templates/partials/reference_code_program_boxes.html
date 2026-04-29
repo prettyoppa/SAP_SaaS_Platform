@@ -1,0 +1,22 @@
+{# 프로그램(슬롯)별 박스 → 박스 안에서 서브프로그램 탭. tabs_base_id: 접두사(고유 id용) #}
+{% if source_program_groups and source_program_groups|length %}
+{% for grp in source_program_groups %}
+<div class="reference-code-program-box border rounded {% if not loop.last %}mb-3{% endif %} overflow-hidden"
+     style="border-color:var(--border)!important;background:var(--surface2);">
+  <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
+       style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
+    <span class="fw-semibold font-monospace">{{ grp.program_id or '—' }}</span>
+    {% if grp.transaction_code %}
+    <span class="badge rounded-pill"
+          style="background:rgba(99,102,241,.2);color:var(--primary-light);border:1px solid rgba(99,102,241,.35);font-size:.72rem;">{{ grp.transaction_code }}</span>
+    {% endif %}
+    {% if grp.title %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ grp.title }}</span>{% endif %}
+  </div>
+  <div class="p-0">
+    {% set source_sections = grp.sections %}
+    {% set tabs_id = tabs_base_id ~ '-slot-' ~ loop.index %}
+    {% include "partials/reference_code_source_tabs.html" %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
