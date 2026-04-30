@@ -10,6 +10,13 @@
       <span>유료 RFP {{ rfp.id }}</span>
     </nav>
 
+    {% if rfp.fs_status == 'generating' or rfp.delivered_code_status == 'generating' %}
+    <meta http-equiv="refresh" content="8">
+    <div class="alert alert-secondary small mb-3">
+      <i class="fa-solid fa-spinner fa-spin me-1"></i> FS 또는 납품 코드 생성 중입니다. 이 페이지가 약 8초마다 새로 고침됩니다.
+    </div>
+    {% endif %}
+
     {% if delivery_err == 'fs_not_ready' %}
     <div class="alert alert-warning">FS가 준비되기 전에는 코드 생성을 시작할 수 없습니다.</div>
     {% endif %}
