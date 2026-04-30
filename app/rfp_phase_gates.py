@@ -37,14 +37,17 @@ def _reference_code_has_content(rfp: models.RFP) -> bool:
 def rfp_phase_gates(rfp: models.RFP) -> dict[str, Any]:
     """
     Jinja 필터용. has_* / href 키는 템플릿에서 사용.
-    FS: 유료(결제 활성화) 건에서만 활성 버튼.
+    FS: 결제 완료 또는(FS/납품 생성이 시작된 경우) 목록에서 활성.
     """
     rid = rfp.id
     has_dev = _reference_code_has_content(rfp)
 
     paid_on = (rfp.paid_engagement_status or "none").strip() == PAID_ACTIVE
-    has_fs = paid_on
-    fs_href = f"/rfp/{rid}/fs" if paid_on else None
+    fs_s = (getattr(rfp, "fs_status", None) or "none").strip()
+    dc_s = (getattr(rfp, "delivered_code_status", None) or "none").strip()
+    pipeline = fs_s != "none" or dc_s != "none"
+    has_fs = paid_on or pipeline
+    fs_href = f"/rfp/{rid}/fs" if has_fs else None
 
     st = (rfp.status or "").strip()
     iv = (rfp.interview_status or "").strip()

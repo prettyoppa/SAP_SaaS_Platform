@@ -41,7 +41,7 @@
     {% endif %}
 
     {% if fs_stat == 'none' or (fs_stat != 'generating' and fs_stat != 'ready' and fs_stat != 'failed') %}
-    <p class="text-muted mb-4">결제가 완료되었습니다. 관리자가 FS 생성 작업을 시작하면 이 페이지에 표시됩니다.</p>
+    <p class="text-muted mb-4">관리자가 FS 생성을 시작하면 이 페이지에 표시됩니다. 결제가 완료된 건은 동일하게 이 경로로 안내됩니다.</p>
     {% endif %}
 
     {% if fs_stat == 'ready' and fs_html %}

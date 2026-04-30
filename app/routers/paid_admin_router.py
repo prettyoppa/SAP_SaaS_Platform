@@ -70,11 +70,8 @@ def admin_start_fs_generation(
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
-    if not rfp or not paid_engagement_is_active(rfp):
-        return RedirectResponse(
-            url=f"/admin/rfp/{rfp_id}/delivery?err=no_paid",
-            status_code=302,
-        )
+    if not rfp:
+        return RedirectResponse(url="/admin", status_code=302)
     if (rfp.fs_status or "") == "generating":
         return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
     rfp.fs_status = "generating"
@@ -95,11 +92,8 @@ def admin_start_delivered_code(
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
-    if not rfp or not paid_engagement_is_active(rfp):
-        return RedirectResponse(
-            url=f"/admin/rfp/{rfp_id}/delivery?err=no_paid",
-            status_code=302,
-        )
+    if not rfp:
+        return RedirectResponse(url="/admin", status_code=302)
     if (rfp.fs_status or "") != "ready" or not ((rfp.fs_text or "").strip()):
         return RedirectResponse(
             url=f"/admin/rfp/{rfp_id}/delivery?err=fs_not_ready",

@@ -10,9 +10,7 @@
       <span>유료 RFP {{ rfp.id }}</span>
     </nav>
 
-    {% if delivery_err == 'no_paid' %}
-    <div class="alert alert-warning">유료 활성화(결제 완료)된 RFP가 아닙니다.</div>
-    {% elif delivery_err == 'fs_not_ready' %}
+    {% if delivery_err == 'fs_not_ready' %}
     <div class="alert alert-warning">FS가 준비되기 전에는 코드 생성을 시작할 수 없습니다.</div>
     {% endif %}
 
@@ -45,8 +43,10 @@
       </div>
 
       {% if not paid_engagement_active %}
-      <div class="alert alert-secondary small">결제 활성 상태가 아닙니다 · 회원 결제 후에 FS/코드 생성을 시작하세요.</div>
-      {% else %}
+      <div class="alert alert-info small mb-3">
+        Stripe 결제로 유료 상태가 되지 않아도 이 화면에서 <strong>FS·코드 생성을 테스트</strong>할 수 있습니다. 운영에서 결제를 필수로 하려면 백엔드 가드를 나중에 다시 켜면 됩니다.
+      </div>
+      {% endif %}
       <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
         <button type="submit" class="btn btn-warning me-2" {% if rfp.fs_status == 'generating' %}disabled{% endif %}>
           FS 생성 시작
@@ -58,7 +58,6 @@
         </button>
       </form>
       <p class="small text-muted mt-2 mb-0">생성 에이전트는 현재 스텁입니다. 상태는 위 배지 및 회원 화면에서 새로 고침해 확인합니다.</p>
-      {% endif %}
       {% if rfp.fs_error %}
       <pre class="small text-danger mt-3">{{ rfp.fs_error }}</pre>
       {% endif %}

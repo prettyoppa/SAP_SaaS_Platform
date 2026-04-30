@@ -8,7 +8,7 @@ from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
-from ..paid_tier import paid_engagement_is_active
+from ..paid_tier import user_can_access_fs_hub
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..database import get_db
@@ -501,7 +501,7 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
-    if not rfp or not paid_engagement_is_active(rfp):
+    if not rfp or not user_can_access_fs_hub(user, rfp):
         return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
     from ..routers import interview_router as _ir
 
@@ -535,7 +535,7 @@ def rfp_fs_download(rfp_id: int, request: Request, db: Session = Depends(get_db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
-    if not rfp or not paid_engagement_is_active(rfp):
+    if not rfp or not user_can_access_fs_hub(user, rfp):
         return RedirectResponse(url="/", status_code=302)
     if (rfp.fs_status or "") != "ready" or not (rfp.fs_text or "").strip():
         return RedirectResponse(url=f"/rfp/{rfp_id}/fs", status_code=302)
@@ -554,7 +554,7 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
-    if not rfp or not paid_engagement_is_active(rfp):
+    if not rfp or not user_can_access_fs_hub(user, rfp):
         return RedirectResponse(url="/", status_code=302)
     if (
         (rfp.delivered_code_status or "") != "ready"
