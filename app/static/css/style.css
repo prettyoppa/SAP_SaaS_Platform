@@ -51,6 +51,10 @@ html[data-theme="dark"] .brand-logo-dark-only {
   --code-text:    #cdd6f4;
   --code-bg:      #161622;
   --input-bg:     var(--surface2);
+  /* 스크롤바 — 배경보다 명확한 대비 */
+  --scrollbar-track: rgba(255, 255, 255, 0.06);
+  --scrollbar-thumb: #505a78;
+  --scrollbar-thumb-hover: #7d8aac;
 }
 
 /* ── 라이트 테마 ────────────────────────────── */
@@ -75,6 +79,9 @@ html[data-theme="light"] {
   --code-bg:      #f8fafc;
   --input-bg:     #ffffff;
   color-scheme:   light;
+  --scrollbar-track: #e2e8f0;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #334155;
 }
 
 /* ── 라이트 테마 컴포넌트 오버라이드 ─────────── */
@@ -916,10 +923,28 @@ html[data-theme="dark"] .nav-icon-analysis .nav-icon-analysis-dark { display: in
 .dropdown-item:hover { background: var(--surface); color: var(--text); }
 .dropdown-divider { border-color: var(--border); }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* Scrollbar (WebKit/Chromium · Firefox scrollbar-color) */
+html {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: auto;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 5px;
+  min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
 
 /* ── Interview Page ────────────────────────── */
 .interview-page { background: var(--bg); }
