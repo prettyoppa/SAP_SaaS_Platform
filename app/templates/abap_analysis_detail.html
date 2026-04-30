@@ -265,7 +265,10 @@
 {% if chat_enabled %}
 <div id="abap-followup-chat" class="abap-float-chat" aria-live="polite">
   <div id="abapFloatChatPanel" class="abap-float-chat-panel" hidden
-       title="패널 오른쪽 아래 모서리를 드래그하면 크기를 조절할 수 있습니다.">
+       title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
+    <button type="button" class="abap-float-chat-resize" id="abapFloatChatResize" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
+      <i class="fa-solid fa-up-right-and-down-left-from-center" aria-hidden="true"></i>
+    </button>
     <div class="abap-float-chat-header">
       <span class="abap-float-chat-header-title">이 분석에 대해 질문하기</span>
       <button type="button" class="abap-float-chat-close" id="abapFloatChatClose" title="닫기" aria-label="채팅 패널 닫기">
@@ -421,10 +424,45 @@
   }
 
   loadStoredSizeIfAny();
-  if (window.ResizeObserver) {
-    var ro = new ResizeObserver(scheduleSaveSize);
-    ro.observe(panel);
+
+  function bindResizeGrip() {
+    var grip = document.getElementById('abapFloatChatResize');
+    if (!grip) return;
+    function desktopOnly() {
+      return !(window.matchMedia && window.matchMedia('(max-width: 576px)').matches);
+    }
+    grip.addEventListener('pointerdown', function (e) {
+      if (!desktopOnly() || e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var startX = e.clientX;
+      var startY = e.clientY;
+      var rect = panel.getBoundingClientRect();
+      var w0 = rect.width;
+      var h0 = rect.height;
+      function move(ev) {
+        if (!desktopOnly()) return;
+        var dw = startX - ev.clientX;
+        var dh = startY - ev.clientY;
+        var b = sizeBounds();
+        var nw = clamp(Math.round(w0 + dw), b.minW, b.maxW);
+        var nh = clamp(Math.round(h0 + dh), b.minH, b.maxH);
+        panel.style.width = nw + 'px';
+        panel.style.height = nh + 'px';
+      }
+      function up() {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        scheduleSaveSize();
+      }
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
   }
+  bindResizeGrip();
+
   window.addEventListener('resize', clampPanelToViewport);
 
   function openPanel() {
