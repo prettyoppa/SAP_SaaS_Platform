@@ -264,7 +264,8 @@
 
 {% if chat_enabled %}
 <div id="abap-followup-chat" class="abap-float-chat" aria-live="polite">
-  <div id="abapFloatChatPanel" class="abap-float-chat-panel" hidden>
+  <div id="abapFloatChatPanel" class="abap-float-chat-panel" hidden
+       title="패널 오른쪽 아래 모서리를 드래그하면 크기를 조절할 수 있습니다.">
     <div class="abap-float-chat-header">
       <span class="abap-float-chat-header-title">이 분석에 대해 질문하기</span>
       <button type="button" class="abap-float-chat-close" id="abapFloatChatClose" title="닫기" aria-label="채팅 패널 닫기">
@@ -352,13 +353,90 @@
   var closeBtn = document.getElementById('abapFloatChatClose');
   if (!panel || !launcher) return;
 
+  var SIZE_KEY = 'abap-followup-chat-size';
+  var saveTimer = null;
+
+  function clamp(n, lo, hi) {
+    return Math.max(lo, Math.min(hi, n));
+  }
+
+  function sizeBounds() {
+    var vw = window.innerWidth || 800;
+    var vh = window.innerHeight || 600;
+    return {
+      minW: 280,
+      minH: 260,
+      maxW: Math.min(vw * 0.96, 920),
+      maxH: vh * 0.9
+    };
+  }
+
+  function loadStoredSizeIfAny() {
+    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) {
+      panel.style.width = '';
+      panel.style.height = '';
+      return;
+    }
+    try {
+      var raw = localStorage.getItem(SIZE_KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (typeof o.w !== 'number' || typeof o.h !== 'number') return;
+      var b = sizeBounds();
+      panel.style.width = clamp(o.w, b.minW, b.maxW) + 'px';
+      panel.style.height = clamp(o.h, b.minH, b.maxH) + 'px';
+    } catch (e) { /* ignore */ }
+  }
+
+  function clampPanelToViewport() {
+    if (panel.hasAttribute('hidden')) return;
+    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) {
+      panel.style.width = '';
+      panel.style.height = '';
+      return;
+    }
+    var b = sizeBounds();
+    var r = panel.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return;
+    var w = clamp(Math.round(r.width), b.minW, b.maxW);
+    var h = clamp(Math.round(r.height), b.minH, b.maxH);
+    panel.style.width = w + 'px';
+    panel.style.height = h + 'px';
+  }
+
+  function scheduleSaveSize() {
+    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      saveTimer = null;
+      if (panel.hasAttribute('hidden')) return;
+      try {
+        var r = panel.getBoundingClientRect();
+        var b = sizeBounds();
+        var w = clamp(Math.round(r.width), b.minW, b.maxW);
+        var h = clamp(Math.round(r.height), b.minH, b.maxH);
+        localStorage.setItem(SIZE_KEY, JSON.stringify({ w: w, h: h }));
+      } catch (e) { /* ignore */ }
+    }, 200);
+  }
+
+  loadStoredSizeIfAny();
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(scheduleSaveSize);
+    ro.observe(panel);
+  }
+  window.addEventListener('resize', clampPanelToViewport);
+
   function openPanel() {
     panel.removeAttribute('hidden');
     launcher.setAttribute('aria-expanded', 'true');
+    loadStoredSizeIfAny();
+    clampPanelToViewport();
   }
   function closePanel() {
     panel.setAttribute('hidden', '');
     launcher.setAttribute('aria-expanded', 'false');
+    scheduleSaveSize();
   }
   function togglePanel() {
     if (panel.hasAttribute('hidden')) openPanel();

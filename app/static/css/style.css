@@ -1627,8 +1627,14 @@ html[data-theme="light"] .global-busy-overlay {
   text-align: center;
 }
 .abap-float-chat-panel {
-  width: min(420px, calc(100vw - 2rem));
-  max-height: min(72vh, 640px);
+  /* 기본 크기(브라우저 우하단 네이티브 리사이즈 핸들로 조절 가능) */
+  width: min(520px, calc(100vw - 2rem));
+  height: min(520px, 72vh);
+  min-width: 280px;
+  min-height: 260px;
+  max-width: min(96vw, 920px);
+  max-height: 90vh;
+  resize: both;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -1676,11 +1682,10 @@ html[data-theme="light"] .global-busy-overlay {
 }
 .abap-float-chat-body {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0.6rem 0.75rem;
-  min-height: 100px;
-  max-height: 38vh;
 }
 .abap-float-chat-footer {
   flex-shrink: 0;
@@ -1707,8 +1712,11 @@ html[data-theme="light"] .global-busy-overlay {
     padding: 0.75rem;
     border-radius: 50%;
   }
-  .abap-float-chat-body {
-    max-height: 42vh;
+  /* 좁은 화면: 리사이즈 핸들이 가리기 쉬워 기본만 넓히고 사용자 조절 비활성 */
+  .abap-float-chat-panel {
+    resize: none;
+    width: min(100vw - 1.75rem, 920px);
+    height: min(78vh, 620px);
   }
 }
 
