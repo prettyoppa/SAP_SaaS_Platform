@@ -13,6 +13,8 @@
 
         {% if error == 'need_requirement' %}
         <div class="alert alert-warning">요구사항을 20자 이상 입력해 주세요.</div>
+        {% elif error == 'need_title' %}
+        <div class="alert alert-warning">요청 제목을 입력해 주세요. (공백 제외 2자 이상)</div>
         {% elif error == 'need_reference_code' %}
         <div class="alert alert-warning">ABAP 코드(본문)를 한 건 이상 입력해 주세요.</div>
         {% elif error == 'code_too_short' %}
@@ -45,6 +47,18 @@
             <div class="rfp-section-header">
               <span class="rfp-section-num">01</span>
               <div>
+                <h4 class="mb-0">요청 제목</h4>
+                <small class="text-muted">목록에서 보이는 이름입니다. <strong>제출·분석 시 필수</strong>이며, 임시저장 시에는 비워 둘 수 있습니다.</small>
+              </div>
+            </div>
+            <input type="text" name="title" class="form-control" maxlength="512" autocomplete="off"
+                   value="{{ form_title or '' }}" placeholder="예: ZSDR001 재고 업로드 ALV 속도 개선"/>
+          </div>
+
+          <div class="rfp-section mb-4">
+            <div class="rfp-section-header">
+              <span class="rfp-section-num">02</span>
+              <div>
                 <h4 class="mb-0">요구사항 상세</h4>
                 <small class="text-muted">개선 목표, 증상, 기대 동작 등을 구체적으로 적어 주세요. (임시저장 시 비워 둘 수 있습니다)</small>
               </div>
@@ -54,7 +68,7 @@
 
           <div class="rfp-section mb-4" id="section-abap-attach">
             <div class="rfp-section-header">
-              <span class="rfp-section-num">02</span>
+              <span class="rfp-section-num">03</span>
               <div>
                 <h4 class="mb-0">첨부 파일</h4>
                 <small class="text-muted">필요 시 추가합니다. 목록에서 파일 이름을 누르면 저장 전에 미리 볼 수 있습니다.</small>
@@ -93,7 +107,7 @@
 
           <div class="rfp-section mb-4" id="section-ref-code">
             <div class="rfp-section-header">
-              <span class="rfp-section-num">03</span>
+              <span class="rfp-section-num">04</span>
               <div>
                 <h4 class="mb-0">ABAP 코드 정보</h4>
                 <small class="text-muted">회원이 올리는 코드는 해당 요청 이해 및 최적의 제안서 작성을 위해서 이용됩니다. 광고, 제3자 제공, AI 모델 학습·재학습 등 그 밖의 목적으로는 사용하지 않습니다. 회원이 직접 삭제하신 경우, 지체 없이 복구 불가능한 방식으로 삭제합니다.</small>

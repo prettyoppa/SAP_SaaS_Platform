@@ -50,6 +50,8 @@ router = APIRouter(prefix="/abap-analysis", tags=["abap_analysis"])
 
 MIN_REQUIREMENT_LEN = 20
 MIN_ABAP_SOURCE_LEN = 50
+MIN_TITLE_LEN = 2
+TITLE_MAX_LEN = 512
 
 
 def _ref_initial_from_raw(reference_code_json: str) -> Optional[dict]:
@@ -194,6 +196,7 @@ def _form_template_response(
     user: models.User,
     *,
     error: Optional[str],
+    form_title: str,
     form_requirement: str,
     ref_code_initial: Optional[dict],
     edit_row: Optional[models.AbapAnalysisRequest] = None,
@@ -208,6 +211,7 @@ def _form_template_response(
             "request": request,
             "user": user,
             "error": error,
+            "form_title": form_title,
             "form_requirement": form_requirement,
             "ref_code_initial": ref_code_initial,
             "edit_row": edit_row,
@@ -298,6 +302,7 @@ def abap_analysis_new_form(request: Request, db: Session = Depends(get_db)):
         request,
         user,
         error=None,
+        form_title="",
         form_requirement="",
         ref_code_initial=None,
         notes_prefill=None,
@@ -307,6 +312,7 @@ def abap_analysis_new_form(request: Request, db: Session = Depends(get_db)):
 @router.post("/new")
 async def abap_analysis_create(
     request: Request,
+    title: str = Form(""),
     requirement_text: str = Form(""),
     reference_code_json: str = Form(""),
     attachments: List[UploadFile] = File(default=[]),
@@ -319,6 +325,8 @@ async def abap_analysis_create(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
+    title_raw = title or ""
+    title_clean = (title_raw.strip())[:TITLE_MAX_LEN]
     req_raw = requirement_text or ""
     req_clean = req_raw.strip()
     notes_in = [note_0, note_1, note_2, note_3, note_4]
@@ -330,6 +338,7 @@ async def abap_analysis_create(
             request,
             user,
             error=err,
+            form_title=title_raw,
             form_requirement=req_raw,
             ref_code_initial=ref_init if ref_init is not None else ref_initial,
             status_code=400,
@@ -354,6 +363,7 @@ async def abap_analysis_create(
     if is_draft_save:
         row = models.AbapAnalysisRequest(
             user_id=user.id,
+            title=title_clean,
             requirement_text=req_clean,
             reference_code_payload=norm_ref,
             source_code=src,
@@ -367,6 +377,8 @@ async def abap_analysis_create(
         db.refresh(row)
         return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
 
+    if len(title_clean) < MIN_TITLE_LEN:
+        return _bad("need_title")
     if len(req_clean) < MIN_REQUIREMENT_LEN:
         return _bad("need_requirement")
     if not norm_ref:
@@ -379,6 +391,7 @@ async def abap_analysis_create(
 
     row = models.AbapAnalysisRequest(
         user_id=user.id,
+        title=title_clean,
         requirement_text=req_clean,
         reference_code_payload=norm_ref,
         source_code=src,
@@ -404,6 +417,7 @@ def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends
         request,
         user,
         error=None,
+        form_title=row.title or "",
         form_requirement=row.requirement_text or "",
         ref_code_initial=_ref_initial_from_row(row),
         edit_row=row,
@@ -416,6 +430,7 @@ def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends
 async def abap_analysis_edit_save(
     req_id: int,
     request: Request,
+    title: str = Form(""),
     requirement_text: str = Form(""),
     reference_code_json: str = Form(""),
     attachments: List[UploadFile] = File(default=[]),
@@ -432,6 +447,8 @@ async def abap_analysis_edit_save(
     if not row or not row.is_draft:
         return RedirectResponse(url="/abap-analysis", status_code=302)
 
+    title_raw = title or ""
+    title_clean = (title_raw.strip())[:TITLE_MAX_LEN]
     req_raw = requirement_text or ""
     req_clean = req_raw.strip()
     notes_in = [note_0, note_1, note_2, note_3, note_4]
@@ -444,6 +461,7 @@ async def abap_analysis_edit_save(
             request,
             user,
             error=err,
+            form_title=title_raw,
             form_requirement=req_raw,
             ref_code_initial=ref_init if ref_init is not None else ref_initial,
             edit_row=row,
@@ -473,6 +491,7 @@ async def abap_analysis_edit_save(
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
     if is_draft_save:
+        row.title = title_clean
         row.requirement_text = req_clean
         row.reference_code_payload = norm_ref
         row.source_code = src
@@ -484,6 +503,8 @@ async def abap_analysis_edit_save(
         db.commit()
         return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
 
+    if len(title_clean) < MIN_TITLE_LEN:
+        return _bad("need_title")
     if len(req_clean) < MIN_REQUIREMENT_LEN:
         return _bad("need_requirement")
     if not norm_ref:
@@ -491,8 +512,9 @@ async def abap_analysis_edit_save(
     if len(src) < MIN_ABAP_SOURCE_LEN:
         return _bad("code_too_short")
 
-    analysis = _run_analysis(req_clean, src, att_entries)
+    analysis = _run_analysis(req_clean, src, merged_att)
     analyzed = not bool(analysis.get("error"))
+    row.title = title_clean
     row.requirement_text = req_clean
     row.reference_code_payload = norm_ref
     row.source_code = src

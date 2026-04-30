@@ -11,20 +11,15 @@
             <i class="fa-solid fa-link text-primary-light" aria-hidden="true"></i>
             <span>SAP 연동 개발</span>
           </h2>
-          <div class="service-integration-intro markdown-body-lite text-muted mb-2 small">
+          <div class="service-integration-intro markdown-body-lite text-muted mb-0 small">
             {{ service_integration_intro_html | safe }}
           </div>
-          {% if user and user.is_admin %}
-          <p class="text-muted mb-0 small"><i class="fa-solid fa-user-shield me-1"></i>관리자: 전체 회원 요청이 표시됩니다.</p>
-          {% elif user %}
-          <p class="text-muted mb-0 small">본인이 제출한 요청만 조회됩니다.</p>
-          {% endif %}
         </div>
         <div class="col-auto">
           {% if user %}
-          <a href="/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>연동 요청 작성</a>
+          <a href="/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>신규 요청</a>
           {% else %}
-          <a href="/login?next=/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>연동 요청 작성</a>
+          <a href="/login?next=/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>신규 요청</a>
           {% endif %}
         </div>
       </div>

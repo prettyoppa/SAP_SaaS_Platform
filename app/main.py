@@ -46,6 +46,7 @@ def _run_migrations():
         ("rfps", "reference_code_payload", "TEXT", "TEXT"),
         ("users", "email_verified", "BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT true"),
         ("rfp_messages", "intra_state_json", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "title", "VARCHAR(512) DEFAULT ''", "VARCHAR(512) DEFAULT ''"),
         ("abap_analysis_requests", "requirement_text", "TEXT DEFAULT ''", "TEXT DEFAULT ''"),
         ("abap_analysis_requests", "reference_code_payload", "TEXT", "TEXT"),
         ("abap_analysis_requests", "source_code", "TEXT DEFAULT ''", "TEXT DEFAULT ''"),

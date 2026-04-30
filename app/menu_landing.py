@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
@@ -115,7 +116,13 @@ def _abap_analysis_base_query(db: Session, *, admin: bool, user_id: int):
 
 def _apply_abap_analysis_filters(q, *, title_q: str | None, date_from: date | None, date_to: date | None):
     if title_q and str(title_q).strip():
-        q = q.filter(models.AbapAnalysisRequest.requirement_text.ilike(f"%{str(title_q).strip()}%"))
+        pat = f"%{str(title_q).strip()}%"
+        q = q.filter(
+            or_(
+                models.AbapAnalysisRequest.title.ilike(pat),
+                models.AbapAnalysisRequest.requirement_text.ilike(pat),
+            )
+        )
     if date_from is not None:
         start = datetime.combine(date_from, datetime.min.time())
         q = q.filter(models.AbapAnalysisRequest.created_at >= start)

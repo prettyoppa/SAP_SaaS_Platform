@@ -7,7 +7,13 @@
       </div>
       <div class="rfp-list-body">
         <div class="rfp-list-title">
-          #{{ row.id }}
+          <span class="badge bg-secondary me-2 small">분석</span>
+          {% if row.title and row.title.strip() %}
+          {{ row.title.strip() }}
+          <span class="text-muted small ms-2 font-monospace">#{{ row.id }}</span>
+          {% else %}
+          <span class="text-muted fw-normal">요청 #{{ row.id }}</span>
+          {% endif %}
           {% if row.is_draft %}
           <span class="badge bg-secondary ms-2">임시저장</span>
           {% elif row.is_analyzed %}

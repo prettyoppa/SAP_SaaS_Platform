@@ -14,23 +14,18 @@
             </span>
             <span>SAP ABAP 분석</span>
           </h2>
-          <div class="service-analysis-intro markdown-body-lite text-muted mb-2 small">
+          <div class="service-analysis-intro markdown-body-lite text-muted mb-0 small">
             {{ service_analysis_intro_html | safe }}
           </div>
-          {% if user and not user.is_admin %}
-          <p class="text-muted mb-0 small">본인이 제출한 요청만 조회됩니다.</p>
-          {% elif user and user.is_admin %}
-          <p class="text-muted mb-0 small"><i class="fa-solid fa-user-shield me-1"></i>관리자: 전체 회원 요청이 표시됩니다.</p>
-          {% endif %}
         </div>
         <div class="col-auto">
           {% if user %}
           <a href="/abap-analysis/new" class="btn btn-primary">
-            <i class="fa-solid fa-plus me-2"></i>새 분석 요청
+            <i class="fa-solid fa-plus me-2"></i>신규 요청
           </a>
           {% else %}
           <a href="/login?next=/abap-analysis/new" class="btn btn-primary">
-            <i class="fa-solid fa-plus me-2"></i>새 분석 요청
+            <i class="fa-solid fa-plus me-2"></i>신규 요청
           </a>
           {% endif %}
         </div>

@@ -120,6 +120,7 @@ class AbapAnalysisRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(512), nullable=False, default="")
     requirement_text = Column(Text, nullable=False, default="")
     # RFP와 동일 JSON 스키마(슬롯·섹션)
     reference_code_payload = Column(Text, nullable=True)

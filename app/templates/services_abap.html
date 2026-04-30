@@ -14,11 +14,6 @@
           <div class="service-abap-intro markdown-body-lite text-muted mb-0 small">
             {{ service_abap_intro_html | safe }}
           </div>
-          {% if user and user.is_admin %}
-          <p class="text-muted small mb-0 mt-2">
-            <i class="fa-solid fa-user-shield me-1"></i>관리자 모드: 전체 회원의 RFP가 표시됩니다.
-          </p>
-          {% endif %}
         </div>
         <div class="col-auto">
           {% if user %}
