@@ -44,10 +44,36 @@
     <p class="text-muted mb-4">관리자가 FS 생성을 시작하면 이 페이지에 표시됩니다. 결제가 완료된 건은 동일하게 이 경로로 안내됩니다.</p>
     {% endif %}
 
+    <div class="alert alert-light border small mb-4">
+      <p class="fw-bold mb-2">FS가 저장되는 위치</p>
+      <ul class="mb-2 ps-3">
+        <li><strong>에이전트가 생성한 FS</strong>: 데이터베이스 테이블 <code>rfps</code>의 <code>fs_text</code> 컬럼(본문 문자열만). 로컬 프로젝트 폴더의 별도 <code>.md</code> 파일로 자동 저장되지는 않습니다.</li>
+        {% if fs_storage_uses_r2 %}
+        <li><strong>컨설턴트가 업로드한 수정 FS (.md)</strong>: Cloudflare R2 객체 스토리지, 키 패턴은 대략 <code>rfp_attachments/&lt;회원 사용자 ID&gt;/타임스탬프_UUID.md</code> 입니다(DB에는 <code>r2://…</code> 참조 문자열만 보관).</li>
+        {% else %}
+        <li><strong>컨설턴트가 업로드한 수정 FS (.md)</strong>: 서버 디스크 업로드 경로 <code>{{ fs_upload_dir_hint }}</code> 아래 저장됩니다(로컬 개발에서는 보통 프로젝트 루트의 <code>uploads/</code> 등). 호스팅 환경에 따라 디스크는 임시일 수 있습니다.</li>
+        {% endif %}
+      </ul>
+      {% if rfp.fs_supplements %}
+      <p class="fw-bold mb-1">등록된 컨설턴트 FS 첨부</p>
+      <ul class="mb-2 ps-3 small">
+        {% for s in rfp.fs_supplements %}
+        <li>{{ s.filename }} <span class="text-muted">(업로드 {{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span>
+          {% if fs_codegen_supplement_id and fs_codegen_supplement_id == s.id %}<span class="badge bg-primary ms-1">코드 생성에 사용 중</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if not fs_codegen_supplement_id %}
+      <p class="mb-0 small text-muted">납품 ABAP 생성 시 기본값은 에이전트 FS(<code>fs_text</code>)입니다.</p>
+      {% endif %}
+    </div>
+
     {% if fs_stat == 'ready' and fs_html %}
     <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
       <h5 class="mb-0 me-auto">기능명세 (Markdown 미리보기)</h5>
-      <a href="/rfp/{{ rfp.id }}/fs/download" class="btn btn-sm btn-outline-primary">
+      <a href="/rfp/{{ rfp.id }}/fs/download" class="btn btn-sm btn-outline-primary"
+         download data-no-busy="true">
         <i class="fa-solid fa-download me-1"></i>FS 다운로드 (.md)
       </a>
     </div>
@@ -59,8 +85,9 @@
     {% if delivered_code_html %}
     <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
       <h5 class="mb-0 me-auto">납품 ABAP (Markdown 미리보기)</h5>
-      <a href="/rfp/{{ rfp.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary">
-        <i class="fa-solid fa-download me-1"></i>납품 코드 다운로드 (.md)
+      <a href="/rfp/{{ rfp.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
+         download data-no-busy="true">
+        <i class="fa-solid fa-download me-1"></i>납품 코드 다운로드 (.abap)
       </a>
     </div>
     <div class="proposal-card mb-4">

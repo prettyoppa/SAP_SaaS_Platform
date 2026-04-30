@@ -2,7 +2,7 @@
 Paid Tier — FS·납품 ABAP
 
 - FS: David (CrewAI) — 실제 Gemini 호출. 키 없으면 예외만(가짜 문서 없음).
-- 납품 ABAP: Kevin (CrewAI) — FS·RFP·인터뷰 맥락 기반 초안 코드. 동일하게 키 필수.
+- 납품 ABAP: Kevin · Young · Brian (CrewAI 순차) — 초안·코드 검수 반영·테스트 시나리오. 키 필수.
 """
 
 from __future__ import annotations
@@ -175,7 +175,7 @@ def generate_delivered_abap_markdown(
     cust_pid = pid
     tcode = (rfp_data.get("transaction_code") or "").strip()
 
-    task = Task(
+    kevin_task = Task(
         description=f"""아래 **기능명세서(FS)** 를 1차 구현 기준으로 삼아 ABAP 초안을 작성하라.
 RFP·인터뷰·제안서는 FS와 충돌 시 **FS를 우선**한다.
 
@@ -214,9 +214,50 @@ ABAP 작성 규칙:
         expected_output="마크다운: 제목 + abap 코드 펜스 + 메모",
     )
 
+    young = Agent(
+        role="SAP ABAP 코드 검수자",
+        goal="FS·요구와 맞는지 ABAP 초안을 점검하고 안전하게 다듬는다",
+        backstory="""당신은 Young입니다. 시니어 ABAP 리뷰어로 정적 분석·네이밍·구문 호환성을 감사한다.
+고객 FS와 모순되는 동작, 위험한 DDIC 추정, 7.40+ 구문 오류 가능성을 찾아 fenced ABAP 블록을 직접 수정한다.""",
+        verbose=False,
+        llm=llm,
+        allow_delegation=False,
+    )
+
+    brian = Agent(
+        role="SAP ABAP 테스트 설계자",
+        goal="납품 ABAP에 대한 실행·회귀 테스트 시나리오를 구체적으로 작성한다",
+        backstory="""당신은 Brian입니다. 기능·경계·오류 경로를 표로 정리하고, 재현 가능한 단계와 기대 결과를 한국어로 적는다.""",
+        verbose=False,
+        llm=llm,
+        allow_delegation=False,
+    )
+
+    young_task = Task(
+        description="""이전 작업(Kevin)의 **전체 마크다운**을 입력으로 삼아 검수하라.
+`# 납품 ABAP 초안` 제목과 본문 구조를 유지한다. `## ABAP 소스` 아래에는 **단일** `abap` fenced 블록만 둔다.
+`## 코드 검수 요약 (Young)`에 5~12문장으로 핵심 변경·잔여 리스크를 적고, 필요 시 ABAP 펜스 내부를 직접 고친다.
+
+출력: Kevin 산출물을 대체하는 **완결된 단일 마크다운** (검수 반영본).""",
+        agent=young,
+        expected_output="검수 반영 마크다운 전체",
+        context=[kevin_task],
+    )
+
+    brian_task = Task(
+        description="""Young이 확정한 마크다운 **전체 본문**을 그대로 유지하고, 문서 **맨 아래**에
+`## 테스트 시나리오 (Brian)` 섹션을 추가하라.
+케이스 ID, 목적, 사전 조건, 단계, 기대 결과를 마크다운 표로 작성한다.
+
+출력: 이전 모든 섹션 + 테스트 섹션이 포함된 **하나의** 마크다운.""",
+        agent=brian,
+        expected_output="테스트 시나리오까지 포함한 최종 마크다운",
+        context=[young_task],
+    )
+
     crew = Crew(
-        agents=[kevin],
-        tasks=[task],
+        agents=[kevin, young, brian],
+        tasks=[kevin_task, young_task, brian_task],
         process=Process.sequential,
         verbose=False,
     )

@@ -6,7 +6,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import joinedload
 
-from . import models
+from . import models, r2_storage
 from .agents.agent_tools import get_code_library_context
 from .agents.paid_crew import generate_delivered_abap_markdown, generate_fs_markdown
 from .database import SessionLocal
@@ -53,6 +53,37 @@ def run_fs_generation_job(rfp_id: int) -> None:
         db.close()
 
 
+def resolved_fs_markdown_for_codegen(db, rfp: models.RFP) -> tuple[str | None, str | None]:
+    """
+    ABAP 코드 생성에 쓸 FS 본문.
+    관리자가 보조 .md를 선택(fs_codegen_supplement_id)했으면 해당 파일, 아니면 에이전트 fs_text.
+    반환 (text, None) 또는 (None, error_message).
+    """
+    sid = getattr(rfp, "fs_codegen_supplement_id", None)
+    if sid:
+        sup = (
+            db.query(models.RfpFsSupplement)
+            .filter(
+                models.RfpFsSupplement.id == sid,
+                models.RfpFsSupplement.rfp_id == rfp.id,
+            )
+            .first()
+        )
+        if not sup:
+            return None, "선택된 FS 첨부가 없거나 만료되었습니다."
+        raw = r2_storage.read_bytes_from_ref(sup.stored_path)
+        if raw is None:
+            return None, "FS 첨부 파일을 읽을 수 없습니다(스토리지 경로를 확인하세요)."
+        try:
+            return raw.decode("utf-8"), None
+        except Exception:
+            return raw.decode("utf-8", errors="replace"), None
+    txt = (rfp.fs_text or "").strip()
+    if not txt:
+        return None, "FS 본문이 없습니다. 에이전트 FS 생성을 완료하거나 컨설턴트 FS .md를 첨부하고 선택하세요."
+    return rfp.fs_text or "", None
+
+
 def run_delivered_code_job(rfp_id: int) -> None:
     from .routers import interview_router as interview_router_module
 
@@ -66,9 +97,10 @@ def run_delivered_code_job(rfp_id: int) -> None:
         )
         if not rfp:
             return
-        if not ((rfp.fs_text or "").strip()):
+        fs_body, fs_err = resolved_fs_markdown_for_codegen(db, rfp)
+        if fs_err or not (fs_body or "").strip():
             rfp.delivered_code_status = "failed"
-            rfp.delivered_code_error = "FS 본문이 없습니다."
+            rfp.delivered_code_error = fs_err or "FS 본문이 없습니다."
             db.commit()
             return
         rfp_dict = interview_router_module._rfp_to_dict(rfp)
@@ -83,7 +115,7 @@ def run_delivered_code_job(rfp_id: int) -> None:
         try:
             rfp.delivered_code_text = generate_delivered_abap_markdown(
                 rfp_dict,
-                rfp.fs_text or "",
+                fs_body or "",
                 rfp.proposal_text or "",
                 conv,
                 code_library_context=code_ctx or "",

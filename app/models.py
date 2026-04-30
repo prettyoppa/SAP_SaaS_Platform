@@ -55,11 +55,20 @@ class RFP(Base):
     delivered_code_text = Column(Text, nullable=True)
     delivered_code_generated_at = Column(DateTime, nullable=True)
     delivered_code_error = Column(Text, nullable=True)
+    # ABAP 코드 생성 시 사용할 FS 보조파일(DB id). Null이면 에이전트 fs_text 사용.
+    fs_codegen_supplement_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     owner = relationship("User", back_populates="rfps")
     messages = relationship("RFPMessage", back_populates="rfp", order_by="RFPMessage.round_number")
+    fs_supplements = relationship(
+        "RfpFsSupplement",
+        foreign_keys="RfpFsSupplement.rfp_id",
+        back_populates="rfp",
+        cascade="all, delete-orphan",
+        order_by="RfpFsSupplement.uploaded_at",
+    )
 
 
 class RFPMessage(Base):
@@ -78,6 +87,21 @@ class RFPMessage(Base):
     updated_at = Column(DateTime, nullable=True)
 
     rfp = relationship("RFP", back_populates="messages")
+
+
+class RfpFsSupplement(Base):
+    """컨설턴트가 업로드한 수정 FS(.md). R2 또는 로컬 uploads 경로에 저장."""
+
+    __tablename__ = "rfp_fs_supplements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rfp_id = Column(Integer, ForeignKey("rfps.id", ondelete="CASCADE"), nullable=False, index=True)
+    stored_path = Column(Text, nullable=False)
+    filename = Column(String(512), nullable=False)
+    uploaded_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    rfp = relationship("RFP", foreign_keys=[rfp_id], back_populates="fs_supplements")
 
 
 class IntegrationRequest(Base):

@@ -18,7 +18,10 @@
     {% endif %}
 
     {% if delivery_err == 'fs_not_ready' %}
-    <div class="alert alert-warning">FS가 준비되기 전에는 코드 생성을 시작할 수 없습니다.</div>
+    <div class="alert alert-warning">코드 생성에 사용할 FS가 없습니다. 에이전트 FS를 만들거나 .md 첨부 후 소스를 선택하세요.</div>
+    {% endif %}
+    {% if fs_codegen_preview_error %}
+    <div class="alert alert-secondary small mb-3"><strong>코드 생성 FS:</strong> {{ fs_codegen_preview_error }}</div>
     {% endif %}
 
     <div class="admin-content-card mb-4">
@@ -60,17 +63,74 @@
         </button>
       </form>
       <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
-        <button type="submit" class="btn btn-primary" {% if rfp.delivered_code_status == 'generating' or rfp.fs_status != 'ready' %}disabled{% endif %}>
+        <button type="submit" class="btn btn-primary" {% if rfp.delivered_code_status == 'generating' or not can_start_delivered_code %}disabled{% endif %}>
           납품 코드 생성 시작
         </button>
       </form>
-      <p class="small text-muted mt-2 mb-0">FS는 David·납품 코드는 Kevin 에이전트(Gemini/CrewAI)로 생성됩니다. 진행은 위 배지 및 회원 화면에서 새로 고침해 확인합니다.</p>
+      <p class="small text-muted mt-2 mb-0">기능명세(FS): David 에이전트. 납품 ABAP 초안은 Kevin 작성 → Young 검수 반영 → Brian 테스트 시나리오 추가 순으로 처리됩니다 (CrewAI / Gemini).</p>
       {% if rfp.fs_error %}
       <pre class="small text-danger mt-3">{{ rfp.fs_error }}</pre>
       {% endif %}
       {% if rfp.delivered_code_error %}
       <pre class="small text-danger mt-1">{{ rfp.delivered_code_error }}</pre>
       {% endif %}
+    </div>
+
+    <div class="admin-content-card mb-4">
+      <h5 class="mb-2">컨설턴트 FS 수정본 (.md)</h5>
+      <p class="small text-muted mb-3">에이전트 FS를 다운로드해 수정한 뒤 업로드하고, 납품 ABAP에 반영할 원본을 선택합니다.</p>
+
+      {% if rfp.fs_supplements %}
+      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-codegen-source" class="mb-3">
+        <div class="d-flex flex-column gap-2 small">
+          <label class="mb-0">
+            <input type="radio" name="fs_codegen_source" value="agent"
+              {% if not rfp.fs_codegen_supplement_id %}checked{% endif %}>
+            에이전트 FS (DB <code>fs_text</code>, 상태 {{ rfp.fs_status or 'none' }})
+          </label>
+          {% for s in rfp.fs_supplements %}
+          <label class="mb-0">
+            <input type="radio" name="fs_codegen_source" value="{{ s.id }}"
+              {% if rfp.fs_codegen_supplement_id == s.id %}checked{% endif %}>
+            {{ s.filename }} — <span class="text-muted">{{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '' }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary mt-3">코드 생성에 사용할 FS 저장</button>
+      </form>
+      <p class="small fw-bold mb-1">첨부 목록 · 저장 경로</p>
+      <ul class="list-unstyled small mb-3 ps-1">
+        {% for s in rfp.fs_supplements %}
+        <li class="mb-3 border-bottom pb-2">
+          <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start mb-1">
+            <span>{{ s.filename }}</span>
+            <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement/{{ s.id }}/delete"
+              class="d-inline" onsubmit="return confirm('이 첨부를 삭제할까요?');">
+              <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
+            </form>
+          </div>
+          <code class="text-break d-block" style="font-size:0.8rem;">{{ s.stored_path }}</code>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="small text-muted mb-3">등록된 수정 FS 없음 — 아래에서 업로드하세요.</p>
+      {% endif %}
+
+      <form method="post" enctype="multipart/form-data" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement-upload"
+        class="row row-cols-1 row-cols-md-auto g-2 align-items-end">
+        <div class="col">
+          <label class="form-label small mb-1">수정 FS 파일</label>
+          <input class="form-control form-control-sm" type="file" name="file" accept=".md,text/markdown" required>
+        </div>
+        <div class="col">
+          <button type="submit" class="btn btn-sm btn-secondary">업로드</button>
+        </div>
+      </form>
+      <p class="small text-muted mt-2 mb-0">
+        {% if fs_stores_r2 %}업로드 시 R2 버킷 키 <code>rfp_attachments/…</code>에 저장되고 DB에는 <code>r2://…</code>만 남습니다.{% else %}업로드 시 서버 로컬 <code>{{ admin_upload_dir_hint }}</code> 아래에 저장됩니다.{% endif %}
+        삭제하면 스토리지에서도 제거를 시도합니다.
+      </p>
     </div>
 
     <div class="admin-content-card">

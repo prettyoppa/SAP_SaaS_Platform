@@ -101,11 +101,17 @@ def rfp_for_owner_or_admin(
     user,
     rfp_id: int,
     load_messages: bool = False,
+    load_fs_supplements: bool = False,
 ) -> models.RFP | None:
     """조회 페이지용: 본인 또는 관리자."""
     q = db.query(models.RFP).filter(models.RFP.id == rfp_id)
+    preload = []
     if load_messages:
-        q = q.options(joinedload(models.RFP.messages))
+        preload.append(joinedload(models.RFP.messages))
+    if load_fs_supplements:
+        preload.append(joinedload(models.RFP.fs_supplements))
+    if preload:
+        q = q.options(*preload)
     if not user.is_admin:
         q = q.filter(models.RFP.user_id == user.id)
     return q.first()

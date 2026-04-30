@@ -9,6 +9,11 @@ from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
 from ..paid_tier import user_can_access_fs_hub
+from ..rfp_download_names import (
+    content_disposition_attachment,
+    delivered_abap_download_basename,
+    fs_md_download_basename,
+)
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..database import get_db
@@ -500,7 +505,13 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    rfp = rfp_for_owner_or_admin(
+        db,
+        user=user,
+        rfp_id=rfp_id,
+        load_messages=False,
+        load_fs_supplements=True,
+    )
     if not rfp or not user_can_access_fs_hub(user, rfp):
         return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
     from ..routers import interview_router as _ir
@@ -525,6 +536,9 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
             "rfp": rfp,
             "fs_html": fs_html,
             "delivered_code_html": dc_html,
+            "fs_codegen_supplement_id": getattr(rfp, "fs_codegen_supplement_id", None),
+            "fs_storage_uses_r2": r2_storage.is_configured(),
+            "fs_upload_dir_hint": UPLOAD_DIR,
         },
     )
 
@@ -540,11 +554,11 @@ def rfp_fs_download(rfp_id: int, request: Request, db: Session = Depends(get_db)
     if (rfp.fs_status or "") != "ready" or not (rfp.fs_text or "").strip():
         return RedirectResponse(url=f"/rfp/{rfp_id}/fs", status_code=302)
     body = (rfp.fs_text or "").encode("utf-8")
-    fname = f"fs_rfp_{rfp_id}.md"
+    fname = fs_md_download_basename(getattr(rfp, "program_id", None), getattr(rfp, "title", None))
     return Response(
         content=body,
         media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
 
 
@@ -562,11 +576,11 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
     ):
         return RedirectResponse(url=f"/rfp/{rfp_id}/fs", status_code=302)
     body = (rfp.delivered_code_text or "").encode("utf-8")
-    fname = f"delivered_abap_rfp_{rfp_id}.md"
+    fname = delivered_abap_download_basename(getattr(rfp, "program_id", None), getattr(rfp, "title", None))
     return Response(
         content=body,
-        media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
 
 
