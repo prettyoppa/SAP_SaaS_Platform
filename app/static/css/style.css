@@ -1662,14 +1662,14 @@ html[data-theme="light"] .global-busy-overlay {
   top: 0;
   left: 0;
   z-index: 3;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.85rem;
+  height: 2.85rem;
   padding: 0;
   margin: 0;
   border: none;
   border-radius: var(--radius) 0 var(--radius-sm) 0;
   background: var(--abap-float-chat-surface2);
-  color: var(--muted);
+  color: var(--text);
   cursor: nwse-resize;
   display: none;
   align-items: flex-start;
@@ -1692,21 +1692,29 @@ html[data-theme="light"] .global-busy-overlay {
 }
 .abap-float-chat-resize-icons .fa-arrow-up-left {
   position: absolute;
-  top: 0.32rem;
-  left: 0.32rem;
-  font-size: 0.52rem;
-  opacity: 0.92;
+  top: 6px;
+  left: 6px;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 900;
+  opacity: 1;
+  color: inherit;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .abap-float-chat-resize-icons .fa-arrow-down-right {
   position: absolute;
-  bottom: 0.32rem;
-  right: 0.32rem;
-  font-size: 0.52rem;
-  opacity: 0.92;
+  bottom: 6px;
+  right: 6px;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 900;
+  opacity: 1;
+  color: inherit;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .abap-float-chat-header {
   flex-shrink: 0;
-  padding: 0.65rem 0.85rem 0.65rem 2.65rem;
+  padding: 0.65rem 0.85rem 0.65rem 3.1rem;
   background: var(--abap-float-chat-surface2);
   border-bottom: 1px solid var(--abap-float-chat-border);
   display: flex;
@@ -1774,7 +1782,7 @@ html[data-theme="light"] .global-busy-overlay {
   resize: none;
   width: 100%;
   box-sizing: border-box;
-  padding-right: 1.65rem;
+  padding-right: 2rem;
   min-height: 3.75rem;
 }
 .abap-followup-ta-resize {
@@ -1782,14 +1790,14 @@ html[data-theme="light"] .global-busy-overlay {
   top: 1px;
   right: 1px;
   z-index: 2;
-  width: 1.5rem;
-  height: 1.45rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
   margin: 0;
   border: none;
   border-radius: 0 var(--radius-sm) 0 var(--radius-sm);
   background: var(--abap-float-chat-surface2);
-  color: var(--muted);
+  color: var(--text);
   cursor: nwse-resize;
   line-height: 1;
   box-shadow: -1px 1px 0 var(--abap-float-chat-border);
@@ -1810,15 +1818,23 @@ html[data-theme="light"] .global-busy-overlay {
 }
 .abap-followup-ta-resize-icons .fa-arrow-up-left {
   position: absolute;
-  top: 0.16rem;
-  left: 0.1rem;
-  font-size: 0.4rem;
+  top: 4px;
+  left: 3px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+  color: inherit;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 .abap-followup-ta-resize-icons .fa-arrow-down-right {
   position: absolute;
-  bottom: 0.16rem;
-  right: 0.1rem;
-  font-size: 0.4rem;
+  bottom: 4px;
+  right: 3px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+  color: inherit;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
 /* 라이트: 대화 이력 영역만 살짝 더 밝은 흰색 톤(입력칸 배경은 기본 유지) */
@@ -1839,12 +1855,24 @@ html[data-theme="light"] .abap-float-chat-panel .abap-followup-turn .abap-follow
 }
 html[data-theme="light"] .abap-followup-ta-resize {
   background: rgba(248, 250, 252, 0.96);
-  color: #64748b;
+  color: #0f172a;
   box-shadow: -1px 1px 0 #e2e8f0;
 }
 html[data-theme="light"] .abap-followup-ta-resize:hover {
   background: #f1f5f9;
-  color: #334155;
+  color: #0f172a;
+}
+
+/* 라이트: 리사이즈 화살표를 배경 위에서 분명히 보이게 */
+html[data-theme="light"] .abap-float-chat-resize-icons .fa-arrow-up-left,
+html[data-theme="light"] .abap-float-chat-resize-icons .fa-arrow-down-right,
+html[data-theme="light"] .abap-followup-ta-resize-icons .fa-arrow-up-left,
+html[data-theme="light"] .abap-followup-ta-resize-icons .fa-arrow-down-right {
+  text-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 1px 2px rgba(15, 23, 42, 0.45);
+}
+
+html[data-theme="light"] .abap-float-chat-resize {
+  color: #0f172a;
 }
 @media (max-width: 576px) {
   .abap-float-chat {
