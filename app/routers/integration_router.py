@@ -16,7 +16,6 @@ from ..menu_landing import (
     TILE_ORDER_WITH_ALL,
     VALID_URL_BUCKETS,
     filtered_integration_menu_rows,
-    filtered_rfp_list_for_landing,
     integration_menu_aggregate,
     menu_landing_preset_params,
     menu_landing_url,
@@ -25,6 +24,7 @@ from ..menu_landing import (
 )
 from ..rfp_landing import (
     DEFAULT_SERVICE_ABAP_INTRO_MD_KO,
+    filtered_rfp_list_for_landing,
     rfp_landing_aggregate,
 )
 from ..templates_config import templates
