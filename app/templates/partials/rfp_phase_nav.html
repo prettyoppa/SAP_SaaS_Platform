@@ -1,0 +1,30 @@
+{# context: rfp #}
+{% set ph = rfp|phase_gates %}
+<div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
+  {% if rfp.status == 'draft' %}
+  <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-warning text-dark">
+    <i class="fa-solid fa-pen me-1"></i>이어쓰기
+  </a>
+  {% endif %}
+  {% if ph.has_dev_code %}
+  <a href="/rfp/{{ rfp.id }}/dev-code" class="btn btn-sm btn-outline-secondary rfp-phase-btn">개발코드</a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">개발코드</span>
+  {% endif %}
+  {% if ph.has_fs %}
+  <a href="/rfp/{{ rfp.id }}/fs" class="btn btn-sm btn-outline-secondary rfp-phase-btn">FS</a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">FS</span>
+  {% endif %}
+  {% if ph.has_proposal and ph.proposal_href %}
+  <a href="{{ ph.proposal_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">제안서</a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">제안서</span>
+  {% endif %}
+  {% if ph.has_interview and ph.interview_href %}
+  <a href="{{ ph.interview_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">인터뷰</a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">인터뷰</span>
+  {% endif %}
+  <a href="{{ ph.request_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">요청</a>
+</div>

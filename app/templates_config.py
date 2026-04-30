@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
 from .agent_display import agent_label_ko
+from .rfp_phase_gates import rfp_phase_gates
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
@@ -43,3 +44,4 @@ def _interview_bold_filter(s) -> Markup:
 
 templates.env.filters["interview_bold"] = _interview_bold_filter
 templates.env.filters["agent_label"] = agent_label_ko
+templates.env.filters["phase_gates"] = rfp_phase_gates

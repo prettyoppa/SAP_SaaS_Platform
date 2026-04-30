@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}개발코드 · {{ rfp.title }}{% endblock %}
+
+{% block content %}
+<div class="proposal-page py-5">
+  <div class="container col-lg-9">
+    <a href="/services/abap" class="btn btn-ghost mb-3">
+      <i class="fa-solid fa-arrow-left me-1"></i> 신규 개발 목록
+    </a>
+    <div class="proposal-header mb-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <h2 class="mb-2">제출 개발 코드(ABAP)</h2>
+          <p class="text-muted small mb-0">{{ rfp.title }}</p>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" id="devCodeEditReveal">
+          <i class="fa-solid fa-pen me-1"></i>수정
+        </button>
+      </div>
+    </div>
+    <div id="devCodeEditDock" class="d-none mb-3">
+      <a href="/rfp/{{ rfp.id }}/edit#section-ref-code" class="btn btn-outline-primary btn-sm mb-3">
+        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>요청 수정에서 코드 편집
+      </a>
+    </div>
+    {% if source_program_groups and source_program_groups|length %}
+    <details class="interview-summary-toggle codelib-source-details mb-0" open>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <i class="fa-solid fa-code me-1"></i>
+        <span>코드 본문</span>
+        <span class="small text-muted">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
+      </summary>
+      <div class="interview-summary-body p-0 px-0 pt-2">
+        {% include "partials/reference_code_program_boxes.html" %}
+      </div>
+    </details>
+    {% else %}
+    <p class="text-muted">등록된 코드가 없습니다.</p>
+    {% endif %}
+  </div>
+</div>
+<script>
+document.getElementById('devCodeEditReveal').addEventListener('click', function () {
+  document.getElementById('devCodeEditDock').classList.toggle('d-none');
+});
+</script>
+{% endblock %}

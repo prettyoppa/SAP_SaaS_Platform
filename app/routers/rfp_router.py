@@ -8,7 +8,8 @@ from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
-from ..rfp_reference_code import normalize_reference_code_payload
+from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
+from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..database import get_db
 from ..templates_config import templates
 
@@ -442,6 +443,54 @@ def rfp_download_attachment(
     if not os.path.isfile(ref):
         return RedirectResponse(url="/", status_code=302)
     return FileResponse(ref, filename=fname)
+
+
+@router.get("/rfp/{rfp_id}/request", response_class=HTMLResponse)
+def rfp_request_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """요청 정보 조회(+수정은 /rfp/:id/edit)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "rfp_request_view.html",
+        {
+            "request": request,
+            "user": user,
+            "rfp": rfp,
+            "attachment_entries": _rfp_attachment_entries(rfp),
+        },
+    )
+
+
+@router.get("/rfp/{rfp_id}/dev-code", response_class=HTMLResponse)
+def rfp_dev_code_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    groups = reference_code_program_groups_for_tabs(rfp.reference_code_payload)
+    ref_section_count = sum(len(g["sections"]) for g in groups) if groups else 0
+    if ref_section_count < 1:
+        return RedirectResponse(url=f"/rfp/{rfp_id}/request", status_code=302)
+    tabs_base_id = f"rfp-ref-src-{rfp.id}"
+    return templates.TemplateResponse(
+        request,
+        "rfp_dev_code_view.html",
+        {
+            "request": request,
+            "user": user,
+            "rfp": rfp,
+            "source_program_groups": groups,
+            "reference_section_count": ref_section_count,
+            "tabs_base_id": tabs_base_id,
+        },
+    )
 
 
 @router.get("/rfp/{rfp_id}/edit", response_class=HTMLResponse)

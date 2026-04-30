@@ -11,6 +11,7 @@ from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
 from ..rfp_reference_code import format_reference_code_for_llm
 from ..agent_display import wrap_unbracketed_agent_names
+from ..rfp_phase_gates import rfp_for_owner_or_admin
 
 router = APIRouter()
 
@@ -321,6 +322,28 @@ def _run_proposal_background(rfp_id: int):
 
 
 # ── 라우트 ────────────────────────────────────────────
+
+@router.get("/rfp/{rfp_id}/interview/summary", response_class=HTMLResponse)
+def interview_summary_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """인터뷰 라운드 조회(답변 수정·재시작은 본 페이지에서)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=True)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    if rfp.status == "draft":
+        return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
+    if not rfp.messages:
+        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+    messages_list = sorted(_messages_to_list(rfp.messages), key=lambda x: (x["round_number"], x["id"]))
+    return templates.TemplateResponse(request, "interview_summary_view.html", {
+        "request": request,
+        "user": user,
+        "rfp": rfp,
+        "messages": messages_list,
+    })
+
 
 @router.get("/rfp/{rfp_id}/interview", response_class=HTMLResponse)
 def interview_page(rfp_id: int, request: Request,
@@ -741,9 +764,7 @@ def proposal_status(rfp_id: int, request: Request, db: Session = Depends(get_db)
     user = auth.get_current_user(request, db)
     if not user:
         return {"status": "unauthorized"}
-    rfp = db.query(models.RFP).filter(
-        models.RFP.id == rfp_id, models.RFP.user_id == user.id
-    ).first()
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp:
         return {"status": "not_found"}
     return {"status": rfp.interview_status}
@@ -755,9 +776,7 @@ def proposal_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    rfp = db.query(models.RFP).filter(
-        models.RFP.id == rfp_id, models.RFP.user_id == user.id
-    ).first()
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=True)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
 
@@ -778,9 +797,11 @@ def proposal_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
 
 @router.post("/rfp/{rfp_id}/interview/edit-answer")
 def edit_answer(
-    rfp_id: int, request: Request,
+    rfp_id: int,
+    request: Request,
     message_id: int = Form(...),
     answers_text: str = Form(...),
+    return_to: str = Form("proposal"),
     db: Session = Depends(get_db),
 ):
     """기존 인터뷰 답변을 수정합니다 (Proposal 미재생성)."""
@@ -788,17 +809,27 @@ def edit_answer(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    msg = db.query(models.RFPMessage).filter(
-        models.RFPMessage.id == message_id,
-        models.RFPMessage.rfp_id == rfp_id,
-    ).first()
+    msg = (
+        db.query(models.RFPMessage)
+        .join(models.RFP, models.RFPMessage.rfp_id == models.RFP.id)
+        .filter(
+            models.RFPMessage.id == message_id,
+            models.RFPMessage.rfp_id == rfp_id,
+            models.RFP.user_id == user.id,
+        )
+        .first()
+    )
     if not msg:
         return RedirectResponse(url="/", status_code=302)
 
     from datetime import datetime as _dt
+
     msg.answers_text = answers_text.strip()
     msg.updated_at = _dt.utcnow()
     db.commit()
+    rt = (return_to or "proposal").strip()
+    if rt == "interview-summary":
+        return RedirectResponse(url=f"/rfp/{rfp_id}/interview/summary", status_code=302)
     return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
 
 
@@ -833,9 +864,7 @@ def proposal_generating_page(rfp_id: int, request: Request, db: Session = Depend
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    rfp = db.query(models.RFP).filter(
-        models.RFP.id == rfp_id, models.RFP.user_id == user.id
-    ).first()
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
     if rfp.interview_status == "completed" and rfp.proposal_text:
@@ -851,9 +880,7 @@ def download_proposal(rfp_id: int, request: Request, db: Session = Depends(get_d
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    rfp = db.query(models.RFP).filter(
-        models.RFP.id == rfp_id, models.RFP.user_id == user.id
-    ).first()
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp or not rfp.proposal_text:
         return RedirectResponse(url="/", status_code=302)
 

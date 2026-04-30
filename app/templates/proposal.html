@@ -41,22 +41,34 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="d-flex gap-2 flex-wrap">
+            <div class="d-flex gap-2 flex-wrap align-items-center">
               <a href="/rfp/{{ rfp.id }}/proposal/download" class="btn btn-outline-primary">
                 <i class="fa-solid fa-download me-2"></i>Markdown 다운로드
               </a>
-              <button class="btn btn-outline-warning" id="toggleEditAnswers" onclick="toggleAnswerEdit()">
-                <i class="fa-solid fa-pen-to-square me-2"></i>답변 수정
+              {% if messages %}
+              <button type="button" class="btn btn-outline-secondary" id="proposalModifyReveal"
+                      data-bs-toggle="collapse" data-bs-target="#proposalEditDock" aria-expanded="false" aria-controls="proposalEditDock">
+                <i class="fa-solid fa-pen me-2"></i>수정
               </button>
-              <form method="post" action="/rfp/{{ rfp.id }}/proposal/regenerate" id="regenForm">
-                <button type="submit" class="btn btn-warning" id="regenBtn" disabled
-                        title="답변 수정 후 활성화됩니다">
-                  <i class="fa-solid fa-rotate me-2"></i>Proposal 재생성
-                </button>
-              </form>
+              {% endif %}
               <a href="/rfp/new" class="btn btn-outline-secondary">
                 <i class="fa-solid fa-plus me-2"></i>새 요청 만들기
               </a>
+              {% if messages %}
+              <div id="proposalEditDock" class="collapse w-100 mt-1">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <button class="btn btn-outline-warning" id="toggleEditAnswers" onclick="toggleAnswerEdit()">
+                    <i class="fa-solid fa-pen-to-square me-2"></i>답변 수정
+                  </button>
+                  <form method="post" action="/rfp/{{ rfp.id }}/proposal/regenerate" id="regenForm" class="d-inline">
+                    <button type="submit" class="btn btn-warning" id="regenBtn" disabled
+                            title="답변 수정 후 활성화됩니다">
+                      <i class="fa-solid fa-rotate me-2"></i>제안서 재생성
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {% endif %}
               <div class="ms-auto">
                 <span class="paid-cta-badge">
                   <i class="fa-solid fa-lock me-1"></i>
@@ -79,7 +91,7 @@
         <div class="mt-4" id="interviewSection">
           <div class="interview-edit-notice alert alert-info d-none" id="editNotice">
             <i class="fa-solid fa-circle-info me-2"></i>
-            답변을 수정한 후 <strong>저장</strong>하고, <strong>Proposal 재생성</strong> 버튼을 눌러 새 Proposal을 받아보세요.
+            답변을 수정한 후 <strong>저장</strong>하고, <strong>제안서 재생성</strong> 버튼을 눌러 새 제안서를 받아보세요.
           </div>
           <details class="interview-summary-toggle" open id="interviewDetails">
             <summary class="interview-summary-header">
@@ -107,6 +119,7 @@
                   <form method="post" action="/rfp/{{ rfp.id }}/interview/edit-answer"
                         class="edit-mode d-none mt-2" id="edit-{{ loop.index }}">
                     <input type="hidden" name="message_id" value="{{ msg.id }}"/>
+                    <input type="hidden" name="return_to" value="proposal"/>
                     <textarea name="answers_text" class="form-control mb-2 answer-edit-area"
                               rows="4">{{ msg.answers_text or "" }}</textarea>
                     <div class="d-flex gap-2">

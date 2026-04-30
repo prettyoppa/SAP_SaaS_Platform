@@ -1432,6 +1432,22 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 .rfp-list-dates { margin-top: .3rem; }
 .rfp-list-actions { flex-direction: column; align-items: flex-end; min-width: 180px; }
 
+/* RFP 리스트 타일 단계 버튼: 동일 톤, 데이터 없음은 흐릿 비활성 */
+.btn.btn-sm.rfp-phase-btn.btn-outline-secondary {
+  --bs-btn-border-color: var(--border);
+  --bs-btn-color: var(--muted);
+}
+.btn.btn-sm.rfp-phase-btn:not(.rfp-phase-btn--muted):hover {
+  --bs-btn-color: var(--text);
+}
+span.btn.btn-sm.rfp-phase-btn.rfp-phase-btn--muted {
+  opacity: 0.38;
+  filter: saturate(0.65);
+  pointer-events: none;
+  cursor: not-allowed;
+  user-select: none;
+}
+
 /* ── Admin Menu Cards ───────────────────────── */
 .admin-menu-card {
   display: block; background: var(--surface2); border: 1px solid var(--border);

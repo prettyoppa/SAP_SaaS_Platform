@@ -243,41 +243,7 @@
                 {% endif %}
               </div>
               <div class="d-flex flex-wrap gap-1 justify-content-end">
-                {% if rfp.interview_status == 'completed' and rfp.proposal_text %}
-                <a href="/rfp/{{ rfp.id }}/proposal" class="btn btn-sm btn-outline-success">
-                  <i class="fa-solid fa-file-circle-check me-1"></i>Proposal
-                </a>
-                <a href="/rfp/{{ rfp.id }}/interview" class="btn btn-sm btn-outline-secondary">
-                  <i class="fa-solid fa-pencil me-1"></i>수정
-                </a>
-                {% elif rfp.interview_status == 'in_progress' %}
-                <a href="/rfp/{{ rfp.id }}/interview" class="btn btn-sm btn-primary">
-                  <i class="fa-solid fa-robot me-1"></i>인터뷰 계속
-                </a>
-                {% elif rfp.interview_status == 'generating_proposal' %}
-                <a href="/rfp/{{ rfp.id }}/proposal/generating" class="btn btn-sm btn-outline-secondary">
-                  <i class="fa-solid fa-spinner fa-spin me-1"></i>진행 확인
-                </a>
-                {% elif rfp.status == 'draft' %}
-                <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-warning text-dark">
-                  <i class="fa-solid fa-pen me-1"></i>이어쓰기
-                </a>
-                {% elif rfp.status == 'submitted' %}
-                <a href="/rfp/{{ rfp.id }}/interview" class="btn btn-sm btn-primary">
-                  <i class="fa-solid fa-robot me-1"></i>AI 인터뷰
-                </a>
-                {% endif %}
-                <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-outline-secondary" title="수정">
-                  <i class="fa-solid fa-file-pen"></i>
-                </a>
-                {% if rfp.interview_status in ['in_progress', 'completed'] %}
-                <form method="post" action="/rfp/{{ rfp.id }}/interview/reset" class="d-inline"
-                      onsubmit="return confirm('인터뷰를 처음부터 다시 시작할까요?')">
-                  <button type="submit" class="btn btn-sm btn-outline-danger" title="인터뷰 재시작">
-                    <i class="fa-solid fa-rotate-left"></i>
-                  </button>
-                </form>
-                {% endif %}
+                {% include "partials/rfp_phase_nav.html" %}
               </div>
             </div>
           </div>
