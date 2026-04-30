@@ -72,6 +72,8 @@ def _run_migrations():
         ("rfps", "delivered_code_generated_at", "DATETIME", "TIMESTAMP"),
         ("rfps", "delivered_code_error", "TEXT", "TEXT"),
         ("rfps", "fs_codegen_supplement_id", "INTEGER", "INTEGER"),
+        ("rfps", "fs_job_log", "TEXT", "TEXT"),
+        ("rfps", "delivered_job_log", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

@@ -51,10 +51,13 @@ class RFP(Base):
     fs_text = Column(Text, nullable=True)
     fs_generated_at = Column(DateTime, nullable=True)
     fs_error = Column(Text, nullable=True)
+    # 관리자용: 생성 백그라운드 작업 진행 로그(텍스트, 단순 줄 단위 축적)
+    fs_job_log = Column(Text, nullable=True)
     delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
     delivered_code_text = Column(Text, nullable=True)
     delivered_code_generated_at = Column(DateTime, nullable=True)
     delivered_code_error = Column(Text, nullable=True)
+    delivered_job_log = Column(Text, nullable=True)
     # ABAP 코드 생성 시 사용할 FS 보조파일(DB id). Null이면 에이전트 fs_text 사용.
     fs_codegen_supplement_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

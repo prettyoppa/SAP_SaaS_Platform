@@ -7,13 +7,21 @@
     <nav class="small mb-3">
       <a href="/admin" class="text-decoration-none">관리자</a>
       <span class="text-muted px-1">/</span>
-      <span>유료 RFP {{ rfp.id }}</span>
+      <span>산출(RFP {{ rfp.id }})</span>
     </nav>
 
-    {% if rfp.fs_status == 'generating' or rfp.delivered_code_status == 'generating' %}
-    <meta http-equiv="refresh" content="8">
-    <div class="alert alert-secondary small mb-3">
-      <i class="fa-solid fa-spinner fa-spin me-1"></i> FS 또는 납품 코드 생성 중입니다. 이 페이지가 약 8초마다 새로 고침됩니다.
+    {% set gen_busy = (rfp.fs_status == 'generating' or rfp.delivered_code_status == 'generating') %}
+    {% if gen_busy %}
+    <meta http-equiv="refresh" content="15">
+    <div class="alert alert-secondary small mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <span class="mb-0"><i class="fa-solid fa-spinner fa-spin me-1"></i> FS 또는 납품 ABAP 생성 중입니다. <strong>실행 로그</strong>에서 단계·heartbeat를 확인하세요. (페이지는 약 15초마다 새로 고침되어 상태 배지가 갱신됩니다.)</span>
+      <button type="button" class="btn btn-sm btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#deliveryJobLogModal"><i class="fa-solid fa-scroll me-1"></i>실행 로그</button>
+    </div>
+    {% else %}
+    <div class="mb-3">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deliveryJobLogModal">
+        <i class="fa-solid fa-scroll me-1"></i>마지막 실행 로그 보기</button>
+      <span class="text-muted small ms-2">새 작업을 시작하면 로그가 비워진 뒤 다시 누적됩니다.</span>
     </div>
     {% endif %}
 
@@ -145,6 +153,83 @@
       <p class="text-muted small mb-0">메시지 없음</p>
       {% endif %}
     </div>
+
+    <div class="modal fade" id="deliveryJobLogModal" tabindex="-1" aria-labelledby="deliveryJobLogTitle" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deliveryJobLogTitle">생성 작업 실행 로그</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted mb-2">Gemini·CrewAI 호출은 단계마다 수 분 걸릴 수 있습니다. 로그가 주기적으로 늘면 정상 진행 중입니다.</p>
+            <div class="d-flex flex-wrap gap-2 mb-2 small">
+              <span id="jobLogFsBadge" class="badge bg-secondary">fs: —</span>
+              <span id="jobLogDcBadge" class="badge bg-secondary">code: —</span>
+            </div>
+            <ul class="nav nav-tabs small" id="jobLogTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-fslog" data-bs-toggle="tab" data-bs-target="#paneFsLog" type="button" role="tab">FS 생성 (David)</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-dclog" data-bs-toggle="tab" data-bs-target="#paneDcLog" type="button" role="tab">납품 ABAP (Kevin→Young→Brian)</button>
+              </li>
+            </ul>
+            <div class="tab-content border border-top-0 rounded-bottom p-2" id="jobLogTabContent">
+              <div class="tab-pane fade show active" id="paneFsLog" role="tabpanel">
+                <pre id="jobLogFs" class="small mb-0 p-2 rounded" style="max-height:50vh;background:var(--surface2);white-space:pre-wrap;">(불러오는 중…)</pre>
+              </div>
+              <div class="tab-pane fade" id="paneDcLog" role="tabpanel">
+                <pre id="jobLogDc" class="small mb-0 p-2 rounded" style="max-height:50vh;background:var(--surface2);white-space:pre-wrap;">(불러오는 중…)</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const rfpId = {{ rfp.id }};
+  const pollMs = {{ job_log_poll_ms|default(2500) }};
+  const logUrl = '/admin/rfp/' + rfpId + '/delivery/generation-log';
+  const autoShow = {{ (rfp.fs_status == 'generating' or rfp.delivered_code_status == 'generating')|tojson }};
+  let timer = null;
+  const modal = document.getElementById('deliveryJobLogModal');
+  if (!modal) return;
+
+  async function pollJobLog() {
+    try {
+      const r = await fetch(logUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+      if (!r.ok) return;
+      const j = await r.json();
+      const fsPre = document.getElementById('jobLogFs');
+      const dcPre = document.getElementById('jobLogDc');
+      const fsB = document.getElementById('jobLogFsBadge');
+      const dcB = document.getElementById('jobLogDcBadge');
+      if (fsPre) fsPre.textContent = (j.fs_job_log && j.fs_job_log.trim()) ? j.fs_job_log : '(아직 FS 작업 로그 없음)';
+      if (dcPre) dcPre.textContent = (j.delivered_job_log && j.delivered_job_log.trim()) ? j.delivered_job_log : '(아직 납품 코드 작업 로그 없음)';
+      if (fsB) fsB.textContent = 'fs: ' + (j.fs_status || 'none');
+      if (dcB) dcB.textContent = 'code: ' + (j.delivered_code_status || 'none');
+    } catch (e) { /* 네트워크 일시 오류 무시 */ }
+  }
+
+  modal.addEventListener('show.bs.modal', function () {
+    pollJobLog();
+    if (timer) clearInterval(timer);
+    timer = setInterval(pollJobLog, pollMs);
+  });
+  modal.addEventListener('hidden.bs.modal', function () {
+    if (timer) { clearInterval(timer); timer = null; }
+  });
+
+  if (autoShow && typeof bootstrap !== 'undefined') {
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+  }
+})();
+</script>
 {% endblock %}

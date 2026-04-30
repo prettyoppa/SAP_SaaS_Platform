@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, File, Form, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 import os
 
@@ -71,7 +71,33 @@ def admin_rfp_delivery_page(
             "fs_codegen_preview_error": fs_src_err,
             "admin_upload_dir_hint": UPLOAD_DIR,
             "fs_stores_r2": r2_storage.is_configured(),
+            "job_log_poll_ms": 2500,
         },
+    )
+
+
+@router.get("/rfp/{rfp_id}/delivery/generation-log")
+def admin_delivery_generation_log_json(
+    rfp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return JSONResponse({"detail": "forbidden"}, status_code=403)
+    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
+    if not rfp:
+        return JSONResponse({"detail": "not found"}, status_code=404)
+    return JSONResponse(
+        {
+            "fs_status": getattr(rfp, "fs_status", None) or "none",
+            "delivered_code_status": getattr(rfp, "delivered_code_status", None) or "none",
+            "fs_job_log": getattr(rfp, "fs_job_log", None) or "",
+            "delivered_job_log": getattr(rfp, "delivered_job_log", None) or "",
+            "fs_error": getattr(rfp, "fs_error", None) or "",
+            "delivered_code_error": getattr(rfp, "delivered_code_error", None) or "",
+        },
+        headers={"Cache-Control": "no-store"},
     )
 
 
@@ -92,6 +118,7 @@ def admin_start_fs_generation(
         return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
     rfp.fs_status = "generating"
     rfp.fs_error = None
+    rfp.fs_job_log = None
     db.commit()
     background_tasks.add_task(run_fs_generation_job, rfp_id)
     return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
@@ -120,6 +147,7 @@ def admin_start_delivered_code(
         return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
     rfp.delivered_code_status = "generating"
     rfp.delivered_code_error = None
+    rfp.delivered_job_log = None
     db.commit()
     background_tasks.add_task(run_delivered_code_job, rfp_id)
     return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
