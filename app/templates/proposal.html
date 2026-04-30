@@ -40,6 +40,33 @@
               {% endif %}
             </div>
 
+            {% if billing_flash %}
+            <div class="alert alert-info small mb-3">{{ billing_flash }}</div>
+            {% endif %}
+            {% if paid_engagement_active %}
+            <div class="alert alert-success small mb-3 d-flex flex-wrap align-items-center gap-2 justify-content-between">
+              <span><i class="fa-solid fa-circle-check me-1"></i> <strong>개발 의뢰(유료)</strong>가 활성화되었습니다. FS·납품 코드는 관리자가 생성하며, 아래 또는 목록의 <strong>FS</strong> 메뉴에서 확인합니다.</span>
+              <a href="/rfp/{{ rfp.id }}/fs" class="btn btn-sm btn-outline-primary mb-0">FS·납품 보기</a>
+            </div>
+            {% elif rfp_eligible_for_checkout %}
+            <div class="alert alert-warning border-0 small mb-3">
+              <strong>다음 단계(유료):</strong> 상세 기능명세(FS) 및 납품 ABAP 초안은 Stripe 결제 후 개발 의뢰가 열립니다.
+              {% if stripe_checkout_ready %}
+              <form method="post" action="/payments/stripe/checkout" class="d-inline-block ms-lg-3 mt-2 mt-lg-0">
+                <input type="hidden" name="rfp_id" value="{{ rfp.id }}"/>
+                <button type="submit" class="btn btn-sm btn-primary">Stripe 결제 후 개발 의뢰하기</button>
+              </form>
+              {% else %}
+              <span class="text-muted d-block mt-2">Stripe 연동(STRIPE_SECRET_KEY, STRIPE_PRICE_RFP_DEVELOPMENT)이 필요합니다.</span>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% if user.is_admin %}
+            <div class="small mb-3">
+              <a href="/admin/rfp/{{ rfp.id }}/delivery" class="link-warning"><i class="fa-solid fa-gears me-1"></i>관리자 — 유료 진행(FS/코드 생성)</a>
+            </div>
+            {% endif %}
+
             <!-- Action Buttons -->
             <div class="d-flex gap-2 flex-wrap align-items-center">
               <a href="/rfp/{{ rfp.id }}/proposal/download" class="btn btn-outline-primary">

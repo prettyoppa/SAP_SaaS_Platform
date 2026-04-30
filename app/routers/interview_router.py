@@ -12,6 +12,8 @@ from ..agents.agent_tools import get_code_library_context
 from ..rfp_reference_code import format_reference_code_for_llm
 from ..agent_display import wrap_unbracketed_agent_names
 from ..rfp_phase_gates import rfp_for_owner_or_admin
+from ..stripe_service import stripe_keys_configured
+from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
 
 router = APIRouter()
 
@@ -771,7 +773,12 @@ def proposal_status(rfp_id: int, request: Request, db: Session = Depends(get_db)
 
 
 @router.get("/rfp/{rfp_id}/proposal", response_class=HTMLResponse)
-def proposal_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+def proposal_page(
+    rfp_id: int,
+    request: Request,
+    checkout: str | None = None,
+    db: Session = Depends(get_db),
+):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -788,11 +795,28 @@ def proposal_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     if not rfp.proposal_text:
         return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
 
-    return templates.TemplateResponse(request, "proposal.html", {
-        "request": request, "user": user, "rfp": rfp,
+    billing_flash_map = {
+        "success": "결제가 완료되어 개발 의뢰가 활성화되었습니다.",
+        "cancelled": "결제를 취소했습니다. 다시 진행할 수 있습니다.",
+        "unconfigured": "결제(Stripe)가 아직 설정되지 않았습니다. 운영자에게 문의하세요.",
+        "error": "결제 세션을 만들 수 없습니다. 잠시 후 다시 시도하거나 운영자에게 문의하세요.",
+        "verify_failed": "결제 확인에 실패했습니다. 카드 과금 및 웹훅 상태를 확인하세요.",
+        "missing_session": "결제 확인에 필요한 정보가 없습니다. 제안서 화면에서 다시 시작하세요.",
+    }
+    billing_flash = billing_flash_map.get((checkout or "").strip())
+
+    ctx = {
+        "request": request,
+        "user": user,
+        "rfp": rfp,
         "proposal_html": _markdown_to_html(rfp.proposal_text),
         "messages": _messages_to_list(rfp.messages),
-    })
+        "paid_engagement_active": paid_engagement_is_active(rfp),
+        "stripe_checkout_ready": stripe_keys_configured(),
+        "rfp_eligible_for_checkout": rfp_eligible_for_stripe_checkout(rfp),
+        "billing_flash": billing_flash,
+    }
+    return templates.TemplateResponse(request, "proposal.html", ctx)
 
 
 @router.post("/rfp/{rfp_id}/interview/edit-answer")

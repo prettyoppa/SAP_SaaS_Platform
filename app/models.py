@@ -43,6 +43,18 @@ class RFP(Base):
     interview_status = Column(String, default="pending")  # pending | in_progress | generating_proposal | completed
     proposal_text = Column(Text, nullable=True)
     proposal_generated_at = Column(DateTime, nullable=True)
+    # 유료 개발 의뢰 — FS·납품 ABAP (조회: 회원·관리자 / 생성: 관리자만)
+    paid_engagement_status = Column(String, default="none")  # none | checkout_pending | active | cancelled
+    paid_activated_at = Column(DateTime, nullable=True)
+    stripe_checkout_session_id = Column(String, nullable=True)
+    fs_status = Column(String, default="none")  # none | generating | ready | failed
+    fs_text = Column(Text, nullable=True)
+    fs_generated_at = Column(DateTime, nullable=True)
+    fs_error = Column(Text, nullable=True)
+    delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
+    delivered_code_text = Column(Text, nullable=True)
+    delivered_code_generated_at = Column(DateTime, nullable=True)
+    delivered_code_error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

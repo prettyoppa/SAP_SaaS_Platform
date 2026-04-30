@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}유료 진행 · RFP {{ rfp.id }} – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="container">
+    <nav class="small mb-3">
+      <a href="/admin" class="text-decoration-none">관리자</a>
+      <span class="text-muted px-1">/</span>
+      <span>유료 RFP {{ rfp.id }}</span>
+    </nav>
+
+    {% if delivery_err == 'no_paid' %}
+    <div class="alert alert-warning">유료 활성화(결제 완료)된 RFP가 아닙니다.</div>
+    {% elif delivery_err == 'fs_not_ready' %}
+    <div class="alert alert-warning">FS가 준비되기 전에는 코드 생성을 시작할 수 없습니다.</div>
+    {% endif %}
+
+    <div class="admin-content-card mb-4">
+      <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+        <div>
+          <h4 class="mb-1">{{ rfp.title }}</h4>
+          <p class="text-muted small mb-0">작성자: {{ rfp.owner.full_name if rfp.owner else '—' }} · paid={{ rfp.paid_engagement_status or 'none' }}</p>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-secondary me-1">fs: {{ rfp.fs_status or 'none' }}</span>
+          <span class="badge bg-secondary">code: {{ rfp.delivered_code_status or 'none' }}</span>
+        </div>
+      </div>
+      <hr>
+      <p class="small mb-2"><strong>프로그램</strong>: {{ rfp.program_id or '—' }} · {{ rfp.transaction_code or '' }}</p>
+      <details class="mb-3">
+        <summary class="small fw-bold cursor-pointer">요구사항(요약)</summary>
+        <pre class="small mt-2 p-2 rounded" style="background:var(--surface2);white-space:pre-wrap;max-height:200px;overflow:auto;">{{ (rfp.description or '—')[:8000] }}</pre>
+      </details>
+      <details class="mb-3">
+        <summary class="small fw-bold cursor-pointer">제안서(발췌)</summary>
+        <pre class="small mt-2 p-2 rounded" style="background:var(--surface2);white-space:pre-wrap;max-height:240px;overflow:auto;">{{ (rfp.proposal_text or '—')[:12000] }}</pre>
+      </details>
+      <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="/rfp/{{ rfp.id }}/request" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">요청 조회</a>
+        <a href="/rfp/{{ rfp.id }}/proposal" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">제안서</a>
+        <a href="/rfp/{{ rfp.id }}/interview/summary" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">인터뷰</a>
+        <a href="/rfp/{{ rfp.id }}/fs" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">회원 FS 화면</a>
+      </div>
+
+      {% if not paid_engagement_active %}
+      <div class="alert alert-secondary small">결제 활성 상태가 아닙니다 · 회원 결제 후에 FS/코드 생성을 시작하세요.</div>
+      {% else %}
+      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
+        <button type="submit" class="btn btn-warning me-2" {% if rfp.fs_status == 'generating' %}disabled{% endif %}>
+          FS 생성 시작
+        </button>
+      </form>
+      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
+        <button type="submit" class="btn btn-primary" {% if rfp.delivered_code_status == 'generating' or rfp.fs_status != 'ready' %}disabled{% endif %}>
+          납품 코드 생성 시작
+        </button>
+      </form>
+      <p class="small text-muted mt-2 mb-0">생성 에이전트는 현재 스텁입니다. 상태는 위 배지 및 회원 화면에서 새로 고침해 확인합니다.</p>
+      {% endif %}
+      {% if rfp.fs_error %}
+      <pre class="small text-danger mt-3">{{ rfp.fs_error }}</pre>
+      {% endif %}
+      {% if rfp.delivered_code_error %}
+      <pre class="small text-danger mt-1">{{ rfp.delivered_code_error }}</pre>
+      {% endif %}
+    </div>
+
+    <div class="admin-content-card">
+      <h5 class="mb-3">인터뷰 라운드 (요약)</h5>
+      {% for msg in messages %}
+      <div class="border-bottom pb-3 mb-3">
+        <div class="badge bg-secondary mb-2">{{ msg.round_number }} 라운드</div>
+        <div class="small" style="white-space:pre-wrap;">{{ (msg.answers_text or '')|interview_bold }}</div>
+      </div>
+      {% endfor %}
+      {% if not messages %}
+      <p class="text-muted small mb-0">메시지 없음</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

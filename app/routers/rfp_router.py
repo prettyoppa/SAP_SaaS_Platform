@@ -2,12 +2,13 @@ import json
 import mimetypes
 import os
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
+from ..paid_tier import paid_engagement_is_active
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..database import get_db
@@ -490,6 +491,82 @@ def rfp_dev_code_view_page(rfp_id: int, request: Request, db: Session = Depends(
             "reference_section_count": ref_section_count,
             "tabs_base_id": tabs_base_id,
         },
+    )
+
+
+@router.get("/rfp/{rfp_id}/fs", response_class=HTMLResponse)
+def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """유료 FS 조회 — 생성은 관리자 전용 POST."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp or not paid_engagement_is_active(rfp):
+        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
+    from ..routers import interview_router as _ir
+
+    fs_html = ""
+    if (rfp.fs_status or "") == "ready" and (rfp.fs_text or "").strip():
+        fs_html = _ir._markdown_to_html(rfp.fs_text)
+
+    dc_html = ""
+    if (
+        (rfp.delivered_code_status or "") == "ready"
+        and (rfp.delivered_code_text or "").strip()
+    ):
+        dc_html = _ir._markdown_to_html(rfp.delivered_code_text)
+
+    return templates.TemplateResponse(
+        request,
+        "rfp_fs_view.html",
+        {
+            "request": request,
+            "user": user,
+            "rfp": rfp,
+            "fs_html": fs_html,
+            "delivered_code_html": dc_html,
+        },
+    )
+
+
+@router.get("/rfp/{rfp_id}/fs/download")
+def rfp_fs_download(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp or not paid_engagement_is_active(rfp):
+        return RedirectResponse(url="/", status_code=302)
+    if (rfp.fs_status or "") != "ready" or not (rfp.fs_text or "").strip():
+        return RedirectResponse(url=f"/rfp/{rfp_id}/fs", status_code=302)
+    body = (rfp.fs_text or "").encode("utf-8")
+    fname = f"fs_rfp_{rfp_id}.md"
+    return Response(
+        content=body,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@router.get("/rfp/{rfp_id}/delivered-code/download")
+def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp or not paid_engagement_is_active(rfp):
+        return RedirectResponse(url="/", status_code=302)
+    if (
+        (rfp.delivered_code_status or "") != "ready"
+        or not (rfp.delivered_code_text or "").strip()
+    ):
+        return RedirectResponse(url=f"/rfp/{rfp_id}/fs", status_code=302)
+    body = (rfp.delivered_code_text or "").encode("utf-8")
+    fname = f"delivered_abap_rfp_{rfp_id}.md"
+    return Response(
+        content=body,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
 
 

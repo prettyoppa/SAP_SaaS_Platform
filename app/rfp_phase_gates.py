@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
+from .paid_tier import PAID_ACTIVE
 from .rfp_reference_code import normalize_reference_code_payload
 
 
@@ -36,11 +37,14 @@ def _reference_code_has_content(rfp: models.RFP) -> bool:
 def rfp_phase_gates(rfp: models.RFP) -> dict[str, Any]:
     """
     Jinja 필터용. has_* / href 키는 템플릿에서 사용.
-    FS는 DB 필드 부재로 항상 비활성(추후 연동).
+    FS: 유료(결제 활성화) 건에서만 활성 버튼.
     """
     rid = rfp.id
     has_dev = _reference_code_has_content(rfp)
-    has_fs = False
+
+    paid_on = (rfp.paid_engagement_status or "none").strip() == PAID_ACTIVE
+    has_fs = paid_on
+    fs_href = f"/rfp/{rid}/fs" if paid_on else None
 
     st = (rfp.status or "").strip()
     iv = (rfp.interview_status or "").strip()
@@ -79,6 +83,7 @@ def rfp_phase_gates(rfp: models.RFP) -> dict[str, Any]:
     return {
         "has_dev_code": has_dev,
         "has_fs": has_fs,
+        "fs_href": fs_href,
         "has_proposal": has_proposal,
         "proposal_href": proposal_href,
         "has_interview": has_interview,

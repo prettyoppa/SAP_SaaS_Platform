@@ -21,6 +21,7 @@ from .menu_landing import DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO, DEFAULT_SERVICE_
 from .home_counts import home_tile_counts
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router
+from .routers import payments_router, paid_admin_router
 from .templates_config import templates
 
 _log = logging.getLogger("uvicorn.error")
@@ -59,6 +60,17 @@ def _run_migrations():
         ("integration_requests", "proposal_generated_at", "DATETIME", "TIMESTAMP"),
         ("integration_requests", "interview_status", "VARCHAR DEFAULT 'pending'", "VARCHAR DEFAULT 'pending'"),
         ("integration_requests", "reference_code_payload", "TEXT", "TEXT"),
+        ("rfps", "paid_engagement_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
+        ("rfps", "paid_activated_at", "DATETIME", "TIMESTAMP"),
+        ("rfps", "stripe_checkout_session_id", "VARCHAR", "VARCHAR"),
+        ("rfps", "fs_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
+        ("rfps", "fs_text", "TEXT", "TEXT"),
+        ("rfps", "fs_generated_at", "DATETIME", "TIMESTAMP"),
+        ("rfps", "fs_error", "TEXT", "TEXT"),
+        ("rfps", "delivered_code_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
+        ("rfps", "delivered_code_text", "TEXT", "TEXT"),
+        ("rfps", "delivered_code_generated_at", "DATETIME", "TIMESTAMP"),
+        ("rfps", "delivered_code_error", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -324,6 +336,8 @@ app.include_router(abap_analysis_router.router)
 app.include_router(admin_router.router)
 app.include_router(review_router.router)
 app.include_router(integration_router.router)
+app.include_router(payments_router.router)
+app.include_router(paid_admin_router.router)
 
 
 @app.get("/", response_class=HTMLResponse)

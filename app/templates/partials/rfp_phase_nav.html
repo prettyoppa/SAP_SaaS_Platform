@@ -11,8 +11,8 @@
   {% else %}
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">개발코드</span>
   {% endif %}
-  {% if ph.has_fs %}
-  <a href="/rfp/{{ rfp.id }}/fs" class="btn btn-sm btn-outline-secondary rfp-phase-btn">FS</a>
+  {% if ph.has_fs and ph.fs_href %}
+  <a href="{{ ph.fs_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">FS</a>
   {% else %}
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">FS</span>
   {% endif %}
