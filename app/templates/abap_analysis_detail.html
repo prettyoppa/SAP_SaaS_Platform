@@ -504,7 +504,8 @@
       function move(ev) {
         var maxW = Math.max(minW, wrap.clientWidth);
         var dw = startX - ev.clientX;
-        var dh = ev.clientY - startY;
+        /* 위로 드래그(clientY 감소) → 높이 증가·위로 확장, 아래로 드래그 → 높이 감소 */
+        var dh = startY - ev.clientY;
         var nw = clamp(Math.round(w0 + dw), minW, maxW);
         var nh = clamp(Math.round(h0 + dh), minH, maxH);
         ta.style.width = nw + 'px';
