@@ -5,8 +5,6 @@ import json
 import os
 from typing import List
 
-from urllib.parse import urlencode
-
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -14,12 +12,19 @@ from sqlalchemy.orm import Session
 from .. import models, auth
 from ..database import get_db
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
-from ..rfp_landing import (
-    DEFAULT_SERVICE_ABAP_INTRO_MD_KO,
+from ..menu_landing import (
     TILE_ORDER_WITH_ALL,
     VALID_URL_BUCKETS,
+    filtered_integration_menu_rows,
     filtered_rfp_list_for_landing,
+    integration_menu_aggregate,
+    menu_landing_preset_params,
+    menu_landing_url,
     parse_slashed_date,
+    standard_menu_bucket_meta,
+)
+from ..rfp_landing import (
+    DEFAULT_SERVICE_ABAP_INTRO_MD_KO,
     rfp_landing_aggregate,
 )
 from ..templates_config import templates
@@ -62,23 +67,6 @@ def _set_attachments(ir: models.IntegrationRequest, entries: list[dict]) -> None
     ir.attachments_json = json.dumps(entries, ensure_ascii=False)
 
 
-def _svc_abap_query_presets(request: Request) -> dict[str, str]:
-    """타일 클릭 시 유지할 검색 필드만."""
-    m: dict[str, str] = {}
-    qp = request.query_params
-    for k in ("title", "date_from", "date_to"):
-        v = qp.get(k)
-        if v and str(v).strip():
-            m[k] = str(v).strip()
-    return m
-
-
-def _svc_abap_build_url(bucket: str, presets: dict[str, str]) -> str:
-    m = dict(presets)
-    m["bucket"] = bucket
-    return "/services/abap?" + urlencode(m)
-
-
 @router.get("/services/abap", response_class=HTMLResponse)
 def services_abap_page(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
@@ -115,8 +103,10 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
         rfp_total_rows = sum(
             rfp_landing_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft")
         )
-        presets = _svc_abap_query_presets(request)
-        svc_abap_tile_links = {k: _svc_abap_build_url(k, presets) for k in TILE_ORDER_WITH_ALL}
+        presets = menu_landing_preset_params(request.query_params)
+        svc_abap_tile_links = {
+            k: menu_landing_url("/services/abap", presets, k) for k in TILE_ORDER_WITH_ALL
+        }
 
         if selected_bucket:
             rfps_filtered = filtered_rfp_list_for_landing(
@@ -129,26 +119,7 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
                 date_to=date_to_dt,
             )
 
-    bucket_meta = {
-        "all": {
-            "label": "전체",
-            "icon": "fa-layer-group",
-            "fg": "#a78bfa",
-            "bg": "rgba(167,139,250,.22)",
-            "hint": "모든 진행 상태",
-        },
-        "delivery": {
-            "label": "납품",
-            "icon": "fa-truck",
-            "fg": "#94a3b8",
-            "bg": "rgba(148,163,184,.22)",
-            "hint": "FS·최종 코드 납품(추후)",
-        },
-        "proposal": {"label": "제안", "icon": "fa-file-lines", "fg": "#22c55e", "bg": "rgba(34,197,94,.18)"},
-        "analysis": {"label": "분석", "icon": "fa-magnifying-glass-chart", "fg": "#6366f1", "bg": "rgba(99,102,241,.18)"},
-        "in_progress": {"label": "진행중", "icon": "fa-spinner", "fg": "#eab308", "bg": "rgba(234,179,8,.2)"},
-        "draft": {"label": "임시저장", "icon": "fa-floppy-disk", "fg": "#64748b", "bg": "rgba(100,116,139,.2)"},
-    }
+    bucket_meta = standard_menu_bucket_meta()
     return templates.TemplateResponse(
         request,
         "services_abap.html",
@@ -175,19 +146,66 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
 @router.get("/integration", response_class=HTMLResponse)
 def integration_landing(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
-    mine: list[models.IntegrationRequest] = []
+
+    qp = request.query_params
+    bucket_raw = (qp.get("bucket") or "").strip() or None
+    if bucket_raw and bucket_raw not in VALID_URL_BUCKETS:
+        bucket_raw = None
+    selected_bucket = bucket_raw
+
+    title_search = (qp.get("title") or "").strip() or None
+    date_from_raw = (qp.get("date_from") or "").strip() or None
+    date_to_raw = (qp.get("date_to") or "").strip() or None
+    date_from_dt = parse_slashed_date(date_from_raw)
+    date_to_dt = parse_slashed_date(date_to_raw)
+
+    is_admin = bool(user and user.is_admin)
+    menu_counts = {k: 0 for k in ("delivery", "proposal", "analysis", "in_progress", "draft")}
+    menu_total_rows = 0
+    menu_tile_links: dict[str, str] = {}
+    filtered_rows: list[models.IntegrationRequest] = []
+    show_request_owner = bool(user and is_admin)
+
     if user:
-        mine = (
-            db.query(models.IntegrationRequest)
-            .filter(models.IntegrationRequest.user_id == user.id)
-            .order_by(models.IntegrationRequest.created_at.desc())
-            .limit(20)
-            .all()
-        )
+        admin_view = is_admin
+        cnt, _b = integration_menu_aggregate(db, admin=admin_view, user_id=user.id)
+        menu_counts = cnt
+        menu_total_rows = sum(menu_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft"))
+        presets = menu_landing_preset_params(request.query_params)
+        menu_tile_links = {k: menu_landing_url("/integration", presets, k) for k in TILE_ORDER_WITH_ALL}
+        if selected_bucket:
+            filtered_rows = filtered_integration_menu_rows(
+                db,
+                admin=admin_view,
+                user_id=user.id,
+                bucket=selected_bucket,
+                title_q=title_search,
+                date_from=date_from_dt,
+                date_to=date_to_dt,
+            )
+
+    bucket_meta = standard_menu_bucket_meta()
     return templates.TemplateResponse(
         request,
         "integration_landing.html",
-        {"request": request, "user": user, "mine": mine},
+        {
+            "request": request,
+            "user": user,
+            "bucket_meta": bucket_meta,
+            "menu_landing_counts": menu_counts,
+            "menu_total_rows": menu_total_rows,
+            "menu_tile_links": menu_tile_links,
+            "menu_tile_order": list(TILE_ORDER_WITH_ALL),
+            "selected_menu_bucket": selected_bucket,
+            "menu_show_list": bool(user and selected_bucket),
+            "menu_search_title": title_search or "",
+            "menu_date_from_raw": date_from_raw or "",
+            "menu_date_to_raw": date_to_raw or "",
+            "filtered_menu_rows": filtered_rows if user else [],
+            "show_request_owner": show_request_owner,
+            "menu_landing_form_action": "/integration",
+            "impl_labels": IMPL_LABELS,
+        },
     )
 
 

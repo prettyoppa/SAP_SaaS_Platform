@@ -2,72 +2,126 @@
 {% block title %}SAP ABAP 분석 – SAP 개발 파트너{% endblock %}
 
 {% block content %}
-<div class="dashboard-page py-4">
+<div class="dashboard-page dashboard-page-menu-landing py-4">
   <div class="container">
     <div class="dashboard-header mb-4">
-      <div class="row align-items-center">
+      <div class="row align-items-start">
         <div class="col">
-          <h2 class="mb-1 d-flex align-items-center gap-2">
+          <h2 class="mb-2 d-flex align-items-center gap-2 flex-wrap">
             <span class="nav-item-icon nav-icon-analysis text-primary-light" aria-hidden="true">
               <i class="fa-solid fa-hospital nav-icon-analysis-light"></i>
               <i class="fa-regular fa-hospital nav-icon-analysis-dark"></i>
             </span>
             <span>SAP ABAP 분석</span>
           </h2>
-          <p class="text-muted mb-0">
+          <p class="text-muted mb-0 small">
             요구사항과 ABAP 코드를 제출하면 구조 분석과 요구사항 연계 해석을 제공합니다.
-            <span class="d-block small mt-1">본인이 제출한 요청만 조회됩니다. 관리자는 전체를 볼 수 있습니다.</span>
+            {% if user and not user.is_admin %}
+            <span class="d-block small mt-1">본인이 제출한 요청만 조회됩니다.</span>
+            {% elif user and user.is_admin %}
+            <span class="d-block small mt-1"><i class="fa-solid fa-user-shield me-1"></i>관리자: 전체 회원 요청이 표시됩니다.</span>
+            {% endif %}
           </p>
         </div>
         <div class="col-auto">
+          {% if user %}
           <a href="/abap-analysis/new" class="btn btn-primary">
             <i class="fa-solid fa-plus me-2"></i>새 분석 요청
           </a>
+          {% else %}
+          <a href="/login?next=/abap-analysis/new" class="btn btn-primary">
+            <i class="fa-solid fa-plus me-2"></i>새 분석 요청
+          </a>
+          {% endif %}
         </div>
       </div>
     </div>
 
-    {% if rows %}
-    <div class="row g-3">
-      {% for row in rows %}
-      <div class="col-12">
-        <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-decoration-none text-reset">
-          <div class="rfp-list-card">
-            <div class="rfp-list-left">
-              <div class="rfp-list-status {% if row.is_draft %}status-draft{% elif row.is_analyzed %}status-completed{% else %}status-submitted{% endif %}">
-                <i class="fa-solid {% if row.is_draft %}fa-floppy-disk{% elif row.is_analyzed %}fa-circle-check{% else %}fa-clock{% endif %}"></i>
-              </div>
-              <div class="rfp-list-body">
-                <div class="rfp-list-title">
-                  #{{ row.id }}
-                  {% if row.is_draft %}
-                  <span class="badge bg-secondary ms-2">임시저장</span>
-                  {% elif row.is_analyzed %}
-                  <span class="badge bg-success ms-2">분석 완료</span>
-                  {% else %}
-                  <span class="badge bg-warning text-dark ms-2">분석 오류/미완료</span>
-                  {% endif %}
-                </div>
-                <div class="rfp-list-meta small text-muted">
-                  {{ row.created_at.strftime('%Y-%m-%d %H:%M') }}
-                  {% if user.is_admin and row.owner %}
-                  · {{ row.owner.full_name }} · {{ row.owner.email }}
-                  {% endif %}
-                </div>
-                <div class="mt-2 small" style="max-height:3.2rem;overflow:hidden;">
-                  {{ (row.requirement_text or '')[:180] }}{% if (row.requirement_text or '')|length > 180 %}…{% endif %}
-                </div>
-              </div>
-            </div>
-            <div class="rfp-list-chevron text-muted"><i class="fa-solid fa-chevron-right"></i></div>
+    {% if user %}
+    <div class="row g-3 mb-3 row-cols-2 row-cols-sm-3 row-cols-xl-6">
+      {% for key in menu_tile_order %}
+      {% set m = bucket_meta[key] %}
+      <div class="col">
+        <a href="{{ menu_tile_links[key] }}"
+           class="stat-card stat-card-sm stat-card-link text-decoration-none h-100 d-flex{% if selected_menu_bucket == key %} stat-card-tile-active{% endif %}">
+          <div class="stat-card-icon" style="background: {{ m.bg }}; color: {{ m.fg }}">
+            <i class="fa-solid {{ m.icon }}"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{% if key == 'all' %}{{ menu_total_rows }}{% else %}{{ menu_landing_counts.get(key, 0) }}{% endif %}</div>
+            <div class="stat-card-label">{{ m.label }}</div>
           </div>
         </a>
       </div>
       {% endfor %}
     </div>
+
+    <form method="get" action="{{ menu_landing_form_action }}" class="row g-2 align-items-end mb-4">
+      {% if selected_menu_bucket %}
+      <input type="hidden" name="bucket" value="{{ selected_menu_bucket }}" />
+      {% endif %}
+      <div class="col-12 col-md-auto">
+        <label class="form-label small mb-1 text-muted" data-i18n="svcAbap.createdFrom">생성일</label>
+        <input type="text" name="date_from" class="form-control form-control-sm" autocomplete="off"
+               value="{{ menu_date_from_raw }}" data-i18n-placeholder="svcAbap.placeholderDate" />
+      </div>
+      <div class="col-12 col-sm-auto pt-md-4 text-muted small d-none d-md-block">–</div>
+      <div class="col-12 col-md-auto">
+        <label class="form-label small mb-1 text-muted">&nbsp;</label>
+        <input type="text" name="date_to" class="form-control form-control-sm" autocomplete="off"
+               value="{{ menu_date_to_raw }}" data-i18n-placeholder="svcAbap.placeholderDate" />
+      </div>
+      <div class="col-12 col-md">
+        <label class="form-label small mb-1 text-muted" data-i18n="svcAbap.searchTitle">제목</label>
+        <input type="search" name="title" class="form-control form-control-sm" autocomplete="off"
+               value="{{ menu_search_title }}" data-i18n-placeholder="svcAbap.placeholderTitle" />
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-secondary" data-i18n="svcAbap.btnSearch">검색</button>
+      </div>
+    </form>
+
+    {% if menu_show_list %}
+      {% if selected_menu_bucket == 'delivery' %}
+      <p class="text-muted small mb-3">납품·코드 인도 단계는 추후 반영 예정입니다.</p>
+      {% endif %}
+      {% if filtered_menu_rows|length %}
+      <section class="mb-4">
+        <h5 class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+          <i class="fa-solid {{ bucket_meta[selected_menu_bucket].icon }} small" style="color: {{ bucket_meta[selected_menu_bucket].fg }}"></i>
+          {{ bucket_meta[selected_menu_bucket].label }}
+          <span class="text-muted small fw-normal">({{ filtered_menu_rows|length }}건)</span>
+          {% if selected_menu_bucket == 'delivery' %}
+          <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
+          {% endif %}
+        </h5>
+        <div class="row g-3">
+          {% for row in filtered_menu_rows %}
+          <div class="col-12">
+            {% include "partials/abap_analysis_list_card.html" %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% else %}
+      <div class="alert alert-secondary border-0 small mb-0">
+        <span class="nav-ko">조건에 맞는 요청이 없습니다.</span>
+        <span class="nav-en" style="display:none">No requests match your filters.</span>
+      </div>
+      {% endif %}
     {% else %}
-    <div class="alert alert-secondary">
-      등록된 분석 요청이 없습니다. <a href="/abap-analysis/new">새 분석 요청</a>으로 시작해 보세요.
+    <div class="alert alert-light border small mb-0" style="background:var(--surface2);border-color:var(--border)!important;">
+      <i class="fa-solid fa-hand-pointer me-2 text-primary"></i>
+      <span data-i18n="svcAbap.hintNoBucket">위에서 진행 상태 타일을 선택하면 목록이 표시됩니다.</span>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info border-0 mb-0" style="background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.25)!important;">
+      <i class="fa-solid fa-user-lock me-2"></i>
+      <strong>로그인</strong> 후 나의 분석 요청·진행 타일을 사용할 수 있습니다.
+      <a href="/login?next=/abap-analysis" class="alert-link">로그인</a>
+      · <a href="/register" class="alert-link">회원가입</a>
     </div>
     {% endif %}
   </div>

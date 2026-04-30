@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from . import models
+from .menu_landing import abap_analysis_menu_bucket, integration_menu_bucket
 
 
 def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> dict:
@@ -48,23 +49,22 @@ def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> di
         a_q = a_q.filter(models.AbapAnalysisRequest.user_id == uid)
     analyses = a_q.all()
 
-    a_delivery = 0
-    a_proposal = 0  # 이 메뉴 제안 기능 미연동
-    a_analysis = sum(1 for a in analyses if not a.is_draft and not a.is_analyzed)
-    a_in_progress = sum(1 for a in analyses if not a.is_draft and a.is_analyzed)
-    a_draft = sum(1 for a in analyses if a.is_draft)
+    a_delivery = sum(1 for a in analyses if abap_analysis_menu_bucket(a) == "delivery")
+    a_proposal = sum(1 for a in analyses if abap_analysis_menu_bucket(a) == "proposal")
+    a_analysis = sum(1 for a in analyses if abap_analysis_menu_bucket(a) == "analysis")
+    a_in_progress = sum(1 for a in analyses if abap_analysis_menu_bucket(a) == "in_progress")
+    a_draft = sum(1 for a in analyses if abap_analysis_menu_bucket(a) == "draft")
 
     ir_q = db.query(models.IntegrationRequest)
     if not is_admin:
         ir_q = ir_q.filter(models.IntegrationRequest.user_id == uid)
     integrations = ir_q.all()
 
-    # 연동: 상태 분류 로직 추후 — 타일 반영만
-    ir_delivery = 0
-    ir_proposal = sum(1 for ir in integrations if (ir.proposal_text or "").strip())
-    ir_analysis = 0
-    ir_in_progress = 0
-    ir_draft = 0
+    ir_delivery = sum(1 for ir in integrations if integration_menu_bucket(ir) == "delivery")
+    ir_proposal = sum(1 for ir in integrations if integration_menu_bucket(ir) == "proposal")
+    ir_analysis = sum(1 for ir in integrations if integration_menu_bucket(ir) == "analysis")
+    ir_in_progress = sum(1 for ir in integrations if integration_menu_bucket(ir) == "in_progress")
+    ir_draft = sum(1 for ir in integrations if integration_menu_bucket(ir) == "draft")
 
     return {
         "rfp": {

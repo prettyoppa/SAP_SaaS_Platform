@@ -2,41 +2,124 @@
 {% block title %}SAP 연동 개발 – SAP 개발 파트너{% endblock %}
 
 {% block content %}
-<div class="py-5">
-  <div class="container col-lg-9">
-    <nav aria-label="breadcrumb" class="mb-3">
-      <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="/">홈</a></li>
-        <li class="breadcrumb-item active" aria-current="page">SAP 연동 개발</li>
-      </ol>
-    </nav>
-    <h1 class="mb-3">SAP 연동 개발</h1>
-    <p class="lead text-muted">
-      Excel VBA, Python, 소규모 웹앱, 배치, API 연동 등 <strong>SAP와 붙는 비-ABAP</strong> 과제를 여기서 요청합니다.
-      SAP 터치포인트(RFC, IDoc, OData 등)와 보안·환경 조건을 적어 주시면 분석에 반영됩니다.
-    </p>
-    <div class="d-flex flex-wrap gap-3 mt-4 mb-5">
-      {% if user %}
-      <a href="/integration/new" class="btn btn-primary btn-lg">
-        <i class="fa-solid fa-plus me-2"></i>연동 요청 작성
-      </a>
-      <a href="/integration" class="btn btn-outline-secondary btn-lg">내 연동 요청만 보기</a>
-      {% else %}
-      <a href="/login?next=/integration/new" class="btn btn-primary btn-lg">로그인 후 요청하기</a>
-      {% endif %}
-      <a href="/services/abap" class="btn btn-outline-primary btn-lg">SAP ABAP 개발 안내</a>
+<div class="dashboard-page dashboard-page-menu-landing py-4">
+  <div class="container">
+    <div class="dashboard-header mb-4">
+      <div class="row align-items-start">
+        <div class="col">
+          <h2 class="mb-2 d-flex align-items-center gap-2 flex-wrap">
+            <i class="fa-solid fa-link text-primary-light" aria-hidden="true"></i>
+            <span>SAP 연동 개발</span>
+          </h2>
+          <p class="text-muted mb-0 small">
+            Excel VBA, Python, 소규모 웹앱, 배치, API 연동 등 <strong>SAP와 연결되는 비-ABAP</strong> 과제를 요청합니다.
+            SAP 터치포인트(RFC, IDoc, OData 등)와 보안·환경 조건을 적어 주시면 분석에 반영됩니다.
+            {% if user and user.is_admin %}
+            <span class="d-block small mt-1"><i class="fa-solid fa-user-shield me-1"></i>관리자: 전체 회원 요청이 표시됩니다.</span>
+            {% elif user %}
+            <span class="d-block small mt-1">본인이 제출한 요청만 조회됩니다.</span>
+            {% endif %}
+          </p>
+        </div>
+        <div class="col-auto">
+          {% if user %}
+          <a href="/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>연동 요청 작성</a>
+          {% else %}
+          <a href="/login?next=/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>연동 요청 작성</a>
+          {% endif %}
+        </div>
+      </div>
     </div>
 
-    {% if user and mine %}
-    <h4 class="mb-3">최근 요청</h4>
-    <div class="list-group">
-      {% for ir in mine %}
-      <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-         href="/integration/{{ ir.id }}">
-        <span>{{ ir.title }}</span>
-        <small class="text-muted">{{ ir.created_at.strftime('%Y-%m-%d') }}</small>
-      </a>
+    {% if user %}
+    <div class="row g-3 mb-3 row-cols-2 row-cols-sm-3 row-cols-xl-6">
+      {% for key in menu_tile_order %}
+      {% set m = bucket_meta[key] %}
+      <div class="col">
+        <a href="{{ menu_tile_links[key] }}"
+           class="stat-card stat-card-sm stat-card-link text-decoration-none h-100 d-flex{% if selected_menu_bucket == key %} stat-card-tile-active{% endif %}">
+          <div class="stat-card-icon" style="background: {{ m.bg }}; color: {{ m.fg }}">
+            <i class="fa-solid {{ m.icon }}"></i>
+          </div>
+          <div>
+            <div class="stat-card-num">{% if key == 'all' %}{{ menu_total_rows }}{% else %}{{ menu_landing_counts.get(key, 0) }}{% endif %}</div>
+            <div class="stat-card-label">{{ m.label }}</div>
+          </div>
+        </a>
+      </div>
       {% endfor %}
+    </div>
+
+    <form method="get" action="{{ menu_landing_form_action }}" class="row g-2 align-items-end mb-4">
+      {% if selected_menu_bucket %}
+      <input type="hidden" name="bucket" value="{{ selected_menu_bucket }}" />
+      {% endif %}
+      <div class="col-12 col-md-auto">
+        <label class="form-label small mb-1 text-muted" data-i18n="svcAbap.createdFrom">생성일</label>
+        <input type="text" name="date_from" class="form-control form-control-sm" autocomplete="off"
+               value="{{ menu_date_from_raw }}" data-i18n-placeholder="svcAbap.placeholderDate" />
+      </div>
+      <div class="col-12 col-sm-auto pt-md-4 text-muted small d-none d-md-block">–</div>
+      <div class="col-12 col-md-auto">
+        <label class="form-label small mb-1 text-muted">&nbsp;</label>
+        <input type="text" name="date_to" class="form-control form-control-sm" autocomplete="off"
+               value="{{ menu_date_to_raw }}" data-i18n-placeholder="svcAbap.placeholderDate" />
+      </div>
+      <div class="col-12 col-md">
+        <label class="form-label small mb-1 text-muted" data-i18n="svcAbap.searchTitle">제목</label>
+        <input type="search" name="title" class="form-control form-control-sm" autocomplete="off"
+               value="{{ menu_search_title }}" data-i18n-placeholder="svcAbap.placeholderTitle" />
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-secondary" data-i18n="svcAbap.btnSearch">검색</button>
+      </div>
+    </form>
+
+    {% if menu_show_list %}
+      {% if selected_menu_bucket == 'delivery' %}
+      <p class="text-muted small mb-3">연동 과제 최종 인도 단계는 추후 반영 예정입니다.</p>
+      {% endif %}
+      {% if filtered_menu_rows|length %}
+      <section class="mb-4">
+        <h5 class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+          <i class="fa-solid {{ bucket_meta[selected_menu_bucket].icon }} small" style="color: {{ bucket_meta[selected_menu_bucket].fg }}"></i>
+          {{ bucket_meta[selected_menu_bucket].label }}
+          <span class="text-muted small fw-normal">({{ filtered_menu_rows|length }}건)</span>
+          {% if selected_menu_bucket == 'delivery' %}
+          <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
+          {% endif %}
+        </h5>
+        <div class="row g-3">
+          {% for ir in filtered_menu_rows %}
+          <div class="col-12">
+            {% include "partials/integration_list_card.html" %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% else %}
+      <div class="alert alert-secondary border-0 small mb-0">
+        <span class="nav-ko">조건에 맞는 요청이 없습니다.</span>
+        <span class="nav-en" style="display:none">No requests match your filters.</span>
+      </div>
+      {% endif %}
+    {% else %}
+    <div class="alert alert-light border small mb-0" style="background:var(--surface2);border-color:var(--border)!important;">
+      <i class="fa-solid fa-hand-pointer me-2 text-primary"></i>
+      <span data-i18n="svcAbap.hintNoBucket">위에서 진행 상태 타일을 선택하면 목록이 표시됩니다.</span>
+    </div>
+    {% endif %}
+
+    <div class="mt-4 pt-3 border-top small">
+      <a href="/services/abap" class="text-muted text-decoration-none"><i class="fa-solid fa-code me-1"></i>SAP ABAP 개발 안내로</a>
+    </div>
+
+    {% else %}
+    <div class="alert alert-info border-0 mb-0" style="background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.25)!important;">
+      <i class="fa-solid fa-user-lock me-2"></i>
+      <strong>로그인</strong> 후 연동 요청 목록과 진행 타일을 사용할 수 있습니다.
+      <a href="/login?next=/integration" class="alert-link">로그인</a>
+      · <a href="/register" class="alert-link">회원가입</a>
     </div>
     {% endif %}
   </div>

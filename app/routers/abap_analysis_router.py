@@ -21,6 +21,16 @@ from ..abap_followup_chat import (
     validate_user_message,
 )
 from ..database import get_db
+from ..menu_landing import (
+    TILE_ORDER_WITH_ALL,
+    VALID_URL_BUCKETS,
+    abap_analysis_menu_aggregate,
+    filtered_abap_analysis_menu_rows,
+    menu_landing_preset_params,
+    menu_landing_url,
+    parse_slashed_date,
+    standard_menu_bucket_meta,
+)
 from ..attachment_context import build_attachment_llm_digest
 from ..rfp_reference_code import (
     abap_source_only_from_reference_payload,
@@ -208,18 +218,69 @@ def _form_template_response(
 
 @router.get("", response_class=HTMLResponse)
 def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
-    user = _require_user(request, db)
-    rows = (
-        _query_for_user(db, user)
-        .options(joinedload(models.AbapAnalysisRequest.owner))
-        .order_by(models.AbapAnalysisRequest.created_at.desc())
-        .limit(200)
-        .all()
-    )
+    user = auth.get_current_user(request, db)
+
+    qp = request.query_params
+    bucket_raw = (qp.get("bucket") or "").strip() or None
+    if bucket_raw and bucket_raw not in VALID_URL_BUCKETS:
+        bucket_raw = None
+    selected_bucket = bucket_raw
+
+    title_search = (qp.get("title") or "").strip() or None
+    date_from_raw = (qp.get("date_from") or "").strip() or None
+    date_to_raw = (qp.get("date_to") or "").strip() or None
+    date_from_dt = parse_slashed_date(date_from_raw)
+    date_to_dt = parse_slashed_date(date_to_raw)
+
+    is_admin = bool(user and user.is_admin)
+    menu_counts = {k: 0 for k in ("delivery", "proposal", "analysis", "in_progress", "draft")}
+    menu_total_rows = 0
+    menu_tile_links: dict[str, str] = {}
+    filtered_rows: list[models.AbapAnalysisRequest] = []
+    show_request_owner = bool(user and is_admin)
+
+    if user:
+        admin_view = is_admin
+        cnt, _b = abap_analysis_menu_aggregate(db, admin=admin_view, user_id=user.id)
+        menu_counts = cnt
+        menu_total_rows = sum(menu_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft"))
+        presets = menu_landing_preset_params(request.query_params)
+        menu_tile_links = {
+            k: menu_landing_url("/abap-analysis", presets, k) for k in TILE_ORDER_WITH_ALL
+        }
+        if selected_bucket:
+            filtered_rows = filtered_abap_analysis_menu_rows(
+                db,
+                admin=admin_view,
+                user_id=user.id,
+                bucket=selected_bucket,
+                title_q=title_search,
+                date_from=date_from_dt,
+                date_to=date_to_dt,
+            )
+
+    bucket_meta = standard_menu_bucket_meta()
+
     return templates.TemplateResponse(
         request,
         "abap_analysis_list.html",
-        {"request": request, "user": user, "rows": rows},
+        {
+            "request": request,
+            "user": user,
+            "bucket_meta": bucket_meta,
+            "menu_landing_counts": menu_counts,
+            "menu_total_rows": menu_total_rows,
+            "menu_tile_links": menu_tile_links,
+            "menu_tile_order": list(TILE_ORDER_WITH_ALL),
+            "selected_menu_bucket": selected_bucket,
+            "menu_show_list": bool(user and selected_bucket),
+            "menu_search_title": title_search or "",
+            "menu_date_from_raw": date_from_raw or "",
+            "menu_date_to_raw": date_to_raw or "",
+            "filtered_menu_rows": filtered_rows if user else [],
+            "show_request_owner": show_request_owner,
+            "menu_landing_form_action": "/abap-analysis",
+        },
     )
 
 
