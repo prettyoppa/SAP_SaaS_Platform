@@ -1,5 +1,5 @@
-{# context: rfp #}
-{% set ph = rfp|phase_gates %}
+{# context: rfp, optional user #}
+{% set ph = rfp|phase_gates(user if user is defined else none) %}
 <div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
   {% if rfp.status == 'draft' %}
   <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-warning text-dark">
@@ -15,6 +15,11 @@
   <a href="{{ ph.fs_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">FS</a>
   {% else %}
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">FS</span>
+  {% endif %}
+  {% if user is defined and user.is_admin %}
+  <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" title="FS·컨설턴트 수정본 업로드·납품 ABAP 생성 요청">
+    <i class="fa-solid fa-gears me-1"></i>납품 관리
+  </a>
   {% endif %}
   {% if ph.has_proposal and ph.proposal_href %}
   <a href="{{ ph.proposal_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">제안서</a>

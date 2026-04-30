@@ -20,6 +20,20 @@
       <p class="text-muted small mb-0">{{ rfp.title }}</p>
     </div>
 
+    {% if user.is_admin %}
+    <div class="alert alert-warning border mb-4">
+      <h6 class="alert-heading fw-bold mb-2"><i class="fa-solid fa-gears me-1"></i>관리자: ABAP 코드 생성 요청과 FS 수정본 업로드</h6>
+      <p class="small mb-2">이 페이지는 <strong>미리보기·다운로드</strong>용입니다.</p>
+      <ol class="small mb-3 ps-3">
+        <li><a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-bold">개발 산출 콘솔</a> (/admin/rfp/{{ rfp.id }}/delivery)로 이동</li>
+        <li><strong>FS 생성 시작</strong>(필요 시), 수정 FS <strong>.md</strong> 업로드, <strong>코드 생성에 사용할 FS</strong> 라디오 저장</li>
+        <li><strong>납품 코드 생성 시작</strong> = ABAP 초안 에이전트(Kevin→Young→Brian)</li>
+        <li>완료 후 이 페이지를 새로 고침하면 아래에 결과 표시 및 <code>.abap</code> 다운로드</li>
+      </ol>
+      <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-warning btn-sm">개발 산출 콘솔로 이동</a>
+    </div>
+    {% endif %}
+
     {% if fs_stat == 'generating' %}
     <div class="alert alert-secondary border-0 small mb-4">
       <i class="fa-solid fa-spinner fa-spin me-2"></i> FS를 생성하고 있습니다. 잠시 후 새로 고침하세요.
@@ -41,7 +55,7 @@
     {% endif %}
 
     {% if fs_stat == 'none' or (fs_stat != 'generating' and fs_stat != 'ready' and fs_stat != 'failed') %}
-    <p class="text-muted mb-4">관리자가 FS 생성을 시작하면 이 페이지에 표시됩니다. 결제가 완료된 건은 동일하게 이 경로로 안내됩니다.</p>
+    <p class="text-muted mb-4">관리자가 개발 산출 콘솔에서 FS 생성을 시작하면 이 페이지에 표시됩니다. (결제는 운영 정책에 따라 선택)</p>
     {% endif %}
 
     <div class="alert alert-light border small mb-4">

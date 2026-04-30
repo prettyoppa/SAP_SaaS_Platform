@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}유료 진행 · RFP {{ rfp.id }} – Admin{% endblock %}
+{% block title %}개발 산출(FS·납품) · RFP {{ rfp.id }} — Admin{% endblock %}
 
 {% block content %}
 <div class="py-4">
@@ -54,7 +54,7 @@
 
       {% if not paid_engagement_active %}
       <div class="alert alert-info small mb-3">
-        Stripe 결제로 유료 상태가 되지 않아도 이 화면에서 <strong>FS·코드 생성을 테스트</strong>할 수 있습니다. 운영에서 결제를 필수로 하려면 백엔드 가드를 나중에 다시 켜면 됩니다.
+        <strong>테스트 모드 참고:</strong> Stripe 결제 없이도 이 화면에서 FS·납품 ABAP 생성을 실행할 수 있습니다. 운영에서 결제를 필수로 하려면 백엔드 가드를 적용하면 됩니다.
       </div>
       {% endif %}
       <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">

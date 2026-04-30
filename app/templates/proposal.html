@@ -40,15 +40,31 @@
               {% endif %}
             </div>
 
+            {% if user.is_admin %}
+            <div class="alert alert-primary border-primary small mb-3">
+              <div class="fw-bold mb-1"><i class="fa-solid fa-gears me-1"></i>관리자: FS 생성 · 수정 FS 업로드 · 납품 ABAP 요청</div>
+              <p class="mb-2 mb-0">이 작업들은 회원에게 보이는 미리보기 페이지(<a href="/rfp/{{ rfp.id }}/fs" class="alert-link">/rfp/{{ rfp.id }}/fs</a>)가 아니라
+                <strong>개발 산출 콘솔</strong>에서 처리합니다.</p>
+              <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-sm btn-dark mt-2">
+                개발 산출 콘솔 열기 <span class="text-white-50 small">(/admin/rfp/{{ rfp.id }}/delivery)</span>
+              </a>
+            </div>
+            {% endif %}
             {% if billing_flash %}
             <div class="alert alert-info small mb-3">{{ billing_flash }}</div>
             {% endif %}
             {% if paid_engagement_active %}
             <div class="alert alert-success small mb-3 d-flex flex-wrap align-items-center gap-2 justify-content-between">
-              <span><i class="fa-solid fa-circle-check me-1"></i> <strong>개발 의뢰(유료)</strong>가 활성화되었습니다. FS·납품 코드는 관리자가 생성하며, 아래 또는 목록의 <strong>FS</strong> 메뉴에서 확인합니다.</span>
+              <span><i class="fa-solid fa-circle-check me-1"></i> <strong>개발 의뢰(결제 활성)</strong>가 표시되어 있습니다. FS·납품 코드는 관리자가 생성하며, <strong>FS</strong> 메뉴나 제안서 위의 콘솔 링크에서 확인합니다.</span>
               <a href="/rfp/{{ rfp.id }}/fs" class="btn btn-sm btn-outline-primary mb-0">FS·납품 보기</a>
             </div>
             {% elif rfp_eligible_for_checkout %}
+            {% if user.is_admin %}
+            <div class="alert alert-secondary border-0 small mb-3">
+              <strong>관리자 참고:</strong> Stripe 결제 플로우는 운영 적용 시까지 보류해도 됩니다. 지금은
+              <a href="/admin/rfp/{{ rfp.id }}/delivery" class="alert-link fw-bold">개발 산출 콘솔</a>에서 FS·납품 ABAP을 바로 진행할 수 있습니다.
+            </div>
+            {% else %}
             <div class="alert alert-warning border-0 small mb-3">
               <strong>다음 단계(유료):</strong> 상세 기능명세(FS) 및 납품 ABAP 초안은 Stripe 결제 후 개발 의뢰가 열립니다.
               {% if stripe_checkout_ready %}
@@ -61,10 +77,6 @@
               {% endif %}
             </div>
             {% endif %}
-            {% if user.is_admin %}
-            <div class="small mb-3">
-              <a href="/admin/rfp/{{ rfp.id }}/delivery" class="link-warning"><i class="fa-solid fa-gears me-1"></i>관리자 — 유료 진행(FS/코드 생성)</a>
-            </div>
             {% endif %}
 
             <!-- Action Buttons -->
@@ -96,12 +108,16 @@
                 </div>
               </div>
               {% endif %}
+              {% if user.is_admin %}
+              <div class="ms-auto small text-muted">관리자: 위 파란 박스 → <strong>개발 산출 콘솔</strong></div>
+              {% else %}
               <div class="ms-auto">
                 <span class="paid-cta-badge">
                   <i class="fa-solid fa-lock me-1"></i>
                   최종 FS &amp; ABAP 코드는 유료 서비스로 제공됩니다
                 </span>
               </div>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -166,6 +182,14 @@
         {% endif %}
 
         <!-- Next Step CTA -->
+        {% if user.is_admin %}
+        <div class="next-step-cta mt-5">
+          <div class="alert alert-secondary small mb-0">
+            <strong>관리자 안내:</strong> FS 생성·컨설턴트 수정본 업로드·납품 ABAP 생성 요청은
+            <a href="/admin/rfp/{{ rfp.id }}/delivery" class="alert-link fw-bold">개발 산출 콘솔</a> 한 곳에서 처리합니다 (결제 플로우와 무관).
+          </div>
+        </div>
+        {% else %}
         <div class="next-step-cta mt-5">
           <div class="row align-items-center">
             <div class="col-md-8">
@@ -183,6 +207,7 @@
             </div>
           </div>
         </div>
+        {% endif %}
 
       </div>
     </div>

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -34,10 +34,10 @@ def _reference_code_has_content(rfp: models.RFP) -> bool:
     return False
 
 
-def rfp_phase_gates(rfp: models.RFP) -> dict[str, Any]:
+def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, Any]:
     """
     Jinja 필터용. has_* / href 키는 템플릿에서 사용.
-    FS: 결제 완료 또는(FS/납품 생성이 시작된 경우) 목록에서 활성.
+    FS: 결제 완료·FS/납품 파이프라인 시작 후 활성 — **관리자**는 결제 전에도 링크 허브로 진입 가능(납품 콘솔 테스트).
     """
     rid = rfp.id
     has_dev = _reference_code_has_content(rfp)
@@ -46,7 +46,8 @@ def rfp_phase_gates(rfp: models.RFP) -> dict[str, Any]:
     fs_s = (getattr(rfp, "fs_status", None) or "none").strip()
     dc_s = (getattr(rfp, "delivered_code_status", None) or "none").strip()
     pipeline = fs_s != "none" or dc_s != "none"
-    has_fs = paid_on or pipeline
+    is_admin = bool(user and getattr(user, "is_admin", False))
+    has_fs = paid_on or pipeline or is_admin
     fs_href = f"/rfp/{rid}/fs" if has_fs else None
 
     st = (rfp.status or "").strip()
