@@ -13,6 +13,7 @@ from .. import models, auth
 from ..database import get_db
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..menu_landing import (
+    DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO,
     TILE_ORDER_WITH_ALL,
     VALID_URL_BUCKETS,
     filtered_integration_menu_rows,
@@ -147,6 +148,10 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
 def integration_landing(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
 
+    raw_settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    intro_md = (raw_settings.get("service_integration_intro_md_ko") or "").strip() or DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO
+    service_integration_intro_html = _markdown_to_html(intro_md)
+
     qp = request.query_params
     bucket_raw = (qp.get("bucket") or "").strip() or None
     if bucket_raw and bucket_raw not in VALID_URL_BUCKETS:
@@ -191,6 +196,7 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
         {
             "request": request,
             "user": user,
+            "service_integration_intro_html": service_integration_intro_html,
             "bucket_meta": bucket_meta,
             "menu_landing_counts": menu_counts,
             "menu_total_rows": menu_total_rows,

@@ -10,6 +10,17 @@ from sqlalchemy.orm import Session, joinedload
 from . import models
 from .rfp_landing import BUCKET_ORDER, TILE_ORDER_WITH_ALL, VALID_URL_BUCKETS, parse_slashed_date
 
+DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO = """요구사항과 ABAP 코드를 제출하면 구조 분석과 요구사항 연계 해석을 제공합니다.
+
+- 프로그램·모듈 맥락과 업무 규칙을 함께 설명하면 분석 정확도가 올라갑니다
+- 참고 코드·첨부로 실제 패턴을 공유할 수 있습니다
+- 신규 개발 제안까지 이어지는 경우 **신규 개발** 메뉴와 병행해 보실 수 있습니다"""
+
+DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO = """Excel VBA, Python, 소규모 웹앱, 배치, API 연동 등 **SAP와 연결되는 비-ABAP** 과제를 요청합니다.
+
+- SAP 터치포인트(RFC, IDoc, OData 등)와 보안·환경 조건을 적어 주시면 분석에 반영됩니다
+- 구현 형태(매크로·스크립트·API 등)를 선택하고 상세 설명을 남겨 주세요"""
+
 __all__ = [
     "BUCKET_ORDER",
     "TILE_ORDER_WITH_ALL",
@@ -24,6 +35,8 @@ __all__ = [
     "filtered_abap_analysis_menu_rows",
     "integration_menu_aggregate",
     "filtered_integration_menu_rows",
+    "DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO",
+    "DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO",
 ]
 
 

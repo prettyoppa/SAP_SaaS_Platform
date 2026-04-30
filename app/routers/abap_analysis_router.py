@@ -22,6 +22,7 @@ from ..abap_followup_chat import (
 )
 from ..database import get_db
 from ..menu_landing import (
+    DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO,
     TILE_ORDER_WITH_ALL,
     VALID_URL_BUCKETS,
     abap_analysis_menu_aggregate,
@@ -38,6 +39,7 @@ from ..rfp_reference_code import (
     reference_code_program_groups_for_tabs,
 )
 from ..templates_config import templates
+from .interview_router import _markdown_to_html
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
@@ -220,6 +222,10 @@ def _form_template_response(
 def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
 
+    raw_settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    intro_md = (raw_settings.get("service_analysis_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO
+    service_analysis_intro_html = _markdown_to_html(intro_md)
+
     qp = request.query_params
     bucket_raw = (qp.get("bucket") or "").strip() or None
     if bucket_raw and bucket_raw not in VALID_URL_BUCKETS:
@@ -267,6 +273,7 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
         {
             "request": request,
             "user": user,
+            "service_analysis_intro_html": service_analysis_intro_html,
             "bucket_meta": bucket_meta,
             "menu_landing_counts": menu_counts,
             "menu_total_rows": menu_total_rows,

@@ -17,6 +17,7 @@ from .email_smtp import email_verification_enabled, log_smtp_startup_checks
 from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
 from . import auth, models
 from .rfp_landing import DEFAULT_SERVICE_ABAP_INTRO_MD_KO
+from .menu_landing import DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO, DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO
 from .home_counts import home_tile_counts
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router
@@ -95,6 +96,8 @@ def _seed_home_tile_settings():
         ("home_tile_integration_desc_en", "Non-ABAP automation: VBA, Python, APIs, batch, small web apps."),
         ("user_guide_pdf_url", "/static/docs/user-guide.pdf"),
         ("service_abap_intro_md_ko", DEFAULT_SERVICE_ABAP_INTRO_MD_KO),
+        ("service_analysis_intro_md_ko", DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO),
+        ("service_integration_intro_md_ko", DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO),
     ]
     db: Session = SessionLocal()
     try:

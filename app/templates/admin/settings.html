@@ -9,7 +9,7 @@
         <a href="/admin" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>관리자 메뉴</a>
         <div>
           <h4 class="mb-0"><i class="fa-solid fa-paintbrush me-2 text-warning"></i>사이트 설정</h4>
-          <small class="text-muted">홈 화면 텍스트, 이용약관, 개인정보처리방침, 개발 요청 작성 팁을 설정합니다.</small>
+          <small class="text-muted">홈 텍스트, 메뉴별 첫 페이지 안내, 작성 팁, 약관 등을 설정합니다.</small>
         </div>
       </div>
     </div>
@@ -78,6 +78,30 @@
             </label>
             <textarea name="service_abap_intro_md_ko" class="form-control font-monospace" rows="14"
                       placeholder="표준 RFP를 제출하면...">{{ settings.get('service_abap_intro_md_ko', '') }}</textarea>
+          </div>
+        </div>
+
+        <!-- 분석&개선 랜딩 소개 -->
+        <div class="col-12">
+          <div class="admin-content-card">
+            <h6 class="mb-3 text-warning"><i class="fa-solid fa-hospital me-2"></i>분석&개선 첫 페이지 소개</h6>
+            <label class="form-label small">
+              <strong>/abap-analysis</strong> 상단 설명 영역 (Markdown)
+            </label>
+            <textarea name="service_analysis_intro_md_ko" class="form-control font-monospace" rows="12"
+                      placeholder="요구사항과 ABAP 코드를...">{{ settings.get('service_analysis_intro_md_ko', '') }}</textarea>
+          </div>
+        </div>
+
+        <!-- 연동 개발 랜딩 소개 -->
+        <div class="col-12">
+          <div class="admin-content-card">
+            <h6 class="mb-3 text-warning"><i class="fa-solid fa-link me-2"></i>연동 개발 첫 페이지 소개</h6>
+            <label class="form-label small">
+              <strong>/integration</strong> 상단 설명 영역 (Markdown)
+            </label>
+            <textarea name="service_integration_intro_md_ko" class="form-control font-monospace" rows="12"
+                      placeholder="Excel VBA...">{{ settings.get('service_integration_intro_md_ko', '') }}</textarea>
           </div>
         </div>
 

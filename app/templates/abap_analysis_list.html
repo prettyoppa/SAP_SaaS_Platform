@@ -14,14 +14,14 @@
             </span>
             <span>SAP ABAP 분석</span>
           </h2>
-          <p class="text-muted mb-0 small">
-            요구사항과 ABAP 코드를 제출하면 구조 분석과 요구사항 연계 해석을 제공합니다.
-            {% if user and not user.is_admin %}
-            <span class="d-block small mt-1">본인이 제출한 요청만 조회됩니다.</span>
-            {% elif user and user.is_admin %}
-            <span class="d-block small mt-1"><i class="fa-solid fa-user-shield me-1"></i>관리자: 전체 회원 요청이 표시됩니다.</span>
-            {% endif %}
-          </p>
+          <div class="service-analysis-intro markdown-body-lite text-muted mb-2 small">
+            {{ service_analysis_intro_html | safe }}
+          </div>
+          {% if user and not user.is_admin %}
+          <p class="text-muted mb-0 small">본인이 제출한 요청만 조회됩니다.</p>
+          {% elif user and user.is_admin %}
+          <p class="text-muted mb-0 small"><i class="fa-solid fa-user-shield me-1"></i>관리자: 전체 회원 요청이 표시됩니다.</p>
+          {% endif %}
         </div>
         <div class="col-auto">
           {% if user %}

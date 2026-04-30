@@ -11,15 +11,14 @@
             <i class="fa-solid fa-link text-primary-light" aria-hidden="true"></i>
             <span>SAP 연동 개발</span>
           </h2>
-          <p class="text-muted mb-0 small">
-            Excel VBA, Python, 소규모 웹앱, 배치, API 연동 등 <strong>SAP와 연결되는 비-ABAP</strong> 과제를 요청합니다.
-            SAP 터치포인트(RFC, IDoc, OData 등)와 보안·환경 조건을 적어 주시면 분석에 반영됩니다.
-            {% if user and user.is_admin %}
-            <span class="d-block small mt-1"><i class="fa-solid fa-user-shield me-1"></i>관리자: 전체 회원 요청이 표시됩니다.</span>
-            {% elif user %}
-            <span class="d-block small mt-1">본인이 제출한 요청만 조회됩니다.</span>
-            {% endif %}
-          </p>
+          <div class="service-integration-intro markdown-body-lite text-muted mb-2 small">
+            {{ service_integration_intro_html | safe }}
+          </div>
+          {% if user and user.is_admin %}
+          <p class="text-muted mb-0 small"><i class="fa-solid fa-user-shield me-1"></i>관리자: 전체 회원 요청이 표시됩니다.</p>
+          {% elif user %}
+          <p class="text-muted mb-0 small">본인이 제출한 요청만 조회됩니다.</p>
+          {% endif %}
         </div>
         <div class="col-auto">
           {% if user %}
