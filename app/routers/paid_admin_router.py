@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, File, Form, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 import os
@@ -14,10 +14,8 @@ from ..paid_generation import (
     run_delivered_code_job,
     run_fs_generation_job,
 )
-from ..paid_tier import paid_engagement_is_active
 from ..templates_config import templates
-from ..routers.interview_router import _messages_to_list
-from ..routers.rfp_router import _read_upload_limited, _store_rfp_file, UPLOAD_DIR
+from ..routers.rfp_router import _read_upload_limited, _store_rfp_file
 
 router = APIRouter(prefix="/admin", tags=["admin-delivery"])
 
@@ -43,7 +41,6 @@ def admin_rfp_delivery_page(
     rfp = (
         db.query(models.RFP)
         .options(
-            joinedload(models.RFP.messages),
             joinedload(models.RFP.owner),
             joinedload(models.RFP.fs_supplements),
         )
@@ -53,7 +50,6 @@ def admin_rfp_delivery_page(
     if not rfp:
         return RedirectResponse(url="/admin", status_code=302)
 
-    msgs = sorted(_messages_to_list(rfp.messages), key=lambda x: (x["round_number"], x["id"]))
     fs_body, fs_src_err = resolved_fs_markdown_for_codegen(db, rfp)
     can_start_code = bool(fs_body and fs_body.strip()) and (rfp.delivered_code_status or "") != "generating"
 
@@ -64,13 +60,9 @@ def admin_rfp_delivery_page(
             "request": request,
             "user": actor,
             "rfp": rfp,
-            "messages": msgs,
-            "paid_engagement_active": paid_engagement_is_active(rfp),
             "delivery_err": err,
             "can_start_delivered_code": can_start_code,
             "fs_codegen_preview_error": fs_src_err,
-            "admin_upload_dir_hint": UPLOAD_DIR,
-            "fs_stores_r2": r2_storage.is_configured(),
             "job_log_poll_ms": 2500,
         },
     )
@@ -153,52 +145,12 @@ def admin_start_delivered_code(
     return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
 
 
-@router.post("/rfp/{rfp_id}/delivery/fs-codegen-source")
-def admin_set_fs_codegen_source(
-    rfp_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    fs_codegen_source: str = Form("agent"),
-):
-    """ABAP 코드 생성에 사용할 FS: 에이전트(fs_text) 또는 업로드한 보조 .md 중 하나."""
-    actor = _require_admin(request, db)
-    if not actor:
-        return RedirectResponse(url="/", status_code=302)
-    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
-    if not rfp:
-        return RedirectResponse(url="/admin", status_code=302)
-    src = (fs_codegen_source or "agent").strip()
-    if src == "agent":
-        rfp.fs_codegen_supplement_id = None
-    else:
-        try:
-            sid = int(src)
-        except ValueError:
-            return RedirectResponse(
-                url=f"/admin/rfp/{rfp_id}/delivery?err=fs_codegen_source_bad",
-                status_code=302,
-            )
-        ok = (
-            db.query(models.RfpFsSupplement)
-            .filter(models.RfpFsSupplement.id == sid, models.RfpFsSupplement.rfp_id == rfp.id)
-            .first()
-        )
-        if not ok:
-            return RedirectResponse(
-                url=f"/admin/rfp/{rfp_id}/delivery?err=fs_codegen_source_bad",
-                status_code=302,
-            )
-        rfp.fs_codegen_supplement_id = sid
-    db.commit()
-    return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
-
-
 @router.post("/rfp/{rfp_id}/delivery/fs-supplement-upload")
 async def admin_upload_fs_supplement(
     rfp_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
 ):
     actor = _require_admin(request, db)
     if not actor:
@@ -206,38 +158,46 @@ async def admin_upload_fs_supplement(
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
     if not rfp:
         return RedirectResponse(url="/admin", status_code=302)
-    if not file.filename:
+    uid_store = int(rfp.user_id) if rfp.user_id else actor.id
+    upload_list = files if isinstance(files, list) else [files]
+    if not upload_list:
         return RedirectResponse(
             url=f"/admin/rfp/{rfp_id}/delivery?err=fs_upload_no_name",
             status_code=302,
         )
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext != ".md":
-        return RedirectResponse(
-            url=f"/admin/rfp/{rfp_id}/delivery?err=fs_bad_ext",
-            status_code=302,
-        )
-    try:
-        raw = await _read_upload_limited(file)
-    except ValueError:
-        return RedirectResponse(
-            url=f"/admin/rfp/{rfp_id}/delivery?err=fs_too_large",
-            status_code=302,
-        )
-    if not raw:
+    pending: list[tuple[bytes, str]] = []
+    for file in upload_list:
+        if not file.filename:
+            continue
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext != ".md":
+            return RedirectResponse(
+                url=f"/admin/rfp/{rfp_id}/delivery?err=fs_bad_ext",
+                status_code=302,
+            )
+        try:
+            raw = await _read_upload_limited(file)
+        except ValueError:
+            return RedirectResponse(
+                url=f"/admin/rfp/{rfp_id}/delivery?err=fs_too_large",
+                status_code=302,
+            )
+        if raw:
+            pending.append((raw, file.filename or "fs.md"))
+    if not pending:
         return RedirectResponse(
             url=f"/admin/rfp/{rfp_id}/delivery?err=fs_upload_empty",
             status_code=302,
         )
-    uid_store = int(rfp.user_id) if rfp.user_id else actor.id
-    path_stored, fname_stored = _store_rfp_file(uid_store, ext, raw, file.filename or "fs.md")
-    sup = models.RfpFsSupplement(
-        rfp_id=rfp.id,
-        stored_path=path_stored,
-        filename=fname_stored,
-        uploaded_by_user_id=actor.id,
-    )
-    db.add(sup)
+    for raw, fname in pending:
+        path_stored, fname_stored = _store_rfp_file(uid_store, ".md", raw, fname)
+        sup = models.RfpFsSupplement(
+            rfp_id=rfp.id,
+            stored_path=path_stored,
+            filename=fname_stored,
+            uploaded_by_user_id=actor.id,
+        )
+        db.add(sup)
     db.commit()
     return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
 

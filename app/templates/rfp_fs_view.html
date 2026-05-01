@@ -10,10 +10,9 @@
 
     {% set fs_stat = rfp.fs_status or 'none' %}
     {% set dc_stat = rfp.delivered_code_status or 'none' %}
-
-    {% if fs_stat == 'generating' or dc_stat == 'generating' %}
-    <meta http-equiv="refresh" content="6">
-    {% endif %}
+    {% set fs_busy = (fs_stat == 'generating') %}
+    {% set dc_busy = (dc_stat == 'generating') %}
+    {% set gen_busy = fs_busy or dc_busy %}
 
     <div class="proposal-header mb-4">
       <h2 class="mb-2">기능명세(FS) 및 납품 ABAP</h2>
@@ -22,66 +21,38 @@
 
     {% if user.is_admin %}
     <div class="alert alert-warning border mb-4">
-      <h6 class="alert-heading fw-bold mb-2"><i class="fa-solid fa-gears me-1"></i>관리자: ABAP 코드 생성 요청과 FS 수정본 업로드</h6>
-      <p class="small mb-2">이 페이지는 <strong>미리보기·다운로드</strong>용입니다.</p>
-      <ol class="small mb-3 ps-3">
-        <li><a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-bold">개발 산출 콘솔</a> (/admin/rfp/{{ rfp.id }}/delivery)로 이동</li>
-        <li><strong>FS 생성 시작</strong>(필요 시), 수정 FS <strong>.md</strong> 업로드, <strong>코드 생성에 사용할 FS</strong> 라디오 저장</li>
-        <li><strong>납품 코드 생성 시작</strong> = ABAP 초안 에이전트(Kevin→Young→Brian)</li>
-        <li>완료 후 이 페이지를 새로 고침하면 아래에 결과 표시 및 <code>.abap</code> 다운로드</li>
-      </ol>
-      <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-warning btn-sm">개발 산출 콘솔로 이동</a>
+      <p class="small mb-2">관리자: 생성 요청·컨설턴트 FS 첨부는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-bold">납품 관리</a>에서 처리합니다.</p>
+      <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-warning btn-sm">납품 관리로 이동</a>
     </div>
     {% endif %}
 
-    {% if fs_stat == 'generating' %}
-    <div class="alert alert-secondary border-0 small mb-4">
-      <i class="fa-solid fa-spinner fa-spin me-2"></i> FS를 생성하고 있습니다. 잠시 후 새로 고침하세요.
-    </div>
-    {% elif fs_stat == 'failed' %}
+    {% if fs_stat == 'failed' %}
     <div class="alert alert-danger small mb-4">
-      FS 생성에 실패했습니다. 관리자 화면에서 오류 로그(fs_error)를 확인하세요.
+      FS 생성에 실패했습니다. 관리자에게 문의하세요.
     </div>
     {% endif %}
 
-    {% if dc_stat == 'generating' %}
-    <div class="alert alert-secondary border-0 small mb-4">
-      <i class="fa-solid fa-spinner fa-spin me-2"></i> 납품 ABAP 초안을 생성하고 있습니다…
-    </div>
-    {% elif dc_stat == 'failed' %}
+    {% if dc_stat == 'failed' %}
     <div class="alert alert-danger small mb-4">
       코드 생성 실패 · 관리자에게 문의하세요.
     </div>
     {% endif %}
 
     {% if fs_stat == 'none' or (fs_stat != 'generating' and fs_stat != 'ready' and fs_stat != 'failed') %}
-    <p class="text-muted mb-4">관리자가 개발 산출 콘솔에서 FS 생성을 시작하면 이 페이지에 표시됩니다. (결제는 운영 정책에 따라 선택)</p>
+    <p class="text-muted mb-4">관리자가 FS 생성을 시작하면 이 페이지에 표시됩니다.</p>
     {% endif %}
 
-    <div class="alert alert-light border small mb-4">
-      <p class="fw-bold mb-2">FS가 저장되는 위치</p>
-      <ul class="mb-2 ps-3">
-        <li><strong>에이전트가 생성한 FS</strong>: 데이터베이스 테이블 <code>rfps</code>의 <code>fs_text</code> 컬럼(본문 문자열만). 로컬 프로젝트 폴더의 별도 <code>.md</code> 파일로 자동 저장되지는 않습니다.</li>
-        {% if fs_storage_uses_r2 %}
-        <li><strong>컨설턴트가 업로드한 수정 FS (.md)</strong>: Cloudflare R2 객체 스토리지, 키 패턴은 대략 <code>rfp_attachments/&lt;회원 사용자 ID&gt;/타임스탬프_UUID.md</code> 입니다(DB에는 <code>r2://…</code> 참조 문자열만 보관).</li>
-        {% else %}
-        <li><strong>컨설턴트가 업로드한 수정 FS (.md)</strong>: 서버 디스크 업로드 경로 <code>{{ fs_upload_dir_hint }}</code> 아래 저장됩니다(로컬 개발에서는 보통 프로젝트 루트의 <code>uploads/</code> 등). 호스팅 환경에 따라 디스크는 임시일 수 있습니다.</li>
-        {% endif %}
-      </ul>
-      {% if rfp.fs_supplements %}
-      <p class="fw-bold mb-1">등록된 컨설턴트 FS 첨부</p>
-      <ul class="mb-2 ps-3 small">
+    {% if rfp.fs_supplements %}
+    <div class="proposal-card mb-4">
+      <h6 class="text-muted small text-uppercase mb-2">컨설턴트 FS 첨부</h6>
+      <p class="small text-muted mb-2">코드 생성 시 아래 파일이 모두 반영됩니다.</p>
+      <ul class="mb-0 ps-3 small">
         {% for s in rfp.fs_supplements %}
-        <li>{{ s.filename }} <span class="text-muted">(업로드 {{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span>
-          {% if fs_codegen_supplement_id and fs_codegen_supplement_id == s.id %}<span class="badge bg-primary ms-1">코드 생성에 사용 중</span>{% endif %}
-        </li>
+        <li>{{ s.filename }} <span class="text-muted">({{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span></li>
         {% endfor %}
       </ul>
-      {% endif %}
-      {% if not fs_codegen_supplement_id %}
-      <p class="mb-0 small text-muted">납품 ABAP 생성 시 기본값은 에이전트 FS(<code>fs_text</code>)입니다.</p>
-      {% endif %}
     </div>
+    {% endif %}
 
     {% if fs_stat == 'ready' and fs_html %}
     <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
@@ -108,8 +79,130 @@
       <div class="proposal-body proposal-prose">{{ delivered_code_html | safe }}</div>
     </div>
     {% elif fs_stat == 'ready' %}
-    <p class="text-muted small">납품 ABAP 초안은 FS 완료 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>
+    <p class="text-muted small">납품 코드는 FS 준비 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>
     {% endif %}
+
+    <div class="modal fade" id="memberDeliveryProgressModal" tabindex="-1" aria-hidden="true"
+      data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title">생성 진행 중</h5>
+          </div>
+          <div class="modal-body pt-2">
+            <div class="text-center mb-4">
+              <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;"></div>
+              <p class="text-muted small mb-0">완료되면 화면이 자동으로 새로 고침됩니다.</p>
+            </div>
+
+            {% if fs_busy %}
+            <div class="mb-4 pb-3 border-bottom">
+              <div class="fw-semibold small mb-2">기능명세(FS)</div>
+              <div class="d-flex justify-content-center gap-2">
+                <div class="text-center delivery-gen-step active" id="mem-fs-step">
+                  <div class="small">「기능명세」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">문서 작성</div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            {% if dc_busy %}
+            <div>
+              <div class="fw-semibold small mb-2">납품 코드</div>
+              <div class="d-flex justify-content-center align-items-start gap-2 flex-wrap mb-2">
+                <div class="text-center delivery-gen-step active" id="mem-dc-step1">
+                  <div class="small">「ABAP」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">초안</div>
+                </div>
+                <div class="text-muted pt-1">→</div>
+                <div class="text-center delivery-gen-step" id="mem-dc-step2">
+                  <div class="small">「코드검수」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">검토·수정</div>
+                </div>
+                <div class="text-muted pt-1">→</div>
+                <div class="text-center delivery-gen-step" id="mem-dc-step3">
+                  <div class="small">「테스트시나리오」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">시나리오</div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
+<style>
+.delivery-gen-step { opacity: 0.35; transition: opacity 0.5s; max-width: 7rem; }
+.delivery-gen-step.active { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{% if gen_busy %}
+<script>
+(function () {
+  const rfpId = {{ rfp.id }};
+  const statusUrl = '/rfp/' + rfpId + '/paid-generation-status';
+  const fsBusyStart = {{ fs_busy|tojson }};
+  const dcBusyStart = {{ dc_busy|tojson }};
+  const progressModal = document.getElementById('memberDeliveryProgressModal');
+  const dcStepIds = ['mem-dc-step1', 'mem-dc-step2', 'mem-dc-step3'];
+  let dcStepIdx = 0;
+  let dcAnimTimer = null;
+
+  function activateDcStep(i) {
+    dcStepIds.forEach(function (id, idx) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('active', idx === i);
+    });
+  }
+
+  if (progressModal && typeof bootstrap !== 'undefined') {
+    bootstrap.Modal.getOrCreateInstance(progressModal).show();
+    if (dcBusyStart) {
+      dcStepIdx = 0;
+      activateDcStep(0);
+      let elapsed = 0;
+      dcAnimTimer = setInterval(function () {
+        elapsed += 1;
+        if (elapsed % 25 === 0 && dcStepIdx < dcStepIds.length - 1) {
+          dcStepIdx++;
+          activateDcStep(dcStepIdx);
+        }
+      }, 1000);
+    }
+    async function checkDone() {
+      try {
+        const r = await fetch(statusUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+        if (!r.ok) return false;
+        const j = await r.json();
+        let done = true;
+        if (fsBusyStart && j.fs_status === 'generating') done = false;
+        if (dcBusyStart && j.delivered_code_status === 'generating') done = false;
+        return done;
+      } catch (e) {
+        return false;
+      }
+    }
+    checkDone().then(function (done) {
+      if (done) {
+        if (dcAnimTimer) clearInterval(dcAnimTimer);
+        window.location.reload();
+      }
+    });
+    const statusPoll = setInterval(async function () {
+      if (await checkDone()) {
+        clearInterval(statusPoll);
+        if (dcAnimTimer) clearInterval(dcAnimTimer);
+        window.location.reload();
+      }
+    }, 5000);
+  }
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -1,8 +1,8 @@
 """
 Paid Tier — FS·납품 ABAP
 
-- FS: David (CrewAI) — 실제 Gemini 호출. 키 없으면 예외만(가짜 문서 없음).
-- 납품 ABAP: Kevin · Young · Brian (CrewAI 순차) — 초안·코드 검수 반영·테스트 시나리오. 키 필수.
+- FS: CrewAI / Gemini (기능명세 에이전트). 키 없으면 예외만(가짜 문서 없음).
+- 납품 ABAP: ABAP → 코드검수 → 테스트시나리오 순 CrewAI·Gemini 호출. 키 필수.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def _truncate(s: str, max_len: int) -> str:
 
 
 def _tail_for_followup_prompt(s: str, max_chars: int = 118_000) -> str:
-    """Kevin→Young→Brian 단계로 프로프트에 넘길 때 이전 출력 길이 제한(후반 위주 유지)."""
+    """납품 코드 순차 단계로 프로프트에 넘길 때 이전 출력 길이 제한(후반 위주 유지)."""
     b = s or ""
     if len(b) <= max_chars:
         return b
@@ -53,14 +53,14 @@ def generate_fs_markdown(
     member_safe_output: bool = False,
 ) -> str:
     """
-    David(FS 설계): 요구(RFP)·질의응답·제안서(참고)를 교차 검토해 상세 FS 마크다운 작성.
+    기능명세(FS) 설계: 요구(RFP)·질의응답·제안서(참고)를 교차 검토해 상세 FS 마크다운 작성.
     GOOGLE_API_KEY 없으면 _get_llm()에서 즉시 RuntimeError — 가짜 FS 문서를 반환하지 않는다.
     """
     llm = _get_llm()
-    david = Agent(
+    fs_spec_agent = Agent(
         role="SAP 기능명세(FS)·상세설계 책임자",
         goal="요구분석·인터뷰·제안서를 교차검증하고 개발 착수 가능한 상세 기능명세를 만든다",
-        backstory="""당신은 David입니다. 대형 ERP SI에서 FS/상세설계를 수십 건 작성한 리드 컨설턴트다.
+        backstory="""당신은 대형 ERP SI에서 FS/상세설계를 수십 건 작성한 리드 컨설턴트다.
 'Development Proposal'은 고객용 개괄 문서이고, 당신의 산출물은 **구현 설계서**다.
 제안서의 문장·표를 **복사해 붙이지 말고**, RFP·인터뷰와 대조해 누락·모순을 드러내며 **새로** 상세 명세를 쓴다.
 한국어 SAP 실무 용어를 쓰고, 화면은 필드 단위 표로, 검증·권한·예외를 구체화한다.""",
@@ -130,12 +130,12 @@ def generate_fs_markdown(
 
 규칙: 마케팅 문장 금지. 추정 사항은 "가정:" 표시.
 """,
-        agent=david,
+        agent=fs_spec_agent,
         expected_output="완결된 기능명세서 마크다운 본문",
     )
 
     crew = Crew(
-        agents=[david],
+        agents=[fs_spec_agent],
         tasks=[task],
         process=Process.sequential,
         verbose=False,
@@ -154,7 +154,7 @@ def generate_delivered_abap_markdown(
     phase_log: Callable[[str], None] | None = None,
 ) -> str:
     """
-    Kevin → Young → Brian 을 순차 Gemini 호출(단계별 Crew)로 실행.
+    「ABAP」→「코드검수」→「테스트시나리오」 순으로 Gemini 호출(단계별 Crew).
     키 없으면 _get_llm()에서 RuntimeError — placeholder 소스 없음.
     """
     llm = _get_llm()
@@ -163,10 +163,10 @@ def generate_delivered_abap_markdown(
         if phase_log:
             phase_log(msg)
 
-    kevin = Agent(
+    abap_agent = Agent(
         role="SAP ABAP 시니어 개발자",
         goal="기능명세서에 맞춰 구조화된 ABAP 초안을 작성한다",
-        backstory="""당신은 Kevin입니다. 15년차 ABAP 개발자로 Report/ALV/Dialog·모듈 풀을 다룬다.
+        backstory="""당신은 15년차 ABAP 개발자로 Report/ALV/Dialog·모듈 풀을 다룬다.
 산출물은 **실제 시스템에 넣고 문법·정적 검토를 통과시키려는 초안** 수준이어야 한다.
 불확실한 객체(테이블·함수)는 주석으로 표시하고, 추측으로 위험한 DDIC 참조는 피한다.
 한국어 주석으로 의도를 설명한다.""",
@@ -226,42 +226,42 @@ ABAP 작성 규칙:
 - 리스트 결과는 초기 버전이라도 LOOP/WRITE 또는 cl_salv_table 수준 중 하나를 택해 **실행 흐름이 보이게**.
 - 존재가 불명확한 테이블·함수 호출 금지; 대신 주석 `-- TODO: DDIC/인터페이스 검증`.
 """,
-        agent=kevin,
+        agent=abap_agent,
         expected_output="마크다운: 제목 + abap 코드 펜스 + 메모",
     )
 
-    young = Agent(
+    review_agent = Agent(
         role="SAP ABAP 코드 검수자",
         goal="FS·요구와 맞는지 ABAP 초안을 점검하고 안전하게 다듬는다",
-        backstory="""당신은 Young입니다. 시니어 ABAP 리뷰어로 정적 분석·네이밍·구문 호환성을 감사한다.
+        backstory="""당신은 시니어 ABAP 리뷰어로 정적 분석·네이밍·구문 호환성을 감사한다.
 고객 FS와 모순되는 동작, 위험한 DDIC 추정, 7.40+ 구문 오류 가능성을 찾아 fenced ABAP 블록을 직접 수정한다.""",
         verbose=False,
         llm=llm,
         allow_delegation=False,
     )
 
-    brian = Agent(
+    test_scenario_agent = Agent(
         role="SAP ABAP 테스트 설계자",
         goal="납품 ABAP에 대한 실행·회귀 테스트 시나리오를 구체적으로 작성한다",
-        backstory="""당신은 Brian입니다. 기능·경계·오류 경로를 표로 정리하고, 재현 가능한 단계와 기대 결과를 한국어로 적는다.""",
+        backstory="""기능·경계·오류 경로를 표로 정리하고, 재현 가능한 단계와 기대 결과를 한국어로 적는다.""",
         verbose=False,
         llm=llm,
         allow_delegation=False,
     )
 
-    _ph(f"Kevin: ABAP 초안 — Gemini({get_gemini_model_id()}) 호출 시작 · 수 분 걸릴 수 있음")
+    _ph(f"「ABAP」에이전트 — Gemini({get_gemini_model_id()}) 호출 시작 · 수 분 걸릴 수 있음")
     crew_k = Crew(
-        agents=[kevin],
+        agents=[abap_agent],
         tasks=[kevin_task],
         process=Process.sequential,
         verbose=False,
     )
     out_k = str(crew_k.kickoff()).strip()
-    _ph(f"Kevin 단계 완료 · 출력 길이 약 {len(out_k)}자")
+    _ph(f"「ABAP」에이전트 단계 완료 · 출력 길이 약 {len(out_k)}자")
 
     young_task = Task(
         description=(
-            "### 입력 — Kevin 초안 마크다운\n\n"
+            "### 입력 — ABAP 초안 마크다운\n\n"
             + _tail_for_followup_prompt(out_k)
             + """
 
@@ -269,48 +269,48 @@ ABAP 작성 규칙:
 위 마크다운 전체를 ABAP 코드 검수자 관점에서 검토하라.
 
 `# 납품 ABAP 초안` 제목과 본문 구조를 유지한다. `## ABAP 소스` 아래에는 **단일** `abap` fenced 블록만 둔다.
-`## 코드 검수 요약 (Young)`에 5~12문장으로 핵심 변경·잔여 리스크를 적고, 필요 시 ABAP 펜스 내부를 직접 고친다.
+`## 코드 검수 요약`에 5~12문장으로 핵심 변경·잔여 리스크를 적고, 필요 시 ABAP 펜스 내부를 직접 고친다.
 
-출력: Kevin 산출물을 대체하는 **완결된 단일 마크다운** (검수 반영본)."""
+출력: 이전 초안을 대체하는 **완결된 단일 마크다운** (검수 반영본)."""
         ),
-        agent=young,
+        agent=review_agent,
         expected_output="검수 반영 마크다운 전체",
     )
 
-    _ph("Young: 코드 검수·수정 — Gemini 호출 시작")
+    _ph("「코드검수」에이전트 — Gemini 호출 시작")
     crew_y = Crew(
-        agents=[young],
+        agents=[review_agent],
         tasks=[young_task],
         process=Process.sequential,
         verbose=False,
     )
     out_y = str(crew_y.kickoff()).strip()
-    _ph(f"Young 단계 완료 · 출력 길이 약 {len(out_y)}자")
+    _ph(f"「코드검수」에이전트 단계 완료 · 출력 길이 약 {len(out_y)}자")
 
     brian_task = Task(
         description=(
-            "### 입력 — Young 검수 완료 마크다운\n\n"
+            "### 입력 — 코드 검수 반영 마크다운\n\n"
             + _tail_for_followup_prompt(out_y)
             + """
 
 ### 테스트 섹션 추가 지시
 위 마크다운 전체 본문을 손대지 않고 유지한 채, 문서 **맨 아래**에
-`## 테스트 시나리오 (Brian)` 섹션만 추가하라.
+`## 테스트 시나리오` 섹션만 추가하라.
 케이스 ID, 목적, 사전 조건, 단계, 기대 결과를 마크다운 표로 작성한다.
 
 출력: 이전 모든 섹션 + 테스트 섹션이 포함된 **하나의** 마크다운."""
         ),
-        agent=brian,
+        agent=test_scenario_agent,
         expected_output="테스트 시나리오까지 포함한 최종 마크다운",
     )
 
-    _ph("Brian: 테스트 시나리오 작성 — Gemini 호출 시작")
+    _ph("「테스트시나리오」에이전트 — Gemini 호출 시작")
     crew_b = Crew(
-        agents=[brian],
+        agents=[test_scenario_agent],
         tasks=[brian_task],
         process=Process.sequential,
         verbose=False,
     )
     out_b = str(crew_b.kickoff()).strip()
-    _ph(f"Brian 단계 완료 · 최종 길이 약 {len(out_b)}자")
+    _ph(f"「테스트시나리오」에이전트 단계 완료 · 최종 길이 약 {len(out_b)}자")
     return out_b

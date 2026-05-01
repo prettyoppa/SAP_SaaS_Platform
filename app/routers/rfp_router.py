@@ -536,10 +536,25 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
             "rfp": rfp,
             "fs_html": fs_html,
             "delivered_code_html": dc_html,
-            "fs_codegen_supplement_id": getattr(rfp, "fs_codegen_supplement_id", None),
-            "fs_storage_uses_r2": r2_storage.is_configured(),
-            "fs_upload_dir_hint": UPLOAD_DIR,
         },
+    )
+
+
+@router.get("/rfp/{rfp_id}/paid-generation-status")
+def rfp_paid_generation_status(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """FS·납품 코드 생성 진행 여부 폴링(회원·관리자)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp or not user_can_access_fs_hub(user, rfp):
+        return JSONResponse({"detail": "forbidden"}, status_code=403)
+    return JSONResponse(
+        {
+            "fs_status": getattr(rfp, "fs_status", None) or "none",
+            "delivered_code_status": getattr(rfp, "delivered_code_status", None) or "none",
+        },
+        headers={"Cache-Control": "no-store"},
     )
 
 

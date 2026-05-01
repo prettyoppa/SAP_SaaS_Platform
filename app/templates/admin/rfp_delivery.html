@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}개발 산출(FS·납품) · RFP {{ rfp.id }} — Admin{% endblock %}
+{% block title %}납품 관리 · RFP {{ rfp.id }} — Admin{% endblock %}
 
 {% block content %}
 <div class="py-4">
@@ -7,36 +7,30 @@
     <nav class="small mb-3">
       <a href="/admin" class="text-decoration-none">관리자</a>
       <span class="text-muted px-1">/</span>
-      <span>산출(RFP {{ rfp.id }})</span>
+      <span>납품 관리 (RFP {{ rfp.id }})</span>
     </nav>
 
-    {% set gen_busy = (rfp.fs_status == 'generating' or rfp.delivered_code_status == 'generating') %}
-    {% if gen_busy %}
-    <meta http-equiv="refresh" content="15">
-    <div class="alert alert-secondary small mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
-      <span class="mb-0"><i class="fa-solid fa-spinner fa-spin me-1"></i> FS 또는 납품 ABAP 생성 중입니다. <strong>실행 로그</strong>에서 단계·heartbeat를 확인하세요. (페이지는 약 15초마다 새로 고침되어 상태 배지가 갱신됩니다.)</span>
-      <button type="button" class="btn btn-sm btn-dark text-nowrap" data-bs-toggle="modal" data-bs-target="#deliveryJobLogModal"><i class="fa-solid fa-scroll me-1"></i>실행 로그</button>
-    </div>
-    {% else %}
-    <div class="mb-3">
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deliveryJobLogModal">
-        <i class="fa-solid fa-scroll me-1"></i>마지막 실행 로그 보기</button>
-      <span class="text-muted small ms-2">새 작업을 시작하면 로그가 비워진 뒤 다시 누적됩니다.</span>
-    </div>
-    {% endif %}
+    {% set fs_busy = (rfp.fs_status == 'generating') %}
+    {% set dc_busy = (rfp.delivered_code_status == 'generating') %}
+    {% set gen_busy = fs_busy or dc_busy %}
+
+    {% set has_fs_material = ((rfp.fs_status or '') == 'ready' and (rfp.fs_text or '')|trim|length > 0)
+      or (rfp.fs_supplements and rfp.fs_supplements|length > 0) %}
+    {% set has_code_material = ((rfp.delivered_code_status or '') == 'ready'
+      and (rfp.delivered_code_text or '')|trim|length > 0) %}
 
     {% if delivery_err == 'fs_not_ready' %}
-    <div class="alert alert-warning">코드 생성에 사용할 FS가 없습니다. 에이전트 FS를 만들거나 .md 첨부 후 소스를 선택하세요.</div>
+    <div class="alert alert-warning">코드 생성에 사용할 FS가 없습니다. 「기능명세」생성을 완료하거나 컨설턴트 FS .md를 첨부하세요.</div>
     {% endif %}
     {% if fs_codegen_preview_error %}
-    <div class="alert alert-secondary small mb-3"><strong>코드 생성 FS:</strong> {{ fs_codegen_preview_error }}</div>
+    <div class="alert alert-secondary small mb-3">{{ fs_codegen_preview_error }}</div>
     {% endif %}
 
     <div class="admin-content-card mb-4">
       <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
         <div>
           <h4 class="mb-1">{{ rfp.title }}</h4>
-          <p class="text-muted small mb-0">작성자: {{ rfp.owner.full_name if rfp.owner else '—' }} · paid={{ rfp.paid_engagement_status or 'none' }}</p>
+          <p class="text-muted small mb-0">작성자: {{ rfp.owner.full_name if rfp.owner else '—' }}</p>
         </div>
         <div class="text-end">
           <span class="badge bg-secondary me-1">fs: {{ rfp.fs_status or 'none' }}</span>
@@ -44,40 +38,27 @@
         </div>
       </div>
       <hr>
-      <p class="small mb-2"><strong>프로그램</strong>: {{ rfp.program_id or '—' }} · {{ rfp.transaction_code or '' }}</p>
-      <details class="mb-3">
-        <summary class="small fw-bold cursor-pointer">요구사항(요약)</summary>
-        <pre class="small mt-2 p-2 rounded" style="background:var(--surface2);white-space:pre-wrap;max-height:200px;overflow:auto;">{{ (rfp.description or '—')[:8000] }}</pre>
-      </details>
-      <details class="mb-3">
-        <summary class="small fw-bold cursor-pointer">제안서(발췌)</summary>
-        <pre class="small mt-2 p-2 rounded" style="background:var(--surface2);white-space:pre-wrap;max-height:240px;overflow:auto;">{{ (rfp.proposal_text or '—')[:12000] }}</pre>
-      </details>
-      <div class="d-flex flex-wrap gap-2 mb-4">
-        <a href="/rfp/{{ rfp.id }}/request" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">요청 조회</a>
+      <p class="small mb-3"><strong>프로그램</strong>: {{ rfp.program_id or '—' }} · {{ rfp.transaction_code or '' }}</p>
+
+      <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+        <a href="/rfp/{{ rfp.id }}/request" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">요청</a>
         <a href="/rfp/{{ rfp.id }}/proposal" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">제안서</a>
         <a href="/rfp/{{ rfp.id }}/interview/summary" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">인터뷰</a>
-        <a href="/rfp/{{ rfp.id }}/fs" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">회원 FS 화면</a>
+
+        <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
+          <button type="submit" class="btn btn-warning me-1" {% if fs_busy %}disabled{% endif %}>
+            {% if has_fs_material %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% else %}<i class="fa-solid fa-file-lines me-1" aria-hidden="true"></i>{% endif %}FS
+          </button>
+        </form>
+        <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
+          <button type="submit" class="btn btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
+            {% if has_code_material %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% else %}<i class="fa-solid fa-file-lines me-1" aria-hidden="true"></i>{% endif %}코드
+          </button>
+        </form>
       </div>
 
-      {% if not paid_engagement_active %}
-      <div class="alert alert-info small mb-3">
-        <strong>테스트 모드 참고:</strong> Stripe 결제 없이도 이 화면에서 FS·납품 ABAP 생성을 실행할 수 있습니다. 운영에서 결제를 필수로 하려면 백엔드 가드를 적용하면 됩니다.
-      </div>
-      {% endif %}
-      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
-        <button type="submit" class="btn btn-warning me-2" {% if rfp.fs_status == 'generating' %}disabled{% endif %}>
-          FS 생성 시작
-        </button>
-      </form>
-      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
-        <button type="submit" class="btn btn-primary" {% if rfp.delivered_code_status == 'generating' or not can_start_delivered_code %}disabled{% endif %}>
-          납품 코드 생성 시작
-        </button>
-      </form>
-      <p class="small text-muted mt-2 mb-0">기능명세(FS): David 에이전트. 납품 ABAP 초안은 Kevin 작성 → Young 검수 반영 → Brian 테스트 시나리오 추가 순으로 처리됩니다 (CrewAI / Gemini).</p>
       {% if rfp.fs_error %}
-      <pre class="small text-danger mt-3">{{ rfp.fs_error }}</pre>
+      <pre class="small text-danger mt-2">{{ rfp.fs_error }}</pre>
       {% endif %}
       {% if rfp.delivered_code_error %}
       <pre class="small text-danger mt-1">{{ rfp.delivered_code_error }}</pre>
@@ -85,73 +66,34 @@
     </div>
 
     <div class="admin-content-card mb-4">
-      <h5 class="mb-2">컨설턴트 FS 수정본 (.md)</h5>
-      <p class="small text-muted mb-3">에이전트 FS를 다운로드해 수정한 뒤 업로드하고, 납품 ABAP에 반영할 원본을 선택합니다.</p>
+      <h6 class="text-muted small text-uppercase mb-2">컨설턴트 FS 첨부 (.md)</h6>
+      <p class="small text-muted mb-3">코드 생성 시 아래 파일이 모두 반영됩니다. 첨부가 없으면 에이전트 FS만 사용합니다.</p>
 
       {% if rfp.fs_supplements %}
-      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-codegen-source" class="mb-3">
-        <div class="d-flex flex-column gap-2 small">
-          <label class="mb-0">
-            <input type="radio" name="fs_codegen_source" value="agent"
-              {% if not rfp.fs_codegen_supplement_id %}checked{% endif %}>
-            에이전트 FS (DB <code>fs_text</code>, 상태 {{ rfp.fs_status or 'none' }})
-          </label>
-          {% for s in rfp.fs_supplements %}
-          <label class="mb-0">
-            <input type="radio" name="fs_codegen_source" value="{{ s.id }}"
-              {% if rfp.fs_codegen_supplement_id == s.id %}checked{% endif %}>
-            {{ s.filename }} — <span class="text-muted">{{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '' }}</span>
-          </label>
-          {% endfor %}
-        </div>
-        <button type="submit" class="btn btn-sm btn-primary mt-3">코드 생성에 사용할 FS 저장</button>
-      </form>
-      <p class="small fw-bold mb-1">첨부 목록 · 저장 경로</p>
-      <ul class="list-unstyled small mb-3 ps-1">
+      <ul class="mb-3 ps-3">
         {% for s in rfp.fs_supplements %}
-        <li class="mb-3 border-bottom pb-2">
-          <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start mb-1">
-            <span>{{ s.filename }}</span>
-            <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement/{{ s.id }}/delete"
-              class="d-inline" onsubmit="return confirm('이 첨부를 삭제할까요?');">
-              <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
-            </form>
-          </div>
-          <code class="text-break d-block" style="font-size:0.8rem;">{{ s.stored_path }}</code>
+        <li class="mb-2 d-flex flex-wrap justify-content-between gap-2 align-items-start">
+          <span class="small">{{ s.filename }} <span class="text-muted">({{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span></span>
+          <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement/{{ s.id }}/delete"
+            class="d-inline" onsubmit="return confirm('이 첨부를 삭제할까요?');">
+            <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
+          </form>
         </li>
         {% endfor %}
       </ul>
-      {% else %}
-      <p class="small text-muted mb-3">등록된 수정 FS 없음 — 아래에서 업로드하세요.</p>
       {% endif %}
 
       <form method="post" enctype="multipart/form-data" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement-upload"
-        class="row row-cols-1 row-cols-md-auto g-2 align-items-end">
-        <div class="col">
-          <label class="form-label small mb-1">수정 FS 파일</label>
-          <input class="form-control form-control-sm" type="file" name="file" accept=".md,text/markdown" required>
-        </div>
-        <div class="col">
-          <button type="submit" class="btn btn-sm btn-secondary">업로드</button>
-        </div>
+        class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;">
+        <label class="form-label small mb-1">파일 선택 (여러 개 가능, .md)</label>
+        <input class="form-control form-control-sm mb-2" type="file" name="files" accept=".md,text/markdown" multiple required>
+        <button type="submit" class="btn btn-sm btn-secondary">업로드</button>
       </form>
-      <p class="small text-muted mt-2 mb-0">
-        {% if fs_stores_r2 %}업로드 시 R2 버킷 키 <code>rfp_attachments/…</code>에 저장되고 DB에는 <code>r2://…</code>만 남습니다.{% else %}업로드 시 서버 로컬 <code>{{ admin_upload_dir_hint }}</code> 아래에 저장됩니다.{% endif %}
-        삭제하면 스토리지에서도 제거를 시도합니다.
-      </p>
     </div>
 
-    <div class="admin-content-card">
-      <h5 class="mb-3">인터뷰 라운드 (요약)</h5>
-      {% for msg in messages %}
-      <div class="border-bottom pb-3 mb-3">
-        <div class="badge bg-secondary mb-2">{{ msg.round_number }} 라운드</div>
-        <div class="small" style="white-space:pre-wrap;">{{ (msg.answers_text or '')|interview_bold }}</div>
-      </div>
-      {% endfor %}
-      {% if not messages %}
-      <p class="text-muted small mb-0">메시지 없음</p>
-      {% endif %}
+    <div class="mb-3">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deliveryJobLogModal">
+        <i class="fa-solid fa-scroll me-1"></i>실행 로그</button>
     </div>
 
     <div class="modal fade" id="deliveryJobLogModal" tabindex="-1" aria-labelledby="deliveryJobLogTitle" aria-hidden="true">
@@ -162,17 +104,16 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
           </div>
           <div class="modal-body">
-            <p class="small text-muted mb-2">Gemini·CrewAI 호출은 단계마다 수 분 걸릴 수 있습니다. 로그가 주기적으로 늘면 정상 진행 중입니다.</p>
             <div class="d-flex flex-wrap gap-2 mb-2 small">
               <span id="jobLogFsBadge" class="badge bg-secondary">fs: —</span>
               <span id="jobLogDcBadge" class="badge bg-secondary">code: —</span>
             </div>
             <ul class="nav nav-tabs small" id="jobLogTabs" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-fslog" data-bs-toggle="tab" data-bs-target="#paneFsLog" type="button" role="tab">FS 생성 (David)</button>
+                <button class="nav-link active" id="tab-fslog" data-bs-toggle="tab" data-bs-target="#paneFsLog" type="button" role="tab">기능명세(FS)</button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-dclog" data-bs-toggle="tab" data-bs-target="#paneDcLog" type="button" role="tab">납품 ABAP (Kevin→Young→Brian)</button>
+                <button class="nav-link" id="tab-dclog" data-bs-toggle="tab" data-bs-target="#paneDcLog" type="button" role="tab">납품 코드</button>
               </li>
             </ul>
             <div class="tab-content border border-top-0 rounded-bottom p-2" id="jobLogTabContent">
@@ -187,8 +128,66 @@
         </div>
       </div>
     </div>
+
+    <div class="modal fade" id="deliveryProgressModal" tabindex="-1" aria-hidden="true"
+      data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title">생성 진행 중</h5>
+          </div>
+          <div class="modal-body pt-2">
+            <div class="text-center mb-4">
+              <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;"></div>
+              <p class="text-muted small mb-3">완료되면 화면이 자동으로 새로 고침됩니다.</p>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="admOpenJobLogBtn">
+                <i class="fa-solid fa-scroll me-1"></i>실행 로그</button>
+            </div>
+
+            {% if fs_busy %}
+            <div class="mb-4 pb-3 border-bottom">
+              <div class="fw-semibold small mb-2">기능명세(FS)</div>
+              <div class="d-flex justify-content-center gap-2">
+                <div class="text-center delivery-gen-step active" id="adm-fs-step">
+                  <div class="small">「기능명세」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">문서 작성</div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            {% if dc_busy %}
+            <div>
+              <div class="fw-semibold small mb-2">납품 코드</div>
+              <div class="d-flex justify-content-center align-items-start gap-2 flex-wrap mb-2">
+                <div class="text-center delivery-gen-step active" id="adm-dc-step1">
+                  <div class="small">「ABAP」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">초안</div>
+                </div>
+                <div class="text-muted pt-1">→</div>
+                <div class="text-center delivery-gen-step" id="adm-dc-step2">
+                  <div class="small">「코드검수」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">검토·수정</div>
+                </div>
+                <div class="text-muted pt-1">→</div>
+                <div class="text-center delivery-gen-step" id="adm-dc-step3">
+                  <div class="small">「테스트시나리오」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">시나리오</div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
+<style>
+.delivery-gen-step { opacity: 0.35; transition: opacity 0.5s; max-width: 7rem; }
+.delivery-gen-step.active { opacity: 1; }
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -197,10 +196,12 @@
   const rfpId = {{ rfp.id }};
   const pollMs = {{ job_log_poll_ms|default(2500) }};
   const logUrl = '/admin/rfp/' + rfpId + '/delivery/generation-log';
-  const autoShow = {{ (rfp.fs_status == 'generating' or rfp.delivered_code_status == 'generating')|tojson }};
-  let timer = null;
-  const modal = document.getElementById('deliveryJobLogModal');
-  if (!modal) return;
+  const genBusy = {{ gen_busy|tojson }};
+  const fsBusyStart = {{ fs_busy|tojson }};
+  const dcBusyStart = {{ dc_busy|tojson }};
+  let logTimer = null;
+  const logModal = document.getElementById('deliveryJobLogModal');
+  const progressModal = document.getElementById('deliveryProgressModal');
 
   async function pollJobLog() {
     try {
@@ -215,20 +216,75 @@
       if (dcPre) dcPre.textContent = (j.delivered_job_log && j.delivered_job_log.trim()) ? j.delivered_job_log : '(아직 납품 코드 작업 로그 없음)';
       if (fsB) fsB.textContent = 'fs: ' + (j.fs_status || 'none');
       if (dcB) dcB.textContent = 'code: ' + (j.delivered_code_status || 'none');
-    } catch (e) { /* 네트워크 일시 오류 무시 */ }
+      return j;
+    } catch (e) { return null; }
   }
 
-  modal.addEventListener('show.bs.modal', function () {
-    pollJobLog();
-    if (timer) clearInterval(timer);
-    timer = setInterval(pollJobLog, pollMs);
-  });
-  modal.addEventListener('hidden.bs.modal', function () {
-    if (timer) { clearInterval(timer); timer = null; }
-  });
+  if (logModal) {
+    logModal.addEventListener('show.bs.modal', function () {
+      pollJobLog();
+      if (logTimer) clearInterval(logTimer);
+      logTimer = setInterval(pollJobLog, pollMs);
+    });
+    logModal.addEventListener('hidden.bs.modal', function () {
+      if (logTimer) { clearInterval(logTimer); logTimer = null; }
+    });
+  }
 
-  if (autoShow && typeof bootstrap !== 'undefined') {
-    bootstrap.Modal.getOrCreateInstance(modal).show();
+  let dcStepIdx = 0;
+  let dcAnimTimer = null;
+  const dcStepIds = ['adm-dc-step1', 'adm-dc-step2', 'adm-dc-step3'];
+
+  function activateDcStep(i) {
+    dcStepIds.forEach(function (id, idx) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('active', idx === i);
+    });
+  }
+
+  if (genBusy && progressModal && typeof bootstrap !== 'undefined') {
+    bootstrap.Modal.getOrCreateInstance(progressModal).show();
+    const openLogBtn = document.getElementById('admOpenJobLogBtn');
+    if (openLogBtn && logModal) {
+      openLogBtn.addEventListener('click', function () {
+        const pm = bootstrap.Modal.getInstance(progressModal);
+        const showLog = function () {
+          bootstrap.Modal.getOrCreateInstance(logModal).show();
+        };
+        if (pm) {
+          progressModal.addEventListener('hidden.bs.modal', function once() {
+            progressModal.removeEventListener('hidden.bs.modal', once);
+            showLog();
+          }, { once: true });
+          pm.hide();
+        } else showLog();
+      });
+    }
+    if (dcBusyStart) {
+      dcStepIdx = 0;
+      activateDcStep(0);
+      let elapsed = 0;
+      dcAnimTimer = setInterval(function () {
+        elapsed += 1;
+        if (elapsed % 25 === 0 && dcStepIdx < dcStepIds.length - 1) {
+          dcStepIdx++;
+          activateDcStep(dcStepIdx);
+        }
+      }, 1000);
+    }
+    const statusPoll = setInterval(async function () {
+      const j = await pollJobLog();
+      if (!j) return;
+      let done = true;
+      if (fsBusyStart && (j.fs_status === 'generating')) done = false;
+      if (dcBusyStart && (j.delivered_code_status === 'generating')) done = false;
+      if (done) {
+        clearInterval(statusPoll);
+        if (dcAnimTimer) clearInterval(dcAnimTimer);
+        window.location.reload();
+      }
+    }, 5000);
+    pollJobLog();
   }
 })();
 </script>
