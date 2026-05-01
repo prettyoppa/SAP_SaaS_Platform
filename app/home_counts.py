@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from . import models
 from .menu_landing import abap_analysis_menu_bucket, integration_menu_bucket
+from .rfp_landing import BUCKET_ORDER, rfp_landing_bucket
 
 
 def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> dict:
     """
     각 메뉴별 건수 키 (모두 동일한 라벨):
 
-    delivery — 납품 (향후 FS~납품 구간, 현재 0)
+    delivery — 납품 (FS·납품 코드 ready 또는 생성 중)
     proposal — 개발 제안서 생성됨
     analysis — 분석 단계(중간 상태)
     in_progress — 진행 중
@@ -22,29 +23,20 @@ def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> di
     """
     uid = user_id
 
-    rfp_q = db.query(models.RFP)
+    rfp_q = db.query(models.RFP).options(joinedload(models.RFP.messages))
     if not is_admin:
         rfp_q = rfp_q.filter(models.RFP.user_id == uid)
     rfps = rfp_q.all()
 
-    def _has_prop(r: models.RFP) -> bool:
-        return bool((r.proposal_text or "").strip())
+    r_counts = {k: 0 for k in BUCKET_ORDER}
+    for r in rfps:
+        b = rfp_landing_bucket(r)
+        if b in r_counts:
+            r_counts[b] += 1
 
-    r_delivery = 0  # 추후 반영
-    r_proposal = sum(1 for r in rfps if _has_prop(r))
-    r_analysis = sum(
-        1 for r in rfps if (r.interview_status or "") == "generating_proposal" and not _has_prop(r)
+    a_q = db.query(models.AbapAnalysisRequest).options(
+        joinedload(models.AbapAnalysisRequest.workflow_rfp).joinedload(models.RFP.messages)
     )
-    r_in_progress = sum(
-        1
-        for r in rfps
-        if (r.status or "") != "draft"
-        and not _has_prop(r)
-        and (r.interview_status or "") in ("pending", "in_progress")
-    )
-    r_draft = sum(1 for r in rfps if (r.status or "") == "draft")
-
-    a_q = db.query(models.AbapAnalysisRequest)
     if not is_admin:
         a_q = a_q.filter(models.AbapAnalysisRequest.user_id == uid)
     analyses = a_q.all()
@@ -55,7 +47,9 @@ def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> di
     a_in_progress = sum(1 for a in analyses if abap_analysis_menu_bucket(a) == "in_progress")
     a_draft = sum(1 for a in analyses if abap_analysis_menu_bucket(a) == "draft")
 
-    ir_q = db.query(models.IntegrationRequest)
+    ir_q = db.query(models.IntegrationRequest).options(
+        joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages)
+    )
     if not is_admin:
         ir_q = ir_q.filter(models.IntegrationRequest.user_id == uid)
     integrations = ir_q.all()
@@ -68,11 +62,11 @@ def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> di
 
     return {
         "rfp": {
-            "delivery": r_delivery,
-            "proposal": r_proposal,
-            "analysis": r_analysis,
-            "in_progress": r_in_progress,
-            "draft": r_draft,
+            "delivery": r_counts["delivery"],
+            "proposal": r_counts["proposal"],
+            "analysis": r_counts["analysis"],
+            "in_progress": r_counts["in_progress"],
+            "draft": r_counts["draft"],
         },
         "rfp_total": len(rfps),
         "abap_analysis": {

@@ -367,6 +367,15 @@ def resend_verification(
     return RedirectResponse(url="/register/check-email?resent=1", status_code=302)
 
 
+@router.get("/account", response_class=HTMLResponse)
+def account_profile(request: Request, db: Session = Depends(get_db)):
+    """로그인 회원의 가입 시 입력 정보 조회(비밀번호 등은 표시하지 않음)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account", status_code=302)
+    return templates.TemplateResponse(request, "account_profile.html", {"user": user})
+
+
 @router.get("/logout")
 def logout(request: Request):
     try:

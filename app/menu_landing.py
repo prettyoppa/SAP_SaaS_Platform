@@ -14,7 +14,7 @@ from .rfp_landing import (
     TILE_ORDER_WITH_ALL,
     VALID_URL_BUCKETS,
     parse_slashed_date,
-    workflow_linked_rfp_bucket,
+    rfp_landing_bucket,
 )
 
 DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO = """요구사항과 ABAP 코드를 제출하면 구조 분석과 요구사항 연계 해석을 제공합니다.
@@ -77,7 +77,7 @@ def standard_menu_bucket_meta() -> dict[str, dict]:
             "icon": "fa-truck",
             "fg": "#94a3b8",
             "bg": "rgba(148,163,184,.22)",
-            "hint": "FS·최종 납품(추후)",
+            "hint": "FS·납품 코드 생성·완료",
         },
         "proposal": {"label": "제안", "icon": "fa-file-lines", "fg": "#22c55e", "bg": "rgba(34,197,94,.18)"},
         "analysis": {"label": "분석", "icon": "fa-magnifying-glass-chart", "fg": "#6366f1", "bg": "rgba(99,102,241,.18)"},
@@ -87,9 +87,10 @@ def standard_menu_bucket_meta() -> dict[str, dict]:
 
 
 def abap_analysis_menu_bucket(row: models.AbapAnalysisRequest) -> str:
-    """홈 타일 분류와 동일(제안·납품 슬롯은 미사용)."""
-    if False:
-        return "delivery"
+    """홈 타일 분류와 동일. 연결 RFP가 있으면 그 진행(납품·제안 등)을 따름."""
+    wr = getattr(row, "workflow_rfp", None)
+    if wr is not None:
+        return rfp_landing_bucket(wr)
     if row.is_draft:
         return "draft"
     if row.is_analyzed:
@@ -104,7 +105,7 @@ def integration_menu_bucket(ir: models.IntegrationRequest) -> str:
     """
     wr = getattr(ir, "workflow_rfp", None)
     if wr is not None:
-        return workflow_linked_rfp_bucket(wr)
+        return rfp_landing_bucket(wr)
     if (ir.proposal_text or "").strip():
         return "proposal"
     if (ir.status or "").lower() == "draft":

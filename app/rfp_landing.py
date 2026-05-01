@@ -80,13 +80,7 @@ def rfp_landing_aggregate(db: Session, *, admin: bool, user_id: int) -> tuple[di
 
 
 def workflow_linked_rfp_bucket(rfp: models.RFP) -> str:
-    """분석·연동에서 생성된 연결 RFP: 납품(FS/코드) 준비되면 납품 타일로 분류."""
-    dc_ok = (rfp.delivered_code_status or "").strip() == "ready" and (rfp.delivered_code_text or "").strip()
-    if dc_ok:
-        return "delivery"
-    fs_ok = (rfp.fs_status or "").strip() == "ready" and (rfp.fs_text or "").strip()
-    if fs_ok:
-        return "delivery"
+    """분석·연동 등에서 연결된 RFP — 신규 개발과 동일한 버킷 규칙."""
     return rfp_landing_bucket(rfp)
 
 
@@ -94,14 +88,19 @@ def rfp_landing_bucket(rfp: models.RFP) -> str:
     """
     상호 배타 단계(우선순위 위→아래).
 
-    - delivery: FS 납품 완료 (미구현 → 항상 제외)
+    - delivery: FS·납품 코드 생성 완료(ready) 또는 생성 중(generating)
     - proposal: 개발 제안서 존재
     - analysis: 제안서 없음 + 인터뷰 메시지(이력) 존재
     - in_progress: 제안서 없음 + 제출됨 + 아직 인터뷰 메시지 없음
     - draft: 임시저장
     """
-    # FS/납품 구간 — 추후 필드 추가 시 여기서 반환
-    if False:
+    fs_s = ((rfp.fs_status or "none").strip().lower() or "none")
+    dc_s = ((rfp.delivered_code_status or "none").strip().lower() or "none")
+    dc_ok = dc_s == "ready" and (rfp.delivered_code_text or "").strip()
+    fs_ok = fs_s == "ready" and (rfp.fs_text or "").strip()
+    if dc_ok or fs_ok:
+        return "delivery"
+    if fs_s == "generating" or dc_s == "generating":
         return "delivery"
     if (rfp.proposal_text or "").strip():
         return "proposal"
