@@ -10,15 +10,6 @@
       <span>납품 관리 (RFP {{ rfp.id }})</span>
     </nav>
 
-    {% set fs_busy = (rfp.fs_status == 'generating') %}
-    {% set dc_busy = (rfp.delivered_code_status == 'generating') %}
-    {% set gen_busy = fs_busy or dc_busy %}
-
-    {% set has_fs_material = ((rfp.fs_status or '') == 'ready' and (rfp.fs_text or '')|trim|length > 0)
-      or (rfp.fs_supplements and rfp.fs_supplements|length > 0) %}
-    {% set has_code_material = ((rfp.delivered_code_status or '') == 'ready'
-      and (rfp.delivered_code_text or '')|trim|length > 0) %}
-
     {% if delivery_err == 'fs_not_ready' %}
     <div class="alert alert-warning">코드 생성에 사용할 FS가 없습니다. 「기능명세」생성을 완료하거나 컨설턴트 FS .md를 첨부하세요.</div>
     {% endif %}

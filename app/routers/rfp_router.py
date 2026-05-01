@@ -527,6 +527,12 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
     ):
         dc_html = _ir._markdown_to_html(rfp.delivered_code_text)
 
+    fs_stat = (rfp.fs_status or "none").strip() or "none"
+    dc_stat = (rfp.delivered_code_status or "none").strip() or "none"
+    fs_busy = fs_stat == "generating"
+    dc_busy = dc_stat == "generating"
+    gen_busy = fs_busy or dc_busy
+
     return templates.TemplateResponse(
         request,
         "rfp_fs_view.html",
@@ -536,6 +542,11 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
             "rfp": rfp,
             "fs_html": fs_html,
             "delivered_code_html": dc_html,
+            "fs_stat": fs_stat,
+            "dc_stat": dc_stat,
+            "fs_busy": fs_busy,
+            "dc_busy": dc_busy,
+            "gen_busy": gen_busy,
         },
     )
 

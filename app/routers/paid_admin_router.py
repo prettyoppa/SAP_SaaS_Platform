@@ -53,6 +53,17 @@ def admin_rfp_delivery_page(
     fs_body, fs_src_err = resolved_fs_markdown_for_codegen(db, rfp)
     can_start_code = bool(fs_body and fs_body.strip()) and (rfp.delivered_code_status or "") != "generating"
 
+    fs_busy = (rfp.fs_status or "") == "generating"
+    dc_busy = (rfp.delivered_code_status or "") == "generating"
+    gen_busy = fs_busy or dc_busy
+    sups = getattr(rfp, "fs_supplements", None) or []
+    has_fs_material = bool(
+        ((rfp.fs_status or "") == "ready" and (rfp.fs_text or "").strip()) or len(sups) > 0
+    )
+    has_code_material = bool(
+        (rfp.delivered_code_status or "") == "ready" and (rfp.delivered_code_text or "").strip()
+    )
+
     return templates.TemplateResponse(
         request,
         "admin/rfp_delivery.html",
@@ -64,6 +75,11 @@ def admin_rfp_delivery_page(
             "can_start_delivered_code": can_start_code,
             "fs_codegen_preview_error": fs_src_err,
             "job_log_poll_ms": 2500,
+            "fs_busy": fs_busy,
+            "dc_busy": dc_busy,
+            "gen_busy": gen_busy,
+            "has_fs_material": has_fs_material,
+            "has_code_material": has_code_material,
         },
     )
 
