@@ -2,7 +2,7 @@ import logging
 import os
 import threading
 from datetime import datetime, timedelta
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Form
@@ -69,6 +69,37 @@ def _access_token_cookie_args(request: Request, token: str) -> dict:
         "samesite": "lax",
         "secure": request.url.scheme == "https",
     }
+
+
+_MAX_PROFILE_FULL_NAME = 120
+_MAX_PROFILE_COMPANY = 255
+_MIN_PASSWORD_LEN = 8
+
+
+def _parse_profile_full_name(raw: str) -> tuple[str | None, str | None]:
+    """반환: (값, 오류코드). 값은 비어 있으면 None."""
+    s = (raw or "").strip()
+    if not s:
+        return None, "full_name_required"
+    if len(s) > _MAX_PROFILE_FULL_NAME:
+        return None, "full_name_too_long"
+    return s, None
+
+
+def _parse_profile_company(raw: str | None) -> str | None:
+    s = (raw or "").strip()
+    if not s:
+        return None
+    return s[:_MAX_PROFILE_COMPANY]
+
+
+def _parse_new_password(raw: str | None) -> tuple[str | None, str | None]:
+    s = (raw or "").strip()
+    if len(s) < _MIN_PASSWORD_LEN:
+        return None, "password_short"
+    if len(s) > 256:
+        return None, "password_long"
+    return s, None
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -373,7 +404,115 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login?next=/account", status_code=302)
-    return templates.TemplateResponse(request, "account_profile.html", {"user": user})
+    profile_saved = request.query_params.get("profile_saved") == "1"
+    password_saved = request.query_params.get("password_saved") == "1"
+    return templates.TemplateResponse(
+        request,
+        "account_profile.html",
+        {"user": user, "profile_saved": profile_saved, "password_saved": password_saved},
+    )
+
+
+@router.get("/account/edit", response_class=HTMLResponse)
+def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/edit", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "account_profile_edit.html",
+        {
+            "user": user,
+            "full_name_value": user.full_name,
+            "company_value": user.company or "",
+            "error": None,
+        },
+    )
+
+
+@router.post("/account/edit")
+def account_profile_edit_post(
+    request: Request,
+    full_name: str = Form(...),
+    company: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/edit", status_code=302)
+
+    name_ok, err = _parse_profile_full_name(full_name)
+    company_ok = _parse_profile_company(company)
+
+    if err:
+        return templates.TemplateResponse(
+            request,
+            "account_profile_edit.html",
+            {
+                "user": user,
+                "full_name_value": (full_name or "").strip()[:_MAX_PROFILE_FULL_NAME],
+                "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                "error": err,
+            },
+            status_code=400,
+        )
+
+    user.full_name = name_ok
+    user.company = company_ok
+    db.add(user)
+    db.commit()
+    return RedirectResponse(url="/account?profile_saved=1", status_code=302)
+
+
+@router.get("/account/password", response_class=HTMLResponse)
+def account_password_get(request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/password", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "account_password.html",
+        {"user": user, "error": None},
+    )
+
+
+@router.post("/account/password")
+def account_password_post(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    new_password_confirm: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/password", status_code=302)
+
+    def _err(code: str):
+        return templates.TemplateResponse(
+            request,
+            "account_password.html",
+            {"user": user, "error": code},
+            status_code=400,
+        )
+
+    if not auth.verify_password(current_password, user.hashed_password):
+        return _err("wrong_current")
+
+    np, pw_err = _parse_new_password(new_password)
+    if pw_err:
+        return _err(pw_err)
+
+    if new_password.strip() != new_password_confirm.strip():
+        return _err("mismatch")
+
+    if auth.verify_password(new_password.strip(), user.hashed_password):
+        return _err("same_as_current")
+
+    user.hashed_password = auth.hash_password(np)
+    db.add(user)
+    db.commit()
+    return RedirectResponse(url="/account?password_saved=1", status_code=302)
 
 
 @router.get("/logout")

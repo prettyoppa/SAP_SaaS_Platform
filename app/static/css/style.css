@@ -1896,3 +1896,51 @@ html[data-theme="light"] .abap-float-chat-resize {
   }
 }
 
+/* ── 회원 정보 (/account) — 카드·라벨 대비 (라이트/다크 공통, Bootstrap 카드 기본색 무시) ── */
+.account-profile-container {
+  max-width: 40rem;
+}
+.account-profile-page .account-profile-title {
+  color: var(--text);
+}
+.account-profile-page .account-profile-lead {
+  color: var(--muted);
+}
+.account-profile-card.card {
+  background: var(--surface);
+  border-color: var(--border) !important;
+  color: var(--text);
+}
+.account-profile-card .card-body {
+  color: var(--text);
+}
+.account-profile-card dt.account-profile-dt {
+  color: var(--muted);
+  font-weight: 500;
+}
+.account-profile-card dd.account-profile-dd {
+  color: var(--text);
+}
+.account-profile-card .border-bottom {
+  border-color: var(--border) !important;
+}
+.account-profile-status-active {
+  color: var(--success);
+  font-weight: 600;
+}
+.account-profile-status-inactive {
+  color: var(--muted);
+}
+.account-profile-meta-note {
+  color: var(--muted);
+}
+.account-profile-meta-warn {
+  color: var(--warning);
+}
+.account-profile-card .account-profile-form .form-label {
+  color: var(--label);
+}
+.account-profile-card .account-profile-form-hint {
+  color: var(--muted);
+}
+

@@ -2,65 +2,86 @@
 {% block title %}회원 정보 – SAP 개발 파트너{% endblock %}
 
 {% block content %}
-<div class="dashboard-page py-4">
-  <div class="container" style="max-width:40rem">
+<div class="dashboard-page account-profile-page py-4">
+  <div class="container account-profile-container">
     <div class="mb-4">
-      <h2 class="mb-1">
+      <h2 class="mb-1 account-profile-title">
         <span class="nav-ko">회원 정보</span>
         <span class="nav-en" style="display:none">Account profile</span>
       </h2>
-      <p class="text-muted small mb-0">
+      <p class="small mb-0 account-profile-lead">
         <span class="nav-ko">회원가입 시 등록한 정보입니다. 비밀번호는 안전을 위해 표시하지 않습니다.</span>
         <span class="nav-en" style="display:none">Information from registration. Your password is never shown.</span>
       </p>
+      {% if profile_saved %}
+      <div class="alert alert-success small mt-3 mb-0 py-2" role="status">
+        <span class="nav-ko">프로필이 저장되었습니다.</span><span class="nav-en" style="display:none">Profile saved.</span>
+      </div>
+      {% endif %}
+      {% if password_saved %}
+      <div class="alert alert-success small mt-3 mb-0 py-2" role="status">
+        <span class="nav-ko">비밀번호가 변경되었습니다.</span><span class="nav-en" style="display:none">Password updated.</span>
+      </div>
+      {% endif %}
     </div>
 
-    <div class="card border shadow-sm" style="background:var(--surface);border-color:var(--border)!important;">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="/account/edit" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-pen-to-square me-1"></i>
+        <span class="nav-ko">프로필 수정</span><span class="nav-en" style="display:none">Edit profile</span>
+      </a>
+      <a href="/account/password" class="btn btn-outline-secondary btn-sm">
+        <i class="fa-solid fa-key me-1"></i>
+        <span class="nav-ko">비밀번호 변경</span><span class="nav-en" style="display:none">Change password</span>
+      </a>
+    </div>
+
+    <div class="card border shadow-sm account-profile-card">
       <div class="card-body">
-        <dl class="row mb-0 small">
-          <dt class="col-sm-4 text-muted py-2 border-bottom">
+        <dl class="row mb-0 small account-profile-dl">
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">이름</span><span class="nav-en" style="display:none">Name</span>
           </dt>
-          <dd class="col-sm-8 py-2 border-bottom mb-0">{{ user.full_name }}</dd>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">{{ user.full_name }}</dd>
 
-          <dt class="col-sm-4 text-muted py-2 border-bottom">
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">이메일</span><span class="nav-en" style="display:none">Email</span>
           </dt>
-          <dd class="col-sm-8 py-2 border-bottom mb-0">{{ user.email }}</dd>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">{{ user.email }}</dd>
 
-          <dt class="col-sm-4 text-muted py-2 border-bottom">
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">회사명</span><span class="nav-en" style="display:none">Company</span>
           </dt>
-          <dd class="col-sm-8 py-2 border-bottom mb-0">
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
             {% if user.company %}{{ user.company }}{% else %}—{% endif %}
           </dd>
 
-          <dt class="col-sm-4 text-muted py-2 border-bottom">
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">가입일</span><span class="nav-en" style="display:none">Joined</span>
           </dt>
-          <dd class="col-sm-8 py-2 border-bottom mb-0">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</dd>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</dd>
 
-          <dt class="col-sm-4 text-muted py-2 border-bottom">
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">계정 상태</span><span class="nav-en" style="display:none">Account status</span>
           </dt>
-          <dd class="col-sm-8 py-2 border-bottom mb-0">
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
             {% if user.is_active %}
-              <span class="text-success"><span class="nav-ko">활성</span><span class="nav-en" style="display:none">Active</span></span>
+              <span class="account-profile-status-active"><span class="nav-ko">활성</span><span class="nav-en" style="display:none">Active</span></span>
             {% else %}
-              <span class="text-secondary"><span class="nav-ko">비활성</span><span class="nav-en" style="display:none">Inactive</span></span>
+              <span class="account-profile-status-inactive"><span class="nav-ko">비활성</span><span class="nav-en" style="display:none">Inactive</span></span>
             {% endif %}
             {% if user.email_verified %}
-              · <span class="nav-ko text-muted">이메일 인증 완료</span><span class="nav-en text-muted" style="display:none">Email verified</span>
+              · <span class="account-profile-meta-note"><span class="nav-ko">이메일 인증 완료</span><span class="nav-en" style="display:none">Email verified</span></span>
             {% else %}
-              · <span class="nav-ko text-warning">이메일 미인증</span><span class="nav-en text-warning" style="display:none">Email not verified</span>
+              · <span class="account-profile-meta-warn"><span class="nav-ko">이메일 미인증</span><span class="nav-en" style="display:none">Email not verified</span></span>
             {% endif %}
           </dd>
 
           {% if user.is_admin %}
-          <dt class="col-sm-4 text-muted py-2">
+          <dt class="col-sm-4 py-2 account-profile-dt">
             <span class="nav-ko">역할</span><span class="nav-en" style="display:none">Role</span>
           </dt>
-          <dd class="col-sm-8 py-2 mb-0">
+          <dd class="col-sm-8 py-2 mb-0 account-profile-dd">
             <span class="badge bg-primary"><span class="nav-ko">관리자</span><span class="nav-en" style="display:none">Admin</span></span>
           </dd>
           {% endif %}
