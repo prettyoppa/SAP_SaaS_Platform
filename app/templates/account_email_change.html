@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}이메일 변경 – SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="dashboard-page account-profile-page py-4">
+  <div class="container account-profile-container">
+    <div class="mb-4">
+      <h2 class="mb-1 account-profile-title">
+        <span class="nav-ko">로그인 이메일 변경</span>
+        <span class="nav-en" style="display:none">Change login email</span>
+      </h2>
+      <p class="small mb-0 account-profile-lead">
+        <span class="nav-ko">새 주소로 인증 메일이 발송됩니다. 기존 주소로도 변경 시도 알림이 전달됩니다.</span>
+        <span class="nav-en" style="display:none">We send a confirmation link to the new inbox and notify your current email.</span>
+      </p>
+    </div>
+
+    {% if not mail_ok %}
+    <div class="alert alert-warning small" role="alert">
+      <span class="nav-ko">서버에 메일(Resend 또는 SMTP)이 설정되어 있지 않아 이메일 변경을 사용할 수 없습니다.</span>
+      <span class="nav-en" style="display:none">Email delivery is not configured on this server.</span>
+    </div>
+    {% endif %}
+
+    {% if sent_ok %}
+    <div class="alert alert-success small" role="alert">
+      <span class="nav-ko">인증 메일을 보냈습니다. 새 이메일 수신함을 확인해 주세요.</span>
+      <span class="nav-en" style="display:none">Check your new inbox for the confirmation link.</span>
+    </div>
+    {% endif %}
+
+    {% if error == 'mail_disabled' %}
+    <div class="alert alert-danger small">메일 설정이 필요합니다.</div>
+    {% elif error == 'invalid' %}
+    <div class="alert alert-danger small">유효한 이메일 형식이 아닙니다.</div>
+    {% elif error == 'same' %}
+    <div class="alert alert-warning small">현재 이메일과 동일합니다.</div>
+    {% elif error == 'duplicate' %}
+    <div class="alert alert-danger small">이미 다른 계정에서 사용 중인 이메일입니다.</div>
+    {% elif error == 'cooldown' %}
+    <div class="alert alert-warning small">너무 잦은 요청입니다. 잠시 후 다시 시도해 주세요.</div>
+    {% endif %}
+
+    {% if pending_ec %}
+    <div class="alert alert-info small mb-3">
+      <span class="nav-ko">대기 중인 변경: <strong>{{ pending_ec.new_email }}</strong>
+      (만료 UTC 기준 {{ pending_ec.expires_at.strftime('%Y-%m-%d %H:%M') }})</span>
+      <span class="nav-en" style="display:none">Pending: <strong>{{ pending_ec.new_email }}</strong></span>
+    </div>
+    {% endif %}
+
+    <div class="card border shadow-sm account-profile-card">
+      <div class="card-body">
+        <form method="post" action="/account/email/request" class="account-profile-form">
+          <div class="mb-3">
+            <label class="form-label" for="new-email-input"><span class="nav-ko">새 이메일</span><span class="nav-en" style="display:none">New email</span></label>
+            <input type="email" class="form-control" id="new-email-input" name="new_email" required
+                   autocomplete="email" {% if not mail_ok %}disabled{% endif %} placeholder="new@company.com"/>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary" {% if not mail_ok %}disabled{% endif %}>
+              <span class="nav-ko">인증 메일 보내기</span><span class="nav-en" style="display:none">Send confirmation</span>
+            </button>
+            <a href="/account" class="btn btn-outline-secondary">
+              <span class="nav-ko">돌아가기</span><span class="nav-en" style="display:none">Back</span>
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

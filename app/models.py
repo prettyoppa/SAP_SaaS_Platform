@@ -16,11 +16,30 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     email_verified = Column(Boolean, default=True)  # 기존 행은 마이그레이션에서 true
     created_at = Column(DateTime, default=datetime.utcnow)
+    # 회원 탈퇴: 유예 기간 후 영구 삭제 (소프트 단계에서는 로그인 불가, 이메일로 취소 가능)
+    pending_account_deletion = Column(Boolean, default=False)
+    deletion_requested_at = Column(DateTime, nullable=True)
+    deletion_hard_scheduled_at = Column(DateTime, nullable=True)
 
     rfps = relationship("RFP", back_populates="owner")
     integration_requests = relationship("IntegrationRequest", back_populates="owner")
     abap_codes = relationship("ABAPCode", back_populates="uploader")
     abap_analysis_requests = relationship("AbapAnalysisRequest", back_populates="owner")
+
+
+class EmailChangePending(Base):
+    """로그인 회원의 이메일 변경 — 새 주소 인증 링크 확인 후 확정."""
+
+    __tablename__ = "email_change_pending"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+    new_email = Column(String, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    last_sent_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
 
 
 class RFP(Base):

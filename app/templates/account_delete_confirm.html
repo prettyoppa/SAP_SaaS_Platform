@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}회원 탈퇴 – SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="dashboard-page account-profile-page py-4">
+  <div class="container account-profile-container">
+    <div class="mb-4">
+      <h2 class="mb-1 account-profile-title">
+        <span class="nav-ko">회원 탈퇴</span>
+        <span class="nav-en" style="display:none">Delete account</span>
+      </h2>
+      <p class="small mb-0 account-profile-lead">
+        <span class="nav-ko">계정이 비활성화되고 약 <strong>{{ grace_days }}일</strong> 유예 후 데이터가 영구 삭제됩니다.
+          탈퇴 접수 메일의 링크로 유예 중에 철회할 수 있습니다.</span>
+        <span class="nav-en" style="display:none">Your account is deactivated; after {{ grace_days }} days data is permanently deleted. Cancel via email link.</span>
+      </p>
+      {% if not mail_ok %}
+      <p class="small text-warning mt-2 mb-0">
+        <span class="nav-ko">메일 미설정 환경에서는 탈퇴 안내·취소 링크 메일이 가지 않을 수 있습니다.</span>
+      </p>
+      {% endif %}
+    </div>
+
+    {% if error == 'bad_ack' %}
+    <div class="alert alert-danger small">확인란에 대문자 <strong>DELETE</strong>를 정확히 입력해 주세요.</div>
+    {% elif error == 'wrong_password' %}
+    <div class="alert alert-danger small">비밀번호가 올바르지 않습니다.</div>
+    {% endif %}
+
+    <div class="card border shadow-sm account-profile-card border-danger border-opacity-50">
+      <div class="card-body">
+        <form method="post" action="/account/delete/request" class="account-profile-form">
+          <div class="mb-3">
+            <label class="form-label" for="del-pw"><span class="nav-ko">현재 비밀번호</span></label>
+            <div class="input-icon-wrap position-relative">
+              <i class="fa-solid fa-lock input-icon"></i>
+              <input type="password" class="form-control input-with-icon" id="del-pw" name="password" required autocomplete="current-password"/>
+              <button type="button" class="btn-pw-toggle" onclick="togglePw('del-pw','del-pw-icon')" aria-label="비밀번호 표시 전환">
+                <i class="fa-solid fa-eye" id="del-pw-icon"></i>
+              </button>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="del-ack"><span class="nav-ko">확인 입력</span></label>
+            <input type="text" class="form-control font-monospace" id="del-ack" name="confirm_text" autocomplete="off"
+                   placeholder="DELETE"/>
+            <div class="form-text account-profile-form-hint">위 칸에 대문자 <code>DELETE</code>를 입력하세요.</div>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-danger">
+              <span class="nav-ko">탈퇴 요청</span>
+            </button>
+            <a href="/account" class="btn btn-outline-secondary"><span class="nav-ko">취소</span></a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePw(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById(iconId);
+  if (!input || !icon) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.replace('fa-eye', 'fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.replace('fa-eye-slash', 'fa-eye');
+  }
+}
+</script>
+{% endblock %}

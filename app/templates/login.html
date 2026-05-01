@@ -37,7 +37,36 @@
             <span>인증 링크가 잘못되었거나 만료되었습니다. 다시 로그인하거나 재발송을 이용해 주세요.</span>
           </div>
           {% endif %}
-          {% if error == True or error == 'invalid' %}
+          {% if deletion_started_notice %}
+          <div class="alert alert-info d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-envelope me-2"></i>
+            <span>탈퇴 요청이 접수되었습니다. 등록된 메일함을 확인해 주세요.</span>
+          </div>
+          {% endif %}
+          {% if delete_cancelled_notice %}
+          <div class="alert alert-success d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-check me-2"></i>
+            <span>탈퇴 요청이 취소되었습니다. 다시 로그인할 수 있습니다.</span>
+          </div>
+          {% endif %}
+          {% if email_change_invalid %}
+          <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+            <span>이메일 변경 확인 링크가 유효하지 않거나 만료되었습니다.</span>
+          </div>
+          {% endif %}
+          {% if delete_cancel_invalid %}
+          <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+            <span>탈퇴 취소 링크가 유효하지 않거나 이미 처리되었습니다.</span>
+          </div>
+          {% endif %}
+          {% if error == 'inactive' %}
+          <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-pause me-2"></i>
+            <span>비활성 계정입니다. 탈퇴 취소가 필요하면 탈퇴 안내 메일의 링크를 이용해 주세요.</span>
+          </div>
+          {% elif error == True or error == 'invalid' %}
           <div class="alert alert-danger d-flex align-items-center" role="alert">
             <i class="fa-solid fa-circle-exclamation me-2"></i>
             <span data-i18n="login.error">Invalid email or password.</span>

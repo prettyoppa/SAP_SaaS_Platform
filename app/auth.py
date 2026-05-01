@@ -21,6 +21,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 EMAIL_VERIFY_SALT = "email-verify-v1"
 EMAIL_VERIFY_MAX_AGE_SEC = 3 * 86400  # 3일
 
+EMAIL_CHANGE_SALT = "email-change-v1"
+EMAIL_CHANGE_MAX_AGE_SEC = 3 * 86400
+
+DELETE_CANCEL_SALT = "account-delete-cancel-v1"
+
 
 def create_email_verification_token(email: str) -> str:
     s = URLSafeTimedSerializer(SECRET_KEY, salt=EMAIL_VERIFY_SALT)
@@ -34,6 +39,39 @@ def parse_email_verification_token(token: str, max_age_sec: int = EMAIL_VERIFY_M
         e = data.get("email")
         return e if isinstance(e, str) else None
     except (BadSignature, SignatureExpired):
+        return None
+
+
+def create_email_change_token(pending_id: int, new_email: str) -> str:
+    s = URLSafeTimedSerializer(SECRET_KEY, salt=EMAIL_CHANGE_SALT)
+    return s.dumps({"pid": int(pending_id), "ne": (new_email or "").strip().lower()})
+
+
+def parse_email_change_token(token: str, max_age_sec: int = EMAIL_CHANGE_MAX_AGE_SEC) -> Optional[tuple[int, str]]:
+    s = URLSafeTimedSerializer(SECRET_KEY, salt=EMAIL_CHANGE_SALT)
+    try:
+        data = s.loads(token, max_age=max_age_sec)
+        pid = data.get("pid")
+        ne = data.get("ne")
+        if not isinstance(ne, str) or not ne.strip():
+            return None
+        return int(pid), ne.strip().lower()
+    except (BadSignature, SignatureExpired, TypeError, ValueError):
+        return None
+
+
+def create_account_delete_cancel_token(user_id: int) -> str:
+    s = URLSafeTimedSerializer(SECRET_KEY, salt=DELETE_CANCEL_SALT)
+    return s.dumps({"uid": int(user_id)})
+
+
+def parse_account_delete_cancel_token(token: str, max_age_sec: int) -> Optional[int]:
+    s = URLSafeTimedSerializer(SECRET_KEY, salt=DELETE_CANCEL_SALT)
+    try:
+        data = s.loads(token, max_age=max_age_sec)
+        uid = data.get("uid")
+        return int(uid)
+    except (BadSignature, SignatureExpired, TypeError, ValueError):
         return None
 
 
@@ -83,7 +121,12 @@ def get_user_from_token(token: str, db: Session) -> Optional[models.User]:
             return None
     except JWTError:
         return None
-    return db.query(models.User).filter(models.User.email == email).first()
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        return None
+    if not user.is_active:
+        return None
+    return user
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[models.User]:

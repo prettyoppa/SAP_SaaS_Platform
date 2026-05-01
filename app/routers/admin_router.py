@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import models, auth
+from ..account_lifecycle import purge_user_and_owned_data as lifecycle_purge_user
 from ..database import get_db
 from ..templates_config import templates
 
@@ -17,34 +18,10 @@ def _require_admin(request: Request, db: Session):
 
 
 def _admin_purge_user_and_data(db: Session, target: models.User, actor: models.User) -> str | None:
-    """
-    테스트용: 사용자와 소유 RFP·코드·이용후기 등 연관 데이터 삭제.
-    성공 시 None, 실패 시 오류 코드 문자열 (redirect query용).
-    """
+    """테스트/운영: 사용자와 소유 데이터 영구 삭제."""
     if target.id == actor.id:
         return "self"
-    db.query(models.EmailRegistrationCode).filter(
-        models.EmailRegistrationCode.email == target.email
-    ).delete(synchronize_session=False)
-    uid = target.id
-    for rfp in db.query(models.RFP).filter(models.RFP.user_id == uid).all():
-        db.query(models.RFPMessage).filter(models.RFPMessage.rfp_id == rfp.id).delete()
-        db.delete(rfp)
-    db.query(models.IntegrationRequest).filter(models.IntegrationRequest.user_id == uid).delete(
-        synchronize_session=False
-    )
-    db.query(models.ABAPCode).filter(models.ABAPCode.uploaded_by == uid).delete()
-    rev_ids = [r.id for r in db.query(models.Review).filter(models.Review.user_id == uid).all()]
-    if rev_ids:
-        db.query(models.ReviewComment).filter(models.ReviewComment.review_id.in_(rev_ids)).delete(
-            synchronize_session=False
-        )
-    db.query(models.Review).filter(models.Review.user_id == uid).delete(synchronize_session=False)
-    db.query(models.ReviewComment).filter(models.ReviewComment.user_id == uid).delete(
-        synchronize_session=False
-    )
-    db.delete(target)
-    db.commit()
+    lifecycle_purge_user(db, target.id)
     return None
 
 
@@ -82,6 +59,23 @@ def admin_users(
             "err": err,
         },
     )
+
+
+@router.post("/users/{user_id}/purge-now")
+def admin_user_purge_now(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """탈퇴 유예 중인 계정을 즉시 영구 삭제(관리자)."""
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    if target.id == actor.id:
+        return RedirectResponse(url="/admin/users?err=self", status_code=302)
+    if not getattr(target, "pending_account_deletion", False):
+        return RedirectResponse(url="/admin/users?err=not_pending", status_code=302)
+    lifecycle_purge_user(db, target.id)
+    return RedirectResponse(url="/admin/users?deleted=1", status_code=302)
 
 
 @router.post("/users/{user_id}/delete")

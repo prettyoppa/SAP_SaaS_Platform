@@ -10,12 +10,40 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from .. import models, auth
+from ..account_lifecycle import deletion_grace_days, refresh_admin_flag_for_user
 from ..database import get_db
-from ..email_smtp import email_verification_enabled, send_registration_otp_email, send_verification_email
+from ..email_smtp import (
+    email_verification_enabled,
+    send_account_deletion_started_email,
+    send_email_change_confirm_email,
+    send_email_change_notice_previous,
+    send_email_changed_completed_notice,
+    send_registration_otp_email,
+    send_verification_email,
+)
 from ..templates_config import templates
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _delete_auth_cookie(response: RedirectResponse, request: Request) -> None:
+    response.delete_cookie(
+        "access_token",
+        path="/",
+        samesite="lax",
+        secure=request.url.scheme == "https",
+    )
+
+
+def _schedule_bg(fn, *args, **kwargs):
+    def _run():
+        try:
+            fn(*args, **kwargs)
+        except Exception:
+            logger.exception("Background task failed (%s)", getattr(fn, "__name__", repr(fn)))
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def _safe_login_redirect_next(raw: str | None) -> str | None:
@@ -108,6 +136,10 @@ def login_page(
     verified: str | None = None,
     verify: str | None = None,
     registered: str | None = None,
+    deletion_started: str | None = None,
+    delete_cancelled: str | None = None,
+    delete_cancel_invalid: str | None = None,
+    email_change_invalid: str | None = None,
 ):
     user = auth.get_current_user(request, next(get_db()))
     if user:
@@ -122,6 +154,14 @@ def login_page(
         ctx["verify_invalid"] = True
     if registered == "1":
         ctx["registered_ok"] = True
+    if deletion_started == "1":
+        ctx["deletion_started_notice"] = True
+    if delete_cancelled == "1":
+        ctx["delete_cancelled_notice"] = True
+    if email_change_invalid == "1":
+        ctx["email_change_invalid"] = True
+    if delete_cancel_invalid == "1":
+        ctx["delete_cancel_invalid"] = True
     return templates.TemplateResponse(request, "login.html", ctx)
 
 
@@ -153,6 +193,13 @@ def login(
             request,
             "login.html",
             _ctx(error=True),
+            status_code=400,
+        )
+    if not user.is_active:
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            _ctx(error="inactive"),
             status_code=400,
         )
     if email_verification_enabled() and not user.email_verified:
@@ -406,10 +453,24 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/login?next=/account", status_code=302)
     profile_saved = request.query_params.get("profile_saved") == "1"
     password_saved = request.query_params.get("password_saved") == "1"
+    email_changed_ok = request.query_params.get("email_changed") == "1"
+    pending_ec = (
+        db.query(models.EmailChangePending)
+        .filter(models.EmailChangePending.user_id == user.id)
+        .first()
+    )
     return templates.TemplateResponse(
         request,
         "account_profile.html",
-        {"user": user, "profile_saved": profile_saved, "password_saved": password_saved},
+        {
+            "user": user,
+            "profile_saved": profile_saved,
+            "password_saved": password_saved,
+            "email_changed_ok": email_changed_ok,
+            "pending_email_change": pending_ec,
+            "mail_for_account_actions": email_verification_enabled(),
+            "deletion_grace_days": deletion_grace_days(),
+        },
     )
 
 
@@ -515,6 +576,228 @@ def account_password_post(
     return RedirectResponse(url="/account?password_saved=1", status_code=302)
 
 
+@router.get("/account/email", response_class=HTMLResponse)
+def account_email_change_get(
+    request: Request,
+    db: Session = Depends(get_db),
+    sent: str | None = None,
+    err: str | None = None,
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/email", status_code=302)
+    if getattr(user, "pending_account_deletion", False):
+        return RedirectResponse(url="/account", status_code=302)
+    pending = (
+        db.query(models.EmailChangePending)
+        .filter(models.EmailChangePending.user_id == user.id)
+        .first()
+    )
+    return templates.TemplateResponse(
+        request,
+        "account_email_change.html",
+        {
+            "user": user,
+            "pending_ec": pending,
+            "sent_ok": sent == "1",
+            "error": err,
+            "mail_ok": email_verification_enabled(),
+        },
+    )
+
+
+@router.post("/account/email/request")
+def account_email_change_request_post(
+    request: Request,
+    new_email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/email", status_code=302)
+    if getattr(user, "pending_account_deletion", False):
+        return RedirectResponse(url="/account", status_code=302)
+    if not email_verification_enabled():
+        return RedirectResponse(url="/account/email?err=mail_disabled", status_code=302)
+
+    new_norm = _normalize_email_strict(new_email)
+    if not new_norm:
+        return RedirectResponse(url="/account/email?err=invalid", status_code=302)
+    if new_norm == (user.email or "").strip().lower():
+        return RedirectResponse(url="/account/email?err=same", status_code=302)
+    if db.query(models.User).filter(models.User.email == new_norm).first():
+        return RedirectResponse(url="/account/email?err=duplicate", status_code=302)
+
+    now = datetime.utcnow()
+    existing = (
+        db.query(models.EmailChangePending)
+        .filter(models.EmailChangePending.user_id == user.id)
+        .first()
+    )
+    if existing and (now - existing.last_sent_at).total_seconds() < 60:
+        return RedirectResponse(url="/account/email?err=cooldown", status_code=302)
+    if existing:
+        db.delete(existing)
+        db.flush()
+
+    expires = now + timedelta(days=3)
+    row = models.EmailChangePending(
+        user_id=user.id,
+        new_email=new_norm,
+        expires_at=expires,
+        last_sent_at=now,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    token = auth.create_email_change_token(row.id, new_norm)
+    base = _public_base_url(request)
+    confirm_url = f"{base}/account/email/confirm?token={quote(token, safe='')}"
+
+    old_email = user.email
+    _schedule_bg(send_email_change_confirm_email, new_norm, confirm_url)
+    _schedule_bg(send_email_change_notice_previous, old_email, new_norm)
+
+    return RedirectResponse(url="/account/email?sent=1", status_code=302)
+
+
+@router.get("/account/email/confirm")
+def account_email_confirm(request: Request, token: str = "", db: Session = Depends(get_db)):
+    parsed = auth.parse_email_change_token(token)
+    if not parsed:
+        return RedirectResponse(url="/login?email_change_invalid=1", status_code=302)
+    pid, new_norm = parsed
+    row = db.query(models.EmailChangePending).filter(models.EmailChangePending.id == pid).first()
+    if not row or (row.new_email or "").strip().lower() != new_norm:
+        return RedirectResponse(url="/login?email_change_invalid=1", status_code=302)
+    now = datetime.utcnow()
+    if row.expires_at < now:
+        db.delete(row)
+        db.commit()
+        return RedirectResponse(url="/login?email_change_invalid=1", status_code=302)
+
+    user = db.query(models.User).filter(models.User.id == row.user_id).first()
+    if (
+        not user
+        or not user.is_active
+        or getattr(user, "pending_account_deletion", False)
+    ):
+        db.delete(row)
+        db.commit()
+        return RedirectResponse(url="/login?email_change_invalid=1", status_code=302)
+
+    if db.query(models.User).filter(models.User.email == new_norm, models.User.id != user.id).first():
+        db.delete(row)
+        db.commit()
+        return RedirectResponse(url="/login?email_change_invalid=1", status_code=302)
+
+    old_email = user.email
+    user.email = new_norm
+    user.email_verified = True
+    refresh_admin_flag_for_user(db, user)
+    db.delete(row)
+    db.commit()
+
+    _schedule_bg(send_email_changed_completed_notice, old_email, new_norm)
+
+    resp = RedirectResponse(url="/account?email_changed=1", status_code=302)
+    resp.set_cookie(**_access_token_cookie_args(request, auth.create_access_token({"sub": new_norm})))
+    return resp
+
+
+@router.get("/account/delete", response_class=HTMLResponse)
+def account_delete_confirm_get(request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/delete", status_code=302)
+    if getattr(user, "pending_account_deletion", False):
+        return RedirectResponse(url="/account", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "account_delete_confirm.html",
+        {"user": user, "error": None, "grace_days": deletion_grace_days(), "mail_ok": email_verification_enabled()},
+    )
+
+
+@router.post("/account/delete/request")
+def account_delete_request_post(
+    request: Request,
+    password: str = Form(...),
+    confirm_text: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/delete", status_code=302)
+    if getattr(user, "pending_account_deletion", False):
+        return RedirectResponse(url="/account", status_code=302)
+
+    def _form_err(code: str):
+        return templates.TemplateResponse(
+            request,
+            "account_delete_confirm.html",
+            {"user": user, "error": code, "grace_days": deletion_grace_days(), "mail_ok": email_verification_enabled()},
+            status_code=400,
+        )
+
+    if (confirm_text or "").strip() != "DELETE":
+        return _form_err("bad_ack")
+    if not auth.verify_password(password, user.hashed_password):
+        return _form_err("wrong_password")
+
+    now = datetime.utcnow()
+    grace = deletion_grace_days()
+    hard_at = now + timedelta(days=grace)
+    notify_email = user.email
+
+    user.pending_account_deletion = True
+    user.deletion_requested_at = now
+    user.deletion_hard_scheduled_at = hard_at
+    user.is_active = False
+    db.query(models.EmailChangePending).filter(models.EmailChangePending.user_id == user.id).delete(
+        synchronize_session=False
+    )
+    db.add(user)
+    db.commit()
+
+    cancel_tok = auth.create_account_delete_cancel_token(user.id)
+    cancel_url = f"{_public_base_url(request)}/account/delete/cancel?token={quote(cancel_tok, safe='')}"
+
+    if email_verification_enabled() and notify_email:
+        iso = hard_at.strftime("%Y-%m-%d %H:%M UTC")
+        _schedule_bg(
+            send_account_deletion_started_email,
+            notify_email,
+            cancel_url,
+            grace_days=grace,
+            hard_until_iso=iso,
+        )
+
+    resp = RedirectResponse(url="/login?deletion_started=1", status_code=302)
+    _delete_auth_cookie(resp, request)
+    return resp
+
+
+@router.get("/account/delete/cancel")
+def account_delete_cancel(request: Request, token: str = "", db: Session = Depends(get_db)):
+    max_age = deletion_grace_days() * 86400 + 86400
+    uid = auth.parse_account_delete_cancel_token(token, max_age_sec=max_age)
+    if uid is None:
+        return RedirectResponse(url="/login?delete_cancel_invalid=1", status_code=302)
+    user = db.query(models.User).filter(models.User.id == uid).first()
+    if not user or not getattr(user, "pending_account_deletion", False):
+        return RedirectResponse(url="/login?delete_cancel_invalid=1", status_code=302)
+
+    user.pending_account_deletion = False
+    user.deletion_requested_at = None
+    user.deletion_hard_scheduled_at = None
+    user.is_active = True
+    db.add(user)
+    db.commit()
+    return RedirectResponse(url="/login?delete_cancelled=1", status_code=302)
+
+
 @router.get("/logout")
 def logout(request: Request):
     try:
@@ -522,10 +805,5 @@ def logout(request: Request):
     except Exception:
         pass
     response = RedirectResponse(url="/", status_code=302)
-    response.delete_cookie(
-        "access_token",
-        path="/",
-        samesite="lax",
-        secure=request.url.scheme == "https",
-    )
+    _delete_auth_cookie(response, request)
     return response

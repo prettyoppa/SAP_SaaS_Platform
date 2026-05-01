@@ -1380,6 +1380,17 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 }
 .admin-table .badge { font-size: .75rem; }
 
+/* Admin 사용자 목록: 가로 스크롤 시에도 삭제·유예 열이 보이도록 */
+.admin-users-table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-users-table .admin-users-actions-col {
+  white-space: nowrap;
+  min-width: 7.25rem;
+  vertical-align: middle;
+}
+
 /* ── Code Analysis blocks ───────────────────── */
 .analysis-block {
   background: var(--surface2); border: 1px solid var(--border);
@@ -1942,5 +1953,26 @@ html[data-theme="light"] .abap-float-chat-resize {
 }
 .account-profile-card .account-profile-form-hint {
   color: var(--muted);
+}
+
+/* 비밀번호 보기/숨기기 (회원가입·비밀번호 변경·탈퇴 확인 공통) */
+.input-icon-wrap.position-relative {
+  position: relative;
+}
+.btn-pw-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  z-index: 10;
+  line-height: 1;
+}
+.btn-pw-toggle:hover {
+  color: var(--text);
 }
 

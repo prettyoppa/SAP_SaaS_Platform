@@ -78,6 +78,9 @@ def _run_migrations():
         ("abap_analysis_requests", "improvement_request_text", "TEXT", "TEXT"),
         ("integration_requests", "workflow_rfp_id", "INTEGER", "INTEGER"),
         ("integration_requests", "improvement_request_text", "TEXT", "TEXT"),
+        ("users", "pending_account_deletion", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("users", "deletion_requested_at", "DATETIME", "TIMESTAMP"),
+        ("users", "deletion_hard_scheduled_at", "DATETIME", "TIMESTAMP"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -222,9 +225,21 @@ def _bootstrap_database():
 async def lifespan(app: FastAPI):
     """Railway 등에서 웹 컨테이너가 Postgres보다 먼저 뜨면 첫 DB 연결이 실패할 수 있어 재시도합니다."""
     max_attempts = 8
+    purge_task: asyncio.Task | None = None
     for attempt in range(1, max_attempts + 1):
         try:
             _bootstrap_database()
+            db_run = SessionLocal()
+            try:
+                from . import account_lifecycle
+
+                n_del = account_lifecycle.run_scheduled_hard_deletes(db_run)
+                if n_del:
+                    _log.info("[Account] startup hard-delete processed %s user(s)", n_del)
+            except Exception:
+                _log.exception("[Account] startup purge skipped due to error")
+            finally:
+                db_run.close()
             break
         except Exception:
             wait = min(2 ** (attempt - 1), 30)
@@ -243,7 +258,31 @@ async def lifespan(app: FastAPI):
             )
             await asyncio.sleep(wait)
     log_smtp_startup_checks(_log)
-    yield
+
+    async def _purge_loop():
+        await asyncio.sleep(120)
+        while True:
+            db_loop = SessionLocal()
+            try:
+                from . import account_lifecycle
+
+                account_lifecycle.run_scheduled_hard_deletes(db_loop)
+            except Exception:
+                _log.exception("[Account] periodic purge failed")
+            finally:
+                db_loop.close()
+            await asyncio.sleep(3600)
+
+    purge_task = asyncio.create_task(_purge_loop())
+    try:
+        yield
+    finally:
+        if purge_task:
+            purge_task.cancel()
+            try:
+                await purge_task
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(

@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}사용자 삭제 (테스트) – Admin{% endblock %}
+{% block title %}회원·사용자 목록 – Admin{% endblock %}
 
 {% block content %}
 <div class="py-4">
   <div class="admin-page-header mb-4">
     <div class="container">
       {% include 'partials/nav_prev_screen.html' %}
-      <h3 class="mb-1"><i class="fa-solid fa-user-xmark me-2 text-danger"></i>사용자 삭제 (테스트용)</h3>
+      <h3 class="mb-1"><i class="fa-solid fa-users me-2 text-warning"></i>회원·사용자 목록</h3>
       <p class="text-muted mb-0">
-        동일 이메일로 회원가입·인증 메일을 반복 테스트할 때 사용합니다. 해당 사용자의 RFP·코드 라이브러리·이용후기·댓글도 함께 삭제됩니다.
-        정식 탈퇴 기능은 추후 별도로 제공 예정입니다.
+        <span class="nav-ko">일반 삭제는 테스트용 즉시 영구 삭제입니다.</span>
+        회원이 탈퇴 요청한 계정은 <strong>유예 즉시</strong> 열에서 영구 삭제를 바로 처리할 수 있습니다.
       </p>
     </div>
   </div>
@@ -20,15 +20,24 @@
       <i class="fa-solid fa-check me-2"></i>사용자와 연관 데이터를 삭제했습니다.
     </div>
     {% endif %}
+    {% if err == 'not_pending' %}
+    <div class="alert alert-warning mb-3">
+      <i class="fa-solid fa-triangle-exclamation me-2"></i>탈퇴 유예 중인 계정만 즉시 영구 삭제할 수 있습니다.
+    </div>
+    {% endif %}
     {% if err == 'self' %}
     <div class="alert alert-warning mb-3">
       <i class="fa-solid fa-triangle-exclamation me-2"></i>현재 로그인한 관리자 본인 계정은 삭제할 수 없습니다.
     </div>
     {% endif %}
 
-    <div class="rfp-section">
-      <div class="table-responsive">
-        <table class="table table-dark table-hover align-middle admin-table">
+    <div class="rfp-section admin-users-table-wrap">
+      <p class="text-muted small mb-2">
+        <i class="fa-solid fa-arrows-left-right me-1"></i>
+        표가 넓으면 아래를 <strong>좌우로 스크롤</strong>하면 <strong>삭제</strong>·<strong>유예 즉시</strong> 열이 보입니다.
+      </p>
+      <div class="table-responsive admin-users-table-responsive">
+        <table class="table table-dark table-hover align-middle admin-table admin-users-table">
           <thead>
             <tr>
               <th style="width:70px">ID</th>
@@ -38,7 +47,9 @@
               <th style="width:90px">관리자</th>
               <th style="width:90px">인증</th>
               <th style="width:120px">가입일</th>
-              <th style="width:100px">삭제</th>
+              <th class="admin-users-actions-col">탈퇴</th>
+              <th class="admin-users-actions-col">삭제</th>
+              <th class="admin-users-actions-col">유예 즉시</th>
             </tr>
           </thead>
           <tbody>
@@ -51,13 +62,28 @@
               <td>{% if u.is_admin %}<span class="badge text-bg-warning">Y</span>{% else %}—{% endif %}</td>
               <td>{% if u.email_verified %}<span class="badge" style="background:rgba(34,197,94,.2);color:#4ade80">Y</span>{% else %}<span class="badge bg-secondary">N</span>{% endif %}</td>
               <td class="small text-muted">{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '—' }}</td>
-              <td>
+              <td class="admin-users-actions-col">
+                {% if u.pending_account_deletion %}
+                <span class="badge bg-warning text-dark">유예</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="admin-users-actions-col">
                 {% if u.id == user.id %}
                 <span class="text-muted small">—</span>
                 {% else %}
                 <form method="post" action="/admin/users/{{ u.id }}/delete" class="d-inline"
                       onsubmit="return confirm('이 계정과 연관 데이터(RFP, 코드, 이용후기 등)를 모두 삭제할까요? 되돌릴 수 없습니다.');">
-                  <button type="submit" class="btn btn-sm btn-outline-danger">삭제</button>
+                  <button type="submit" class="btn btn-sm btn-danger btn-admin-user-delete">삭제</button>
+                </form>
+                {% endif %}
+              </td>
+              <td class="admin-users-actions-col">
+                {% if u.id == user.id or not u.pending_account_deletion %}
+                <span class="text-muted small">—</span>
+                {% else %}
+                <form method="post" action="/admin/users/{{ u.id }}/purge-now" class="d-inline"
+                      onsubmit="return confirm('탈퇴 유예 중인 이 계정을 지금 영구 삭제할까요? 되돌릴 수 없습니다.');">
+                  <button type="submit" class="btn btn-sm btn-warning text-dark">유예 즉시</button>
                 </form>
                 {% endif %}
               </td>

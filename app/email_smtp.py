@@ -285,3 +285,61 @@ def send_registration_otp_email(to_addr: str, code: str) -> None:
         f"이 코드는 약 {ttl}분간 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시하세요."
     )
     _deliver_plain_email(to_addr, subject, body)
+
+
+def send_email_change_confirm_email(to_new_email: str, confirm_url: str) -> None:
+    subject = os.environ.get("MAIL_EMAIL_CHANGE_SUBJECT", "[SAP Dev Hub] 새 이메일 주소 확인")
+    body = (
+        "계정 로그인 이메일을 아래 주소로 변경하려면 링크를 눌러 확인을 완료해 주세요.\n\n"
+        f"새 이메일: {to_new_email}\n\n"
+        f"{confirm_url}\n\n"
+        "본인이 요청하지 않았다면 이 메일을 무시하면 됩니다.\n"
+        "링크는 며칠 동안만 유효합니다."
+    )
+    _deliver_plain_email(to_new_email, subject, body)
+
+
+def send_email_change_notice_previous(previous_email: str, new_email: str) -> None:
+    subject = os.environ.get(
+        "MAIL_EMAIL_CHANGE_OLD_NOTICE_SUBJECT", "[SAP Dev Hub] 이메일 변경 진행 알림"
+    )
+    body = (
+        "SAP 개발 파트너 계정에 등록된 이 주소로, 로그인 이메일 변경 절차가 시작되었습니다.\n\n"
+        f"변경 예정 주소: {new_email}\n\n"
+        "본인이 새 주소 메일함에서 확인 링크를 완료하면 변경이 적용됩니다.\n"
+        "본인이 아니라면 비밀번호를 즉시 변경하고 관리자에게 문의해 주세요."
+    )
+    _deliver_plain_email(previous_email, subject, body)
+
+
+def send_email_changed_completed_notice(previous_email: str, new_email: str) -> None:
+    subject = os.environ.get(
+        "MAIL_EMAIL_CHANGED_DONE_SUBJECT", "[SAP Dev Hub] 로그인 이메일이 변경되었습니다"
+    )
+    body = (
+        "계정 로그인 이메일이 다음 주소로 변경되었습니다.\n\n"
+        f"새 로그인 이메일: {new_email}\n\n"
+        "본인이 진행한 변경이 아니라면 즉시 비밀번호를 재설정하고 지원팀에 연락해 주세요."
+    )
+    _deliver_plain_email(previous_email, subject, body)
+
+
+def send_account_deletion_started_email(
+    email: str,
+    cancel_url: str,
+    *,
+    grace_days: int,
+    hard_until_iso: str,
+) -> None:
+    subject = os.environ.get(
+        "MAIL_ACCOUNT_DELETE_SUBJECT", "[SAP Dev Hub] 계정 탈퇴 요청이 접수되었습니다"
+    )
+    body = (
+        "계정 탈퇴가 요청되었습니다. 현재 로그인은 비활성화되었으며, 유예 기간 후 데이터가 영구 삭제됩니다.\n\n"
+        f"유예 기간: 약 {grace_days}일\n"
+        f"영구 삭제 예정(UTC 기준 참고): {hard_until_iso}\n\n"
+        "본인이 요청한 것이 아니거나 철회하려면 아래 링크를 눌러 취소할 수 있습니다.\n"
+        f"{cancel_url}\n\n"
+        "링크는 유예 기간 동안 유효합니다."
+    )
+    _deliver_plain_email(email, subject, body)
