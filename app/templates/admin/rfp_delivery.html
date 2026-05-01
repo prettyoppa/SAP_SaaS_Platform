@@ -4,11 +4,7 @@
 {% block content %}
 <div class="py-4">
   <div class="container">
-    <nav class="small mb-3">
-      <a href="/admin" class="text-decoration-none">관리자</a>
-      <span class="text-muted px-1">/</span>
-      <span>납품 관리 (RFP {{ rfp.id }})</span>
-    </nav>
+    {% include 'partials/nav_prev_screen.html' %}
 
     {% if delivery_err == 'fs_not_ready' %}
     <div class="alert alert-warning">코드 생성에 사용할 FS가 없습니다. 「기능명세」생성을 완료하거나 컨설턴트 FS .md를 첨부하세요.</div>
@@ -29,23 +25,25 @@
         </div>
       </div>
       <hr>
-      <p class="small mb-3"><strong>프로그램</strong>: {{ rfp.program_id or '—' }} · {{ rfp.transaction_code or '' }}</p>
+      <p class="small mb-3"><strong>프로그램</strong>: {{ rfp.program_id or '—' }}{% if (rfp.transaction_code or '').strip() %} · <strong>트랜잭션</strong>: {{ rfp.transaction_code }}{% endif %}</p>
 
       <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
         <a href="/rfp/{{ rfp.id }}/request" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">요청</a>
         <a href="/rfp/{{ rfp.id }}/proposal" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">제안서</a>
         <a href="/rfp/{{ rfp.id }}/interview/summary" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">인터뷰</a>
 
-        <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
-          <button type="submit" class="btn btn-warning me-1" {% if fs_busy %}disabled{% endif %}>
-            {% if has_fs_material %}<i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>{% else %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% endif %}FS
-          </button>
-        </form>
-        <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
-          <button type="submit" class="btn btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
-            {% if has_code_material %}<i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>{% else %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% endif %}코드
-          </button>
-        </form>
+        <a href="/rfp/{{ rfp.id }}/fs" class="btn btn-warning btn-sm me-1 text-nowrap">
+          {% if has_fs_material %}<i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>{% else %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% endif %}FS
+        </a>
+        {% if has_dev_code_nav and dev_code_view_href %}
+        <a href="{{ dev_code_view_href }}" class="btn btn-primary btn-sm text-nowrap">
+          {% if has_code_material %}<i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>{% else %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% endif %}개발코드
+        </a>
+        {% else %}
+        <span class="btn btn-primary btn-sm text-nowrap disabled" tabindex="-1" aria-disabled="true" style="pointer-events:none;opacity:.65">
+          {% if has_code_material %}<i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>{% else %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% endif %}개발코드
+        </span>
+        {% endif %}
       </div>
 
       {% if rfp.fs_error %}

@@ -20,10 +20,7 @@
 
         <!-- Header -->
         <div class="rfp-header mb-4">
-          <a href="/" class="btn btn-sm btn-ghost mb-3">
-            <i class="fa-solid fa-arrow-left me-1"></i>
-            <span data-i18n="rfp.back">대시보드로</span>
-          </a>
+          {% include 'partials/nav_prev_screen.html' %}
           <h2 class="rfp-title" data-i18n="rfp.title">{% if edit_mode %}개발 요청 수정{% else %}신규 개발 요청{% endif %}</h2>
           <p class="text-muted" data-i18n="rfp.sub">요구사항을 입력하시면 AI 에이전트가 무료로 개발 제안서를 생성합니다.</p>
 

@@ -15,6 +15,7 @@ from ..paid_generation import (
     run_fs_generation_job,
 )
 from ..templates_config import templates
+from ..rfp_phase_gates import rfp_phase_gates
 from ..routers.rfp_router import _read_upload_limited, _store_rfp_file
 
 router = APIRouter(prefix="/admin", tags=["admin-delivery"])
@@ -64,6 +65,10 @@ def admin_rfp_delivery_page(
         (rfp.delivered_code_status or "").strip() == "ready" and (rfp.delivered_code_text or "").strip()
     )
 
+    ph = rfp_phase_gates(rfp, actor)
+    dev_code_view_href = ph.get("dev_code_href")
+    has_dev_code_nav = bool(ph.get("has_dev_code"))
+
     return templates.TemplateResponse(
         request,
         "admin/rfp_delivery.html",
@@ -80,6 +85,8 @@ def admin_rfp_delivery_page(
             "gen_busy": gen_busy,
             "has_fs_material": has_fs_material,
             "has_code_material": has_code_material,
+            "dev_code_view_href": dev_code_view_href,
+            "has_dev_code_nav": has_dev_code_nav,
         },
     )
 

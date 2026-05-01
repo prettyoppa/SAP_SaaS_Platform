@@ -4,25 +4,48 @@
 {% block content %}
 <div class="proposal-page py-5">
   <div class="container col-lg-9">
-    <a href="/services/abap" class="btn btn-ghost mb-3">
-      <i class="fa-solid fa-arrow-left me-1"></i> 신규 개발 목록
-    </a>
+    {% include 'partials/nav_prev_screen.html' %}
+
+    {% if user.is_admin %}
+    <div class="alert alert-warning border mb-4">
+      <button type="button" class="btn btn-sm btn-outline-dark mb-2" data-bs-toggle="collapse" data-bs-target="#adminDevCodeRegen" aria-expanded="false" aria-controls="adminDevCodeRegen">수정</button>
+      <div class="collapse" id="adminDevCodeRegen">
+        <hr class="my-2">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+          <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
+              {% if (rfp.delivered_code_status or '').strip() == 'ready' and (rfp.delivered_code_text or '').strip() %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
+            </button>
+          </form>
+          <a href="/rfp/{{ rfp.id }}/edit#section-ref-code" class="btn btn-outline-primary btn-sm">
+            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>요청 수정에서 코드 편집
+          </a>
+        </div>
+        <p class="small text-muted mb-0">실행 로그·컨설턴트 FS 첨부는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>, 납품 ABAP 미리보기는 <a href="/rfp/{{ rfp.id }}/fs" class="fw-semibold">FS·납품</a>에서 확인할 수 있습니다.</p>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="proposal-header mb-4">
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
         <div>
           <h2 class="mb-2">제출 개발 코드(ABAP)</h2>
           <p class="text-muted small mb-0">{{ rfp.title }}</p>
         </div>
+        {% if not user.is_admin %}
         <button type="button" class="btn btn-outline-secondary" id="devCodeEditReveal">
           <i class="fa-solid fa-pen me-1"></i>수정
         </button>
+        {% endif %}
       </div>
     </div>
+    {% if not user.is_admin %}
     <div id="devCodeEditDock" class="d-none mb-3">
       <a href="/rfp/{{ rfp.id }}/edit#section-ref-code" class="btn btn-outline-primary btn-sm mb-3">
         <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>요청 수정에서 코드 편집
       </a>
     </div>
+    {% endif %}
     {% if source_program_groups and source_program_groups|length %}
     <details class="interview-summary-toggle codelib-source-details mb-0" open>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
@@ -40,8 +63,14 @@
   </div>
 </div>
 <script>
-document.getElementById('devCodeEditReveal').addEventListener('click', function () {
-  document.getElementById('devCodeEditDock').classList.toggle('d-none');
-});
+(function () {
+  var btn = document.getElementById('devCodeEditReveal');
+  var dock = document.getElementById('devCodeEditDock');
+  if (btn && dock) {
+    btn.addEventListener('click', function () {
+      dock.classList.toggle('d-none');
+    });
+  }
+})();
 </script>
 {% endblock %}

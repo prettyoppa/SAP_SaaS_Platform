@@ -6,9 +6,7 @@
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-lg-9">
-        <a href="/services/abap" class="btn btn-ghost mb-3">
-          <i class="fa-solid fa-arrow-left me-1"></i> 신규 개발 목록
-        </a>
+        {% include 'partials/nav_prev_screen.html' %}
 
         {% if rfp.interview_status == 'generating_proposal' %}
         <div class="alert alert-info small mb-3">

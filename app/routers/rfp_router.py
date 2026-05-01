@@ -8,6 +8,7 @@ from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
+from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..paid_tier import user_can_access_fs_hub
 from ..rfp_download_names import (
     content_disposition_attachment,
@@ -485,6 +486,15 @@ def rfp_dev_code_view_page(rfp_id: int, request: Request, db: Session = Depends(
     if ref_section_count < 1:
         return RedirectResponse(url=f"/rfp/{rfp_id}/request", status_code=302)
     tabs_base_id = f"rfp-ref-src-{rfp.id}"
+    can_start_delivered_code = False
+    dc_busy = False
+    if getattr(user, "is_admin", False):
+        fs_body, _ = resolved_fs_markdown_for_codegen(db, rfp)
+        can_start_delivered_code = bool(fs_body and fs_body.strip()) and (
+            (rfp.delivered_code_status or "").strip() != "generating"
+        )
+        dc_busy = (rfp.delivered_code_status or "").strip() == "generating"
+
     return templates.TemplateResponse(
         request,
         "rfp_dev_code_view.html",
@@ -495,6 +505,8 @@ def rfp_dev_code_view_page(rfp_id: int, request: Request, db: Session = Depends(
             "source_program_groups": groups,
             "reference_section_count": ref_section_count,
             "tabs_base_id": tabs_base_id,
+            "can_start_delivered_code": can_start_delivered_code,
+            "dc_busy": dc_busy,
         },
     )
 
@@ -533,6 +545,13 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
     dc_busy = dc_stat == "generating"
     gen_busy = fs_busy or dc_busy
 
+    can_start_delivered_code = False
+    if getattr(user, "is_admin", False):
+        fs_body, _ = resolved_fs_markdown_for_codegen(db, rfp)
+        can_start_delivered_code = bool(fs_body and fs_body.strip()) and (
+            (rfp.delivered_code_status or "").strip() != "generating"
+        )
+
     return templates.TemplateResponse(
         request,
         "rfp_fs_view.html",
@@ -547,6 +566,7 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
             "fs_busy": fs_busy,
             "dc_busy": dc_busy,
             "gen_busy": gen_busy,
+            "can_start_delivered_code": can_start_delivered_code,
         },
     )
 

@@ -12,9 +12,9 @@
             {{ message }}
           </div>
           <p class="text-muted small mb-4">필수 입력란이 비어 있거나 형식이 맞지 않을 때 나옵니다. 이전 화면으로 돌아가 수정한 뒤 다시 시도해 주세요.</p>
-          <a href="{{ back_url }}" class="btn btn-primary w-100 btn-lg">
-            <i class="fa-solid fa-arrow-left me-2"></i>이전 페이지로
-          </a>
+          <button type="button" class="btn btn-primary w-100 btn-lg" onclick="history.back(); return false;">
+            <i class="fa-solid fa-arrow-left me-2"></i>이전화면
+          </button>
         </div>
       </div>
     </div>

@@ -5,9 +5,7 @@
 <div class="py-4">
   <div class="admin-page-header mb-4">
     <div class="container">
-      <a href="/admin" class="btn btn-ghost btn-sm mb-2">
-        <i class="fa-solid fa-arrow-left me-1"></i>Admin 홈
-      </a>
+      {% include 'partials/nav_prev_screen.html' %}
       <h3 class="mb-1"><i class="fa-solid fa-user-xmark me-2 text-danger"></i>사용자 삭제 (테스트용)</h3>
       <p class="text-muted mb-0">
         동일 이메일로 회원가입·인증 메일을 반복 테스트할 때 사용합니다. 해당 사용자의 RFP·코드 라이브러리·이용후기·댓글도 함께 삭제됩니다.
