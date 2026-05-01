@@ -360,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   activateProgressOnScroll();
 
-  ;['rfp-form', 'abap-analysis-form'].forEach(fid => {
+  ;['rfp-form', 'abap-analysis-form', 'delivery-fs-upload-form'].forEach(fid => {
     const fEl = document.getElementById(fid);
     if (!fEl) return;
     fEl.addEventListener(

@@ -51,17 +51,17 @@ def admin_rfp_delivery_page(
         return RedirectResponse(url="/admin", status_code=302)
 
     fs_body, fs_src_err = resolved_fs_markdown_for_codegen(db, rfp)
-    can_start_code = bool(fs_body and fs_body.strip()) and (rfp.delivered_code_status or "") != "generating"
+    can_start_code = bool(fs_body and fs_body.strip()) and (rfp.delivered_code_status or "").strip() != "generating"
 
-    fs_busy = (rfp.fs_status or "") == "generating"
-    dc_busy = (rfp.delivered_code_status or "") == "generating"
+    fs_busy = (rfp.fs_status or "").strip() == "generating"
+    dc_busy = (rfp.delivered_code_status or "").strip() == "generating"
     gen_busy = fs_busy or dc_busy
     sups = getattr(rfp, "fs_supplements", None) or []
     has_fs_material = bool(
-        ((rfp.fs_status or "") == "ready" and (rfp.fs_text or "").strip()) or len(sups) > 0
+        ((rfp.fs_status or "").strip() == "ready" and (rfp.fs_text or "").strip()) or len(sups) > 0
     )
     has_code_material = bool(
-        (rfp.delivered_code_status or "") == "ready" and (rfp.delivered_code_text or "").strip()
+        (rfp.delivered_code_status or "").strip() == "ready" and (rfp.delivered_code_text or "").strip()
     )
 
     return templates.TemplateResponse(
@@ -122,7 +122,7 @@ def admin_start_fs_generation(
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
     if not rfp:
         return RedirectResponse(url="/admin", status_code=302)
-    if (rfp.fs_status or "") == "generating":
+    if (rfp.fs_status or "").strip() == "generating":
         return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
     rfp.fs_status = "generating"
     rfp.fs_error = None
@@ -151,7 +151,7 @@ def admin_start_delivered_code(
             url=f"/admin/rfp/{rfp_id}/delivery?err=fs_not_ready",
             status_code=302,
         )
-    if (rfp.delivered_code_status or "") == "generating":
+    if (rfp.delivered_code_status or "").strip() == "generating":
         return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
     rfp.delivered_code_status = "generating"
     rfp.delivered_code_error = None

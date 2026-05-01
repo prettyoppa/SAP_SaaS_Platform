@@ -38,12 +38,12 @@
 
         <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
           <button type="submit" class="btn btn-warning me-1" {% if fs_busy %}disabled{% endif %}>
-            {% if has_fs_material %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% else %}<i class="fa-solid fa-file-lines me-1" aria-hidden="true"></i>{% endif %}FS
+            {% if has_fs_material %}<i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>{% else %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% endif %}FS
           </button>
         </form>
         <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
           <button type="submit" class="btn btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
-            {% if has_code_material %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% else %}<i class="fa-solid fa-file-lines me-1" aria-hidden="true"></i>{% endif %}코드
+            {% if has_code_material %}<i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>{% else %}<i class="fa-regular fa-file me-1" aria-hidden="true"></i>{% endif %}코드
           </button>
         </form>
       </div>
@@ -57,29 +57,55 @@
     </div>
 
     <div class="admin-content-card mb-4">
-      <h6 class="text-muted small text-uppercase mb-2">컨설턴트 FS 첨부 (.md)</h6>
-      <p class="small text-muted mb-3">코드 생성 시 아래 파일이 모두 반영됩니다. 첨부가 없으면 에이전트 FS만 사용합니다.</p>
+      <div class="rfp-section mb-0">
+        <div class="rfp-section-header">
+          <span class="rfp-section-num">01</span>
+          <div>
+            <h4 class="mb-0">컨설턴트 FS 첨부 (.md)</h4>
+            <small class="text-muted">코드 생성 시 아래 파일이 모두 반영됩니다. 첨부가 없으면 에이전트 FS만 사용합니다.</small>
+          </div>
+        </div>
 
-      {% if rfp.fs_supplements %}
-      <ul class="mb-3 ps-3">
-        {% for s in rfp.fs_supplements %}
-        <li class="mb-2 d-flex flex-wrap justify-content-between gap-2 align-items-start">
-          <span class="small">{{ s.filename }} <span class="text-muted">({{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span></span>
-          <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement/{{ s.id }}/delete"
-            class="d-inline" onsubmit="return confirm('이 첨부를 삭제할까요?');">
-            <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
-          </form>
-        </li>
-        {% endfor %}
-      </ul>
-      {% endif %}
+        {% if rfp.fs_supplements %}
+        <div class="border rounded p-3 mb-3" style="background:var(--surface2);border-color:var(--border)!important;">
+          <div class="fw-semibold mb-2"><i class="fa-solid fa-paperclip me-1"></i>저장된 첨부</div>
+          {% for s in rfp.fs_supplements %}
+          <div class="d-flex flex-wrap align-items-start gap-2 mb-2 pb-2 border-bottom" style="border-color:var(--border)!important;">
+            <div class="flex-grow-1 small">
+              <span class="fw-medium">{{ s.filename }}</span>
+              <span class="text-muted">({{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span>
+            </div>
+            <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement/{{ s.id }}/delete"
+              class="d-inline flex-shrink-0" onsubmit="return confirm('이 첨부를 삭제할까요?');">
+              <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
+            </form>
+          </div>
+          {% endfor %}
+          <p class="small text-muted mb-0 mt-2">추가 첨부는 아래 영역에서 선택합니다.</p>
+        </div>
+        {% endif %}
 
-      <form method="post" enctype="multipart/form-data" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement-upload"
-        class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;">
-        <label class="form-label small mb-1">파일 선택 (여러 개 가능, .md)</label>
-        <input class="form-control form-control-sm mb-2" type="file" name="files" accept=".md,text/markdown" multiple required>
-        <button type="submit" class="btn btn-sm btn-secondary">업로드</button>
-      </form>
+        <form method="post" enctype="multipart/form-data" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement-upload"
+          id="delivery-fs-upload-form">
+          <div class="file-drop-zone" id="drop-zone" data-max-files="15">
+            <div class="position-relative mb-2 file-drop-hit-target" id="file-drop-hit-target" style="min-height: 8.5rem;">
+              <label for="attachments" class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
+                <input type="file" name="files" id="attachments" multiple
+                       accept=".md,text/markdown"
+                       class="file-drop-native-input"/>
+                <span class="file-drop-content d-block text-center py-4 px-2" id="drop-content">
+                  <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
+                  <p class="fw-semibold mb-1">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+                  <p class="text-muted small mb-0">Markdown (.md) · 파일당 최대 20MB · 여러 개 선택 가능</p>
+                </span>
+              </label>
+            </div>
+            <div id="attachment-list" class="w-100 px-1"></div>
+          </div>
+          <p class="small text-muted mt-2 mb-3">파일마다 한 줄에 이름·설명(선택)이 표시됩니다.</p>
+          <button type="submit" class="btn btn-secondary">업로드</button>
+        </form>
+      </div>
     </div>
 
     <div class="mb-3">
@@ -120,6 +146,7 @@
       </div>
     </div>
 
+    {% if gen_busy %}
     <div class="modal fade" id="deliveryProgressModal" tabindex="-1" aria-hidden="true"
       data-bs-backdrop="static" data-bs-keyboard="false">
       <div class="modal-dialog modal-dialog-centered">
@@ -172,6 +199,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 </div>
 
@@ -182,6 +210,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/js/rfp_form.js?v=20260417a"></script>
 <script>
 (function () {
   const rfpId = {{ rfp.id }};
@@ -267,8 +296,10 @@
       const j = await pollJobLog();
       if (!j) return;
       let done = true;
-      if (fsBusyStart && (j.fs_status === 'generating')) done = false;
-      if (dcBusyStart && (j.delivered_code_status === 'generating')) done = false;
+      const fsSt = String(j.fs_status || '').trim();
+      const dcSt = String(j.delivered_code_status || '').trim();
+      if (fsBusyStart && fsSt === 'generating') done = false;
+      if (dcBusyStart && dcSt === 'generating') done = false;
       if (done) {
         clearInterval(statusPoll);
         if (dcAnimTimer) clearInterval(dcAnimTimer);
