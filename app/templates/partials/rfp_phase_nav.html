@@ -6,8 +6,8 @@
     <i class="fa-solid fa-pen me-1"></i>이어쓰기
   </a>
   {% endif %}
-  {% if ph.has_dev_code %}
-  <a href="/rfp/{{ rfp.id }}/dev-code" class="btn btn-sm btn-outline-secondary rfp-phase-btn">개발코드</a>
+  {% if ph.has_dev_code and ph.dev_code_href %}
+  <a href="{{ ph.dev_code_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">개발코드</a>
   {% else %}
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">개발코드</span>
   {% endif %}

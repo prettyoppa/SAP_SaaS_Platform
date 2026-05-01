@@ -38,9 +38,11 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
     """
     Jinja 필터용. has_* / href 키는 템플릿에서 사용.
     FS: 결제 완료·FS/납품 파이프라인 시작 후 활성 — **관리자**는 결제 전에도 링크 허브로 진입 가능(납품 콘솔 테스트).
+    개발코드 버튼: (1) 고객이 첨부한 참조 ABAP → /rfp/{id}/dev-code
+                     (2) 에이전트 납품 ABAP 진행·완료 → /rfp/{id}/fs (같은 허브에서 미리보기·다운로드)
     """
     rid = rfp.id
-    has_dev = _reference_code_has_content(rfp)
+    has_ref_dev = _reference_code_has_content(rfp)
 
     paid_on = (rfp.paid_engagement_status or "none").strip() == PAID_ACTIVE
     fs_s = (getattr(rfp, "fs_status", None) or "none").strip()
@@ -84,8 +86,19 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
 
     request_href = f"/rfp/{rid}/request"
 
+    dc_started = dc_s != "none"
+    if dc_started:
+        dev_code_href = f"/rfp/{rid}/fs"
+    elif has_ref_dev:
+        dev_code_href = f"/rfp/{rid}/dev-code"
+    else:
+        dev_code_href = None
+
+    has_dev_code = dc_started or has_ref_dev
+
     return {
-        "has_dev_code": has_dev,
+        "has_dev_code": has_dev_code,
+        "dev_code_href": dev_code_href,
         "has_fs": has_fs,
         "fs_href": fs_href,
         "has_proposal": has_proposal,

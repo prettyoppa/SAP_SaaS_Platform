@@ -48,15 +48,24 @@ def _fs_heartbeat(rfp_id: int, stop: threading.Event, n_holder: dict) -> None:
         )
 
 
-def _delivered_heartbeat(rfp_id: int, stop: threading.Event, n_holder: dict) -> None:
+def _delivered_heartbeat(
+    rfp_id: int,
+    stop: threading.Event,
+    n_holder: dict,
+    phase_hint: dict,
+) -> None:
+    """납품 단계별 phase_log 문자열을 공유(dict)해서, 하트비트가 같은 문구만 반복하지 않게 한다."""
     while True:
         if stop.wait(timeout=_HEARTBEAT_SEC):
             return
         n_holder["count"] += 1
+        hint = (phase_hint.get("text") or "Kevin/Young/Brian 순차 Gemini 호출 대기 중").strip()
+        if len(hint) > 140:
+            hint = hint[:137] + "…"
         append_delivery_job_log_line(
             rfp_id,
             "delivered_job_log",
-            f"납품 ABAP 단계 Gemini 호출 진행 중… (heartbeat #{n_holder['count']})",
+            f"Gemini 호출 진행 중 — 최근 단계: {hint} (heartbeat #{n_holder['count']})",
         )
 
 
@@ -193,9 +202,15 @@ def run_delivered_code_job(rfp_id: int) -> None:
         )
 
         n_hold = {"count": 0}
+        phase_hint = {"text": ""}
+
+        def _phase_log_delivery(m: str) -> None:
+            phase_hint["text"] = (m or "").strip()
+            append_delivery_job_log_line(rfp_id, "delivered_job_log", m)
+
         hb_thr = threading.Thread(
             target=_delivered_heartbeat,
-            args=(rfp_id, hb_stop, n_hold),
+            args=(rfp_id, hb_stop, n_hold, phase_hint),
             daemon=True,
         )
         hb_thr.start()
@@ -217,7 +232,7 @@ def run_delivered_code_job(rfp_id: int) -> None:
                 conv,
                 code_library_context=code_ctx or "",
                 member_safe_output=ms,
-                phase_log=lambda m: append_delivery_job_log_line(rfp_id, "delivered_job_log", m),
+                phase_log=_phase_log_delivery,
             )
             rfp.delivered_code_status = "ready"
             rfp.delivered_code_generated_at = datetime.utcnow()
