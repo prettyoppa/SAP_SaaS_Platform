@@ -1,0 +1,40 @@
+<div class="interview-summary-body pt-0">
+  {% if fs_stat == 'failed' %}
+  <div class="alert alert-danger small mb-3">
+    FS 생성에 실패했습니다. 관리자에게 문의하세요.
+  </div>
+  {% endif %}
+
+  {% if fs_stat == 'none' or (fs_stat != 'generating' and fs_stat != 'ready' and fs_stat != 'failed') %}
+  <p class="text-muted small mb-3 mb-md-0">관리자가 FS 생성을 시작하면 이 영역에 표시됩니다.</p>
+  {% endif %}
+
+  {% if rfp.fs_supplements %}
+  <div class="proposal-card mb-3">
+    <h6 class="text-muted small text-uppercase mb-2">컨설턴트 FS 첨부</h6>
+    <p class="small text-muted mb-2">코드 생성 시 아래 파일이 모두 반영됩니다.</p>
+    <ul class="mb-0 ps-3 small">
+      {% for s in rfp.fs_supplements %}
+      <li>{{ s.filename }} <span class="text-muted">({{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if fs_busy %}
+  <p class="text-muted small mb-3"><span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>기능명세를 생성하는 중입니다.</p>
+  {% endif %}
+
+  {% if fs_stat == 'ready' and fs_html %}
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <h5 class="mb-0 me-auto small text-uppercase text-muted">Markdown 미리보기</h5>
+    <a href="/rfp/{{ rfp.id }}/fs/download" class="btn btn-sm btn-outline-primary"
+       download data-no-busy="true">
+      <i class="fa-solid fa-download me-1"></i>FS 다운로드 (.md)
+    </a>
+  </div>
+  <div class="proposal-card mb-0">
+    <div class="proposal-body proposal-prose">{{ fs_html | safe }}</div>
+  </div>
+  {% endif %}
+</div>

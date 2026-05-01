@@ -1,10 +1,11 @@
 import json
 import re
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .. import models, auth
 from ..database import get_db
 from ..templates_config import templates
@@ -14,6 +15,7 @@ from ..agent_display import wrap_unbracketed_agent_names
 from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
 from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
+from ..rfp_hub import rfp_hub_url
 
 router = APIRouter()
 
@@ -323,65 +325,40 @@ def _run_proposal_background(rfp_id: int):
         db.close()
 
 
-# ── 라우트 ────────────────────────────────────────────
+@dataclass
+class InterviewWorkspaceOutcome:
+    kind: Literal["redirect", "generating", "wizard"]
+    redirect_url: str | None = None
+    wizard_ctx: dict[str, Any] | None = None
 
-@router.get("/rfp/{rfp_id}/interview/summary", response_class=HTMLResponse)
-def interview_summary_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
-    """인터뷰 라운드 조회(답변 수정·재시작은 본 페이지에서)."""
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=True)
-    if not rfp:
-        return RedirectResponse(url="/", status_code=302)
+
+def serve_interview_workspace(
+    request: Request,
+    db: Session,
+    user,
+    rfp: models.RFP,
+    background_tasks: BackgroundTasks,
+) -> InterviewWorkspaceOutcome:
+    """GET /rfp/:id/interview 와 동일한 분기·부작용(라운드 생성 등). 통합 허브에서 phase=interview 일 때만 호출."""
+    rid = rfp.id
     if rfp.status == "draft":
-        return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
-    if not rfp.messages:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
-    messages_list = sorted(_messages_to_list(rfp.messages), key=lambda x: (x["round_number"], x["id"]))
-    return templates.TemplateResponse(request, "interview_summary_view.html", {
-        "request": request,
-        "user": user,
-        "rfp": rfp,
-        "messages": messages_list,
-    })
+        return InterviewWorkspaceOutcome(kind="redirect", redirect_url=f"/rfp/{rid}/edit")
 
-
-@router.get("/rfp/{rfp_id}/interview", response_class=HTMLResponse)
-def interview_page(rfp_id: int, request: Request,
-                   background_tasks: BackgroundTasks,
-                   db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-
-    rfp = db.query(models.RFP).filter(
-        models.RFP.id == rfp_id, models.RFP.user_id == user.id
-    ).first()
-    if not rfp:
-        return RedirectResponse(url="/", status_code=302)
-
-    if rfp.status == "draft":
-        return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
-
-    # 내부 동작·라이브러리 기준은 관리자 검증용으로만 HTML에 실음(일반회원에겐 비노출)
     trust = _interview_trust_panel(db, rfp) if user.is_admin else None
     can_request_proposal = _interview_has_substance(rfp) and (rfp.interview_status or "") == "in_progress"
 
-    # Proposal 생성 완료 → 바로 proposal 페이지
     if rfp.interview_status == "completed" and rfp.proposal_text:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
+        return InterviewWorkspaceOutcome(
+            kind="redirect",
+            redirect_url=rfp_hub_url(rid, "proposal"),
+        )
 
-    # Proposal 생성 중 → 로딩 페이지
     if rfp.interview_status == "generating_proposal":
-        return templates.TemplateResponse(request, "proposal_generating.html", {
-            "request": request, "user": user, "rfp": rfp,
-        })
+        return InterviewWorkspaceOutcome(kind="generating")
 
     answered = [m for m in rfp.messages if m.is_answered]
     unanswered = [m for m in rfp.messages if not m.is_answered]
 
-    # 미답변 질문이 있으면 그 화면 표시
     if unanswered:
         current_msg = unanswered[0]
         current_questions = json.loads(current_msg.questions_json)
@@ -426,8 +403,10 @@ def interview_page(rfp_id: int, request: Request,
             ctx_extra["answer_suggestions"] = _cap_suggestions(
                 (intra or {}).get("current_suggestions")
             )
-        return templates.TemplateResponse(request, "interview.html", {
-            "request": request, "user": user, "rfp": rfp,
+        wizard_ctx = {
+            "request": request,
+            "user": user,
+            "rfp": rfp,
             "answered_messages": _messages_to_list(answered),
             "current_message": current_msg,
             "current_questions": current_questions,
@@ -438,9 +417,9 @@ def interview_page(rfp_id: int, request: Request,
             "interview_trust": trust,
             "can_request_proposal": can_request_proposal,
             **ctx_extra,
-        })
+        }
+        return InterviewWorkspaceOutcome(kind="wizard", wizard_ctx=wizard_ctx)
 
-    # 모든 라운드 완료 → Proposal 생성 시작
     rfp_dict = _rfp_to_dict(rfp)
     conv = _messages_to_list([m for m in rfp.messages if m.is_answered])
     next_round = len(rfp.messages) + 1
@@ -449,11 +428,8 @@ def interview_page(rfp_id: int, request: Request,
         rfp.interview_status = "generating_proposal"
         db.commit()
         background_tasks.add_task(_run_proposal_background, rfp.id)
-        return templates.TemplateResponse(request, "proposal_generating.html", {
-            "request": request, "user": user, "rfp": rfp,
-        })
+        return InterviewWorkspaceOutcome(kind="generating")
 
-    # 다음 라운드 질문 생성 (에이전트 호출)
     _ms = _member_safe_for_rfp(db, rfp)
     code_ctx = get_code_library_context(
         db,
@@ -470,8 +446,10 @@ def interview_page(rfp_id: int, request: Request,
             member_safe_output=_ms,
         )
     except RuntimeError as e:
-        return templates.TemplateResponse(request, "interview.html", {
-            "request": request, "user": user, "rfp": rfp,
+        wizard_ctx = {
+            "request": request,
+            "user": user,
+            "rfp": rfp,
             "answered_messages": _messages_to_list(rfp.messages),
             "current_message": None,
             "current_questions": [],
@@ -490,8 +468,8 @@ def interview_page(rfp_id: int, request: Request,
             "interview_draft_wip": "",
             "interview_draft_payload": {"v": 1, "like": [], "dislike": [], "free": ""},
             "answer_suggestions": [],
-            "can_request_proposal": can_request_proposal,
-        })
+        }
+        return InterviewWorkspaceOutcome(kind="wizard", wizard_ctx=wizard_ctx)
 
     intra_new = {
         "v": 2,
@@ -515,8 +493,10 @@ def interview_page(rfp_id: int, request: Request,
 
     cq = result["questions"]
     intra_r = _parse_intra(new_msg) or {}
-    return templates.TemplateResponse(request, "interview.html", {
-        "request": request, "user": user, "rfp": rfp,
+    wizard_ctx = {
+        "request": request,
+        "user": user,
+        "rfp": rfp,
         "answered_messages": _messages_to_list(answered),
         "current_message": new_msg,
         "current_questions": cq,
@@ -535,7 +515,52 @@ def interview_page(rfp_id: int, request: Request,
         "interview_draft_wip": _draft_wip_free_text(intra_r.get("draft_wip", "") or ""),
         "interview_draft_payload": _draft_wip_as_dict(intra_r.get("draft_wip", "") or ""),
         "answer_suggestions": intra_r.get("current_suggestions") or [],
-    })
+    }
+    return InterviewWorkspaceOutcome(kind="wizard", wizard_ctx=wizard_ctx)
+
+
+# ── 라우트 ────────────────────────────────────────────
+
+@router.get("/rfp/{rfp_id}/interview/summary", response_class=HTMLResponse)
+def interview_summary_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """통합 허브 인터뷰 구역(view=summary)으로 이동."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    if rfp.status == "draft":
+        return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "interview", view_summary=True), status_code=302)
+
+
+@router.get("/rfp/{rfp_id}/interview", response_class=HTMLResponse)
+def interview_page(
+    rfp_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    rfp = (
+        db.query(models.RFP)
+        .options(joinedload(models.RFP.messages))
+        .filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id)
+        .first()
+    )
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+
+    out = serve_interview_workspace(request, db, user, rfp, background_tasks)
+    if out.kind == "redirect":
+        return RedirectResponse(url=out.redirect_url or "/", status_code=302)
+    if out.kind == "generating":
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
+    return templates.TemplateResponse(request, "interview.html", out.wizard_ctx or {})
 
 
 @router.post("/rfp/{rfp_id}/interview/request-proposal-now")
@@ -555,16 +580,16 @@ def request_proposal_now(
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
     if rfp.interview_status == "generating_proposal":
-        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal/generating", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
     if rfp.interview_status == "completed" and rfp.proposal_text:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
     if not _interview_has_substance(rfp):
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview?err=proposal", status_code=302)
+        return RedirectResponse(url=f"{rfp_hub_url(rfp_id, 'interview')}&err=proposal", status_code=302)
     rfp_dict = _rfp_to_dict(rfp)
     rfp.interview_status = "generating_proposal"
     db.commit()
     background_tasks.add_task(_run_proposal_background, rfp.id)
-    return RedirectResponse(url=f"/rfp/{rfp_id}/proposal/generating", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
 
 
 @router.post("/rfp/{rfp_id}/interview/reset")
@@ -608,12 +633,12 @@ def submit_answer(
 
     # 순차 인터뷰는 /interview/answer-step 사용
     if _is_sequential_v2(msg):
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     msg.answers_text = answers_text.strip()
     msg.is_answered = True
     db.commit()
-    return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
 
 @router.post("/rfp/{rfp_id}/interview/answer-step")
@@ -642,7 +667,7 @@ def interview_answer_step(
         models.RFPMessage.rfp_id == rfp_id,
     ).first()
     if not msg or not _is_sequential_v2(msg):
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     intra = _parse_intra(msg) or {"v": 2, "answers_so_far": [], "library_pool": []}
     try:
@@ -650,7 +675,7 @@ def interview_answer_step(
     except Exception:
         all_q = []
     if not isinstance(all_q, list) or not all_q:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     lib_pool = intra.get("library_pool", [])
     if not isinstance(lib_pool, list):
@@ -669,19 +694,19 @@ def interview_answer_step(
         from datetime import datetime as _dt
         msg.updated_at = _dt.utcnow()
         db.commit()
-        return RedirectResponse(url="/", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     intra.pop("draft_wip", None)
     max_per_round = _fc().MAX_QUESTIONS_PER_ROUND
     if len(answers_so) >= max_per_round:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
     # 다음에 답할 질문은 all_q[len(answers_so)]
     if len(answers_so) > len(all_q):
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     o = _parse_answer_payload_form(answer_payload, current_answer)
     if not _step_payload_valid(o):
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview?ans=empty", status_code=302)
+        return RedirectResponse(url=f"{rfp_hub_url(rfp_id, 'interview')}&ans=empty", status_code=302)
     ans = json.dumps(o, ensure_ascii=False)
 
     answers_so = answers_so + [ans]
@@ -713,7 +738,7 @@ def interview_answer_step(
 
     if len(answers_so) >= max_per_round:
         _finalize_message_row()
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     fol = _fc().generate_sequential_followup(
         rfp_data=rfp_dict,
@@ -726,12 +751,12 @@ def interview_answer_step(
     )
     if bool(fol.get("round_complete")):
         _finalize_message_row()
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     nq = (fol.get("next_question") or "").strip()
     if not nq:
         _finalize_message_row()
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     all_q = all_q + [nq]
     lib_pool = list(fol.get("library_pool") or [])
@@ -757,7 +782,7 @@ def interview_answer_step(
 
     msg.updated_at = _dt2.utcnow()
     db.commit()
-    return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
 
 @router.get("/rfp/{rfp_id}/proposal/status")
@@ -787,36 +812,12 @@ def proposal_page(
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
 
-    if rfp.interview_status == "generating_proposal":
-        return templates.TemplateResponse(request, "proposal_generating.html", {
-            "request": request, "user": user, "rfp": rfp,
-        })
+    from urllib.parse import urlencode
 
-    if not rfp.proposal_text:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/interview", status_code=302)
-
-    billing_flash_map = {
-        "success": "결제가 완료되어 개발 의뢰가 활성화되었습니다.",
-        "cancelled": "결제를 취소했습니다. 다시 진행할 수 있습니다.",
-        "unconfigured": "결제(Stripe)가 아직 설정되지 않았습니다. 운영자에게 문의하세요.",
-        "error": "결제 세션을 만들 수 없습니다. 잠시 후 다시 시도하거나 운영자에게 문의하세요.",
-        "verify_failed": "결제 확인에 실패했습니다. 카드 과금 및 웹훅 상태를 확인하세요.",
-        "missing_session": "결제 확인에 필요한 정보가 없습니다. 제안서 화면에서 다시 시작하세요.",
-    }
-    billing_flash = billing_flash_map.get((checkout or "").strip())
-
-    ctx = {
-        "request": request,
-        "user": user,
-        "rfp": rfp,
-        "proposal_html": _markdown_to_html(rfp.proposal_text),
-        "messages": _messages_to_list(rfp.messages),
-        "paid_engagement_active": paid_engagement_is_active(rfp),
-        "stripe_checkout_ready": stripe_keys_configured(),
-        "rfp_eligible_for_checkout": rfp_eligible_for_stripe_checkout(rfp),
-        "billing_flash": billing_flash,
-    }
-    return templates.TemplateResponse(request, "proposal.html", ctx)
+    q = {"phase": "proposal"}
+    if (checkout or "").strip():
+        q["checkout"] = (checkout or "").strip()
+    return RedirectResponse(url=f"/rfp/{rfp_id}?{urlencode(q)}", status_code=302)
 
 
 @router.post("/rfp/{rfp_id}/interview/edit-answer")
@@ -880,7 +881,7 @@ def regenerate_proposal(
     rfp.proposal_text = None
     db.commit()
     background_tasks.add_task(_run_proposal_background, rfp.id)
-    return RedirectResponse(url=f"/rfp/{rfp_id}/proposal/generating", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
 
 
 @router.get("/rfp/{rfp_id}/proposal/generating", response_class=HTMLResponse)
@@ -891,11 +892,7 @@ def proposal_generating_page(rfp_id: int, request: Request, db: Session = Depend
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
-    if rfp.interview_status == "completed" and rfp.proposal_text:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
-    return templates.TemplateResponse(request, "proposal_generating.html", {
-        "request": request, "user": user, "rfp": rfp,
-    })
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
 
 
 @router.get("/rfp/{rfp_id}/proposal/download")

@@ -1,0 +1,94 @@
+<div class="proposal-page py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+        {% if not hide_hub_nav|default(false) %}
+        {% include 'partials/nav_prev_screen.html' %}
+        {% endif %}
+
+        {% if rfp.interview_status == 'generating_proposal' %}
+        <div class="alert alert-info small mb-3">
+          개발 제안서를 생성하는 중입니다. <a href="/rfp/{{ rfp.id }}?phase=proposal">진행 상태</a>
+        </div>
+        {% endif %}
+
+        {% if rfp.interview_status == 'in_progress' %}
+        <div class="alert alert-secondary border-0 small mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span>인터뷰 진행 중입니다.</span>
+          <a href="/rfp/{{ rfp.id }}?phase=interview" class="btn btn-sm btn-primary mb-0">인터뷰 계속</a>
+        </div>
+        {% endif %}
+
+        <div class="proposal-header mb-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div>
+              <h2 class="mb-1">인터뷰</h2>
+              <p class="text-muted mb-0 small">{{ rfp.title }}</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              {% if messages and messages|length > 0 %}
+              <button type="button" class="btn btn-outline-secondary" id="interviewAnswerEditReveal">
+                <i class="fa-solid fa-pen me-1"></i>수정
+              </button>
+              {% endif %}
+              {% if rfp.interview_status in ['in_progress', 'completed'] %}
+              <form method="post" action="/rfp/{{ rfp.id }}/interview/reset"
+                    onsubmit="return confirm('인터뷰를 처음부터 다시 시작할까요?')" class="d-inline mb-0">
+                <button type="submit" class="btn btn-outline-danger">
+                  <i class="fa-solid fa-rotate-left me-1"></i>인터뷰 재시작
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if not messages or messages|length == 0 %}
+        <p class="text-muted">저장된 인터뷰 라운드가 없습니다.</p>
+        {% else %}
+        <div id="interviewSummaryEditDock" class="{% if messages %}d-none{% endif %}">
+          <div class="interview-edit-notice alert alert-info mb-3" id="editNoticeSummary">
+            <i class="fa-solid fa-circle-info me-2"></i>
+            답변 수정 후 라운드마다 <strong>저장</strong>합니다. Proposal이 있는 단계에서는 제안서 화면에서 재생성하세요.
+          </div>
+        </div>
+
+        <div class="proposal-card">
+          <div class="proposal-body">
+            {% for msg in messages %}
+            <div class="answered-round-card mb-3 border-bottom pb-3" data-round="{{ msg.round_number }}">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="round-badge">{{ msg.round_number }}라운드</span>
+                <button type="button" class="btn btn-xs btn-outline-secondary summary-edit-round d-none"
+                        onclick="openSummaryEdit({{ loop.index }})">
+                  <i class="fa-solid fa-pen me-1"></i>이 라운드 수정
+                </button>
+              </div>
+              <div class="d-flex align-items-start gap-2 summary-view-row" id="sum-view-{{ loop.index }}">
+                <i class="fa-solid fa-user text-success small mt-1"></i>
+                <div class="flex-grow-1 interview-qa-content" style="white-space:pre-wrap;">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
+              </div>
+              <form method="post" action="/rfp/{{ rfp.id }}/interview/edit-answer"
+                    class="summary-edit-form d-none mt-2" id="sum-edit-{{ loop.index }}">
+                <input type="hidden" name="message_id" value="{{ msg.id }}"/>
+                <input type="hidden" name="return_to" value="interview-summary"/>
+                <textarea name="answers_text" class="form-control mb-2 answer-edit-area-summary" rows="5">{{ msg.answers_text or "" }}</textarea>
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-sm btn-success"><i class="fa-solid fa-check me-1"></i>저장</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelSummaryEdit({{ loop.index }})">취소</button>
+                </div>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.btn-xs { padding: 0.15rem 0.5rem; font-size: 0.75rem; }
+.answer-edit-area-summary { background: var(--surface2); color: var(--text); border-color: var(--border); }
+</style>

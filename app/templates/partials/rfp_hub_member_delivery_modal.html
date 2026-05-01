@@ -1,0 +1,57 @@
+{# 회원 FS·납품 코드 생성 진행 모달 — rfp_fs_view / 통합 허브 공용 #}
+{% if gen_busy %}
+<div class="modal fade" id="memberDeliveryProgressModal" tabindex="-1" aria-hidden="true"
+  data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">생성 진행 중</h5>
+      </div>
+      <div class="modal-body pt-2">
+        <div class="text-center mb-4">
+          <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;"></div>
+          <p class="text-muted small mb-0">완료되면 화면이 자동으로 새로 고침됩니다.</p>
+        </div>
+
+        {% if fs_busy %}
+        <div class="mb-4 pb-3 border-bottom">
+          <div class="fw-semibold small mb-2">기능명세(FS)</div>
+          <div class="d-flex justify-content-center gap-2">
+            <div class="text-center delivery-gen-step active" id="mem-fs-step">
+              <div class="small">「기능명세」에이전트</div>
+              <div class="text-muted" style="font-size:0.75rem;">문서 작성</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if dc_busy %}
+        <div>
+          <div class="fw-semibold small mb-2">납품 코드</div>
+          <div class="d-flex justify-content-center align-items-start gap-2 flex-wrap mb-2">
+            <div class="text-center delivery-gen-step active" id="mem-dc-step1">
+              <div class="small">「ABAP」에이전트</div>
+              <div class="text-muted" style="font-size:0.75rem;">초안</div>
+            </div>
+            <div class="text-muted pt-1">→</div>
+            <div class="text-center delivery-gen-step" id="mem-dc-step2">
+              <div class="small">「코드검수」에이전트</div>
+              <div class="text-muted" style="font-size:0.75rem;">검토·수정</div>
+            </div>
+            <div class="text-muted pt-1">→</div>
+            <div class="text-center delivery-gen-step" id="mem-dc-step3">
+              <div class="small">「테스트시나리오」에이전트</div>
+              <div class="text-muted" style="font-size:0.75rem;">시나리오</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+.delivery-gen-step { opacity: 0.35; transition: opacity 0.5s; max-width: 7rem; }
+.delivery-gen-step.active { opacity: 1; }
+</style>
+{% endif %}

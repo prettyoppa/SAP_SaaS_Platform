@@ -49,7 +49,7 @@ def create_rfp_checkout_session(
     success_url = (
         f"{origin}/rfp/{rfp_id}/billing/confirm?session_id={{CHECKOUT_SESSION_ID}}"
     )
-    cancel_url = f"{origin}/rfp/{rfp_id}/proposal?checkout=cancelled"
+    cancel_url = f"{origin}/rfp/{rfp_id}?phase=proposal&checkout=cancelled"
     return stripe.checkout.Session.create(
         mode="payment",
         customer_email=(customer_email or "").strip() or None,

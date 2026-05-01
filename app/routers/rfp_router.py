@@ -1,22 +1,30 @@
 import json
 import mimetypes
 import os
-from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
+from ..agent_display import wrap_unbracketed_agent_names
 from ..paid_generation import resolved_fs_markdown_for_codegen
-from ..paid_tier import user_can_access_fs_hub
+from ..paid_tier import (
+    paid_engagement_is_active,
+    rfp_eligible_for_stripe_checkout,
+    user_can_access_fs_hub,
+)
 from ..rfp_download_names import (
     content_disposition_attachment,
     delivered_abap_download_basename,
     fs_md_download_basename,
 )
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
+from ..rfp_hub import normalize_rfp_hub_phase, rfp_hub_url
 from ..rfp_phase_gates import rfp_for_owner_or_admin
+from ..stripe_service import stripe_keys_configured
+from . import interview_router as _interview_views
 from ..database import get_db
 from ..templates_config import templates
 
@@ -31,6 +39,20 @@ INTEGRATION_IMPL_LABELS = {
     "api_integration": "API·시스템 연동",
     "other": "기타",
 }
+
+
+def _billing_flash_message(checkout: str | None) -> str | None:
+    key = (checkout or "").strip().lower()
+    if not key:
+        return None
+    return {
+        "success": "결제가 완료되었습니다. 개발 의뢰가 활성화되었습니다.",
+        "cancelled": "결제 창을 닫았습니다. 필요할 때 다시 시도할 수 있습니다.",
+        "error": "결제 시작 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        "unconfigured": "결제 시스템이 아직 설정되지 않았습니다.",
+        "missing_session": "결제 세션 정보가 없습니다.",
+        "verify_failed": "결제 확인에 실패했습니다. 고객 지원에 문의해 주세요.",
+    }.get(key)
 
 
 def _ref_code_initial_from_rfp(rfp: Any) -> Optional[dict]:
@@ -452,95 +474,82 @@ def rfp_download_attachment(
     return FileResponse(ref, filename=fname)
 
 
-@router.get("/rfp/{rfp_id}/request", response_class=HTMLResponse)
-def rfp_request_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
-    """요청 정보 조회(+수정은 /rfp/:id/edit)."""
+@router.get("/rfp/{rfp_id}", response_class=HTMLResponse)
+def rfp_unified_hub(
+    rfp_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    phase: str | None = None,
+    view: str | None = None,
+    checkout: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """신규 개발 통합 상세 — 요청·인터뷰·제안서·FS·개발코드 (단계별 details)."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
-    if not rfp:
-        return RedirectResponse(url="/", status_code=302)
-    return templates.TemplateResponse(
-        request,
-        "rfp_request_view.html",
-        {
-            "request": request,
-            "user": user,
-            "rfp": rfp,
-            "attachment_entries": _rfp_attachment_entries(rfp),
-        },
-    )
 
+    requested_phase = normalize_rfp_hub_phase(phase)
+    view_summary = (view or "").strip().lower() == "summary" and requested_phase == "interview"
 
-@router.get("/rfp/{rfp_id}/dev-code", response_class=HTMLResponse)
-def rfp_dev_code_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
-    if not rfp:
-        return RedirectResponse(url="/", status_code=302)
-    groups = reference_code_program_groups_for_tabs(rfp.reference_code_payload)
-    ref_section_count = sum(len(g["sections"]) for g in groups) if groups else 0
-    if ref_section_count < 1:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/request", status_code=302)
-    tabs_base_id = f"rfp-ref-src-{rfp.id}"
-    can_start_delivered_code = False
-    dc_busy = False
-    if getattr(user, "is_admin", False):
-        fs_body, _ = resolved_fs_markdown_for_codegen(db, rfp)
-        can_start_delivered_code = bool(fs_body and fs_body.strip()) and (
-            (rfp.delivered_code_status or "").strip() != "generating"
-        )
-        dc_busy = (rfp.delivered_code_status or "").strip() == "generating"
-
-    return templates.TemplateResponse(
-        request,
-        "rfp_dev_code_view.html",
-        {
-            "request": request,
-            "user": user,
-            "rfp": rfp,
-            "source_program_groups": groups,
-            "reference_section_count": ref_section_count,
-            "tabs_base_id": tabs_base_id,
-            "can_start_delivered_code": can_start_delivered_code,
-            "dc_busy": dc_busy,
-        },
-    )
-
-
-@router.get("/rfp/{rfp_id}/fs", response_class=HTMLResponse)
-def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
-    """유료 FS 조회 — 생성은 관리자 전용 POST."""
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
     rfp = rfp_for_owner_or_admin(
         db,
         user=user,
         rfp_id=rfp_id,
-        load_messages=False,
+        load_messages=True,
         load_fs_supplements=True,
     )
-    if not rfp or not user_can_access_fs_hub(user, rfp):
-        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
-    from ..routers import interview_router as _ir
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+
+    if (rfp.status or "").strip() == "draft" and requested_phase != "request":
+        return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
+
+    display_phase = requested_phase
+    hub_embedded = False
+    hub_proposal_generating_override = False
+    ws_out = None
+
+    if requested_phase == "interview" and not view_summary:
+        ws_out = _interview_views.serve_interview_workspace(
+            request, db, user, rfp, background_tasks
+        )
+        db.refresh(rfp)
+        if ws_out.kind == "redirect":
+            return RedirectResponse(url=ws_out.redirect_url or "/", status_code=302)
+        if ws_out.kind == "generating":
+            display_phase = "proposal"
+            hub_proposal_generating_override = True
+        elif ws_out.kind == "wizard" and ws_out.wizard_ctx:
+            hub_embedded = True
+            display_phase = "interview"
+
+    if requested_phase in ("fs", "devcode"):
+        if not user_can_access_fs_hub(user, rfp):
+            return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
+
+    groups = reference_code_program_groups_for_tabs(rfp.reference_code_payload)
+    ref_section_count = sum(len(g["sections"]) for g in groups) if groups else 0
+    dc_s = (rfp.delivered_code_status or "none").strip() or "none"
+    dc_started = dc_s != "none"
+
+    if requested_phase == "devcode":
+        if ref_section_count < 1 and not dc_started:
+            return RedirectResponse(url=rfp_hub_url(rfp_id, "request"), status_code=302)
 
     fs_html = ""
     if (rfp.fs_status or "") == "ready" and (rfp.fs_text or "").strip():
-        fs_html = _ir._markdown_to_html(rfp.fs_text)
+        fs_html = _interview_views._markdown_to_html(rfp.fs_text)
 
-    dc_html = ""
+    delivered_code_html = ""
     if (
         (rfp.delivered_code_status or "") == "ready"
         and (rfp.delivered_code_text or "").strip()
     ):
-        dc_html = _ir._markdown_to_html(rfp.delivered_code_text)
+        delivered_code_html = _interview_views._markdown_to_html(rfp.delivered_code_text)
 
     fs_stat = (rfp.fs_status or "none").strip() or "none"
-    dc_stat = (rfp.delivered_code_status or "none").strip() or "none"
+    dc_stat = dc_s
     fs_busy = fs_stat == "generating"
     dc_busy = dc_stat == "generating"
     gen_busy = fs_busy or dc_busy
@@ -552,23 +561,94 @@ def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db
             (rfp.delivered_code_status or "").strip() != "generating"
         )
 
-    return templates.TemplateResponse(
-        request,
-        "rfp_fs_view.html",
-        {
-            "request": request,
-            "user": user,
-            "rfp": rfp,
-            "fs_html": fs_html,
-            "delivered_code_html": dc_html,
-            "fs_stat": fs_stat,
-            "dc_stat": dc_stat,
-            "fs_busy": fs_busy,
-            "dc_busy": dc_busy,
-            "gen_busy": gen_busy,
-            "can_start_delivered_code": can_start_delivered_code,
-        },
+    answered_sorted = sorted(
+        [m for m in rfp.messages if m.is_answered],
+        key=lambda x: (x.round_number, x.id),
     )
+    interview_summary_messages = _interview_views._messages_to_list(answered_sorted)
+    proposal_round_messages = interview_summary_messages
+
+    hub_proposal_generating = hub_proposal_generating_override or (
+        (rfp.interview_status or "") == "generating_proposal"
+    )
+
+    proposal_html = ""
+    if (rfp.interview_status or "") == "completed" and (rfp.proposal_text or "").strip():
+        proposal_html = _interview_views._markdown_to_html(
+            wrap_unbracketed_agent_names(rfp.proposal_text or "")
+        )
+
+    tabs_base_id = f"rfp-ref-src-{rfp.id}"
+
+    ctx: dict[str, Any] = {
+        "request": request,
+        "user": user,
+        "rfp": rfp,
+        "hub_phase_open": display_phase,
+        "hub_embedded": hub_embedded,
+        "attachment_entries": _rfp_attachment_entries(rfp),
+        "interview_summary_messages": interview_summary_messages,
+        "proposal_round_messages": proposal_round_messages,
+        "hub_proposal_generating": hub_proposal_generating,
+        "proposal_html": proposal_html,
+        "billing_flash": _billing_flash_message(checkout),
+        "paid_engagement_active": paid_engagement_is_active(rfp),
+        "rfp_eligible_for_checkout": rfp_eligible_for_stripe_checkout(rfp),
+        "stripe_checkout_ready": stripe_keys_configured(),
+        "fs_html": fs_html,
+        "delivered_code_html": delivered_code_html,
+        "fs_stat": fs_stat,
+        "dc_stat": dc_stat,
+        "fs_busy": fs_busy,
+        "dc_busy": dc_busy,
+        "gen_busy": gen_busy,
+        "can_start_delivered_code": can_start_delivered_code,
+        "source_program_groups": groups,
+        "reference_section_count": ref_section_count,
+        "tabs_base_id": tabs_base_id,
+        "hub_include_proposal_scripts": bool(proposal_html) and not hub_proposal_generating,
+    }
+
+    if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
+        ctx.update(ws_out.wizard_ctx)
+
+    return templates.TemplateResponse(request, "rfp_unified_hub.html", ctx)
+
+
+@router.get("/rfp/{rfp_id}/request", response_class=HTMLResponse)
+def rfp_request_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """레거시 URL → 통합 허브 요청 단계."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "request"), status_code=302)
+
+
+@router.get("/rfp/{rfp_id}/dev-code", response_class=HTMLResponse)
+def rfp_dev_code_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """레거시 URL → 통합 허브 개발코드 단계."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "devcode"), status_code=302)
+
+
+@router.get("/rfp/{rfp_id}/fs", response_class=HTMLResponse)
+def rfp_fs_view_page(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """레거시 URL → 통합 허브 FS 단계."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "fs"), status_code=302)
 
 
 @router.get("/rfp/{rfp_id}/paid-generation-status")
@@ -598,7 +678,7 @@ def rfp_fs_download(rfp_id: int, request: Request, db: Session = Depends(get_db)
     if not rfp or not user_can_access_fs_hub(user, rfp):
         return RedirectResponse(url="/", status_code=302)
     if (rfp.fs_status or "") != "ready" or not (rfp.fs_text or "").strip():
-        return RedirectResponse(url=f"/rfp/{rfp_id}/fs", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "fs"), status_code=302)
     body = (rfp.fs_text or "").encode("utf-8")
     fname = fs_md_download_basename(getattr(rfp, "program_id", None), getattr(rfp, "title", None))
     return Response(
@@ -620,7 +700,7 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
         (rfp.delivered_code_status or "") != "ready"
         or not (rfp.delivered_code_text or "").strip()
     ):
-        return RedirectResponse(url=f"/rfp/{rfp_id}/fs", status_code=302)
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "fs"), status_code=302)
     body = (rfp.delivered_code_text or "").encode("utf-8")
     fname = delivered_abap_download_basename(getattr(rfp, "program_id", None), getattr(rfp, "title", None))
     return Response(

@@ -1,0 +1,211 @@
+<div class="proposal-page py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+
+        <!-- Header -->
+        <div class="mb-4">
+          {% if not hide_hub_nav|default(false) %}
+          {% include 'partials/nav_prev_screen.html' %}
+          {% endif %}
+
+          <div class="proposal-header">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="proposal-icon">
+                <i class="fa-solid fa-file-circle-check"></i>
+              </div>
+              <div>
+                <div class="badge free-tag mb-1">FREE PROPOSAL</div>
+                <h2 class="mb-0">Development Proposal</h2>
+                <p class="text-muted mb-0 small">AI + SAP 전문 컨설턴트가 생성한 개발 제안서</p>
+              </div>
+            </div>
+
+            <div class="rfp-summary-bar mb-3">
+              <span class="text-muted small me-2">요청:</span>
+              <strong>{{ rfp.title }}</strong>
+              {% if rfp.sap_modules %}
+                {% for m in rfp.sap_modules.split(',') %}
+                <span class="badge-module ms-2">{{ m }}</span>
+                {% endfor %}
+              {% endif %}
+              {% if rfp.dev_types %}
+                {% for d in rfp.dev_types.split(',') %}
+                <span class="badge-devtype ms-1">{{ d.replace('_',' ') }}</span>
+                {% endfor %}
+              {% endif %}
+            </div>
+
+            {% if user.is_admin %}
+            <div class="alert alert-primary border-primary small mb-3">
+              <div class="fw-bold mb-1"><i class="fa-solid fa-gears me-1"></i>관리자: FS 생성 · 수정 FS 업로드 · 납품 ABAP 요청</div>
+              <p class="mb-2 mb-0">이 작업들은 회원에게 보이는 미리보기 페이지(<a href="/rfp/{{ rfp.id }}?phase=fs" class="alert-link">통합 상세 · FS</a>)가 아니라
+                <strong>개발 산출 콘솔</strong>에서 처리합니다.</p>
+              <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-sm btn-dark mt-2">
+                개발 산출 콘솔 열기 <span class="text-white-50 small">(/admin/rfp/{{ rfp.id }}/delivery)</span>
+              </a>
+            </div>
+            {% endif %}
+            {% if billing_flash %}
+            <div class="alert alert-info small mb-3">{{ billing_flash }}</div>
+            {% endif %}
+            {% if paid_engagement_active %}
+            <div class="alert alert-success small mb-3 d-flex flex-wrap align-items-center gap-2 justify-content-between">
+              <span><i class="fa-solid fa-circle-check me-1"></i> <strong>개발 의뢰(결제 활성)</strong>가 표시되어 있습니다. FS·납품 코드는 관리자가 생성하며, <strong>FS</strong> 메뉴나 제안서 위의 콘솔 링크에서 확인합니다.</span>
+              <a href="/rfp/{{ rfp.id }}?phase=fs" class="btn btn-sm btn-outline-primary mb-0">FS·납품 보기</a>
+            </div>
+            {% elif rfp_eligible_for_checkout %}
+            {% if user.is_admin %}
+            <div class="alert alert-secondary border-0 small mb-3">
+              <strong>관리자 참고:</strong> Stripe 결제 플로우는 운영 적용 시까지 보류해도 됩니다. 지금은
+              <a href="/admin/rfp/{{ rfp.id }}/delivery" class="alert-link fw-bold">개발 산출 콘솔</a>에서 FS·납품 ABAP을 바로 진행할 수 있습니다.
+            </div>
+            {% else %}
+            <div class="alert alert-warning border-0 small mb-3">
+              <strong>다음 단계(유료):</strong> 상세 기능명세(FS) 및 납품 ABAP 초안은 Stripe 결제 후 개발 의뢰가 열립니다.
+              {% if stripe_checkout_ready %}
+              <form method="post" action="/payments/stripe/checkout" class="d-inline-block ms-lg-3 mt-2 mt-lg-0">
+                <input type="hidden" name="rfp_id" value="{{ rfp.id }}"/>
+                <button type="submit" class="btn btn-sm btn-primary">Stripe 결제 후 개발 의뢰하기</button>
+              </form>
+              {% else %}
+              <span class="text-muted d-block mt-2">Stripe 연동(STRIPE_SECRET_KEY, STRIPE_PRICE_RFP_DEVELOPMENT)이 필요합니다.</span>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+              <a href="/rfp/{{ rfp.id }}/proposal/download" class="btn btn-outline-primary">
+                <i class="fa-solid fa-download me-2"></i>Markdown 다운로드
+              </a>
+              {% if messages %}
+              <button type="button" class="btn btn-outline-secondary" id="proposalModifyReveal"
+                      data-bs-toggle="collapse" data-bs-target="#proposalEditDock" aria-expanded="false" aria-controls="proposalEditDock">
+                <i class="fa-solid fa-pen me-2"></i>수정
+              </button>
+              {% endif %}
+              <a href="/rfp/new" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-plus me-2"></i>새 요청 만들기
+              </a>
+              {% if messages %}
+              <div id="proposalEditDock" class="collapse w-100 mt-1">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <button class="btn btn-outline-warning" id="toggleEditAnswers" onclick="toggleAnswerEdit()">
+                    <i class="fa-solid fa-pen-to-square me-2"></i>답변 수정
+                  </button>
+                  <form method="post" action="/rfp/{{ rfp.id }}/proposal/regenerate" id="regenForm" class="d-inline">
+                    <button type="submit" class="btn btn-warning" id="regenBtn" disabled
+                            title="답변 수정 후 활성화됩니다">
+                      <i class="fa-solid fa-rotate me-2"></i>제안서 재생성
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {% endif %}
+              {% if user.is_admin %}
+              <div class="ms-auto small text-muted">관리자: 위 파란 박스 → <strong>개발 산출 콘솔</strong></div>
+              {% else %}
+              <div class="ms-auto">
+                <span class="paid-cta-badge">
+                  <i class="fa-solid fa-lock me-1"></i>
+                  최종 FS &amp; ABAP 코드는 유료 서비스로 제공됩니다
+                </span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Proposal Content -->
+        <div class="proposal-card">
+          <div class="proposal-body proposal-prose">
+            {{ proposal_html | safe }}
+          </div>
+        </div>
+
+        <!-- Interview Summary / Edit -->
+        {% if messages %}
+        <div class="mt-4" id="interviewSection">
+          <div class="interview-edit-notice alert alert-info d-none" id="editNotice">
+            <i class="fa-solid fa-circle-info me-2"></i>
+            답변을 수정한 후 <strong>저장</strong>하고, <strong>제안서 재생성</strong> 버튼을 눌러 새 제안서를 받아보세요.
+          </div>
+          <details class="interview-summary-toggle" open id="interviewDetails">
+            <summary class="interview-summary-header">
+              <i class="fa-solid fa-comments me-2"></i>
+              인터뷰 내용 ({{ messages|length }}라운드)
+            </summary>
+            <div class="interview-summary-body mt-3">
+              {% for msg in messages %}
+              <div class="answered-round-card mb-3" data-round="{{ msg.round_number }}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div class="round-badge">{{ msg.round_number }}라운드</div>
+                  <button type="button" class="btn btn-xs btn-outline-secondary edit-btn d-none"
+                          onclick="openEdit({{ loop.index }})">
+                    <i class="fa-solid fa-pen me-1"></i>수정
+                  </button>
+                </div>
+                <div class="round-qa">
+                  <!-- 읽기 모드: questions_json 반복은 answers_text( Qn/An )와 중복이므로 생략 -->
+                  <div class="d-flex align-items-start gap-2 view-mode interview-qa-row" id="view-{{ loop.index }}">
+                    <i class="fa-solid fa-user text-success small mt-1"></i>
+                    <div class="interview-qa-content flex-grow-1">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
+                  </div>
+
+                  <!-- 편집 모드 -->
+                  <form method="post" action="/rfp/{{ rfp.id }}/interview/edit-answer"
+                        class="edit-mode d-none mt-2" id="edit-{{ loop.index }}">
+                    <input type="hidden" name="message_id" value="{{ msg.id }}"/>
+                    <input type="hidden" name="return_to" value="proposal"/>
+                    <textarea name="answers_text" class="form-control mb-2 answer-edit-area"
+                              rows="4">{{ msg.answers_text or "" }}</textarea>
+                    <div class="d-flex gap-2">
+                      <button type="submit" class="btn btn-sm btn-success">
+                        <i class="fa-solid fa-check me-1"></i>저장
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary"
+                              onclick="cancelEdit({{ loop.index }})">취소</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </details>
+        </div>
+        {% endif %}
+
+        <!-- Next Step CTA -->
+        {% if user.is_admin %}
+        <div class="next-step-cta mt-5">
+          <div class="alert alert-secondary small mb-0">
+            <strong>관리자 안내:</strong> FS 생성·컨설턴트 수정본 업로드·납품 ABAP 생성 요청은
+            <a href="/admin/rfp/{{ rfp.id }}/delivery" class="alert-link fw-bold">개발 산출 콘솔</a> 한 곳에서 처리합니다 (결제 플로우와 무관).
+          </div>
+        </div>
+        {% else %}
+        <div class="next-step-cta mt-5">
+          <div class="row align-items-center">
+            <div class="col-md-8">
+              <h5 class="mb-1">다음 단계: 최종 FS &amp; ABAP 코드 개발</h5>
+              <p class="text-muted mb-0 small">
+                위 Proposal을 확인하셨다면 유료 서비스를 통해 실제 운영 가능한 최종 FS와
+                검증된 ABAP 코드를 받아보세요. SAP 전문가가 직접 검토하고 납품합니다.
+              </p>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+              <button class="btn btn-primary px-4" disabled title="준비 중">
+                <i class="fa-solid fa-cart-shopping me-2"></i>개발 의뢰하기
+                <span class="badge bg-warning text-dark ms-1 small">준비 중</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>

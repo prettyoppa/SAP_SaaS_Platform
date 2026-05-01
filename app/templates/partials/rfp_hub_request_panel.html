@@ -1,0 +1,60 @@
+<div class="proposal-page py-5">
+  <div class="container col-lg-9">
+    {% if not hide_hub_nav|default(false) %}
+    {% include 'partials/nav_prev_screen.html' %}
+    {% endif %}
+    <div class="proposal-header mb-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <h2 class="mb-2">요청 정보</h2>
+          <p class="text-muted small mb-0">{{ rfp.title }}</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <button type="button" class="btn btn-outline-secondary" id="requestEditReveal">
+            <i class="fa-solid fa-pen me-1"></i>수정
+          </button>
+          <span class="badge bg-secondary">{{ rfp.status }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="proposal-card mb-3">
+      <div class="proposal-body">
+        <dl class="row mb-0 small">
+          {% if rfp.program_id %}
+          <dt class="col-sm-3 text-muted">프로그램 ID</dt><dd class="col-sm-9 font-monospace">{{ rfp.program_id }}</dd>{% endif %}
+          {% if rfp.transaction_code %}
+          <dt class="col-sm-3 text-muted">T-code</dt><dd class="col-sm-9 font-monospace">{{ rfp.transaction_code }}</dd>{% endif %}
+          <dt class="col-sm-3 text-muted">SAP 모듈</dt>
+          <dd class="col-sm-9">{% if rfp.sap_modules %}{% for m in rfp.sap_modules.split(',') %}{% if m %}<span class="badge-module me-1">{{ m }}</span>{% endif %}{% endfor %}{% else %}—{% endif %}</dd>
+          <dt class="col-sm-3 text-muted">개발 유형</dt>
+          <dd class="col-sm-9">{% if rfp.dev_types %}{% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype me-1">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}{% else %}—{% endif %}</dd>
+          <dt class="col-sm-3 text-muted">제출 일시</dt>
+          <dd class="col-sm-9">{{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+        </dl>
+        {% if rfp.description %}
+        <h6 class="text-muted mt-3 small text-uppercase">요구사항</h6>
+        <div class="border rounded p-3" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ rfp.description }}</div>
+        {% endif %}
+        {% if attachment_entries %}
+        <h6 class="text-muted mt-3 small text-uppercase">첨부</h6>
+        <ul class="mb-0">
+          {% for att in attachment_entries %}
+          <li class="mb-1"><a href="/rfp/{{ rfp.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename or '파일' }}</a></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+    <div id="requestEditDock" class="d-none mb-5">
+      <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-primary">
+        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>요청 수정 페이지로 이동
+      </a>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('requestEditReveal').addEventListener('click', function () {
+  var d = document.getElementById('requestEditDock');
+  d.classList.toggle('d-none');
+});
+</script>

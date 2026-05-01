@@ -1,0 +1,28 @@
+<div class="interview-summary-body pt-0">
+  {% if dc_stat == 'failed' %}
+  <div class="alert alert-danger small mb-3">
+    코드 생성 실패 · 관리자에게 문의하세요.
+  </div>
+  {% endif %}
+
+  {% if dc_busy %}
+  <p class="text-muted small mb-3"><span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>개발코드를 생성하는 중입니다.</p>
+  {% endif %}
+
+  {% if delivered_code_html %}
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <h5 class="mb-0 me-auto small text-uppercase text-muted">납품 ABAP · Markdown 미리보기</h5>
+    <a href="/rfp/{{ rfp.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
+       download data-no-busy="true">
+      <i class="fa-solid fa-download me-1"></i>납품 코드 다운로드 (.abap)
+    </a>
+  </div>
+  <div class="proposal-card mb-0">
+    <div class="proposal-body proposal-prose">{{ delivered_code_html | safe }}</div>
+  </div>
+  {% elif fs_stat == 'ready' and not dc_busy %}
+  <p class="text-muted small mb-0">납품 코드는 FS 준비 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>
+  {% elif fs_stat != 'ready' and not dc_busy %}
+  <p class="text-muted small mb-0">기능명세(FS)가 준비된 뒤 개발코드를 생성할 수 있습니다.</p>
+  {% endif %}
+</div>

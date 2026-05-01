@@ -1,0 +1,38 @@
+<script>
+(function () {
+  function toggleAnswerEdit() {
+    var dock = document.getElementById('proposalEditDock');
+    var notice = document.getElementById('editNotice');
+    if (dock && typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+      bootstrap.Collapse.getOrCreateInstance(dock).toggle();
+    } else if (dock) {
+      dock.classList.toggle('show');
+    }
+    if (notice) notice.classList.toggle('d-none');
+    document.querySelectorAll('.edit-btn').forEach(function (b) {
+      b.classList.toggle('d-none');
+    });
+  }
+  window.toggleAnswerEdit = toggleAnswerEdit;
+
+  window.openEdit = function (i) {
+    var v = document.getElementById('view-' + i);
+    var e = document.getElementById('edit-' + i);
+    if (v) v.classList.add('d-none');
+    if (e) e.classList.remove('d-none');
+  };
+  window.cancelEdit = function (i) {
+    var v = document.getElementById('view-' + i);
+    var e = document.getElementById('edit-' + i);
+    if (v) v.classList.remove('d-none');
+    if (e) e.classList.add('d-none');
+  };
+
+  var regenBtn = document.getElementById('regenBtn');
+  document.querySelectorAll('.answer-edit-area').forEach(function (ta) {
+    ta.addEventListener('input', function () {
+      if (regenBtn) regenBtn.disabled = false;
+    });
+  });
+})();
+</script>

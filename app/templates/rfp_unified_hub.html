@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ rfp.title }} · 신규 개발{% endblock %}
+
+{% block content %}
+<style>
+.rfp-unified-hub .rfp-hub-phase-body .proposal-page {
+  padding-top: 0 !important;
+  padding-bottom: 0.75rem !important;
+}
+</style>
+<div class="proposal-page py-4 rfp-unified-hub">
+  <div class="container col-lg-10">
+    {% include 'partials/nav_prev_screen.html' %}
+
+    <div class="mb-4 pb-2 border-bottom" style="border-color:var(--border)!important">
+      <h2 class="h4 mb-1">{{ rfp.title }}</h2>
+      <p class="text-muted small mb-0">신규 개발 · 단계별 상세를 펼치거나 접을 수 있습니다.</p>
+    </div>
+
+    {# --- 1. 요청 --- #}
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-request"
+      {% if hub_phase_open == 'request' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold">1. 요청</span>
+        <span class="badge bg-secondary">{{ rfp.status }}</span>
+      </summary>
+      <div class="rfp-hub-phase-body pt-2">
+        {% set hide_hub_nav = true %}
+        {% include 'partials/rfp_hub_request_panel.html' %}
+      </div>
+    </details>
+
+    {# --- 2. 인터뷰 --- #}
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-interview"
+      {% if hub_phase_open == 'interview' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold">2. 인터뷰</span>
+        {% if hub_embedded|default(false) %}
+        <span class="badge bg-primary">진행</span>
+        {% elif interview_summary_messages and interview_summary_messages|length > 0 %}
+        <span class="badge bg-info text-dark">{{ interview_summary_messages|length }} 라운드</span>
+        {% elif rfp.interview_status == 'generating_proposal' %}
+        <span class="badge bg-info text-dark">제안서 생성 중</span>
+        {% elif rfp.interview_status == 'in_progress' %}
+        <span class="badge bg-warning text-dark">진행</span>
+        {% endif %}
+      </summary>
+      <div class="rfp-hub-phase-body pt-2">
+        {% if hub_embedded|default(false) %}
+          {% include 'partials/interview_workspace_markup.html' %}
+        {% else %}
+          {% set messages = interview_summary_messages %}
+          {% set hide_hub_nav = true %}
+          {% include 'partials/interview_summary_workspace_markup.html' %}
+        {% endif %}
+      </div>
+    </details>
+
+    {# --- 3. 제안서 --- #}
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-proposal"
+      {% if hub_phase_open == 'proposal' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold">3. 제안서</span>
+        {% if hub_proposal_generating %}
+        <span class="badge bg-info text-dark">생성 중</span>
+        {% elif proposal_html %}
+        <span class="badge bg-success">준비됨</span>
+        {% endif %}
+      </summary>
+      <div class="rfp-hub-phase-body pt-2">
+        {% if hub_proposal_generating %}
+          {% include 'partials/proposal_generating_panel.html' %}
+        {% elif proposal_html %}
+          {% set messages = proposal_round_messages %}
+          {% set hide_hub_nav = true %}
+          {% include 'partials/proposal_workspace_markup.html' %}
+        {% else %}
+          <p class="text-muted small mb-0">제안서가 아직 없습니다. 인터뷰를 진행하면 생성할 수 있습니다.</p>
+        {% endif %}
+      </div>
+    </details>
+
+    {# --- 4. FS --- #}
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-fs"
+      {% if hub_phase_open == 'fs' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>
+        <span class="fw-semibold">4. 기능명세 (FS)</span>
+        {% if fs_busy %}
+        <span class="badge bg-info text-dark ms-1">생성 중</span>
+        {% elif fs_stat == 'failed' %}
+        <span class="badge bg-danger ms-1">실패</span>
+        {% elif fs_stat == 'ready' and fs_html %}
+        <span class="badge bg-success ms-1">준비됨</span>
+        {% else %}
+        <span class="badge bg-secondary ms-1">대기</span>
+        {% endif %}
+      </summary>
+      <div class="rfp-hub-phase-body pt-2">
+        {% include 'partials/rfp_hub_fs_admin_bar.html' %}
+        {% include 'partials/rfp_hub_fs_body_flat.html' %}
+      </div>
+    </details>
+
+    {# --- 5. 개발코드 (참조 ABAP + 안내) --- #}
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-devcode"
+      {% if hub_phase_open == 'devcode' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <i class="fa-solid fa-code me-1" aria-hidden="true"></i>
+        <span class="fw-semibold">5. 개발코드</span>
+        {% if source_program_groups and source_program_groups|length %}
+        <span class="badge bg-secondary">{{ reference_section_count }}개 섹션</span>
+        {% endif %}
+        {% if dc_busy %}
+        <span class="badge bg-info text-dark ms-1">납품 코드 생성 중</span>
+        {% elif delivered_code_html %}
+        <span class="badge bg-success ms-1">납품 코드 준비됨</span>
+        {% endif %}
+      </summary>
+      <div class="rfp-hub-phase-body pt-2">
+        {% set hide_hub_nav = true %}
+        {% include 'partials/rfp_hub_dev_code_panel.html' %}
+      </div>
+    </details>
+
+    {% include 'partials/rfp_hub_member_delivery_modal.html' %}
+  </div>
+</div>
+
+<script>
+(function () {
+  var ph = {{ hub_phase_open|tojson }};
+  var map = {
+    request: 'rfp-phase-request',
+    interview: 'rfp-phase-interview',
+    proposal: 'rfp-phase-proposal',
+    fs: 'rfp-phase-fs',
+    devcode: 'rfp-phase-devcode'
+  };
+  var id = map[ph];
+  if (!id) return;
+  document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+})();
+</script>
+{% endblock %}
+
+{% block extra_js %}
+{% if hub_embedded|default(false) %}
+{% include 'partials/interview_workspace_scripts.html' %}
+{% endif %}
+{% if hub_include_proposal_scripts|default(false) %}
+{% include 'partials/proposal_workspace_scripts.html' %}
+{% endif %}
+{% include 'partials/rfp_hub_gen_poll_script.html' %}
+{% endblock %}

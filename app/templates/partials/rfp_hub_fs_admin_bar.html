@@ -1,0 +1,21 @@
+{% if user.is_admin %}
+<div class="alert alert-warning border mb-3">
+  <button type="button" class="btn btn-sm btn-outline-dark mb-2" data-bs-toggle="collapse" data-bs-target="#adminFsHubEditHub" aria-expanded="false" aria-controls="adminFsHubEditHub">수정</button>
+  <div class="collapse" id="adminFsHubEditHub">
+    <hr class="my-2">
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy %}disabled{% endif %}>
+          {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
+        </button>
+      </form>
+      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
+          {% if delivered_code_html %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
+        </button>
+      </form>
+    </div>
+    <p class="small text-muted mb-0">컨설턴트 FS 첨부·실행 로그는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>에서 처리합니다.</p>
+  </div>
+</div>
+{% endif %}

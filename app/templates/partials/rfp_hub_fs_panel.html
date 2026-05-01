@@ -1,0 +1,197 @@
+<div class="proposal-page py-5">
+  <div class="container col-lg-9">
+    {% if not hide_hub_nav|default(false) %}
+    {% include 'partials/nav_prev_screen.html' %}
+    {% endif %}
+    {% if user.is_admin %}
+    <div class="alert alert-warning border mb-4">
+      <button type="button" class="btn btn-sm btn-outline-dark mb-2" data-bs-toggle="collapse" data-bs-target="#adminFsHubEdit" aria-expanded="false" aria-controls="adminFsHubEdit">수정</button>
+      <div class="collapse" id="adminFsHubEdit">
+        <hr class="my-2">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+          <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy %}disabled{% endif %}>
+              {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
+            </button>
+          </form>
+          <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
+              {% if delivered_code_html %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
+            </button>
+          </form>
+        </div>
+        <p class="small text-muted mb-0">컨설턴트 FS 첨부·실행 로그는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>에서 처리합니다.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="proposal-header mb-4">
+      <h2 class="mb-2">FS / 개발코드</h2>
+      <p class="text-muted small mb-0">{{ rfp.title }}</p>
+    </div>
+
+    {# FS: 접기/펼치기 — 생성 중이거나 본문이 있으면 기본 펼침 #}
+    <details class="interview-summary-toggle mb-4"
+      {% if fs_busy or (fs_stat == 'ready' and fs_html) or fs_stat == 'failed' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>
+        <span class="fw-semibold">기능명세 (FS)</span>
+        {% if fs_busy %}
+        <span class="badge bg-info text-dark ms-1">생성 중</span>
+        {% elif fs_stat == 'failed' %}
+        <span class="badge bg-danger ms-1">실패</span>
+        {% elif fs_stat == 'ready' and fs_html %}
+        <span class="badge bg-success ms-1">준비됨</span>
+        {% else %}
+        <span class="badge bg-secondary ms-1">대기</span>
+        {% endif %}
+      </summary>
+      <div class="interview-summary-body pt-0">
+        {% if fs_stat == 'failed' %}
+        <div class="alert alert-danger small mb-3">
+          FS 생성에 실패했습니다. 관리자에게 문의하세요.
+        </div>
+        {% endif %}
+
+        {% if fs_stat == 'none' or (fs_stat != 'generating' and fs_stat != 'ready' and fs_stat != 'failed') %}
+        <p class="text-muted small mb-3 mb-md-0">관리자가 FS 생성을 시작하면 이 영역에 표시됩니다.</p>
+        {% endif %}
+
+        {% if rfp.fs_supplements %}
+        <div class="proposal-card mb-3">
+          <h6 class="text-muted small text-uppercase mb-2">컨설턴트 FS 첨부</h6>
+          <p class="small text-muted mb-2">코드 생성 시 아래 파일이 모두 반영됩니다.</p>
+          <ul class="mb-0 ps-3 small">
+            {% for s in rfp.fs_supplements %}
+            <li>{{ s.filename }} <span class="text-muted">({{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span></li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if fs_busy %}
+        <p class="text-muted small mb-3"><span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>기능명세를 생성하는 중입니다.</p>
+        {% endif %}
+
+        {% if fs_stat == 'ready' and fs_html %}
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+          <h5 class="mb-0 me-auto small text-uppercase text-muted">Markdown 미리보기</h5>
+          <a href="/rfp/{{ rfp.id }}/fs/download" class="btn btn-sm btn-outline-primary"
+             download data-no-busy="true">
+            <i class="fa-solid fa-download me-1"></i>FS 다운로드 (.md)
+          </a>
+        </div>
+        <div class="proposal-card mb-0">
+          <div class="proposal-body proposal-prose">{{ fs_html | safe }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </details>
+
+    {# 개발코드(납품 ABAP): 접기/펼치기 #}
+    <details class="interview-summary-toggle mb-4"
+      {% if dc_busy or delivered_code_html or dc_stat == 'failed' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <i class="fa-solid fa-code me-1" aria-hidden="true"></i>
+        <span class="fw-semibold">개발코드</span>
+        {% if dc_busy %}
+        <span class="badge bg-info text-dark ms-1">생성 중</span>
+        {% elif dc_stat == 'failed' %}
+        <span class="badge bg-danger ms-1">실패</span>
+        {% elif delivered_code_html %}
+        <span class="badge bg-success ms-1">준비됨</span>
+        {% elif fs_stat == 'ready' %}
+        <span class="badge bg-secondary ms-1">대기</span>
+        {% else %}
+        <span class="badge bg-secondary ms-1">FS 필요</span>
+        {% endif %}
+      </summary>
+      <div class="interview-summary-body pt-0">
+        {% if dc_stat == 'failed' %}
+        <div class="alert alert-danger small mb-3">
+          코드 생성 실패 · 관리자에게 문의하세요.
+        </div>
+        {% endif %}
+
+        {% if dc_busy %}
+        <p class="text-muted small mb-3"><span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>개발코드를 생성하는 중입니다.</p>
+        {% endif %}
+
+        {% if delivered_code_html %}
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+          <h5 class="mb-0 me-auto small text-uppercase text-muted">납품 ABAP · Markdown 미리보기</h5>
+          <a href="/rfp/{{ rfp.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
+             download data-no-busy="true">
+            <i class="fa-solid fa-download me-1"></i>납품 코드 다운로드 (.abap)
+          </a>
+        </div>
+        <div class="proposal-card mb-0">
+          <div class="proposal-body proposal-prose">{{ delivered_code_html | safe }}</div>
+        </div>
+        {% elif fs_stat == 'ready' and not dc_busy %}
+        <p class="text-muted small mb-0">납품 코드는 FS 준비 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>
+        {% elif fs_stat != 'ready' and not dc_busy %}
+        <p class="text-muted small mb-0">기능명세(FS)가 준비된 뒤 개발코드를 생성할 수 있습니다.</p>
+        {% endif %}
+      </div>
+    </details>
+
+    {% if gen_busy %}
+    <div class="modal fade" id="memberDeliveryProgressModal" tabindex="-1" aria-hidden="true"
+      data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title">생성 진행 중</h5>
+          </div>
+          <div class="modal-body pt-2">
+            <div class="text-center mb-4">
+              <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;"></div>
+              <p class="text-muted small mb-0">완료되면 화면이 자동으로 새로 고침됩니다.</p>
+            </div>
+
+            {% if fs_busy %}
+            <div class="mb-4 pb-3 border-bottom">
+              <div class="fw-semibold small mb-2">기능명세(FS)</div>
+              <div class="d-flex justify-content-center gap-2">
+                <div class="text-center delivery-gen-step active" id="mem-fs-step">
+                  <div class="small">「기능명세」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">문서 작성</div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            {% if dc_busy %}
+            <div>
+              <div class="fw-semibold small mb-2">납품 코드</div>
+              <div class="d-flex justify-content-center align-items-start gap-2 flex-wrap mb-2">
+                <div class="text-center delivery-gen-step active" id="mem-dc-step1">
+                  <div class="small">「ABAP」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">초안</div>
+                </div>
+                <div class="text-muted pt-1">→</div>
+                <div class="text-center delivery-gen-step" id="mem-dc-step2">
+                  <div class="small">「코드검수」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">검토·수정</div>
+                </div>
+                <div class="text-muted pt-1">→</div>
+                <div class="text-center delivery-gen-step" id="mem-dc-step3">
+                  <div class="small">「테스트시나리오」에이전트</div>
+                  <div class="text-muted" style="font-size:0.75rem;">시나리오</div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+.delivery-gen-step { opacity: 0.35; transition: opacity 0.5s; max-width: 7rem; }
+.delivery-gen-step.active { opacity: 1; }
+</style>

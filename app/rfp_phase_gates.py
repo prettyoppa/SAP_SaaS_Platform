@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import models
 from .paid_tier import PAID_ACTIVE
+from .rfp_hub import rfp_hub_url
 from .rfp_reference_code import normalize_reference_code_payload
 
 
@@ -50,7 +51,7 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
     pipeline = fs_s != "none" or dc_s != "none"
     is_admin = bool(user and getattr(user, "is_admin", False))
     has_fs = paid_on or pipeline or is_admin
-    fs_href = f"/rfp/{rid}/fs" if has_fs else None
+    fs_href = rfp_hub_url(rid, "fs") if has_fs else None
 
     st = (rfp.status or "").strip()
     iv = (rfp.interview_status or "").strip()
@@ -59,9 +60,9 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
 
     has_proposal = bool(prop) or iv == "generating_proposal"
     if iv == "generating_proposal":
-        proposal_href = f"/rfp/{rid}/proposal/generating"
+        proposal_href = rfp_hub_url(rid, "proposal")
     elif prop:
-        proposal_href = f"/rfp/{rid}/proposal"
+        proposal_href = rfp_hub_url(rid, "proposal")
     else:
         proposal_href = None
 
@@ -70,27 +71,27 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
     if st != "draft":
         if iv == "generating_proposal":
             has_interview = True
-            interview_href = f"/rfp/{rid}/interview/summary"
+            interview_href = rfp_hub_url(rid, "interview", view_summary=True)
         elif iv == "in_progress":
             has_interview = True
-            interview_href = f"/rfp/{rid}/interview"
+            interview_href = rfp_hub_url(rid, "interview")
         elif iv == "completed":
             has_interview = True
-            interview_href = f"/rfp/{rid}/interview/summary"
+            interview_href = rfp_hub_url(rid, "interview", view_summary=True)
         elif nmsg > 0:
             has_interview = True
-            interview_href = f"/rfp/{rid}/interview/summary"
+            interview_href = rfp_hub_url(rid, "interview", view_summary=True)
         elif st == "submitted" and iv == "pending":
             has_interview = True
-            interview_href = f"/rfp/{rid}/interview"
+            interview_href = rfp_hub_url(rid, "interview")
 
-    request_href = f"/rfp/{rid}/request"
+    request_href = rfp_hub_url(rid, "request")
 
     dc_started = dc_s != "none"
     if dc_started:
-        dev_code_href = f"/rfp/{rid}/fs"
+        dev_code_href = rfp_hub_url(rid, "devcode")
     elif has_ref_dev:
-        dev_code_href = f"/rfp/{rid}/dev-code"
+        dev_code_href = rfp_hub_url(rid, "devcode")
     else:
         dev_code_href = None
 

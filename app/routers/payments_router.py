@@ -38,7 +38,7 @@ def stripe_checkout_start(
         return RedirectResponse(url="/login", status_code=302)
     if not stripe_keys_configured():
         return RedirectResponse(
-            url=f"/rfp/{rfp_id}/proposal?checkout=unconfigured",
+            url=f"/rfp/{rfp_id}?phase=proposal&checkout=unconfigured",
             status_code=302,
         )
     rfp = (
@@ -47,7 +47,7 @@ def stripe_checkout_start(
         .first()
     )
     if not rfp or not rfp_eligible_for_stripe_checkout(rfp):
-        return RedirectResponse(url=f"/rfp/{rfp_id}/proposal", status_code=302)
+        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=302)
     try:
         session = create_rfp_checkout_session(
             rfp_id=rfp_id,
@@ -57,7 +57,7 @@ def stripe_checkout_start(
     except Exception:
         _log.exception("stripe checkout create failed rfp_id=%s", rfp_id)
         return RedirectResponse(
-            url=f"/rfp/{rfp_id}/proposal?checkout=error",
+            url=f"/rfp/{rfp_id}?phase=proposal&checkout=error",
             status_code=302,
         )
     sid = getattr(session, "id", None)
@@ -68,7 +68,7 @@ def stripe_checkout_start(
     db.commit()
     if not url:
         return RedirectResponse(
-            url=f"/rfp/{rfp_id}/proposal?checkout=error",
+            url=f"/rfp/{rfp_id}?phase=proposal&checkout=error",
             status_code=302,
         )
     return RedirectResponse(url=url, status_code=303)
@@ -93,7 +93,7 @@ def billing_confirm_redirect(
         return RedirectResponse(url="/", status_code=302)
     if not session_id or not session_id.strip():
         return RedirectResponse(
-            url=f"/rfp/{rfp_id}/proposal?checkout=missing_session",
+            url=f"/rfp/{rfp_id}?phase=proposal&checkout=missing_session",
             status_code=302,
         )
     try:
@@ -102,11 +102,11 @@ def billing_confirm_redirect(
     except Exception:
         _log.exception("billing confirm verify failed rfp_id=%s", rfp_id)
         return RedirectResponse(
-            url=f"/rfp/{rfp_id}/proposal?checkout=verify_failed",
+            url=f"/rfp/{rfp_id}?phase=proposal&checkout=verify_failed",
             status_code=302,
         )
     return RedirectResponse(
-        url=f"/rfp/{rfp_id}/proposal?checkout=success",
+        url=f"/rfp/{rfp_id}?phase=proposal&checkout=success",
         status_code=302,
     )
 
