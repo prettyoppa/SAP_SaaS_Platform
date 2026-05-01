@@ -44,6 +44,7 @@ from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
     _remove_stored_file,
+    duplicate_attachment_entries,
 )
 from ..workflow_rfp_bridge import create_workflow_rfp_from_abap_analysis
 
@@ -407,6 +408,39 @@ async def abap_analysis_create(
     db.commit()
     db.refresh(row)
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
+
+
+@router.post("/{req_id}/duplicate-request")
+def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session = Depends(get_db)):
+    """본인 분석 요청의 입력 필드·첨부·참고 코드만 복사한 새 임시저장 건을 만듭니다."""
+    user = _require_user(request, db)
+    row = _get_request_for_user(db, user, req_id)
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    att = duplicate_attachment_entries(_attachment_entries(row), user_id=user.id)
+    title = (row.title or "").strip()
+    if title and not title.endswith(" (복사)"):
+        title = f"{title} (복사)"
+    src = (row.source_code or "").strip()
+    if not src and row.reference_code_payload:
+        src = abap_source_only_from_reference_payload(row.reference_code_payload).strip()
+    new_row = models.AbapAnalysisRequest(
+        user_id=user.id,
+        title=title or "요청 복사",
+        requirement_text=row.requirement_text or "",
+        reference_code_payload=row.reference_code_payload,
+        source_code=src,
+        is_draft=True,
+        is_analyzed=False,
+        analysis_json=None,
+        workflow_rfp_id=None,
+        improvement_request_text=None,
+    )
+    _set_attachments(new_row, att)
+    db.add(new_row)
+    db.commit()
+    db.refresh(new_row)
+    return RedirectResponse(url=f"/abap-analysis/{new_row.id}/edit", status_code=302)
 
 
 @router.get("/{req_id}/edit", response_class=HTMLResponse)

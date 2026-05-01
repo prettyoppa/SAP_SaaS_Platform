@@ -102,14 +102,14 @@
       </div>
     </details>
 
-    {# --- 5. 개발코드 (참조 ABAP + 안내) --- #}
+    {# --- 5. 개발코드: 납품 ABAP(에이전트) + 참조로 제출한 ABAP --- #}
     <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-devcode"
       {% if hub_phase_open == 'devcode' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <i class="fa-solid fa-code me-1" aria-hidden="true"></i>
         <span class="fw-semibold">5. 개발코드</span>
         {% if source_program_groups and source_program_groups|length %}
-        <span class="badge bg-secondary">{{ reference_section_count }}개 섹션</span>
+        <span class="badge bg-secondary">참조 {{ reference_section_count }}개 섹션</span>
         {% endif %}
         {% if dc_busy %}
         <span class="badge bg-info text-dark ms-1">납품 코드 생성 중</span>
@@ -118,8 +118,15 @@
         {% endif %}
       </summary>
       <div class="rfp-hub-phase-body pt-2">
-        {% set hide_hub_nav = true %}
-        {% include 'partials/rfp_hub_dev_code_panel.html' %}
+        <div class="mb-4">
+          <h6 class="text-muted small text-uppercase mb-2">납품 ABAP (에이전트 생성)</h6>
+          {% include 'partials/rfp_hub_dc_body_flat.html' %}
+        </div>
+        <div class="border-top pt-3 mt-2">
+          <h6 class="text-muted small text-uppercase mb-2">참고로 제출한 ABAP</h6>
+          {% set hide_hub_nav = true %}
+          {% include 'partials/rfp_hub_dev_code_panel.html' %}
+        </div>
       </div>
     </details>
 

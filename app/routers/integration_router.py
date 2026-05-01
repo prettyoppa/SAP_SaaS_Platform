@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from typing import List
+from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -43,6 +44,7 @@ from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
     _get_modules_devtypes,
+    duplicate_attachment_entries,
     r2_storage,
 )
 
@@ -243,6 +245,9 @@ def integration_new_form(request: Request, db: Session = Depends(get_db)):
             "impl_labels": IMPL_LABELS,
             "error": None,
             "form": None,
+            "edit_ir": None,
+            "integration_ref_code_initial": None,
+            "attachment_entries": None,
         },
     )
 
@@ -371,6 +376,265 @@ async def integration_new_submit(
     db.add(ir)
     db.commit()
     db.refresh(ir)
+    return RedirectResponse(url=f"/integration/{ir.id}", status_code=302)
+
+
+@router.post("/integration/{req_id}/duplicate-request")
+def integration_duplicate_request(req_id: int, request: Request, db: Session = Depends(get_db)):
+    """본인 연동 요청을 초안으로 복사한 뒤 수정 폼으로 이동합니다."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
+        .first()
+    )
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    entries = duplicate_attachment_entries(_attachment_entries(ir), user_id=user.id)
+    title = (ir.title or "").strip()
+    if title and not title.endswith(" (복사)"):
+        title = f"{title} (복사)"
+    new_ir = models.IntegrationRequest(
+        user_id=user.id,
+        title=title or "복사된 연동 요청",
+        impl_types=ir.impl_types,
+        sap_touchpoints=ir.sap_touchpoints,
+        environment_notes=ir.environment_notes,
+        security_notes=ir.security_notes,
+        description=ir.description,
+        reference_code_payload=ir.reference_code_payload,
+        status="draft",
+        interview_status="pending",
+        workflow_rfp_id=None,
+        improvement_request_text=None,
+    )
+    _set_attachments(new_ir, entries)
+    db.add(new_ir)
+    db.commit()
+    db.refresh(new_ir)
+    return RedirectResponse(url=f"/integration/{new_ir.id}/edit", status_code=302)
+
+
+@router.get("/integration/{req_id}/edit", response_class=HTMLResponse)
+def integration_edit_form(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(
+            url=f"/login?next={quote('/integration/' + str(req_id) + '/edit')}",
+            status_code=302,
+        )
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
+        .first()
+    )
+    if not ir or (ir.status or "").strip().lower() != "draft":
+        return RedirectResponse(url="/integration", status_code=302)
+    modules, devtypes = _get_modules_devtypes(db)
+    ents = _attachment_entries(ir)
+    notes: list[str] = []
+    for i in range(5):
+        notes.append((ents[i].get("note") or "") if i < len(ents) else "")
+    impl_clean = [t.strip() for t in (ir.impl_types or "").split(",") if t.strip() in IMPL_LABELS]
+    form = {
+        "title": ir.title or "",
+        "impl_types": impl_clean,
+        "sap_touchpoints": ir.sap_touchpoints or "",
+        "environment_notes": ir.environment_notes or "",
+        "security_notes": ir.security_notes or "",
+        "description": ir.description or "",
+        "notes": notes,
+    }
+    ref_init = None
+    if ir.reference_code_payload:
+        try:
+            ref_init = json.loads(ir.reference_code_payload)
+        except Exception:
+            ref_init = None
+    return templates.TemplateResponse(
+        request,
+        "integration_form.html",
+        {
+            "request": request,
+            "user": user,
+            "modules": modules,
+            "devtypes": devtypes,
+            "impl_labels": IMPL_LABELS,
+            "error": None,
+            "form": form,
+            "edit_ir": ir,
+            "integration_ref_code_initial": ref_init,
+            "attachment_entries": ents,
+        },
+    )
+
+
+@router.post("/integration/{req_id}/edit")
+async def integration_edit_submit(
+    req_id: int,
+    request: Request,
+    title: str = Form(...),
+    impl_types: List[str] = Form(default=[]),
+    sap_touchpoints: str = Form(""),
+    environment_notes: str = Form(""),
+    security_notes: str = Form(""),
+    description: str = Form(""),
+    attachments: List[UploadFile] = File(default=[]),
+    note_0: str = Form(""),
+    note_1: str = Form(""),
+    note_2: str = Form(""),
+    note_3: str = Form(""),
+    note_4: str = Form(""),
+    reference_code_json: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
+        .first()
+    )
+    if not ir or (ir.status or "").strip().lower() != "draft":
+        return RedirectResponse(url="/integration", status_code=302)
+
+    modules, devtypes = _get_modules_devtypes(db)
+    notes_in = [note_0, note_1, note_2, note_3, note_4]
+
+    def _form_dict():
+        return {
+            "title": title,
+            "impl_types": impl_types,
+            "sap_touchpoints": sap_touchpoints,
+            "environment_notes": environment_notes,
+            "security_notes": security_notes,
+            "description": description,
+            "notes": notes_in,
+        }
+
+    n_uploads = sum(1 for f in attachments if f.filename)
+    if n_uploads > MAX_RFP_ATTACHMENTS:
+        return templates.TemplateResponse(
+            request,
+            "integration_form.html",
+            {
+                "request": request,
+                "user": user,
+                "modules": modules,
+                "devtypes": devtypes,
+                "impl_labels": IMPL_LABELS,
+                "error": "too_many_attachments",
+                "form": _form_dict(),
+                "edit_ir": ir,
+                "integration_ref_code_initial": None,
+                "attachment_entries": _attachment_entries(ir),
+            },
+            status_code=400,
+        )
+
+    try:
+        norm_ref = normalize_reference_code_payload(reference_code_json)
+    except ValueError:
+        ref_init = None
+        if (reference_code_json or "").strip():
+            try:
+                ref_init = json.loads(reference_code_json)
+            except Exception:
+                ref_init = None
+        return templates.TemplateResponse(
+            request,
+            "integration_form.html",
+            {
+                "request": request,
+                "user": user,
+                "modules": modules,
+                "devtypes": devtypes,
+                "impl_labels": IMPL_LABELS,
+                "error": "reference_code_too_large",
+                "form": _form_dict(),
+                "edit_ir": ir,
+                "integration_ref_code_initial": ref_init,
+                "attachment_entries": _attachment_entries(ir),
+            },
+            status_code=400,
+        )
+
+    merged_att = list(_attachment_entries(ir))
+    if n_uploads:
+        new_e, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
+        if err_a:
+            return templates.TemplateResponse(
+                request,
+                "integration_form.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "modules": modules,
+                    "devtypes": devtypes,
+                    "impl_labels": IMPL_LABELS,
+                    "error": err_a,
+                    "form": _form_dict(),
+                    "edit_ir": ir,
+                    "integration_ref_code_initial": None,
+                    "attachment_entries": merged_att,
+                },
+                status_code=400,
+            )
+        merged_att = merged_att + (new_e or [])
+        if len(merged_att) > MAX_RFP_ATTACHMENTS:
+            return templates.TemplateResponse(
+                request,
+                "integration_form.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "modules": modules,
+                    "devtypes": devtypes,
+                    "impl_labels": IMPL_LABELS,
+                    "error": "too_many_attachments",
+                    "form": _form_dict(),
+                    "edit_ir": ir,
+                    "integration_ref_code_initial": None,
+                    "attachment_entries": merged_att,
+                },
+                status_code=400,
+            )
+
+    impl_clean = [x for x in impl_types if x in IMPL_LABELS]
+    if not impl_clean:
+        return templates.TemplateResponse(
+            request,
+            "integration_form.html",
+            {
+                "request": request,
+                "user": user,
+                "modules": modules,
+                "devtypes": devtypes,
+                "impl_labels": IMPL_LABELS,
+                "error": "need_impl_types",
+                "form": _form_dict(),
+                "edit_ir": ir,
+                "integration_ref_code_initial": None,
+                "attachment_entries": merged_att,
+            },
+            status_code=400,
+        )
+
+    ir.title = title.strip()
+    ir.impl_types = ",".join(impl_clean) if impl_clean else ""
+    ir.sap_touchpoints = sap_touchpoints.strip() or None
+    ir.environment_notes = environment_notes.strip() or None
+    ir.security_notes = security_notes.strip() or None
+    ir.description = description.strip() or None
+    ir.reference_code_payload = norm_ref
+    ir.status = "submitted"
+    ir.interview_status = "pending"
+    _set_attachments(ir, merged_att)
+    db.add(ir)
+    db.commit()
     return RedirectResponse(url=f"/integration/{ir.id}", status_code=302)
 
 

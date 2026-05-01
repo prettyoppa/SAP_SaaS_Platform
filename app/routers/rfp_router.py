@@ -161,6 +161,28 @@ def _store_rfp_file(user_id: int, ext: str, data: bytes, original_filename: str)
     return _save_attachment_local(user_id, ext, data), original_filename
 
 
+def duplicate_attachment_entries(entries: list[dict], *, user_id: int) -> list[dict]:
+    """첨부를 새 저장 경로로 복제합니다(복사본이 원본 삭제에 영향받지 않도록). 읽기 실패 항목은 건너뜁니다."""
+    out: list[dict] = []
+    for ent in entries or []:
+        if not isinstance(ent, dict):
+            continue
+        path = ent.get("path")
+        fname = (ent.get("filename") or "attachment").strip() or "attachment"
+        note = (ent.get("note") or "").strip()
+        if not path:
+            continue
+        raw = r2_storage.read_bytes_from_ref(path)
+        if not raw:
+            continue
+        ext = os.path.splitext(fname)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            ext = ".bin"
+        new_path, new_fname = _store_rfp_file(user_id, ext, raw, fname)
+        out.append({"path": new_path, "filename": new_fname, "note": note})
+    return out
+
+
 def _rfp_attachment_entries(rfp: models.RFP) -> list[dict]:
     """attachments_json 우선, 없으면 레거시 단일 file_path."""
     if getattr(rfp, "attachments_json", None):
@@ -708,6 +730,38 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
+
+
+@router.post("/rfp/{rfp_id}/duplicate-request")
+def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    """본인 RFP 요청 필드만 복사한 새 임시저장 건을 만들고 수정 폼으로 이동합니다."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    entries = duplicate_attachment_entries(_rfp_attachment_entries(rfp), user_id=user.id)
+    title = (rfp.title or "").strip()
+    if title and not title.endswith(" (복사)"):
+        title = f"{title} (복사)"
+    new_rfp = models.RFP(
+        user_id=user.id,
+        program_id=rfp.program_id,
+        transaction_code=rfp.transaction_code,
+        title=title or "복사된 요청",
+        sap_modules=rfp.sap_modules,
+        dev_types=rfp.dev_types,
+        description=rfp.description,
+        reference_code_payload=rfp.reference_code_payload,
+        status="draft",
+        interview_status="pending",
+    )
+    _set_rfp_attachments(new_rfp, entries)
+    db.add(new_rfp)
+    db.commit()
+    db.refresh(new_rfp)
+    return RedirectResponse(url=f"/rfp/{new_rfp.id}/edit", status_code=302)
 
 
 @router.get("/rfp/{rfp_id}/edit", response_class=HTMLResponse)

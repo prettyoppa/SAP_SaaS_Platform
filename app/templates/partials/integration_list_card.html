@@ -17,7 +17,7 @@
     <div class="rfp-list-info flex-grow-1 min-w-0">
       <div class="rfp-list-title">
         <span class="badge bg-secondary me-2 small">연동</span>
-        <a href="/integration/{{ ir.id }}" class="text-reset fw-semibold text-decoration-none">{{ ir.title }}</a>
+        <a href="{% if (ir.status or '')|lower == 'draft' %}/integration/{{ ir.id }}/edit{% else %}/integration/{{ ir.id }}{% endif %}" class="text-reset fw-semibold text-decoration-none">{{ ir.title }}</a>
         <span class="badge bg-secondary ms-2 small">#{{ ir.id }}</span>
         {% if ir.workflow_rfp and (ir.workflow_rfp.proposal_text or '').strip() %}
         <span class="badge bg-success ms-1">제안</span>
@@ -53,6 +53,10 @@
   </div>
   <div class="rfp-list-right rfp-list-actions">
     <div class="d-flex flex-wrap gap-1 justify-content-end">
+      {% set duplicate_request_post_url = none %}
+      {% if user is defined and user.id == ir.user_id %}
+      {% set duplicate_request_post_url = '/integration/' ~ ir.id ~ '/duplicate-request' %}
+      {% endif %}
       {% set workflow_rfp = ir.workflow_rfp %}
       {% set request_href = '/integration/' ~ ir.id ~ '#integration-request-block' %}
       {% set interview_href = '/integration/' ~ ir.id ~ '#integration-followup-chat' %}

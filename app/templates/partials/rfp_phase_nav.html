@@ -6,6 +6,11 @@
     <i class="fa-solid fa-pen me-1"></i>이어쓰기
   </a>
   {% endif %}
+  {% if user is defined and user.id == rfp.user_id %}
+  <form method="post" action="/rfp/{{ rfp.id }}/duplicate-request" class="d-inline me-2">
+    <button type="submit" class="btn btn-sm btn-outline-secondary rfp-phase-btn">요청복사</button>
+  </form>
+  {% endif %}
   {% if ph.has_dev_code and ph.dev_code_href %}
   <a href="{{ ph.dev_code_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">개발코드</a>
   {% else %}

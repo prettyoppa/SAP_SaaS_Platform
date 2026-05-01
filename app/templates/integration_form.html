@@ -5,8 +5,8 @@
 <script>
   window.__INTEGRATION_CTX__ = {
     userId: {{ user.id }},
-    requestId: null,
-    scope: 'new'
+    requestId: {% if edit_ir %}{{ edit_ir.id }}{% else %}null{% endif %},
+    scope: {% if edit_ir %}'edit'{% else %}'new'{% endif %}
   };
 </script>
 <div class="rfp-page py-5">
@@ -15,8 +15,8 @@
       <div class="col-lg-9">
         <div class="rfp-header mb-4">
           {% include 'partials/nav_prev_screen.html' %}
-          <h2 class="rfp-title">SAP 연동 개발 요청</h2>
-          <p class="text-muted mb-0">구현 형태·SAP 접점·환경을 입력하고 필요 시 파일과 ABAP 코드를 첨부합니다.</p>
+          <h2 class="rfp-title">{% if edit_ir %}연동 요청 수정 (초안){% else %}SAP 연동 개발 요청{% endif %}</h2>
+          <p class="text-muted mb-0">{% if edit_ir %}복사·수정한 내용을 확인한 뒤 제출하면 새 요청으로 등록됩니다.{% else %}구현 형태·SAP 접점·환경을 입력하고 필요 시 파일과 ABAP 코드를 첨부합니다.{% endif %}</p>
 
           <div class="rfp-progress mt-4">
             <div class="rfp-step active" id="int-prog-1">
@@ -159,6 +159,19 @@
               </div>
               <div id="int-attachment-list" class="w-100 px-1"></div>
             </div>
+            {% if attachment_entries and edit_ir %}
+            <div class="mb-3 mt-2">
+              <div class="small text-uppercase text-muted mb-1">기존 첨부</div>
+              <ul class="mb-1 ps-3 small">
+                {% for att in attachment_entries %}
+                <li>
+                  <a href="/integration/{{ edit_ir.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename or '파일' }}</a>
+                </li>
+                {% endfor %}
+              </ul>
+              <p class="text-muted small mb-0">아래에서 파일을 추가하면 기존 첨부에 더해집니다 (합계 최대 5개).</p>
+            </div>
+            {% endif %}
             {% if form and form.notes is defined %}
             <script type="application/json" id="integration-notes-prefill">{{ form.notes | tojson }}</script>
             {% endif %}
@@ -276,9 +289,13 @@
               </div>
             </div>
             <div class="d-flex gap-3 justify-content-end mt-4 flex-wrap">
-              <a href="/integration" class="btn btn-outline-secondary px-4">취소</a>
+              <a href="{% if edit_ir %}/integration{% else %}/integration{% endif %}" class="btn btn-outline-secondary px-4">취소</a>
               <button type="submit" class="btn btn-primary btn-lg px-5" id="int-submit-btn">
+                {% if edit_ir %}
+                <i class="fa-solid fa-check me-2"></i>수정 완료 및 제출
+                {% else %}
                 <i class="fa-solid fa-paper-plane me-2"></i>요청 제출
+                {% endif %}
               </button>
             </div>
           </div>

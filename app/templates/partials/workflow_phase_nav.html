@@ -4,6 +4,11 @@
 {% set ph = wf|phase_gates(user if user is defined else none) %}
 {% endif %}
 <div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
+  {% if duplicate_request_post_url is defined and duplicate_request_post_url %}
+  <form method="post" action="{{ duplicate_request_post_url }}" class="d-inline me-2">
+    <button type="submit" class="btn btn-sm btn-outline-secondary rfp-phase-btn">요청복사</button>
+  </form>
+  {% endif %}
   {% if wf %}
   {% if ph.has_dev_code and ph.dev_code_href %}
   <a href="{{ ph.dev_code_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">개발코드</a>
