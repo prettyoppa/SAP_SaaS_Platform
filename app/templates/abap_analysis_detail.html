@@ -238,7 +238,6 @@
         <div class="proposal-card mb-4 border border-warning border-opacity-50" id="abap-improvement-proposal" style="background:var(--surface2);">
           <div class="proposal-body">
             <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem">개선 제안 요청</h4>
-            <p class="small text-muted mb-3">분석·인터뷰 내용을 바탕으로 <strong>신규 개발</strong> 메뉴와 동일한 에이전트가 무료 개발 제안서를 작성합니다. 이후 제안서·FS·개발코드 단계로 진행됩니다.</p>
             {% if wf_err == 'already' %}
             <div class="alert alert-info small mb-3">이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.</div>
             {% endif %}
@@ -257,8 +256,7 @@
             </div>
             {% else %}
             <form method="post" action="/abap-analysis/{{ row.id }}/improvement-proposal">
-              <label class="form-label small text-muted" for="improvement_request_text">요청사항 (자유 기술)</label>
-              <textarea id="improvement_request_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" required placeholder="개선 방향, 추가 요구, 범위 등을 입력해 주세요.">{{ row.improvement_request_text or '' }}</textarea>
+              <textarea id="improvement_request_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" required>{{ row.improvement_request_text or '' }}</textarea>
               <button type="submit" class="btn btn-primary btn-sm">
                 <i class="fa-solid fa-paper-plane me-1"></i>제출
               </button>

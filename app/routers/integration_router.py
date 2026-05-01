@@ -410,6 +410,7 @@ def integration_detail(
     chat_limit_reached = n_followup_user >= INT_CHAT_MAX_USER
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
     wf_err = (request.query_params.get("wf_err") or "").strip() or None
+    chat_enabled = True
 
     return templates.TemplateResponse(
         request,
@@ -425,6 +426,7 @@ def integration_detail(
             "source_program_groups": program_groups,
             "reference_section_count": ref_section_count,
             "followup_turns": followup_turns,
+            "chat_enabled": chat_enabled,
             "chat_limit_reached": chat_limit_reached,
             "chat_error": chat_error,
             "wf_err": wf_err,
@@ -459,7 +461,7 @@ def integration_chat_post(
     msg, verr = validate_integration_user_message(message)
     if verr:
         return RedirectResponse(
-            url=f"/integration/{req_id}?chat_err={quote(verr)}#integration-interview-block",
+            url=f"/integration/{req_id}?chat_err={quote(verr)}#integration-followup-chat",
             status_code=303,
         )
 
@@ -474,7 +476,7 @@ def integration_chat_post(
     if n_user >= INT_CHAT_MAX_USER:
         return RedirectResponse(
             url=f"/integration/{req_id}?chat_err={quote('후속 질문은 상한에 도달했습니다.')}"
-            f"#integration-interview-block",
+            f"#integration-followup-chat",
             status_code=303,
         )
 
@@ -511,7 +513,7 @@ def integration_chat_post(
         )
     )
     db.commit()
-    return RedirectResponse(url=f"/integration/{req_id}#integration-interview-block", status_code=303)
+    return RedirectResponse(url=f"/integration/{req_id}#integration-followup-chat", status_code=303)
 
 
 @router.post("/integration/{req_id}/improvement-proposal")
