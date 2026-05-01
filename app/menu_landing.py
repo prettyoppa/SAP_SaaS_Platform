@@ -9,7 +9,13 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
-from .rfp_landing import BUCKET_ORDER, TILE_ORDER_WITH_ALL, VALID_URL_BUCKETS, parse_slashed_date
+from .rfp_landing import (
+    BUCKET_ORDER,
+    TILE_ORDER_WITH_ALL,
+    VALID_URL_BUCKETS,
+    parse_slashed_date,
+    workflow_linked_rfp_bucket,
+)
 
 DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO = """요구사항과 ABAP 코드를 제출하면 구조 분석과 요구사항 연계 해석을 제공합니다.
 
@@ -96,8 +102,9 @@ def integration_menu_bucket(ir: models.IntegrationRequest) -> str:
     연동 요청 버킷(RFP 타일 라벨과 동일 이름).
     제안서 존재 → proposal, 초안 → draft, 생성 중(generating)→ analysis, 나머지 제출건 → in_progress.
     """
-    if False:
-        return "delivery"
+    wr = getattr(ir, "workflow_rfp", None)
+    if wr is not None:
+        return workflow_linked_rfp_bucket(wr)
     if (ir.proposal_text or "").strip():
         return "proposal"
     if (ir.status or "").lower() == "draft":
@@ -108,7 +115,13 @@ def integration_menu_bucket(ir: models.IntegrationRequest) -> str:
 
 
 def _abap_analysis_base_query(db: Session, *, admin: bool, user_id: int):
-    q = db.query(models.AbapAnalysisRequest).options(joinedload(models.AbapAnalysisRequest.owner))
+    q = (
+        db.query(models.AbapAnalysisRequest)
+        .options(
+            joinedload(models.AbapAnalysisRequest.owner),
+            joinedload(models.AbapAnalysisRequest.workflow_rfp).joinedload(models.RFP.messages),
+        )
+    )
     if admin:
         return q
     return q.filter(models.AbapAnalysisRequest.user_id == user_id)
@@ -165,7 +178,13 @@ def filtered_abap_analysis_menu_rows(
 
 
 def _integration_base_query(db: Session, *, admin: bool, user_id: int):
-    q = db.query(models.IntegrationRequest).options(joinedload(models.IntegrationRequest.owner))
+    q = (
+        db.query(models.IntegrationRequest)
+        .options(
+            joinedload(models.IntegrationRequest.owner),
+            joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
+        )
+    )
     if admin:
         return q
     return q.filter(models.IntegrationRequest.user_id == user_id)

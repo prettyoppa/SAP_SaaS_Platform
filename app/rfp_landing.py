@@ -79,6 +79,17 @@ def rfp_landing_aggregate(db: Session, *, admin: bool, user_id: int) -> tuple[di
     return counts, buckets
 
 
+def workflow_linked_rfp_bucket(rfp: models.RFP) -> str:
+    """분석·연동에서 생성된 연결 RFP: 납품(FS/코드) 준비되면 납품 타일로 분류."""
+    dc_ok = (rfp.delivered_code_status or "").strip() == "ready" and (rfp.delivered_code_text or "").strip()
+    if dc_ok:
+        return "delivery"
+    fs_ok = (rfp.fs_status or "").strip() == "ready" and (rfp.fs_text or "").strip()
+    if fs_ok:
+        return "delivery"
+    return rfp_landing_bucket(rfp)
+
+
 def rfp_landing_bucket(rfp: models.RFP) -> str:
     """
     상호 배타 단계(우선순위 위→아래).

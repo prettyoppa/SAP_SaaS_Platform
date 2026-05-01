@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}SAP ABAP 분석 – SAP 개발 파트너{% endblock %}
+{% block title %}SAP ABAP 분석&개선 – SAP 개발 파트너{% endblock %}
 
 {% block content %}
 <div class="dashboard-page dashboard-page-menu-landing py-4">
@@ -12,7 +12,7 @@
               <i class="fa-solid fa-hospital nav-icon-analysis-light"></i>
               <i class="fa-regular fa-hospital nav-icon-analysis-dark"></i>
             </span>
-            <span>SAP ABAP 분석</span>
+            <span>SAP ABAP 분석&개선</span>
           </h2>
           <div class="service-analysis-intro markdown-body-lite text-muted mb-0 small">
             {{ service_analysis_intro_html | safe }}
@@ -77,9 +77,6 @@
     </form>
 
     {% if menu_show_list %}
-      {% if selected_menu_bucket == 'delivery' %}
-      <p class="text-muted small mb-3">납품·코드 인도 단계는 추후 반영 예정입니다.</p>
-      {% endif %}
       {% if filtered_menu_rows|length %}
       <section class="mb-4">
         <h5 class="mb-3 d-flex align-items-center gap-2 flex-wrap">

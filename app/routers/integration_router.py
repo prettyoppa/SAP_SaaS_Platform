@@ -5,11 +5,14 @@ import json
 import os
 from typing import List
 
-from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import models, auth
+from ..abap_followup_chat import MAX_USER_TURNS_PER_REQUEST as INT_CHAT_MAX_USER
+from .abap_analysis_router import _pair_abap_followup_turns as _pair_integration_followup_turns
+from ..attachment_context import build_attachment_llm_digest
 from ..database import get_db
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..menu_landing import (
@@ -29,7 +32,13 @@ from ..rfp_landing import (
     rfp_landing_aggregate,
 )
 from ..templates_config import templates
-from ..routers.interview_router import _markdown_to_html
+from ..workflow_rfp_bridge import create_workflow_rfp_from_integration
+from ..integration_followup_chat import (
+    generate_integration_followup_reply,
+    integration_request_llm_summary,
+    validate_integration_user_message,
+)
+from ..routers.interview_router import _markdown_to_html, _run_proposal_background
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
@@ -47,6 +56,8 @@ IMPL_LABELS = {
     "api_integration": "API·시스템 연동",
     "other": "기타",
 }
+
+MIN_IMPROVEMENT_PROPOSAL_LEN = 20
 
 
 def _attachment_entries(ir: models.IntegrationRequest) -> list[dict]:
@@ -372,14 +383,34 @@ def integration_detail(
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    ir = db.query(models.IntegrationRequest).filter(
-        models.IntegrationRequest.id == req_id
-    ).first()
-    if not ir or (ir.user_id != user.id and not user.is_admin):
+    q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
+    if not user.is_admin:
+        q = q.filter(models.IntegrationRequest.user_id == user.id)
+    ir = (
+        q.options(
+            joinedload(models.IntegrationRequest.followup_messages),
+            joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
+        ).first()
+    )
+    if not ir:
         return RedirectResponse(url="/", status_code=302)
     types_list = [t for t in (ir.impl_types or "").split(",") if t.strip()]
     program_groups = reference_code_program_groups_for_tabs(ir.reference_code_payload)
     ref_section_count = sum(len(g["sections"]) for g in program_groups)
+    owner = None
+    if user.is_admin:
+        owner = db.query(models.User).filter(models.User.id == ir.user_id).first()
+
+    follow_msgs = sorted(
+        list(ir.followup_messages or []),
+        key=lambda m: (m.created_at or ir.created_at),
+    )
+    followup_turns = _pair_integration_followup_turns(follow_msgs)
+    n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
+    chat_limit_reached = n_followup_user >= INT_CHAT_MAX_USER
+    chat_error = (request.query_params.get("chat_err") or "").strip() or None
+    wf_err = (request.query_params.get("wf_err") or "").strip() or None
+
     return templates.TemplateResponse(
         request,
         "integration_detail.html",
@@ -387,13 +418,143 @@ def integration_detail(
             "request": request,
             "user": user,
             "ir": ir,
+            "owner": owner,
             "attachment_entries": _attachment_entries(ir),
             "impl_labels": IMPL_LABELS,
             "types_list": types_list,
             "source_program_groups": program_groups,
             "reference_section_count": ref_section_count,
+            "followup_turns": followup_turns,
+            "chat_limit_reached": chat_limit_reached,
+            "chat_error": chat_error,
+            "wf_err": wf_err,
+            "max_followup_user_turns": INT_CHAT_MAX_USER,
         },
     )
+
+
+@router.post("/integration/{req_id}/chat")
+def integration_chat_post(
+    req_id: int,
+    request: Request,
+    message: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    from urllib.parse import quote
+
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(
+            models.IntegrationRequest.id == req_id,
+            models.IntegrationRequest.user_id == user.id,
+        )
+        .first()
+    )
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+
+    msg, verr = validate_integration_user_message(message)
+    if verr:
+        return RedirectResponse(
+            url=f"/integration/{req_id}?chat_err={quote(verr)}#integration-interview-block",
+            status_code=303,
+        )
+
+    n_user = (
+        db.query(models.IntegrationFollowupMessage)
+        .filter(
+            models.IntegrationFollowupMessage.request_id == ir.id,
+            models.IntegrationFollowupMessage.role == "user",
+        )
+        .count()
+    )
+    if n_user >= INT_CHAT_MAX_USER:
+        return RedirectResponse(
+            url=f"/integration/{req_id}?chat_err={quote('후속 질문은 상한에 도달했습니다.')}"
+            f"#integration-interview-block",
+            status_code=303,
+        )
+
+    prior = (
+        db.query(models.IntegrationFollowupMessage)
+        .filter(models.IntegrationFollowupMessage.request_id == ir.id)
+        .order_by(models.IntegrationFollowupMessage.created_at.asc())
+        .all()
+    )
+
+    try:
+        att_digest = build_attachment_llm_digest(_attachment_entries(ir), max_total_chars=10_000)
+        reply = generate_integration_followup_reply(
+            ir_summary=integration_request_llm_summary(ir),
+            history_messages=prior,
+            user_question=msg,
+            attachment_digest=att_digest,
+        )
+    except Exception:
+        reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+
+    db.add(
+        models.IntegrationFollowupMessage(
+            request_id=ir.id,
+            role="user",
+            content=msg,
+        )
+    )
+    db.add(
+        models.IntegrationFollowupMessage(
+            request_id=ir.id,
+            role="assistant",
+            content=reply,
+        )
+    )
+    db.commit()
+    return RedirectResponse(url=f"/integration/{req_id}#integration-interview-block", status_code=303)
+
+
+@router.post("/integration/{req_id}/improvement-proposal")
+def integration_improvement_proposal_post(
+    req_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    improvement_request_text: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    ir = (
+        db.query(models.IntegrationRequest)
+        .options(joinedload(models.IntegrationRequest.followup_messages))
+        .filter(
+            models.IntegrationRequest.id == req_id,
+            models.IntegrationRequest.user_id == user.id,
+        )
+        .first()
+    )
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    if getattr(ir, "workflow_rfp_id", None):
+        return RedirectResponse(url=f"/integration/{req_id}?wf_err=already", status_code=302)
+    txt = (improvement_request_text or "").strip()
+    if len(txt) < MIN_IMPROVEMENT_PROPOSAL_LEN:
+        return RedirectResponse(url=f"/integration/{req_id}?wf_err=short", status_code=302)
+
+    fmsgs = sorted(
+        list(ir.followup_messages or []),
+        key=lambda m: (m.created_at or ir.created_at),
+    )
+    rfp = create_workflow_rfp_from_integration(
+        db,
+        ir=ir,
+        improvement_text=txt,
+        owner_user_id=user.id,
+        followup_messages=fmsgs,
+    )
+    background_tasks.add_task(_run_proposal_background, rfp.id)
+    return RedirectResponse(url=f"/rfp/{rfp.id}/proposal/generating", status_code=302)
 
 
 @router.get("/integration/{req_id}/attachment")

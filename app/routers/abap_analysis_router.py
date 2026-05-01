@@ -10,7 +10,7 @@ import os
 from typing import List, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 
@@ -39,14 +39,17 @@ from ..rfp_reference_code import (
     reference_code_program_groups_for_tabs,
 )
 from ..templates_config import templates
-from .interview_router import _markdown_to_html
+from .interview_router import _markdown_to_html, _run_proposal_background
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
     _remove_stored_file,
 )
+from ..workflow_rfp_bridge import create_workflow_rfp_from_abap_analysis
 
 router = APIRouter(prefix="/abap-analysis", tags=["abap_analysis"])
+
+MIN_IMPROVEMENT_PROPOSAL_LEN = 20
 
 MIN_REQUIREMENT_LEN = 20
 MIN_ABAP_SOURCE_LEN = 50
@@ -530,7 +533,15 @@ async def abap_analysis_edit_save(
 @router.get("/{req_id}", response_class=HTMLResponse)
 def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(get_db)):
     user = _require_user(request, db)
-    row = _get_request_for_user(db, user, req_id)
+    row = (
+        _query_for_user(db, user)
+        .options(
+            joinedload(models.AbapAnalysisRequest.followup_messages),
+            joinedload(models.AbapAnalysisRequest.workflow_rfp).joinedload(models.RFP.messages),
+        )
+        .filter(models.AbapAnalysisRequest.id == req_id)
+        .first()
+    )
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
     analysis = {}
@@ -543,11 +554,9 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
     if user.is_admin:
         owner = db.query(models.User).filter(models.User.id == row.user_id).first()
 
-    followup_messages = (
-        db.query(models.AbapAnalysisFollowupMessage)
-        .filter(models.AbapAnalysisFollowupMessage.request_id == row.id)
-        .order_by(models.AbapAnalysisFollowupMessage.created_at.asc())
-        .all()
+    followup_messages = sorted(
+        list(row.followup_messages or []),
+        key=lambda m: (m.created_at or row.created_at),
     )
     n_followup_user = sum(1 for m in followup_messages if (m.role or "") == "user")
     followup_turns = _pair_abap_followup_turns(followup_messages)
@@ -555,6 +564,7 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
     chat_enabled = (not row.is_draft) and bool(eff_src.strip())
     chat_limit_reached = n_followup_user >= MAX_USER_TURNS_PER_REQUEST
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
+    wf_err = (request.query_params.get("wf_err") or "").strip() or None
     program_groups = reference_code_program_groups_for_tabs(getattr(row, "reference_code_payload", None))
     if not program_groups and eff_src.strip():
         program_groups = [
@@ -581,12 +591,51 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
             "chat_enabled": chat_enabled,
             "chat_limit_reached": chat_limit_reached,
             "chat_error": chat_error,
+            "wf_err": wf_err,
             "source_program_groups": program_groups,
             "reference_section_count": ref_section_count,
             "abap_source_line_count": len(eff_src.splitlines()) if eff_src else 0,
             "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
         },
     )
+
+
+@router.post("/{req_id}/improvement-proposal")
+def abap_analysis_improvement_proposal_post(
+    req_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    improvement_request_text: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row_el = (
+        _query_for_user(db, user)
+        .options(joinedload(models.AbapAnalysisRequest.followup_messages))
+        .filter(models.AbapAnalysisRequest.id == req_id)
+        .first()
+    )
+    if not row_el or row_el.is_draft or not row_el.is_analyzed:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    if getattr(row_el, "workflow_rfp_id", None):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=already", status_code=302)
+    txt = (improvement_request_text or "").strip()
+    if len(txt) < MIN_IMPROVEMENT_PROPOSAL_LEN:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=short", status_code=302)
+
+    fmsgs = sorted(
+        list(row_el.followup_messages or []),
+        key=lambda m: (m.created_at or row_el.created_at),
+    )
+    rfp = create_workflow_rfp_from_abap_analysis(
+        db,
+        row=row_el,
+        improvement_text=txt,
+        owner_user_id=user.id,
+        followup_messages=fmsgs,
+    )
+    background_tasks.add_task(_run_proposal_background, rfp.id)
+    return RedirectResponse(url=f"/rfp/{rfp.id}/proposal/generating", status_code=302)
 
 
 @router.post("/{req_id}/chat")

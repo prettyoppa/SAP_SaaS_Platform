@@ -127,10 +127,40 @@ class IntegrationRequest(Base):
     interview_status = Column(String, default="pending")
     proposal_text = Column(Text, nullable=True)
     proposal_generated_at = Column(DateTime, nullable=True)
+    # 분석·연동 → 신규 개발(RFP) 제안·FS·납품 파이프라인 연결
+    workflow_rfp_id = Column(Integer, ForeignKey("rfps.id"), nullable=True)
+    improvement_request_text = Column(Text, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     owner = relationship("User", back_populates="integration_requests")
+    workflow_rfp = relationship("RFP", foreign_keys=[workflow_rfp_id])
+    followup_messages = relationship(
+        "IntegrationFollowupMessage",
+        back_populates="request",
+        order_by="IntegrationFollowupMessage.created_at",
+        cascade="all, delete-orphan",
+    )
+
+
+class IntegrationFollowupMessage(Base):
+    """연동 개발 상세 — 후속 질문·응답(분석&개선 인터뷰와 동일 역할)."""
+
+    __tablename__ = "integration_followup_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(
+        Integer,
+        ForeignKey("integration_requests.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role = Column(String(16), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    request = relationship("IntegrationRequest", back_populates="followup_messages")
 
 
 class ABAPCode(Base):
@@ -170,8 +200,11 @@ class AbapAnalysisRequest(Base):
     is_draft = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
+    workflow_rfp_id = Column(Integer, ForeignKey("rfps.id"), nullable=True)
+    improvement_request_text = Column(Text, nullable=True)
 
     owner = relationship("User", back_populates="abap_analysis_requests")
+    workflow_rfp = relationship("RFP", foreign_keys=[workflow_rfp_id])
     followup_messages = relationship(
         "AbapAnalysisFollowupMessage",
         back_populates="request",

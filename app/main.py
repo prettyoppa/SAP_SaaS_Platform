@@ -74,6 +74,10 @@ def _run_migrations():
         ("rfps", "fs_codegen_supplement_id", "INTEGER", "INTEGER"),
         ("rfps", "fs_job_log", "TEXT", "TEXT"),
         ("rfps", "delivered_job_log", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "workflow_rfp_id", "INTEGER", "INTEGER"),
+        ("abap_analysis_requests", "improvement_request_text", "TEXT", "TEXT"),
+        ("integration_requests", "workflow_rfp_id", "INTEGER", "INTEGER"),
+        ("integration_requests", "improvement_request_text", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

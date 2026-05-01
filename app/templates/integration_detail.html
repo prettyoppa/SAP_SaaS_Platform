@@ -9,88 +9,165 @@
       <div>
         <h2 class="mb-1">{{ ir.title }}</h2>
         <p class="text-muted small mb-0">요청 #{{ ir.id }} · {{ ir.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        {% if user.is_admin and owner %}
+        <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
+          <i class="fa-solid fa-user-shield me-1 text-warning"></i>
+          요청자: <strong>{{ owner.full_name }}</strong>{% if owner.company %} · {{ owner.company }}{% endif %}
+          <span class="text-muted font-monospace"> · {{ owner.email }}</span>
+        </div>
+        {% endif %}
       </div>
       <span class="rfp-status-badge status-badge-submitted">제출됨</span>
     </div>
 
-    <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">구현 형태</h5>
-      <div>
-        {% for t in types_list %}
-        <span class="badge-devtype me-1">{{ impl_labels.get(t, t) }}</span>
-        {% endfor %}
+    <div id="integration-request-block" class="mb-4">
+      <div class="mb-4">
+        <h5 class="small text-uppercase text-muted">구현 형태</h5>
+        <div>
+          {% for t in types_list %}
+          <span class="badge-devtype me-1">{{ impl_labels.get(t, t) }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if ir.sap_touchpoints %}
+      <div class="mb-4">
+        <h5 class="small text-uppercase text-muted">SAP 터치포인트</h5>
+        <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.sap_touchpoints }}</div>
+      </div>
+      {% endif %}
+
+      {% if ir.environment_notes %}
+      <div class="mb-4">
+        <h5 class="small text-uppercase text-muted">실행 환경</h5>
+        <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.environment_notes }}</div>
+      </div>
+      {% endif %}
+
+      {% if ir.security_notes %}
+      <div class="mb-4">
+        <h5 class="small text-uppercase text-muted">보안·권한</h5>
+        <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.security_notes }}</div>
+      </div>
+      {% endif %}
+
+      {% if ir.description %}
+      <div class="mb-4">
+        <h5 class="small text-uppercase text-muted">상세 설명</h5>
+        <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.description }}</div>
+      </div>
+      {% endif %}
+
+      {% if attachment_entries %}
+      <div class="mb-4">
+        <h5 class="small text-uppercase text-muted">첨부</h5>
+        <ul class="list-unstyled mb-0">
+          {% for att in attachment_entries %}
+          <li class="mb-1">
+            <a href="/integration/{{ ir.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">
+              <i class="fa-solid fa-paperclip me-1"></i>{{ att.filename or '파일' }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if source_program_groups and source_program_groups|length %}
+      <div class="mb-4">
+        <details class="interview-summary-toggle codelib-source-details mb-0" open>
+          <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+            <i class="fa-solid fa-code me-1"></i>
+            <span>첨부 ABAP 코드</span>
+            <span class="small text-muted">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
+          </summary>
+          <div class="interview-summary-body p-0 px-0 pt-2">
+            {% set tabs_base_id = 'integration-ref-src-' ~ ir.id %}
+            {% include "partials/reference_code_program_boxes.html" %}
+          </div>
+        </details>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="proposal-card mb-4 border border-warning border-opacity-50" id="integration-improvement-proposal" style="background:var(--surface2);">
+      <div class="proposal-body">
+        <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem">개선 제안 요청</h4>
+        <p class="small text-muted mb-3">연동 요청·인터뷰 내용을 바탕으로 <strong>신규 개발</strong> 메뉴와 동일한 에이전트가 무료 개발 제안서를 작성합니다. 이후 제안서·FS·개발코드 단계로 진행됩니다.</p>
+        {% if wf_err == 'already' %}
+        <div class="alert alert-info small mb-3">이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.</div>
+        {% endif %}
+        {% if wf_err == 'short' %}
+        <div class="alert alert-warning small mb-3">개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)</div>
+        {% endif %}
+        {% if ir.workflow_rfp %}
+        {% set wr = ir.workflow_rfp %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% if (wr.proposal_text or '').strip() %}
+          <a href="/rfp/{{ wr.id }}/proposal" class="btn btn-sm btn-outline-primary">제안서 보기</a>
+          {% elif wr.interview_status == 'generating_proposal' %}
+          <a href="/rfp/{{ wr.id }}/proposal/generating" class="btn btn-sm btn-outline-primary">제안서 생성 중…</a>
+          {% endif %}
+          <a href="/rfp/{{ wr.id }}/request" class="btn btn-sm btn-outline-secondary">연결된 요청(RFP)</a>
+        </div>
+        {% else %}
+        <form method="post" action="/integration/{{ ir.id }}/improvement-proposal">
+          <label class="form-label small text-muted" for="integration_improvement_text">요청사항 (자유 기술)</label>
+          <textarea id="integration_improvement_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" required placeholder="개선·연동 범위, 우선순위 등을 입력해 주세요.">{{ ir.improvement_request_text or '' }}</textarea>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-paper-plane me-1"></i>제출
+          </button>
+        </form>
+        {% endif %}
       </div>
     </div>
 
-    {% if ir.sap_touchpoints %}
-    <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">SAP 터치포인트</h5>
-      <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.sap_touchpoints }}</div>
-    </div>
-    {% endif %}
+    <div class="proposal-card mb-4" id="integration-interview-block">
+      <div class="proposal-body">
+        <h4 class="mb-3" style="border-left:3px solid var(--primary);padding-left:.75rem">
+          <i class="fa-solid fa-comments me-2 text-primary-light"></i>인터뷰 (후속 질문)
+        </h4>
+        <p class="small text-muted mb-3">요청 내용을 더 구체화할 질문을 남기면 맥락에 맞게 답변합니다. (회당 최대 {{ max_followup_user_turns }}회)</p>
+        {% if chat_error %}
+        <div class="alert alert-warning py-2 small mb-3">{{ chat_error }}</div>
+        {% endif %}
+        {% if chat_limit_reached %}
+        <div class="alert alert-secondary small mb-3">이 요청 건의 후속 질문 상한에 도달했습니다.</div>
+        {% endif %}
 
-    {% if ir.environment_notes %}
-    <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">실행 환경</h5>
-      <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.environment_notes }}</div>
-    </div>
-    {% endif %}
-
-    {% if ir.security_notes %}
-    <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">보안·권한</h5>
-      <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.security_notes }}</div>
-    </div>
-    {% endif %}
-
-    {% if ir.description %}
-    <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">상세 설명</h5>
-      <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.description }}</div>
-    </div>
-    {% endif %}
-
-    {% if attachment_entries %}
-    <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">첨부</h5>
-      <ul class="list-unstyled mb-0">
-        {% for att in attachment_entries %}
-        <li class="mb-1">
-          <a href="/integration/{{ ir.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">
-            <i class="fa-solid fa-paperclip me-1"></i>{{ att.filename or '파일' }}
-          </a>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-
-    {% if source_program_groups and source_program_groups|length %}
-    <div class="mb-4">
-      <details class="interview-summary-toggle codelib-source-details mb-0" open>
-        <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-          <i class="fa-solid fa-code me-1"></i>
-          <span>첨부 ABAP 코드</span>
-          <span class="small text-muted">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
-        </summary>
-        <div class="interview-summary-body p-0 px-0 pt-2">
-          {% set tabs_base_id = 'integration-ref-src' %}
-          {% include "partials/reference_code_program_boxes.html" %}
+        {% if followup_turns and followup_turns|length > 0 %}
+        <div class="mb-4">
+          {% for turn in followup_turns %}
+          <details class="analysis-fold mb-2" {% if loop.last %}open{% endif %}>
+            <summary class="analysis-fold-summary">
+              턴 {{ loop.index }}
+              {% if turn.question %}· 회원 질문{% endif %}
+            </summary>
+            <div class="analysis-fold-body small">
+              {% if turn.question %}
+              <div class="mb-2"><strong class="text-muted">Q</strong> {{ turn.question.content }}</div>
+              {% endif %}
+              {% if turn.answer %}
+              <div><strong class="text-muted">A</strong> {{ turn.answer.content }}</div>
+              {% endif %}
+            </div>
+          </details>
+          {% endfor %}
         </div>
-      </details>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    {% if ir.proposal_text %}
-    <div class="mb-4">
-      <h5 class="small text-uppercase text-muted">제안서</h5>
-      <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.proposal_text }}</div>
+        {% if not chat_limit_reached %}
+        <form method="post" action="/integration/{{ ir.id }}/chat" class="mb-0">
+          <label class="form-label small text-muted" for="integration-followup-msg">메시지</label>
+          <textarea id="integration-followup-msg" name="message" class="form-control form-control-sm mb-2" rows="3" maxlength="4000" required placeholder="추가로 확인하고 싶은 내용을 입력하세요."></textarea>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-paper-plane me-1"></i>보내기
+          </button>
+        </form>
+        {% endif %}
+      </div>
     </div>
-    {% else %}
-    <p class="text-muted small">연동 요청용 AI 인터뷰·제안서 파이프라인은 준비 중입니다. 제출하신 내용은 로그인 후 <strong>홈</strong> 화면 타일에서 진행 현황을 확인할 수 있습니다.</p>
-    {% endif %}
 
-    <a href="/" class="btn btn-outline-secondary"><i class="fa-solid fa-house me-1"></i>홈</a>
   </div>
 </div>
 {% endblock %}

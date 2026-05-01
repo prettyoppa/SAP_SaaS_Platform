@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if row.title and row.title.strip() %}{{ row.title.strip() }} – SAP 개발 파트너{% else %}SAP ABAP 분석 #{{ row.id }} – SAP 개발 파트너{% endif %}{% endblock %}
+{% block title %}{% if row.title and row.title.strip() %}{{ row.title.strip() }} – SAP ABAP 분석&개선{% else %}SAP ABAP 분석&개선 #{{ row.id }}{% endif %} – SAP 개발 파트너{% endblock %}
 
 {% block content %}
 <div class="proposal-page py-5">
@@ -15,7 +15,7 @@
                 <i class="fa-solid fa-microscope"></i>
               </div>
               <div>
-                <h2 class="mb-1">{% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}SAP ABAP 분석{% endif %}</h2>
+                <h2 class="mb-1">{% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}SAP ABAP 분석&개선{% endif %}</h2>
                 <div class="small text-muted">#{{ row.id }} · {{ row.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
                 {% if user.is_admin and owner %}
                 <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
@@ -57,7 +57,7 @@
           </div>
         </div>
 
-        <div class="proposal-card mb-4">
+        <div class="proposal-card mb-4" id="abap-request-block">
           <div class="proposal-body">
             <h4 class="mb-3" style="border-left:3px solid var(--primary);padding-left:.75rem">요구사항</h4>
             <div class="small" style="white-space:pre-wrap;">{{ row.requirement_text }}</div>
@@ -232,6 +232,40 @@
           </div>
         </div>
         {% endif %}
+        {% endif %}
+
+        {% if not row.is_draft and row.is_analyzed %}
+        <div class="proposal-card mb-4 border border-warning border-opacity-50" id="abap-improvement-proposal" style="background:var(--surface2);">
+          <div class="proposal-body">
+            <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem">개선 제안 요청</h4>
+            <p class="small text-muted mb-3">분석·인터뷰 내용을 바탕으로 <strong>신규 개발</strong> 메뉴와 동일한 에이전트가 무료 개발 제안서를 작성합니다. 이후 제안서·FS·개발코드 단계로 진행됩니다.</p>
+            {% if wf_err == 'already' %}
+            <div class="alert alert-info small mb-3">이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.</div>
+            {% endif %}
+            {% if wf_err == 'short' %}
+            <div class="alert alert-warning small mb-3">개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)</div>
+            {% endif %}
+            {% if row.workflow_rfp %}
+            {% set wr = row.workflow_rfp %}
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              {% if (wr.proposal_text or '').strip() %}
+              <a href="/rfp/{{ wr.id }}/proposal" class="btn btn-sm btn-outline-primary">제안서 보기</a>
+              {% elif wr.interview_status == 'generating_proposal' %}
+              <a href="/rfp/{{ wr.id }}/proposal/generating" class="btn btn-sm btn-outline-primary">제안서 생성 중…</a>
+              {% endif %}
+              <a href="/rfp/{{ wr.id }}/request" class="btn btn-sm btn-outline-secondary">연결된 요청(RFP)</a>
+            </div>
+            {% else %}
+            <form method="post" action="/abap-analysis/{{ row.id }}/improvement-proposal">
+              <label class="form-label small text-muted" for="improvement_request_text">요청사항 (자유 기술)</label>
+              <textarea id="improvement_request_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" required placeholder="개선 방향, 추가 요구, 범위 등을 입력해 주세요.">{{ row.improvement_request_text or '' }}</textarea>
+              <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-paper-plane me-1"></i>제출
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
         {% endif %}
 
         {% if chat_enabled %}

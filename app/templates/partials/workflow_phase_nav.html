@@ -1,0 +1,44 @@
+{# 개발코드 / FS / 납품관리 / 제안서 / 인터뷰 / 요청 — workflow_rfp 가 있으면 신규 개발과 동일 링크 #}
+{% set wf = workflow_rfp if workflow_rfp is defined and workflow_rfp else none %}
+{% if wf %}
+{% set ph = wf|phase_gates(user if user is defined else none) %}
+{% endif %}
+<div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
+  {% if wf %}
+  {% if ph.has_dev_code and ph.dev_code_href %}
+  <a href="{{ ph.dev_code_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">개발코드</a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">개발코드</span>
+  {% endif %}
+  {% if ph.has_fs and ph.fs_href %}
+  <a href="{{ ph.fs_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">FS</a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">FS</span>
+  {% endif %}
+  {% if user is defined and user.is_admin %}
+  <a href="/admin/rfp/{{ wf.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" title="납품 관리">
+    <i class="fa-solid fa-gears me-1"></i>납품 관리
+  </a>
+  {% endif %}
+  {% if ph.has_proposal and ph.proposal_href %}
+  <a href="{{ ph.proposal_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">제안서</a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">제안서</span>
+  {% endif %}
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">개발코드</span>
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">FS</span>
+  {% if user is defined and user.is_admin %}
+  <span class="btn btn-sm btn-primary rfp-phase-btn disabled opacity-50" tabindex="-1" aria-disabled="true" title="워크플로 연결 후 사용"><i class="fa-solid fa-gears me-1"></i>납품 관리</span>
+  {% endif %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">제안서</span>
+  {% endif %}
+  {% if interview_href %}
+  <a href="{{ interview_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">인터뷰</a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">인터뷰</span>
+  {% endif %}
+  {% if request_href %}
+  <a href="{{ request_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">요청</a>
+  {% endif %}
+</div>

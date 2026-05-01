@@ -21,7 +21,7 @@
       </div>
       {% if show_rfp_owner and rfp.owner %}
       <div class="text-muted small mt-1">
-        <i class="fa-solid fa-user me-1"></i>{{ rfp.owner.full_name }} · {{ rfp.owner.email }}
+        <i class="fa-solid fa-user me-1"></i>{{ rfp.owner.full_name }}{% if rfp.owner.company %} · {{ rfp.owner.company }}{% endif %} · {{ rfp.owner.email }}
       </div>
       {% endif %}
       <div class="rfp-list-meta">
