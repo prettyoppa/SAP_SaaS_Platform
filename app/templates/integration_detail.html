@@ -2,22 +2,28 @@
 {% block title %}{{ ir.title }} – 연동 요청{% endblock %}
 
 {% block content %}
-<div class="py-4">
+<div class="proposal-page py-5">
   <div class="container col-lg-9">
     {% include 'partials/nav_prev_screen.html' %}
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-      <div>
-        <h2 class="mb-1">{{ ir.title }}</h2>
-        <p class="text-muted small mb-0">요청 #{{ ir.id }} · {{ ir.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-        {% if user.is_admin and owner %}
-        <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
-          <i class="fa-solid fa-user-shield me-1 text-warning"></i>
-          요청자: <strong>{{ owner.full_name }}</strong>{% if owner.company %} · {{ owner.company }}{% endif %}
-          <span class="text-muted font-monospace"> · {{ owner.email }}</span>
+
+    <div class="proposal-header mb-4">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="proposal-icon" style="background:rgba(45,212,191,.15);border-color:rgba(45,212,191,.35);color:#2dd4bf">
+          <i class="fa-solid fa-link" aria-hidden="true"></i>
         </div>
-        {% endif %}
+        <div>
+          <h2 class="mb-1">{{ ir.title }}</h2>
+          <div class="small text-muted">#{{ ir.id }} · {{ ir.created_at.strftime('%Y-%m-%d %H:%M') }} · 연동 개발</div>
+          {% if user.is_admin and owner %}
+          <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
+            <i class="fa-solid fa-user-shield me-1 text-warning"></i>
+            요청자: <strong>{{ owner.full_name }}</strong>{% if owner.company %} · {{ owner.company }}{% endif %}
+            <span class="text-muted font-monospace"> · {{ owner.email }}</span>
+          </div>
+          {% endif %}
+        </div>
       </div>
-      <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="d-flex gap-2 flex-wrap align-items-center">
         <form method="post" action="/integration/{{ ir.id }}/delete" class="d-inline"
               onsubmit="return confirm('이 연동 요청을 삭제할까요? 첨부·후속 대화가 삭제되며 되돌릴 수 없습니다. (이미 연결된 신규 개발 RFP는 삭제되지 않습니다.)')">
           <button type="submit" class="btn btn-outline-danger btn-sm">
@@ -33,7 +39,13 @@
       </div>
     </div>
 
-    <div id="integration-request-block" class="mb-4">
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="integration-phase-request" open>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold">1. 요청</span>
+        <span class="badge bg-secondary">제출됨</span>
+      </summary>
+      <div class="rfp-hub-phase-body pt-2">
+    <div id="integration-request-block" class="mb-0">
       <div class="mb-4">
         <h5 class="small text-uppercase text-muted">구현 형태</h5>
         <div>
@@ -102,8 +114,20 @@
       </div>
       {% endif %}
     </div>
+      </div>
+    </details>
 
-    <div class="proposal-card mb-4 border border-warning border-opacity-50" id="integration-improvement-proposal" style="background:var(--surface2);">
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="integration-phase-improvement" open>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold">2. 개선 제안 요청</span>
+        {% if ir.workflow_rfp %}
+        <span class="badge bg-primary">워크플로 연결</span>
+        {% else %}
+        <span class="badge bg-secondary">미연결</span>
+        {% endif %}
+      </summary>
+      <div class="rfp-hub-phase-body pt-2">
+    <div class="proposal-card mb-0 border border-warning border-opacity-50" id="integration-improvement-proposal" style="background:var(--surface2);">
       <div class="proposal-body">
         <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem">개선 제안 요청</h4>
         {% if wf_err == 'already' %}
@@ -132,6 +156,8 @@
         {% endif %}
       </div>
     </div>
+      </div>
+    </details>
 
     {% if chat_enabled %}
     <p class="small text-muted mb-4">

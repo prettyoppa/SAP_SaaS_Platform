@@ -602,10 +602,15 @@ def rfp_unified_hub(
 
     tabs_base_id = f"rfp-ref-src-{rfp.id}"
 
+    owner = None
+    if getattr(user, "is_admin", False):
+        owner = db.query(models.User).filter(models.User.id == rfp.user_id).first()
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
         "rfp": rfp,
+        "owner": owner,
         "hub_phase_open": display_phase,
         "hub_embedded": hub_embedded,
         "attachment_entries": _rfp_attachment_entries(rfp),
