@@ -96,7 +96,7 @@
             <div class="rfp-section-header">
               <span class="rfp-section-num">01</span>
               <div>
-                <h4 class="mb-0">요청 제목 · 프로그램 · 모듈</h4>
+                <h4 class="mb-0">요청 제목</h4>
                 <small class="text-muted">요청 제목과 프로그램 ID·트랜잭션 코드를 입력한 뒤, SAP 모듈·개발 유형을 선택해 주세요. 모듈·유형은 각 최대 3개까지.</small>
               </div>
             </div>
@@ -253,7 +253,7 @@
           </div>
 
           <!-- ── STEP 4: ABAP 코드 (본 RFP 행에만 저장) ── -->
-          <div class="rfp-section" id="section-ref-code">
+          <div class="rfp-section rfp-section-last" id="section-ref-code">
             <div class="rfp-section-header">
               <span class="rfp-section-num">04</span>
               <div>
@@ -343,24 +343,14 @@
             </div>
           </div>
 
-          <!-- ── STEP 5: 최종 확인 ── -->
-          <div class="rfp-section rfp-section-last" id="section-5">
-            <div class="rfp-section-header">
-              <span class="rfp-section-num">05</span>
-              <div>
-                <h4 class="mb-0" data-i18n="rfp.s4.title">최종 확인 &amp; 제출</h4>
-                <small class="text-muted" data-i18n="rfp.s4.sub">제출하면 AI 에이전트가 인터뷰를 시작하고 개발 제안서를 생성합니다.</small>
-              </div>
-            </div>
-
-            <div class="free-badge-row mt-3">
+          <div class="rfp-form-footer mt-4 pt-4 border-top" style="border-color:var(--border)!important;">
+            <div class="free-badge-row mb-4">
               <div class="free-badge-card">
                 <i class="fa-solid fa-gift text-success me-2"></i>
                 <span>개발 제안서 생성은 <strong>완전 무료</strong>입니다. 제출 후 AI 인터뷰를 통해 제안서가 생성됩니다.</span>
               </div>
             </div>
-
-            <div class="d-flex gap-3 justify-content-end mt-4 flex-wrap">
+            <div class="d-flex gap-3 justify-content-end flex-wrap">
               <a href="/" class="btn btn-outline-secondary px-4">취소</a>
               {% if not edit_mode or (rfp and rfp.status == 'draft') %}
               <button type="submit" name="save_action" value="draft" formnovalidate class="btn btn-outline-warning px-4" id="draft-btn">
