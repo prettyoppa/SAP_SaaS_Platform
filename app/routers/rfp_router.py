@@ -737,11 +737,11 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
 
 @router.post("/rfp/{rfp_id}/duplicate-request")
 def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(get_db)):
-    """본인 RFP 요청 필드만 복사한 새 임시저장 건을 만들고 수정 폼으로 이동합니다."""
+    """요청 필드만 복사한 새 임시저장 건을 현재 로그인 사용자 계정으로 만들고 수정 폼으로 이동합니다."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
     entries = duplicate_attachment_entries(_rfp_attachment_entries(rfp), user_id=user.id)

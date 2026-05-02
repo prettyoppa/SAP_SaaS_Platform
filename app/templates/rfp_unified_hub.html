@@ -66,7 +66,7 @@
             <i class="fa-solid fa-trash me-1"></i><span data-i18n="common.delete">삭제</span>
           </button>
         </form>
-        {% if user.id == rfp.user_id %}
+        {% if user.id == rfp.user_id or user.is_admin %}
         <form method="post" action="/rfp/{{ rfp.id }}/duplicate-request" class="d-inline">
           <button type="submit" class="btn btn-outline-secondary btn-sm"><span data-i18n="common.duplicateRequest">요청복사</span></button>
         </form>
