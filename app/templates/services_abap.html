@@ -74,15 +74,18 @@
       <p class="text-muted small mb-3">FS 작성부터 ABAP 최종 납품까지의 단계는 추후 서비스에 반영될 예정입니다.</p>
       {% endif %}
       {% if svc_abap_filtered_rfps|length %}
-      <section class="mb-4">
-        <h5 class="mb-3 d-flex align-items-center gap-2 flex-wrap">
-          <i class="fa-solid {{ bucket_meta[selected_svc_abap_bucket].icon }} small" style="color: {{ bucket_meta[selected_svc_abap_bucket].fg }}"></i>
-          {{ bucket_meta[selected_svc_abap_bucket].label }}
-          <span class="text-muted small fw-normal">({{ svc_abap_filtered_rfps|length }}건)</span>
-          {% if selected_svc_abap_bucket == 'delivery' %}
-          <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
-          {% endif %}
-        </h5>
+      <section class="mb-4 menu-list-root menu-list-root--tile" data-menu-list-root data-menu-storage-key="svc_abap">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <h5 class="mb-0 flex-grow-1 d-flex align-items-center gap-2 flex-wrap">
+            <i class="fa-solid {{ bucket_meta[selected_svc_abap_bucket].icon }} small" style="color: {{ bucket_meta[selected_svc_abap_bucket].fg }}"></i>
+            {{ bucket_meta[selected_svc_abap_bucket].label }}
+            <span class="text-muted small fw-normal">({{ svc_abap_filtered_rfps|length }}건)</span>
+            {% if selected_svc_abap_bucket == 'delivery' %}
+            <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
+            {% endif %}
+          </h5>
+          {% include "partials/menu_list_view_toggle.html" %}
+        </div>
         <div class="row g-3">
           {% for rfp in svc_abap_filtered_rfps %}
           <div class="col-12">

@@ -1443,6 +1443,52 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 .rfp-list-dates { margin-top: .3rem; }
 .rfp-list-actions { flex-direction: column; align-items: flex-end; min-width: 180px; }
 
+/* 메뉴 목록: 타일 / 촘촘한 목록 전환 (localStorage 키별) */
+.menu-list-root--tile .menu-list-card .rfp-list-surface-list { display: none !important; }
+.menu-list-root--list .menu-list-card .rfp-list-surface-tile { display: none !important; }
+.menu-list-view-btns .btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+html[data-theme="light"] .menu-list-view-btns .btn.active {
+  color: #fff;
+}
+.rfp-list-card--compact-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+.rfp-list-card--compact-row .rfp-list-compact-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+.rfp-list-card--compact-row .rfp-list-compact-pid {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rfp-list-card--compact-row .rfp-list-compact-actions {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+@media (max-width: 576px) {
+  .rfp-list-card--compact-row .rfp-list-compact-actions {
+    width: 100%;
+    justify-content: flex-start !important;
+  }
+}
+
 /* RFP 리스트 타일 단계 버튼: 동일 톤, 데이터 없음은 흐릿 비활성 */
 .btn.btn-sm.rfp-phase-btn.btn-outline-secondary {
   --bs-btn-border-color: var(--border);

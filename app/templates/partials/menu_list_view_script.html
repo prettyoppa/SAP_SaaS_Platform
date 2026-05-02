@@ -1,0 +1,36 @@
+<script>
+(function () {
+  if (window.__menuListViewInit) return;
+  window.__menuListViewInit = true;
+  var PREFIX = 'menuListView:';
+  function applyRoot(root) {
+    var key = root.getAttribute('data-menu-storage-key');
+    if (!key) return;
+    var pref = localStorage.getItem(PREFIX + key) || 'tile';
+    if (pref !== 'list' && pref !== 'tile') pref = 'tile';
+    root.classList.remove('menu-list-root--tile', 'menu-list-root--list');
+    root.classList.add(pref === 'list' ? 'menu-list-root--list' : 'menu-list-root--tile');
+    var grp = root.querySelector('.menu-list-view-btns');
+    if (grp) {
+      grp.querySelectorAll('[data-view]').forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-view') === pref);
+      });
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-menu-list-root]').forEach(applyRoot);
+  });
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.menu-list-view-btns [data-view]');
+    if (!btn) return;
+    var root = btn.closest('[data-menu-list-root]');
+    if (!root) return;
+    var key = root.getAttribute('data-menu-storage-key');
+    if (!key) return;
+    var pref = btn.getAttribute('data-view');
+    if (pref !== 'list' && pref !== 'tile') return;
+    localStorage.setItem(PREFIX + key, pref);
+    applyRoot(root);
+  });
+})();
+</script>

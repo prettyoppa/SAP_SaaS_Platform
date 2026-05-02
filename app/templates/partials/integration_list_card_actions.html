@@ -1,0 +1,10 @@
+{% if integration_simple_actions|default(false) %}
+<a href="/integration/{{ ir.id }}" class="btn btn-sm btn-primary">
+  <i class="fa-solid fa-eye me-1"></i>상세
+</a>
+{% else %}
+{% set workflow_rfp = ir.workflow_rfp %}
+{% set request_href = '/integration/' ~ ir.id ~ '#integration-request-block' %}
+{% set interview_href = '/integration/' ~ ir.id ~ '#integration-followup-chat' %}
+{% include "partials/workflow_phase_nav.html" %}
+{% endif %}

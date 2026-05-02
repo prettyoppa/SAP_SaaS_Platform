@@ -1,4 +1,6 @@
-{# context: ir (IntegrationRequest), show_request_owner, user, impl_labels #}
+{# context: ir (IntegrationRequest), show_request_owner, user, impl_labels, integration_simple_actions (optional) #}
+<div class="menu-list-card">
+<div class="rfp-list-surface-tile">
 <div class="rfp-list-card rfp-list-card-v2">
   <div class="rfp-list-left">
     <div class="rfp-list-status
@@ -53,10 +55,30 @@
   </div>
   <div class="rfp-list-right rfp-list-actions">
     <div class="d-flex flex-wrap gap-1 justify-content-end">
-      {% set workflow_rfp = ir.workflow_rfp %}
-      {% set request_href = '/integration/' ~ ir.id ~ '#integration-request-block' %}
-      {% set interview_href = '/integration/' ~ ir.id ~ '#integration-followup-chat' %}
-      {% include "partials/workflow_phase_nav.html" %}
+      {% include "partials/integration_list_card_actions.html" %}
     </div>
   </div>
+</div>
+</div>
+
+<div class="rfp-list-surface-list">
+<div class="rfp-list-card rfp-list-card-v2 rfp-list-card--compact-row">
+  <div class="rfp-list-compact-main">
+    <span class="rfp-list-compact-pid font-monospace small text-muted">#{{ ir.id }}</span>
+    <a href="{% if (ir.status or '')|lower == 'draft' %}/integration/{{ ir.id }}/edit{% else %}/integration/{{ ir.id }}{% endif %}" class="text-truncate fw-semibold text-reset text-decoration-none">{{ ir.title }}</a>
+  </div>
+  <div class="rfp-list-compact-actions d-flex flex-wrap align-items-center gap-1 justify-content-end">
+    {% if ir.workflow_rfp and (ir.workflow_rfp.proposal_text or '').strip() %}
+    <span class="badge bg-success">제안</span>
+    {% elif ir.workflow_rfp and ir.workflow_rfp.interview_status == 'generating_proposal' %}
+    <span class="badge text-dark" style="background:rgba(99,102,241,.22)">생성 중</span>
+    {% elif ir.interview_status == 'generating_proposal' %}
+    <span class="badge text-dark" style="background:rgba(99,102,241,.22)">생성 중</span>
+    {% else %}
+    <span class="badge bg-warning text-dark">진행</span>
+    {% endif %}
+    {% include "partials/integration_list_card_actions.html" %}
+  </div>
+</div>
+</div>
 </div>

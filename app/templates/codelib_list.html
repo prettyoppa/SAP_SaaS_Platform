@@ -70,58 +70,18 @@
 
     <!-- 코드 목록 -->
     {% if codes %}
-    <div class="row g-3">
-      {% for code in codes %}
-      <div class="col-12">
-        <div class="rfp-list-card">
-          <div class="rfp-list-left">
-            <div class="rfp-list-status {% if code.is_draft %}status-draft{% elif code.is_analyzed %}status-completed{% else %}status-submitted{% endif %}">
-              <i class="fa-solid {% if code.is_draft %}fa-floppy-disk{% elif code.is_analyzed %}fa-circle-check{% else %}fa-clock{% endif %}"></i>
-            </div>
-            <div>
-              <div class="rfp-list-title">
-                {{ code.title }}
-                {% if code.program_id %}
-                <span class="text-muted small ms-2 font-monospace">{{ code.program_id }}</span>
-                {% endif %}
-              </div>
-              <div class="rfp-list-meta">
-                {% for m in code.sap_modules.split(',') %}
-                <span class="badge-module">{{ m }}</span>
-                {% endfor %}
-                {% for d in code.dev_types.split(',') %}
-                <span class="badge-devtype">{{ d.replace('_',' ') }}</span>
-                {% endfor %}
-                {% if user.is_admin and code.uploader %}
-                <div class="w-100 mt-1 small text-muted">
-                  <i class="fa-solid fa-user me-1"></i>{{ code.uploader.full_name }}
-                  {% if code.uploader.company %}<span class="ms-1">· {{ code.uploader.company }}</span>{% endif %}
-                </div>
-                {% endif %}
-              </div>
-            </div>
-          </div>
-          <div class="rfp-list-right gap-2">
-            {% if code.is_draft %}
-            <span class="rfp-status-badge" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
-            {% elif code.is_analyzed %}
-            <span class="rfp-status-badge status-badge-completed">분석완료</span>
-            {% else %}
-            <span class="rfp-status-badge status-badge-submitted">미분석</span>
-            {% endif %}
-            <span class="text-muted small">{{ code.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-            {% if code.is_draft %}
-            <a href="/codelib/{{ code.id }}/edit" class="btn btn-sm btn-outline-primary">
-              <i class="fa-solid fa-pen me-1"></i>수정
-            </a>
-            {% endif %}
-            <a href="/codelib/{{ code.id }}" class="btn btn-sm btn-outline-secondary">
-              <i class="fa-solid fa-eye me-1"></i>상세
-            </a>
-          </div>
-        </div>
+    <div class="menu-list-root menu-list-root--tile mb-4" data-menu-list-root data-menu-storage-key="codelib">
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h5 class="mb-0 flex-grow-1 small text-muted text-uppercase">등록된 코드</h5>
+        {% include "partials/menu_list_view_toggle.html" %}
       </div>
-      {% endfor %}
+      <div class="row g-3">
+        {% for code in codes %}
+        <div class="col-12">
+          {% include "partials/codelib_list_card.html" %}
+        </div>
+        {% endfor %}
+      </div>
     </div>
 
     {% else %}

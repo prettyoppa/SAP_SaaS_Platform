@@ -78,15 +78,18 @@
 
     {% if menu_show_list %}
       {% if filtered_menu_rows|length %}
-      <section class="mb-4">
-        <h5 class="mb-3 d-flex align-items-center gap-2 flex-wrap">
-          <i class="fa-solid {{ bucket_meta[selected_menu_bucket].icon }} small" style="color: {{ bucket_meta[selected_menu_bucket].fg }}"></i>
-          {{ bucket_meta[selected_menu_bucket].label }}
-          <span class="text-muted small fw-normal">({{ filtered_menu_rows|length }}건)</span>
-          {% if selected_menu_bucket == 'delivery' %}
-          <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
-          {% endif %}
-        </h5>
+      <section class="mb-4 menu-list-root menu-list-root--tile" data-menu-list-root data-menu-storage-key="abap_analysis">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <h5 class="mb-0 flex-grow-1 d-flex align-items-center gap-2 flex-wrap">
+            <i class="fa-solid {{ bucket_meta[selected_menu_bucket].icon }} small" style="color: {{ bucket_meta[selected_menu_bucket].fg }}"></i>
+            {{ bucket_meta[selected_menu_bucket].label }}
+            <span class="text-muted small fw-normal">({{ filtered_menu_rows|length }}건)</span>
+            {% if selected_menu_bucket == 'delivery' %}
+            <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
+            {% endif %}
+          </h5>
+          {% include "partials/menu_list_view_toggle.html" %}
+        </div>
         <div class="row g-3">
           {% for row in filtered_menu_rows %}
           <div class="col-12">

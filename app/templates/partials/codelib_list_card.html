@@ -1,0 +1,84 @@
+{# context: code (ABAPCode), user #}
+<div class="menu-list-card">
+<div class="rfp-list-surface-tile">
+<div class="rfp-list-card rfp-list-card-v2">
+  <div class="rfp-list-left">
+    <div class="rfp-list-status {% if code.is_draft %}status-draft{% elif code.is_analyzed %}status-completed{% else %}status-submitted{% endif %}">
+      <i class="fa-solid {% if code.is_draft %}fa-floppy-disk{% elif code.is_analyzed %}fa-circle-check{% else %}fa-clock{% endif %}"></i>
+    </div>
+    <div class="rfp-list-info flex-grow-1 min-w-0">
+      <div class="rfp-list-title">
+        {{ code.title }}
+        {% if code.program_id %}
+        <span class="text-muted small ms-2 font-monospace">{{ code.program_id }}</span>
+        {% endif %}
+      </div>
+      <div class="rfp-list-meta">
+        {% for m in code.sap_modules.split(',') %}
+        <span class="badge-module">{{ m }}</span>
+        {% endfor %}
+        {% for d in code.dev_types.split(',') %}
+        <span class="badge-devtype">{{ d.replace('_',' ') }}</span>
+        {% endfor %}
+        {% if user.is_admin and code.uploader %}
+        <div class="w-100 mt-1 small text-muted">
+          <i class="fa-solid fa-user me-1"></i>{{ code.uploader.full_name }}
+          {% if code.uploader.company %}<span class="ms-1">· {{ code.uploader.company }}</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="rfp-list-dates mt-1">
+        <span class="text-muted small">{{ code.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="rfp-list-right rfp-list-actions">
+    <div class="mb-2 text-end">
+      {% if code.is_draft %}
+      <span class="rfp-status-badge" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
+      {% elif code.is_analyzed %}
+      <span class="rfp-status-badge status-badge-completed">분석완료</span>
+      {% else %}
+      <span class="rfp-status-badge status-badge-submitted">미분석</span>
+      {% endif %}
+    </div>
+    <div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
+      {% if code.is_draft %}
+      <a href="/codelib/{{ code.id }}/edit" class="btn btn-sm btn-outline-primary">
+        <i class="fa-solid fa-pen me-1"></i>수정
+      </a>
+      {% endif %}
+      <a href="/codelib/{{ code.id }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fa-solid fa-eye me-1"></i>상세
+      </a>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="rfp-list-surface-list">
+<div class="rfp-list-card rfp-list-card-v2 rfp-list-card--compact-row">
+  <div class="rfp-list-compact-main">
+    <span class="rfp-list-compact-pid font-monospace small text-muted">{{ code.program_id or '—' }}</span>
+    <a href="/codelib/{{ code.id }}" class="text-truncate fw-semibold text-reset text-decoration-none">{{ code.title }}</a>
+  </div>
+  <div class="rfp-list-compact-actions d-flex flex-wrap align-items-center gap-1 justify-content-end">
+    {% if code.is_draft %}
+    <span class="rfp-status-badge" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
+    {% elif code.is_analyzed %}
+    <span class="rfp-status-badge status-badge-completed">분석완료</span>
+    {% else %}
+    <span class="rfp-status-badge status-badge-submitted">미분석</span>
+    {% endif %}
+    {% if code.is_draft %}
+    <a href="/codelib/{{ code.id }}/edit" class="btn btn-sm btn-outline-primary">
+      <i class="fa-solid fa-pen me-1"></i>수정
+    </a>
+    {% endif %}
+    <a href="/codelib/{{ code.id }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fa-solid fa-eye me-1"></i>상세
+    </a>
+  </div>
+</div>
+</div>
+</div>

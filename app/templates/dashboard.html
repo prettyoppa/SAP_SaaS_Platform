@@ -172,122 +172,25 @@
     </div>
     {% endif %}
 
-    <div class="rfp-list-section">
-      <h4 class="mb-3" data-i18n="dash.myRequests">나의 요청</h4>
+    <div class="rfp-list-section menu-list-root menu-list-root--tile" data-menu-list-root data-menu-storage-key="dashboard">
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h4 class="mb-0 flex-grow-1" data-i18n="dash.myRequests">나의 요청</h4>
+        {% include "partials/menu_list_view_toggle.html" %}
+      </div>
 
       {% if display_items %}
       <div class="row g-3">
         {% for kind, row in display_items %}
         <div class="col-12">
           {% if kind == 'rfp' %}
+          {% set integration_simple_actions = false %}
           {% set rfp = row %}
-          <div class="rfp-list-card rfp-list-card-v2">
-            <div class="rfp-list-left">
-              <div class="rfp-list-status
-                {% if rfp.status == 'draft' %}status-draft
-                {% elif rfp.interview_status == 'completed' %}status-completed
-                {% elif rfp.interview_status in ['in_progress', 'generating_proposal'] %}status-in_review
-                {% else %}status-submitted{% endif %}">
-                {% if rfp.status == 'draft' %}<i class="fa-solid fa-floppy-disk"></i>
-                {% elif rfp.interview_status == 'completed' %}<i class="fa-solid fa-circle-check"></i>
-                {% elif rfp.interview_status in ['in_progress', 'generating_proposal'] %}<i class="fa-solid fa-robot"></i>
-                {% else %}<i class="fa-solid fa-hourglass-half"></i>{% endif %}
-              </div>
-              <div class="rfp-list-info">
-                <div class="rfp-list-title">
-                  <span class="badge bg-secondary me-2 small">RFP</span>
-                  {{ rfp.title }}
-                  {% if rfp.program_id %}
-                  <span class="text-muted small ms-2 font-monospace">{{ rfp.program_id }}</span>
-                  {% endif %}
-                </div>
-                <div class="rfp-list-meta">
-                  {% if rfp.sap_modules %}
-                    {% for m in rfp.sap_modules.split(',') %}{% if m %}<span class="badge-module">{{ m }}</span>{% endif %}{% endfor %}
-                  {% endif %}
-                  {% if rfp.dev_types %}
-                    {% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}
-                  {% endif %}
-                  {% if rfp.file_name or rfp.attachments_json %}
-                  <a href="/rfp/{{ rfp.id }}/attachment" class="text-muted small ms-2 text-decoration-none" title="첨부">
-                    <i class="fa-solid fa-paperclip"></i>
-                  </a>
-                  {% endif %}
-                </div>
-                <div class="rfp-list-dates">
-                  <span class="text-muted small">
-                    <i class="fa-solid fa-calendar-plus me-1"></i>
-                    제출일: {{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }}
-                  </span>
-                  {% if rfp.proposal_generated_at %}
-                  <span class="text-muted small ms-3">
-                    <i class="fa-solid fa-file-circle-check me-1 text-success"></i>
-                    제안서: {{ rfp.proposal_generated_at.strftime('%Y-%m-%d %H:%M') }}
-                  </span>
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-            <div class="rfp-list-right rfp-list-actions">
-              <div class="mb-2 text-end">
-                {% if rfp.status == 'draft' %}
-                <span class="rfp-status-badge" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
-                {% elif rfp.interview_status == 'completed' %}
-                <span class="rfp-status-badge status-badge-completed">완료</span>
-                {% elif rfp.interview_status == 'generating_proposal' %}
-                <span class="rfp-status-badge" style="background:rgba(99,102,241,.15);color:#a5b4fc;border-color:rgba(99,102,241,.3)">생성 중...</span>
-                {% elif rfp.interview_status == 'in_progress' %}
-                <span class="rfp-status-badge status-badge-in_review">검토 중</span>
-                {% else %}
-                <span class="rfp-status-badge status-badge-submitted">제출됨</span>
-                {% endif %}
-              </div>
-              <div class="d-flex flex-wrap gap-1 justify-content-end">
-                {% include "partials/rfp_phase_nav.html" %}
-              </div>
-            </div>
-          </div>
+          {% include "partials/rfp_user_list_card.html" %}
           {% else %}
+          {% set integration_simple_actions = true %}
           {% set ir = row %}
-          <div class="rfp-list-card rfp-list-card-v2">
-            <div class="rfp-list-left">
-              <div class="rfp-list-status status-submitted">
-                <i class="fa-solid fa-plug"></i>
-              </div>
-              <div class="rfp-list-info">
-                <div class="rfp-list-title">
-                  <span class="badge me-2 small" style="background:rgba(234,179,8,.25);color:#ca8a04;border:1px solid rgba(234,179,8,.4)">연동</span>
-                  {{ ir.title }}
-                </div>
-                <div class="rfp-list-meta">
-                  {% for t in (ir.impl_types or '').split(',') %}
-                    {% if t.strip() %}
-                    <span class="badge-devtype">{{ integration_impl_labels.get(t.strip(), t.strip()) }}</span>
-                    {% endif %}
-                  {% endfor %}
-                  {% if ir.attachments_json %}
-                  <a href="/integration/{{ ir.id }}/attachment" class="text-muted small ms-2 text-decoration-none"><i class="fa-solid fa-paperclip"></i></a>
-                  {% endif %}
-                </div>
-                <div class="rfp-list-dates">
-                  <span class="text-muted small">
-                    <i class="fa-solid fa-calendar-plus me-1"></i>
-                    제출일: {{ ir.created_at.strftime('%Y-%m-%d %H:%M') }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div class="rfp-list-right rfp-list-actions">
-              <div class="mb-2 text-end">
-                <span class="rfp-status-badge status-badge-submitted">제출됨</span>
-              </div>
-              <div class="d-flex flex-wrap gap-1 justify-content-end">
-                <a href="/integration/{{ ir.id }}" class="btn btn-sm btn-primary">
-                  <i class="fa-solid fa-eye me-1"></i>상세
-                </a>
-              </div>
-            </div>
-          </div>
+          {% set impl_labels = integration_impl_labels %}
+          {% include "partials/integration_list_card.html" %}
           {% endif %}
         </div>
         {% endfor %}
