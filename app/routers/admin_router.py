@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import APIRouter, Depends, Request, Form, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import models, auth
+from ..codelib_reference_import import build_reference_payload_dict_from_abap_code
 from ..account_lifecycle import purge_user_and_owned_data as lifecycle_purge_user
 from ..database import get_db
 from ..templates_config import templates
@@ -430,3 +432,60 @@ def admin_review_delete(review_id: int, request: Request, db: Session = Depends(
         db.delete(r)
         db.commit()
     return RedirectResponse(url="/admin/reviews", status_code=302)
+
+
+# ── 코드 갤러리 → 참고 코드 가져오기(단건) API ─────────────────────────
+
+@router.get("/api/codelib-items")
+def admin_api_codelib_items(
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str | None = Query(None, max_length=200),
+):
+    """관리자 전용: 갤러리(abap_codes) 목록 요약."""
+    user = _require_admin(request, db)
+    if not user:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    query = db.query(models.ABAPCode).order_by(models.ABAPCode.id.desc())
+    needle = (q or "").strip()
+    if needle:
+        like = f"%{needle}%"
+        query = query.filter(
+            or_(
+                models.ABAPCode.title.ilike(like),
+                models.ABAPCode.program_id.ilike(like),
+                models.ABAPCode.transaction_code.ilike(like),
+            )
+        )
+    rows = query.limit(100).all()
+    return {
+        "items": [
+            {
+                "id": r.id,
+                "title": (r.title or "")[:200],
+                "program_id": (r.program_id or "")[:40],
+                "transaction_code": (r.transaction_code or "")[:20],
+                "is_draft": bool(r.is_draft),
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/api/codelib-items/{item_id}/reference-payload")
+def admin_api_codelib_item_reference_payload(
+    item_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """관리자 전용: 갤러리 1건을 참고 코드 JSON 스키마로 변환."""
+    user = _require_admin(request, db)
+    if not user:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    code = db.query(models.ABAPCode).filter(models.ABAPCode.id == item_id).first()
+    if not code:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    payload = build_reference_payload_dict_from_abap_code(code)
+    if payload is None:
+        return JSONResponse({"error": "reference_code_too_large"}, status_code=400)
+    return {"payload": payload}

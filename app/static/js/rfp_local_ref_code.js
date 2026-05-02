@@ -443,8 +443,79 @@
     if (typeof window.updateReview === 'function') window.updateReview();
   }
 
+  function expandRefCollapseMaybe(collapseSelector) {
+    if (!collapseSelector) return;
+    var el = document.querySelector(collapseSelector);
+    if (!el || typeof window.bootstrap === 'undefined') return;
+    try {
+      window.bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show();
+    } catch (e) {}
+  }
+
+  /** 관리자: 코드 갤러리 API에서 받은 payload로 참고 코드 영역을 덮어씁니다. */
+  function applyGalleryRefPayload(payload, collapseSelector) {
+    if (!payload || !Array.isArray(payload.slots)) return false;
+    var host = document.getElementById('ref-code-slots-host');
+    if (!host) return false;
+    if (
+      typeof window.countRfpRefCodeSlotsFilled === 'function' &&
+      window.countRfpRefCodeSlotsFilled() > 0
+    ) {
+      if (
+        !confirm(
+          '이미 입력된 참고 코드가 있습니다. 갤러리 항목으로 바꿀까요? (저장된 내용은 덮어씌워집니다)'
+        )
+      ) {
+        return false;
+      }
+    }
+    expandRefCollapseMaybe(collapseSelector);
+    visibleSlotCount = 1;
+    var fromData = minSlotsFromPayload(payload.slots);
+    var saved =
+      typeof payload.visibleSlotCount === 'number' ? payload.visibleSlotCount : 1;
+    visibleSlotCount = Math.min(MAX_SLOTS, Math.max(1, saved, fromData));
+
+    for (var i = 0; i < MAX_SLOTS; i++) {
+      var slotData = payload.slots[i] || {};
+      var root = document.querySelector('[data-ref-slot="' + i + '"]');
+      if (root) {
+        var pid = root.querySelector('.js-ref-pid');
+        var tc = root.querySelector('.js-ref-tcode');
+        var tit = root.querySelector('.js-ref-title');
+        if (pid) pid.value = slotData.program_id || '';
+        if (tc) tc.value = slotData.transaction_code || '';
+        if (tit) tit.value = slotData.title || '';
+      }
+
+      rebuildSections(
+        i,
+        slotData.sections && slotData.sections.length ? slotData.sections : defaultSections()
+      );
+
+      if (root) {
+        root.querySelectorAll('.ref-mod-' + i).forEach(function (cb) {
+          cb.checked = (slotData.sap_modules || []).indexOf(cb.value) >= 0;
+        });
+        root.querySelectorAll('.ref-dt-' + i).forEach(function (cb) {
+          cb.checked = (slotData.dev_types || []).indexOf(cb.value) >= 0;
+        });
+      }
+    }
+
+    applySlotVisibility();
+    for (var k = 0; k < MAX_SLOTS; k++) refreshSlotCounts(k);
+    syncHiddenInput();
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    pushServer();
+    if (typeof window.updateReview === 'function') window.updateReview();
+    return true;
+  }
+
   window.initRfpLocalRefCode = init;
   window.scheduleRfpRefCodeSave = scheduleSave;
+  window.applyRfpGalleryRefPayload = applyGalleryRefPayload;
   window.countRfpRefCodeSlotsFilled = function () {
     var n = 0;
     for (var i = 0; i < visibleSlotCount; i++) {

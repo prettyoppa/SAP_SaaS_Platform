@@ -198,6 +198,7 @@ def _run_analysis(
 def _form_template_response(
     request: Request,
     user: models.User,
+    db: Session,
     *,
     error: Optional[str],
     form_title: str,
@@ -208,6 +209,18 @@ def _form_template_response(
     notes_prefill: Optional[list[str]] = None,
     status_code: int = 200,
 ):
+    modules = (
+        db.query(models.SAPModule)
+        .filter(models.SAPModule.is_active == True)
+        .order_by(models.SAPModule.sort_order)
+        .all()
+    )
+    devtypes = (
+        db.query(models.DevType)
+        .filter(models.DevType.is_active == True)
+        .order_by(models.DevType.sort_order)
+        .all()
+    )
     return templates.TemplateResponse(
         request,
         "abap_analysis_form.html",
@@ -221,6 +234,8 @@ def _form_template_response(
             "edit_row": edit_row,
             "attachment_entries": attachment_entries or [],
             "notes_prefill": notes_prefill,
+            "modules": modules,
+            "devtypes": devtypes,
         },
         status_code=status_code,
     )
@@ -305,6 +320,7 @@ def abap_analysis_new_form(request: Request, db: Session = Depends(get_db)):
     return _form_template_response(
         request,
         user,
+        db,
         error=None,
         form_title="",
         form_requirement="",
@@ -341,6 +357,7 @@ async def abap_analysis_create(
         return _form_template_response(
             request,
             user,
+            db,
             error=err,
             form_title=title_raw,
             form_requirement=req_raw,
@@ -453,6 +470,7 @@ def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends
     return _form_template_response(
         request,
         user,
+        db,
         error=None,
         form_title=row.title or "",
         form_requirement=row.requirement_text or "",
@@ -497,6 +515,7 @@ async def abap_analysis_edit_save(
         return _form_template_response(
             request,
             user,
+            db,
             error=err,
             form_title=title_raw,
             form_requirement=req_raw,

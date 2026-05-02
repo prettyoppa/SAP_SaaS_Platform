@@ -291,9 +291,16 @@
               </div>
             </div>
 
-            <button class="btn btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-ref-code" aria-expanded="false" aria-controls="collapse-ref-code">
-              <i class="fa-solid fa-code me-2"></i>ABAP 코드 입력란 펼치기 / 접기
-            </button>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+              <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-ref-code" aria-expanded="false" aria-controls="collapse-ref-code">
+                <i class="fa-solid fa-code me-2"></i>ABAP 코드 입력란 펼치기 / 접기
+              </button>
+              {% if user and user.is_admin %}
+              <button type="button" class="btn btn-outline-primary btn-sm" data-codelib-import="rfp" data-ref-collapse="#collapse-ref-code" title="관리자: 코드 갤러리에서 한 건 불러오기">
+                <i class="fa-solid fa-folder-open me-1"></i>코드 갤러리에서 가져오기
+              </button>
+              {% endif %}
+            </div>
 
             <div class="collapse" id="collapse-ref-code">
               <div id="ref-code-slots-host">
@@ -428,6 +435,7 @@
 
 {% block extra_js %}
 <script src="/static/js/sap_field_input.js?v=20260415c"></script>
-<script src="/static/js/rfp_local_ref_code.js?v=20260421a"></script>
+<script src="/static/js/rfp_local_ref_code.js?v=20260422a"></script>
+<script src="/static/js/codelib_picker.js?v=20260422a"></script>
 <script src="/static/js/rfp_form.js?v=20260417a"></script>
 {% endblock %}
