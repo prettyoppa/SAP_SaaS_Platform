@@ -8,21 +8,21 @@
     </div>
     <div class="rfp-list-info flex-grow-1 min-w-0">
       <div class="rfp-list-title">
-        <span class="badge bg-secondary me-2 small">분석</span>
+        <span class="badge bg-secondary me-2 small" data-i18n="badge.analysis">분석</span>
         <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-reset fw-semibold text-decoration-none">
           {% if row.title and row.title.strip() %}
           {{ row.title.strip() }}
           {% else %}
-          <span class="text-muted fw-normal">요청 #{{ row.id }}</span>
+          <span class="text-muted fw-normal"><span data-i18n="list.requestNum">요청</span> #{{ row.id }}</span>
           {% endif %}
         </a>
         <span class="text-muted small ms-2 font-monospace">#{{ row.id }}</span>
         {% if row.is_draft %}
-        <span class="badge bg-secondary ms-2">임시저장</span>
+        <span class="badge bg-secondary ms-2" data-i18n="badge.draft">임시저장</span>
         {% elif row.is_analyzed %}
-        <span class="badge bg-success ms-2">분석 완료</span>
+        <span class="badge bg-success ms-2" data-i18n="detail.analysisDone">분석 완료</span>
         {% else %}
-        <span class="badge bg-warning text-dark ms-2">분석 오류/미완료</span>
+        <span class="badge bg-warning text-dark ms-2" data-i18n="detail.analysisPending">분석 오류/미완료</span>
         {% endif %}
       </div>
       {% if show_request_owner and row.owner %}
@@ -54,16 +54,16 @@
   <div class="rfp-list-compact-main">
     <span class="rfp-list-compact-pid font-monospace small text-muted">#{{ row.id }}</span>
     <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-truncate fw-semibold text-reset text-decoration-none">
-      {% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}요청 #{{ row.id }}{% endif %}
+      {% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}<span data-i18n="list.requestNum">요청</span> #{{ row.id }}{% endif %}
     </a>
   </div>
   <div class="rfp-list-compact-actions d-flex flex-wrap align-items-center gap-1 justify-content-end">
     {% if row.is_draft %}
-    <span class="badge bg-secondary">임시저장</span>
+    <span class="badge bg-secondary" data-i18n="badge.draft">임시저장</span>
     {% elif row.is_analyzed %}
-    <span class="badge bg-success">분석 완료</span>
+    <span class="badge bg-success" data-i18n="detail.analysisDone">분석 완료</span>
     {% else %}
-    <span class="badge bg-warning text-dark">분석 오류/미완료</span>
+    <span class="badge bg-warning text-dark" data-i18n="detail.analysisPending">분석 오류/미완료</span>
     {% endif %}
     {% set workflow_rfp = row.workflow_rfp %}
     {% set request_href = '/abap-analysis/' ~ row.id ~ '#abap-request-block' %}

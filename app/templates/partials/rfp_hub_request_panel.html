@@ -3,22 +3,22 @@
   <div class="proposal-body">
     <dl class="row mb-0 small">
       {% if rfp.program_id %}
-      <dt class="col-sm-3 text-muted">프로그램 ID</dt><dd class="col-sm-9 font-monospace">{{ rfp.program_id }}</dd>{% endif %}
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.programId">프로그램 ID</dt><dd class="col-sm-9 font-monospace">{{ rfp.program_id }}</dd>{% endif %}
       {% if rfp.transaction_code %}
-      <dt class="col-sm-3 text-muted">T-code</dt><dd class="col-sm-9 font-monospace">{{ rfp.transaction_code }}</dd>{% endif %}
-      <dt class="col-sm-3 text-muted">SAP 모듈</dt>
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.tcode">T-code</dt><dd class="col-sm-9 font-monospace">{{ rfp.transaction_code }}</dd>{% endif %}
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.modules">SAP 모듈</dt>
       <dd class="col-sm-9">{% if rfp.sap_modules %}{% for m in rfp.sap_modules.split(',') %}{% if m %}<span class="badge-module me-1">{{ m }}</span>{% endif %}{% endfor %}{% else %}—{% endif %}</dd>
-      <dt class="col-sm-3 text-muted">개발 유형</dt>
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.devTypes">개발 유형</dt>
       <dd class="col-sm-9">{% if rfp.dev_types %}{% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype me-1">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}{% else %}—{% endif %}</dd>
-      <dt class="col-sm-3 text-muted">제출 일시</dt>
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
       <dd class="col-sm-9">{{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
     </dl>
     {% if rfp.description %}
-    <h6 class="text-muted mt-3 small text-uppercase">요구사항</h6>
+    <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.requirements">요구사항</h6>
     <div class="border rounded p-3" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ rfp.description }}</div>
     {% endif %}
     {% if attachment_entries %}
-    <h6 class="text-muted mt-3 small text-uppercase">첨부</h6>
+    <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.attachments">첨부</h6>
     <ul class="mb-0">
       {% for att in attachment_entries %}
       <li class="mb-1"><a href="/rfp/{{ rfp.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename or '파일' }}</a></li>

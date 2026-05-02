@@ -122,29 +122,29 @@
       <input type="hidden" name="kind_filter" value="{{ kind_filter }}"/>
       <div class="row g-2 align-items-end">
         <div class="col-12 col-sm-4 col-md-3">
-          <label class="form-label small text-muted mb-1">시작일</label>
+          <label class="form-label small text-muted mb-1" data-i18n="dash.dateFrom">시작일</label>
           <input type="date" name="date_from" class="form-control form-control-sm"
                  value="{{ date_from }}" max="{{ date_to or '' }}"/>
         </div>
         <div class="col-12 col-sm-4 col-md-3">
-          <label class="form-label small text-muted mb-1">종료일</label>
+          <label class="form-label small text-muted mb-1" data-i18n="dash.dateTo">종료일</label>
           <input type="date" name="date_to" class="form-control form-control-sm"
                  value="{{ date_to }}" min="{{ date_from or '' }}"/>
         </div>
         <div class="col-12 col-sm-4 col-md-3">
-          <label class="form-label small text-muted mb-1">정렬</label>
+          <label class="form-label small text-muted mb-1" data-i18n="dash.sort">정렬</label>
           <select name="sort_by" class="form-select form-select-sm">
-            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>최신순</option>
-            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>오래된순</option>
-            <option value="status" {% if sort_by == 'status' %}selected{% endif %}>상태순</option>
+            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %} data-i18n="dash.sortNewest">최신순</option>
+            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %} data-i18n="dash.sortOldest">오래된순</option>
+            <option value="status" {% if sort_by == 'status' %}selected{% endif %} data-i18n="dash.sortStatus">상태순</option>
           </select>
         </div>
         <div class="col-auto">
           <button type="submit" class="btn btn-sm btn-primary">
-            <i class="fa-solid fa-magnifying-glass me-1"></i>검색
+            <i class="fa-solid fa-magnifying-glass me-1"></i><span data-i18n="common.search">검색</span>
           </button>
           <a href="/dashboard{% if kind_filter %}?kind_filter={{ kind_filter }}{% endif %}{% if status_filter %}{% if kind_filter %}&{% else %}?{% endif %}status_filter={{ status_filter }}{% endif %}" class="btn btn-sm btn-ghost ms-1">
-            <i class="fa-solid fa-rotate-left me-1"></i>날짜 초기화
+            <i class="fa-solid fa-rotate-left me-1"></i><span data-i18n="dash.filterReset">날짜 초기화</span>
           </a>
         </div>
       </div>
@@ -154,20 +154,20 @@
     <div class="d-flex align-items-center gap-2 mb-3">
       <span class="text-muted small">
         <i class="fa-solid fa-filter me-1"></i>
-        {% if kind_filter == 'rfp' %}RFP만
-        {% elif kind_filter == 'integration' %}연동만
-        {% else %}전체 종류{% endif %}
-        {% if status_filter == 'completed' %} · 완료
-        {% elif status_filter == 'in_review' %} · 검토 중
-        {% elif status_filter == 'submitted' %} · 제출됨
+        {% if kind_filter == 'rfp' %}<span data-i18n="dash.filterRfpOnly">RFP만</span>
+        {% elif kind_filter == 'integration' %}<span data-i18n="dash.filterIntOnly">연동만</span>
+        {% else %}<span data-i18n="dash.filterAllKinds">전체 종류</span>{% endif %}
+        {% if status_filter == 'completed' %} · <span data-i18n="dash.completed">완료</span>
+        {% elif status_filter == 'in_review' %} · <span data-i18n="dash.inReview">검토 중</span>
+        {% elif status_filter == 'submitted' %} · <span data-i18n="dash.submitted">제출됨</span>
         {% endif %}
         {% if date_from or date_to %}
-          &nbsp;({{ date_from or '~' }} ~ {{ date_to or '현재' }})
+          &nbsp;({{ date_from or '—' }} ~ {% if date_to %}{{ date_to }}{% else %}<span data-i18n="dash.dateNow">현재</span>{% endif %})
         {% endif %}
-        — <strong>{{ display_items|length }}건</strong>
+        — <strong>{{ display_items|length }}</strong> <span data-i18n="common.itemsUnit">건</span>
       </span>
       <a href="/dashboard" class="btn btn-sm btn-ghost">
-        <i class="fa-solid fa-xmark me-1"></i>필터 초기화
+        <i class="fa-solid fa-xmark me-1"></i><span data-i18n="dash.clearFilters">필터 초기화</span>
       </a>
     </div>
     {% endif %}

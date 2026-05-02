@@ -92,7 +92,7 @@
       </ul>
       <div class="d-flex align-items-center gap-3">
         <!-- Theme Toggle (슬라이드: 왼쪽=다크, 오른쪽=라이트) -->
-        <button type="button" class="theme-switch" id="themeToggleBtn" role="switch" onclick="toggleTheme()" title="테마 전환" aria-label="밝은 테마 / 어두운 테마 전환">
+        <button type="button" class="theme-switch" id="themeToggleBtn" role="switch" onclick="toggleTheme()" data-i18n-title="theme.toggle" data-i18n-aria-label="theme.toggleAria" title="테마 전환" aria-label="밝은 테마 / 어두운 테마 전환">
           <span class="theme-switch-track" aria-hidden="true">
             <span class="theme-switch-icon-wrap theme-switch-icon-wrap--left">
               <i class="fa-solid fa-moon"></i>
@@ -180,7 +180,7 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/i18n.js?v=20260415home"></script>
+<script src="/static/js/i18n.js?v=20260416i18n"></script>
 <script src="/static/js/main.js?v=20260428cat"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}

@@ -9,7 +9,7 @@
         <div class="col">
           <h2 class="mb-2 d-flex align-items-center gap-2 flex-wrap">
             <i class="fa-solid fa-code text-primary-light" aria-hidden="true"></i>
-            <span>SAP ABAP 개발</span>
+            <span data-i18n="svcAbap.pageTitle">SAP ABAP 개발</span>
           </h2>
           <div class="service-abap-intro markdown-body-lite text-muted mb-0 small">
             {{ service_abap_intro_html | safe }}
@@ -17,9 +17,9 @@
         </div>
         <div class="col-auto">
           {% if user %}
-          <a href="/rfp/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>신규 요청</a>
+          <a href="/rfp/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i><span data-i18n="common.newRequest">신규 요청</span></a>
           {% else %}
-          <a href="/login?next=/rfp/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>신규 요청</a>
+          <a href="/login?next=/rfp/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i><span data-i18n="common.newRequest">신규 요청</span></a>
           {% endif %}
         </div>
       </div>
@@ -71,7 +71,7 @@
 
     {% if svc_abap_show_list %}
       {% if selected_svc_abap_bucket == 'delivery' %}
-      <p class="text-muted small mb-3">FS 작성부터 ABAP 최종 납품까지의 단계는 추후 서비스에 반영될 예정입니다.</p>
+      <p class="text-muted small mb-3" data-i18n="svcAbap.deliveryNote">FS 작성부터 ABAP 최종 납품까지의 단계는 추후 서비스에 반영될 예정입니다.</p>
       {% endif %}
       {% if svc_abap_filtered_rfps|length %}
       <section class="mb-4 menu-list-root menu-list-root--tile" data-menu-list-root data-menu-storage-key="svc_abap">
@@ -79,9 +79,9 @@
           <h5 class="mb-0 flex-grow-1 d-flex align-items-center gap-2 flex-wrap">
             <i class="fa-solid {{ bucket_meta[selected_svc_abap_bucket].icon }} small" style="color: {{ bucket_meta[selected_svc_abap_bucket].fg }}"></i>
             {{ bucket_meta[selected_svc_abap_bucket].label }}
-            <span class="text-muted small fw-normal">({{ svc_abap_filtered_rfps|length }}건)</span>
+            <span class="text-muted small fw-normal">({{ svc_abap_filtered_rfps|length }} <span data-i18n="common.itemsUnit">건</span>)</span>
             {% if selected_svc_abap_bucket == 'delivery' %}
-            <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
+            <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal" data-i18n="svcAbap.preparing">준비 중</span>
             {% endif %}
           </h5>
           {% include "partials/menu_list_view_toggle.html" %}
@@ -96,8 +96,7 @@
       </section>
       {% else %}
       <div class="alert alert-secondary border-0 small mb-0">
-        <span class="nav-ko">조건에 맞는 요청이 없습니다.</span>
-        <span class="nav-en" style="display:none">No requests match your filters.</span>
+        <span data-i18n="svcAbap.noResults">조건에 맞는 요청이 없습니다.</span>
       </div>
       {% endif %}
     {% else %}
@@ -110,9 +109,10 @@
     {% else %}
     <div class="alert alert-info border-0 mb-0" style="background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.25)!important;">
       <i class="fa-solid fa-user-lock me-2"></i>
-      <strong>로그인</strong>하면 나의 RFP 목록·진행 현황판·단계별 카드가 표시됩니다.
-      <a href="/login?next=/services/abap" class="alert-link">로그인</a>
-      · <a href="/register" class="alert-link">회원가입</a>
+      <span data-i18n="landing.svcAbapLoginLine1">로그인하면 나의 RFP 목록·진행 현황판·단계별 카드가 표시됩니다.</span>
+      <a href="/login?next=/services/abap" class="alert-link ms-1" data-i18n="nav.login">로그인</a>
+      <span class="text-muted">·</span>
+      <a href="/register" class="alert-link" data-i18n="nav.signup">회원가입</a>
     </div>
     {% endif %}
   </div>

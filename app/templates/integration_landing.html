@@ -9,7 +9,7 @@
         <div class="col">
           <h2 class="mb-2 d-flex align-items-center gap-2 flex-wrap">
             <i class="fa-solid fa-link text-primary-light" aria-hidden="true"></i>
-            <span>SAP 연동 개발</span>
+            <span data-i18n="integration.pageTitle">SAP 연동 개발</span>
           </h2>
           <div class="service-integration-intro markdown-body-lite text-muted mb-0 small">
             {{ service_integration_intro_html | safe }}
@@ -17,9 +17,9 @@
         </div>
         <div class="col-auto">
           {% if user %}
-          <a href="/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>신규 요청</a>
+          <a href="/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i><span data-i18n="common.newRequest">신규 요청</span></a>
           {% else %}
-          <a href="/login?next=/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>신규 요청</a>
+          <a href="/login?next=/integration/new" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i><span data-i18n="common.newRequest">신규 요청</span></a>
           {% endif %}
         </div>
       </div>
@@ -76,9 +76,9 @@
           <h5 class="mb-0 flex-grow-1 d-flex align-items-center gap-2 flex-wrap">
             <i class="fa-solid {{ bucket_meta[selected_menu_bucket].icon }} small" style="color: {{ bucket_meta[selected_menu_bucket].fg }}"></i>
             {{ bucket_meta[selected_menu_bucket].label }}
-            <span class="text-muted small fw-normal">({{ filtered_menu_rows|length }}건)</span>
+            <span class="text-muted small fw-normal">({{ filtered_menu_rows|length }} <span data-i18n="common.itemsUnit">건</span>)</span>
             {% if selected_menu_bucket == 'delivery' %}
-            <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal">준비 중</span>
+            <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal" data-i18n="svcAbap.preparing">준비 중</span>
             {% endif %}
           </h5>
           {% include "partials/menu_list_view_toggle.html" %}
@@ -93,8 +93,7 @@
       </section>
       {% else %}
       <div class="alert alert-secondary border-0 small mb-0">
-        <span class="nav-ko">조건에 맞는 요청이 없습니다.</span>
-        <span class="nav-en" style="display:none">No requests match your filters.</span>
+        <span data-i18n="svcAbap.noResults">조건에 맞는 요청이 없습니다.</span>
       </div>
       {% endif %}
     {% else %}
@@ -105,15 +104,16 @@
     {% endif %}
 
     <div class="mt-4 pt-3 border-top small">
-      <a href="/services/abap" class="text-muted text-decoration-none"><i class="fa-solid fa-code me-1"></i>SAP ABAP 개발 안내로</a>
+      <a href="/services/abap" class="text-muted text-decoration-none"><i class="fa-solid fa-code me-1"></i><span data-i18n="landing.footerToAbap">SAP ABAP 개발 안내로</span></a>
     </div>
 
     {% else %}
     <div class="alert alert-info border-0 mb-0" style="background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.25)!important;">
       <i class="fa-solid fa-user-lock me-2"></i>
-      <strong>로그인</strong> 후 연동 요청 목록과 진행 타일을 사용할 수 있습니다.
-      <a href="/login?next=/integration" class="alert-link">로그인</a>
-      · <a href="/register" class="alert-link">회원가입</a>
+      <span data-i18n="landing.intLoginLine1">로그인하면 연동 요청 목록과 진행 타일을 사용할 수 있습니다.</span>
+      <a href="/login?next=/integration" class="alert-link ms-1" data-i18n="nav.login">로그인</a>
+      <span class="text-muted">·</span>
+      <a href="/register" class="alert-link" data-i18n="nav.signup">회원가입</a>
     </div>
     {% endif %}
   </div>

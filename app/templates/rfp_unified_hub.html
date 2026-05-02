@@ -19,11 +19,11 @@
         </div>
         <div>
           <h2 class="mb-1">{{ rfp.title }}</h2>
-          <div class="small text-muted">#{{ rfp.id }} · {{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }} · 신규 개발</div>
+          <div class="small text-muted">#{{ rfp.id }} · {{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }} · <span data-i18n="detail.newDevTag">신규 개발</span></div>
           {% if user.is_admin and owner %}
           <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
             <i class="fa-solid fa-user-shield me-1 text-warning"></i>
-            요청자: <strong>{{ owner.full_name }}</strong>
+            <span data-i18n="hub.ownerLabel">요청자</span>: <strong>{{ owner.full_name }}</strong>
             {% if owner.company %}<span class="text-muted"> · {{ owner.company }}</span>{% endif %}
             <span class="text-muted font-monospace"> · {{ owner.email }}</span>
           </div>
@@ -32,24 +32,24 @@
       </div>
       <div class="d-flex gap-2 flex-wrap align-items-center">
         <button type="button" class="btn btn-outline-secondary btn-sm" id="requestEditReveal">
-          <i class="fa-solid fa-pen me-1"></i>수정
+          <i class="fa-solid fa-pen me-1"></i><span data-i18n="common.edit">수정</span>
         </button>
         <form method="post" action="/rfp/{{ rfp.id }}/delete" class="d-inline"
-              onsubmit="return confirm('이 신규 개발 요청을 삭제할까요? 첨부·인터뷰·제안·FS·납품 기록이 함께 삭제되며 되돌릴 수 없습니다. 분석/연동 화면에 연결만 해제되고 해당 요청 자체는 유지됩니다.')">
+              onsubmit="return confirmI18n('hub.deleteRfpConfirm')">
           <button type="submit" class="btn btn-outline-danger btn-sm">
-            <i class="fa-solid fa-trash me-1"></i>삭제
+            <i class="fa-solid fa-trash me-1"></i><span data-i18n="common.delete">삭제</span>
           </button>
         </form>
         {% if user.id == rfp.user_id %}
         <form method="post" action="/rfp/{{ rfp.id }}/duplicate-request" class="d-inline">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">요청복사</button>
+          <button type="submit" class="btn btn-outline-secondary btn-sm"><span data-i18n="common.duplicateRequest">요청복사</span></button>
         </form>
         {% endif %}
         <span class="badge bg-secondary">{{ rfp.status }}</span>
       </div>
       <div id="requestEditDock" class="d-none mt-3">
         <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-primary btn-sm">
-          <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>요청 수정 페이지로 이동
+          <i class="fa-solid fa-arrow-up-right-from-square me-1"></i><span data-i18n="reqPanel.goEdit">요청 수정 페이지로 이동</span>
         </a>
       </div>
     </div>
@@ -67,7 +67,7 @@
     <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-request"
       {% if hub_phase_open == 'request' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-        <span class="fw-semibold">1. 요청</span>
+        <span class="fw-semibold" data-i18n="hub.phaseRequest">1. 요청</span>
       </summary>
       <div class="rfp-hub-phase-body pt-2">
         {% include 'partials/rfp_hub_request_panel.html' %}
@@ -78,15 +78,15 @@
     <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-interview"
       {% if hub_phase_open == 'interview' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-        <span class="fw-semibold">2. 인터뷰</span>
+        <span class="fw-semibold" data-i18n="hub.phaseInterview">2. 인터뷰</span>
         {% if hub_embedded|default(false) %}
-        <span class="badge bg-primary">진행</span>
+        <span class="badge bg-primary" data-i18n="hub.inProgress">진행</span>
         {% elif interview_summary_messages and interview_summary_messages|length > 0 %}
-        <span class="badge bg-info text-dark">{{ interview_summary_messages|length }} 라운드</span>
+        <span class="badge bg-info text-dark">{{ interview_summary_messages|length }} <span data-i18n="hub.badgeRounds">라운드</span></span>
         {% elif rfp.interview_status == 'generating_proposal' %}
-        <span class="badge bg-info text-dark">제안서 생성 중</span>
+        <span class="badge bg-info text-dark" data-i18n="hub.proposalGen">제안서 생성 중</span>
         {% elif rfp.interview_status == 'in_progress' %}
-        <span class="badge bg-warning text-dark">진행</span>
+        <span class="badge bg-warning text-dark" data-i18n="hub.inProgress">진행</span>
         {% endif %}
       </summary>
       <div class="rfp-hub-phase-body pt-2">
@@ -104,11 +104,11 @@
     <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-proposal"
       {% if hub_phase_open == 'proposal' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-        <span class="fw-semibold">3. 제안서</span>
+        <span class="fw-semibold" data-i18n="hub.phaseProposal">3. 제안서</span>
         {% if hub_proposal_generating %}
-        <span class="badge bg-info text-dark">생성 중</span>
+        <span class="badge bg-info text-dark" data-i18n="common.generating">생성 중</span>
         {% elif proposal_html %}
-        <span class="badge bg-success">준비됨</span>
+        <span class="badge bg-success" data-i18n="hub.proposalReady">준비됨</span>
         {% endif %}
       </summary>
       <div class="rfp-hub-phase-body pt-2">
@@ -119,7 +119,7 @@
           {% set hide_hub_nav = true %}
           {% include 'partials/proposal_workspace_markup.html' %}
         {% else %}
-          <p class="text-muted small mb-0">제안서가 아직 없습니다. 인터뷰를 진행하면 생성할 수 있습니다.</p>
+          <p class="text-muted small mb-0" data-i18n="hub.proposalNone">제안서가 아직 없습니다. 인터뷰를 진행하면 생성할 수 있습니다.</p>
         {% endif %}
       </div>
     </details>
@@ -129,15 +129,15 @@
       {% if hub_phase_open == 'fs' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>
-        <span class="fw-semibold">4. 기능명세 (FS)</span>
+        <span class="fw-semibold" data-i18n="hub.phaseFs">4. 기능명세 (FS)</span>
         {% if fs_busy %}
-        <span class="badge bg-info text-dark ms-1">생성 중</span>
+        <span class="badge bg-info text-dark ms-1" data-i18n="common.generating">생성 중</span>
         {% elif fs_stat == 'failed' %}
-        <span class="badge bg-danger ms-1">실패</span>
+        <span class="badge bg-danger ms-1" data-i18n="hub.fsFailed">실패</span>
         {% elif fs_stat == 'ready' and fs_html %}
-        <span class="badge bg-success ms-1">준비됨</span>
+        <span class="badge bg-success ms-1" data-i18n="hub.fsReady">준비됨</span>
         {% else %}
-        <span class="badge bg-secondary ms-1">대기</span>
+        <span class="badge bg-secondary ms-1" data-i18n="hub.fsWait">대기</span>
         {% endif %}
       </summary>
       <div class="rfp-hub-phase-body pt-2">
@@ -151,23 +151,23 @@
       {% if hub_phase_open == 'devcode' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <i class="fa-solid fa-code me-1" aria-hidden="true"></i>
-        <span class="fw-semibold">5. 개발코드</span>
+        <span class="fw-semibold" data-i18n="hub.phaseDevCode">5. 개발코드</span>
         {% if source_program_groups and source_program_groups|length %}
-        <span class="badge bg-secondary">참조 {{ reference_section_count }}개 섹션</span>
+        <span class="badge bg-secondary"><span class="nav-ko">참조 {{ reference_section_count }}개 섹션</span><span class="nav-en" style="display:none">{{ reference_section_count }} reference sections</span></span>
         {% endif %}
         {% if dc_busy %}
-        <span class="badge bg-info text-dark ms-1">납품 코드 생성 중</span>
+        <span class="badge bg-info text-dark ms-1" data-i18n="hub.dcGen">납품 코드 생성 중</span>
         {% elif delivered_code_html %}
-        <span class="badge bg-success ms-1">납품 코드 준비됨</span>
+        <span class="badge bg-success ms-1" data-i18n="hub.dcReady">납품 코드 준비됨</span>
         {% endif %}
       </summary>
       <div class="rfp-hub-phase-body pt-2">
         <div class="mb-4">
-          <h6 class="text-muted small text-uppercase mb-2">납품 ABAP (에이전트 생성)</h6>
+          <h6 class="text-muted small text-uppercase mb-2" data-i18n="hub.agentDelivered">납품 ABAP (에이전트 생성)</h6>
           {% include 'partials/rfp_hub_dc_body_flat.html' %}
         </div>
         <div class="border-top pt-3 mt-2">
-          <h6 class="text-muted small text-uppercase mb-2">참고로 제출한 ABAP</h6>
+          <h6 class="text-muted small text-uppercase mb-2" data-i18n="hub.submittedAbap">참고로 제출한 ABAP</h6>
           {% set hide_hub_nav = true %}
           {% include 'partials/rfp_hub_dev_code_panel.html' %}
         </div>

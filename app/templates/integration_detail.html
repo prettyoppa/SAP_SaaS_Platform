@@ -13,11 +13,11 @@
         </div>
         <div>
           <h2 class="mb-1">{{ ir.title }}</h2>
-          <div class="small text-muted">#{{ ir.id }} · {{ ir.created_at.strftime('%Y-%m-%d %H:%M') }} · 연동 개발</div>
+          <div class="small text-muted">#{{ ir.id }} · {{ ir.created_at.strftime('%Y-%m-%d %H:%M') }} · <span data-i18n="detail.integrationTag">연동 개발</span></div>
           {% if user.is_admin and owner %}
           <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
             <i class="fa-solid fa-user-shield me-1 text-warning"></i>
-            요청자: <strong>{{ owner.full_name }}</strong>{% if owner.company %} · {{ owner.company }}{% endif %}
+            <span data-i18n="hub.ownerLabel">요청자</span>: <strong>{{ owner.full_name }}</strong>{% if owner.company %} · {{ owner.company }}{% endif %}
             <span class="text-muted font-monospace"> · {{ owner.email }}</span>
           </div>
           {% endif %}
@@ -25,29 +25,29 @@
       </div>
       <div class="d-flex gap-2 flex-wrap align-items-center">
         <form method="post" action="/integration/{{ ir.id }}/delete" class="d-inline"
-              onsubmit="return confirm('이 연동 요청을 삭제할까요? 첨부·후속 대화가 삭제되며 되돌릴 수 없습니다. (이미 연결된 신규 개발 RFP는 삭제되지 않습니다.)')">
+              onsubmit="return confirmI18n('detail.deleteConfirmInt')">
           <button type="submit" class="btn btn-outline-danger btn-sm">
-            <i class="fa-solid fa-trash me-1"></i>삭제
+            <i class="fa-solid fa-trash me-1"></i><span data-i18n="common.delete">삭제</span>
           </button>
         </form>
         {% if user.id == ir.user_id %}
         <form method="post" action="/integration/{{ ir.id }}/duplicate-request" class="d-inline">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">요청복사</button>
+          <button type="submit" class="btn btn-outline-secondary btn-sm"><span data-i18n="common.duplicateRequest">요청복사</span></button>
         </form>
         {% endif %}
-        <span class="rfp-status-badge status-badge-submitted">제출됨</span>
+        <span class="rfp-status-badge status-badge-submitted" data-i18n="status.submitted">제출됨</span>
       </div>
     </div>
 
     <details class="interview-summary-toggle rfp-hub-phase mb-3" id="integration-phase-request" open>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-        <span class="fw-semibold">1. 요청</span>
-        <span class="badge bg-secondary">제출됨</span>
+        <span class="fw-semibold" data-i18n="hub.phaseRequest">1. 요청</span>
+        <span class="badge bg-secondary" data-i18n="status.submitted">제출됨</span>
       </summary>
       <div class="rfp-hub-phase-body pt-2">
     <div id="integration-request-block" class="mb-0">
       <div class="mb-4">
-        <h5 class="small text-uppercase text-muted">구현 형태</h5>
+        <h5 class="small text-uppercase text-muted" data-i18n="detail.implTypes">구현 형태</h5>
         <div>
           {% for t in types_list %}
           <span class="badge-devtype me-1">{{ impl_labels.get(t, t) }}</span>
@@ -57,35 +57,35 @@
 
       {% if ir.sap_touchpoints %}
       <div class="mb-4">
-        <h5 class="small text-uppercase text-muted">SAP 터치포인트</h5>
+        <h5 class="small text-uppercase text-muted" data-i18n="detail.sapTouch">SAP 터치포인트</h5>
         <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.sap_touchpoints }}</div>
       </div>
       {% endif %}
 
       {% if ir.environment_notes %}
       <div class="mb-4">
-        <h5 class="small text-uppercase text-muted">실행 환경</h5>
+        <h5 class="small text-uppercase text-muted" data-i18n="detail.env">실행 환경</h5>
         <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.environment_notes }}</div>
       </div>
       {% endif %}
 
       {% if ir.security_notes %}
       <div class="mb-4">
-        <h5 class="small text-uppercase text-muted">보안·권한</h5>
+        <h5 class="small text-uppercase text-muted" data-i18n="detail.security">보안·권한</h5>
         <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.security_notes }}</div>
       </div>
       {% endif %}
 
       {% if ir.description %}
       <div class="mb-4">
-        <h5 class="small text-uppercase text-muted">상세 설명</h5>
+        <h5 class="small text-uppercase text-muted" data-i18n="detail.description">상세 설명</h5>
         <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.description }}</div>
       </div>
       {% endif %}
 
       {% if attachment_entries %}
       <div class="mb-4">
-        <h5 class="small text-uppercase text-muted">첨부</h5>
+        <h5 class="small text-uppercase text-muted" data-i18n="detail.attachments">첨부</h5>
         <ul class="list-unstyled mb-0">
           {% for att in attachment_entries %}
           <li class="mb-1">
@@ -103,8 +103,9 @@
         <details class="interview-summary-toggle codelib-source-details mb-0" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <i class="fa-solid fa-code me-1"></i>
-            <span>첨부 ABAP 코드</span>
-            <span class="small text-muted">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
+            <span data-i18n="chat.refAbapHeading">첨부 ABAP 코드</span>
+            <span class="small text-muted nav-ko">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
+            <span class="small text-muted nav-en" style="display:none">({{ reference_section_count }} sections{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }} programs{% endif %})</span>
           </summary>
           <div class="interview-summary-body p-0 px-0 pt-2">
             {% set tabs_base_id = 'integration-ref-src-' ~ ir.id %}
@@ -119,38 +120,38 @@
 
     <details class="interview-summary-toggle rfp-hub-phase mb-3" id="integration-phase-improvement" open>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-        <span class="fw-semibold">2. 개선 제안 요청</span>
+        <span class="fw-semibold" data-i18n="chat.phaseImprove">2. 개선 제안 요청</span>
         {% if ir.workflow_rfp %}
-        <span class="badge bg-primary">워크플로 연결</span>
+        <span class="badge bg-primary" data-i18n="common.workflowLinked">워크플로 연결</span>
         {% else %}
-        <span class="badge bg-secondary">미연결</span>
+        <span class="badge bg-secondary" data-i18n="common.notLinked">미연결</span>
         {% endif %}
       </summary>
       <div class="rfp-hub-phase-body pt-2">
     <div class="proposal-card mb-0 border border-warning border-opacity-50" id="integration-improvement-proposal" style="background:var(--surface2);">
       <div class="proposal-body">
-        <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem">개선 제안 요청</h4>
+        <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem" data-i18n="detail.improveTitle">개선 제안 요청</h4>
         {% if wf_err == 'already' %}
-        <div class="alert alert-info small mb-3">이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.</div>
+        <div class="alert alert-info small mb-3" data-i18n="detail.improveWorkflow">이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.</div>
         {% endif %}
         {% if wf_err == 'short' %}
-        <div class="alert alert-warning small mb-3">개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)</div>
+        <div class="alert alert-warning small mb-3" data-i18n="detail.improveShort">개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)</div>
         {% endif %}
         {% if ir.workflow_rfp %}
         {% set wr = ir.workflow_rfp %}
         <div class="d-flex flex-wrap gap-2 mb-3">
           {% if (wr.proposal_text or '').strip() %}
-          <a href="/rfp/{{ wr.id }}/proposal" class="btn btn-sm btn-outline-primary">제안서 보기</a>
+          <a href="/rfp/{{ wr.id }}/proposal" class="btn btn-sm btn-outline-primary"><span data-i18n="detail.viewProposal">제안서 보기</span></a>
           {% elif wr.interview_status == 'generating_proposal' %}
-          <a href="/rfp/{{ wr.id }}/proposal/generating" class="btn btn-sm btn-outline-primary">제안서 생성 중…</a>
+          <a href="/rfp/{{ wr.id }}/proposal/generating" class="btn btn-sm btn-outline-primary"><span data-i18n="detail.proposalGen">제안서 생성 중…</span></a>
           {% endif %}
-          <a href="/rfp/{{ wr.id }}/request" class="btn btn-sm btn-outline-secondary">연결된 요청(RFP)</a>
+          <a href="/rfp/{{ wr.id }}/request" class="btn btn-sm btn-outline-secondary"><span data-i18n="detail.linkedRfp">연결된 요청(RFP)</span></a>
         </div>
         {% else %}
         <form method="post" action="/integration/{{ ir.id }}/improvement-proposal">
           <textarea id="integration_improvement_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" required>{{ ir.improvement_request_text or '' }}</textarea>
           <button type="submit" class="btn btn-primary btn-sm">
-            <i class="fa-solid fa-paper-plane me-1"></i>제출
+            <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="common.submit">제출</span>
           </button>
         </form>
         {% endif %}
@@ -162,8 +163,9 @@
     {% if chat_enabled %}
     <p class="small text-muted mb-4">
       <i class="fa-solid fa-comments me-1 text-primary-light"></i>
-      이 연동 요청에 대한 <strong>추가 질문·응답</strong>은 화면 <strong>오른쪽 아래</strong> 채팅 버튼에서 이어서 할 수 있습니다.
-      (회당 최대 {{ max_followup_user_turns }}회)
+      <span data-i18n="detail.chatHintInt">이 연동 요청에 대한 <strong>추가 질문·응답</strong>은 화면 <strong>오른쪽 아래</strong> 채팅 버튼에서 이어서 할 수 있습니다.</span>
+      <span class="nav-ko">(회당 최대 {{ max_followup_user_turns }}회)</span>
+      <span class="nav-en" style="display:none">(Up to {{ max_followup_user_turns }} messages per request)</span>
     </p>
     {% endif %}
 
@@ -173,8 +175,8 @@
 {% if chat_enabled %}
 <div id="integration-followup-chat" class="abap-float-chat" aria-live="polite">
   <div id="integrationFloatChatPanel" class="abap-float-chat-panel" hidden
-       title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
-    <button type="button" class="abap-float-chat-resize" id="integrationFloatChatResize" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
+       data-i18n-title="chat.panelResizeTitle" title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
+    <button type="button" class="abap-float-chat-resize" id="integrationFloatChatResize" data-i18n-aria-label="chat.panelResizeAria" data-i18n-title="chat.panelResizeHint" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
       <span class="abap-resize-svg-wrap" aria-hidden="true">
         <svg class="abap-resize-svg abap-resize-svg-nw" width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
           <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 13V3h10"/>
@@ -185,13 +187,13 @@
       </span>
     </button>
     <div class="abap-float-chat-header">
-      <span class="abap-float-chat-header-title">이 연동 요청에 대해 질문하기</span>
-      <button type="button" class="abap-float-chat-close" id="integrationFloatChatClose" title="닫기" aria-label="채팅 패널 닫기">
+      <span class="abap-float-chat-header-title" data-i18n="chat.intHeaderTitle">이 연동 요청에 대해 질문하기</span>
+      <button type="button" class="abap-float-chat-close" id="integrationFloatChatClose" data-i18n-title="chat.closeTitle" data-i18n-aria-label="chat.closeAria" title="닫기" aria-label="채팅 패널 닫기">
         <i class="fa-solid fa-xmark fa-lg"></i>
       </button>
     </div>
     <div class="abap-float-chat-body">
-      <p class="small text-muted mb-2 mb-md-3">
+      <p class="small text-muted mb-2 mb-md-3" data-i18n="chat.intContextHelp">
         연동 요청 내용·첨부를 맥락으로 답합니다.
       </p>
       {% if chat_error %}
@@ -202,48 +204,48 @@
         {% for turn in followup_turns %}
         <details class="analysis-fold mb-2 abap-followup-turn" {% if loop.last %}open{% endif %}>
           <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2 w-100">
-            <span class="fw-semibold text-nowrap">대화 {{ loop.index }}</span>
+            <span class="fw-semibold text-nowrap"><span data-i18n="chat.thread">대화</span> {{ loop.index }}</span>
             {% if turn.question %}
             <span class="small text-muted text-nowrap">{{ turn.question.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
             <span class="small text-muted flex-grow-1 text-truncate" style="min-width:100px;" title="{{ turn.question.content }}">
               {{ turn.question.content[:80] }}{% if turn.question.content|length > 80 %}…{% endif %}
             </span>
             {% else %}
-            <span class="small text-muted">응답만 있음</span>
+            <span class="small text-muted" data-i18n="chat.answerOnly">응답만 있음</span>
             {% endif %}
           </summary>
           <div class="analysis-fold-body pt-1">
             {% if turn.question %}
             <div class="mb-2">
-              <div class="small fw-semibold text-muted mb-1">질문</div>
+              <div class="small fw-semibold text-muted mb-1" data-i18n="chat.question">질문</div>
               <div class="abap-followup-q">{{ turn.question.content }}</div>
             </div>
             {% endif %}
             {% if turn.answer %}
             <div>
-              <div class="small fw-semibold text-muted mb-1">응답</div>
+              <div class="small fw-semibold text-muted mb-1" data-i18n="chat.answer">응답</div>
               <div class="abap-followup-a">{{ turn.answer.content }}</div>
             </div>
             {% elif turn.question %}
-            <p class="small text-muted mb-0">응답이 아직 없습니다.</p>
+            <p class="small text-muted mb-0" data-i18n="chat.noAnswerYet">응답이 아직 없습니다.</p>
             {% endif %}
           </div>
         </details>
         {% endfor %}
       </div>
       {% else %}
-      <p class="small text-muted fst-italic mb-0">아직 대화가 없습니다. 아래에서 질문을 보내 보세요.</p>
+      <p class="small text-muted fst-italic mb-0" data-i18n="chat.noThreadsYet">아직 대화가 없습니다. 아래에서 질문을 보내 보세요.</p>
       {% endif %}
     </div>
     <div class="abap-float-chat-footer">
       {% if chat_limit_reached %}
-      <p class="small text-muted mb-0">후속 질문 횟수에 도달했습니다.</p>
+      <p class="small text-muted mb-0" data-i18n="chat.limitReached">후속 질문 횟수에 도달했습니다.</p>
       {% else %}
       <form method="post" action="/integration/{{ ir.id }}/chat" class="abap-followup-form mb-0">
-        <label class="form-label small text-muted mb-1" for="integration-followup-msg">메시지</label>
+        <label class="form-label small text-muted mb-1" for="integration-followup-msg" data-i18n="chat.messageLabel">메시지</label>
         <div class="abap-followup-ta-wrap">
-          <textarea id="integration-followup-msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required placeholder="추가로 궁금한 점을 입력하세요."></textarea>
-          <button type="button" class="abap-followup-ta-resize" id="integrationFollowupTaResize" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
+          <textarea id="integration-followup-msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required data-i18n-placeholder="chat.messagePlaceholder" placeholder="추가로 궁금한 점을 입력하세요."></textarea>
+          <button type="button" class="abap-followup-ta-resize" id="integrationFollowupTaResize" data-i18n-aria-label="chat.taResizeAria" data-i18n-title="chat.taResizeTitle" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
             <span class="abap-resize-svg-wrap abap-resize-svg-wrap--sm" aria-hidden="true">
               <svg class="abap-resize-svg abap-resize-svg-nw" width="14" height="14" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
                 <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 13V3h10"/>
@@ -255,7 +257,7 @@
           </button>
         </div>
         <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">
-          <i class="fa-solid fa-paper-plane me-1"></i>보내기
+          <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="chat.send">보내기</span>
         </button>
       </form>
       {% endif %}
@@ -263,7 +265,7 @@
   </div>
   <button type="button" class="abap-float-chat-launcher" id="integrationFloatChatLauncher" aria-expanded="false" aria-controls="integrationFloatChatPanel">
     <i class="fa-solid fa-comments fa-lg abap-float-chat-launcher-icon" aria-hidden="true"></i>
-    <span class="abap-float-chat-launcher-text">이어서 질문</span>
+    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">이어서 질문</span>
     {% if followup_turns and followup_turns|length > 0 %}
     <span class="abap-float-chat-count" aria-hidden="true">{{ followup_turns|length }}</span>
     {% endif %}

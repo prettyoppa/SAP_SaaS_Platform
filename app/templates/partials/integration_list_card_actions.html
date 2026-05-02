@@ -1,6 +1,6 @@
 {% if integration_simple_actions|default(false) %}
 <a href="/integration/{{ ir.id }}" class="btn btn-sm btn-primary">
-  <i class="fa-solid fa-eye me-1"></i>상세
+  <i class="fa-solid fa-eye me-1"></i><span data-i18n="common.detail">상세</span>
 </a>
 {% else %}
 {% set workflow_rfp = ir.workflow_rfp %}

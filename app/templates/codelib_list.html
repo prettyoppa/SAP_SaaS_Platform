@@ -10,13 +10,16 @@
         <div class="col">
           <h2 class="mb-1">
             <i class="fa-solid fa-database me-2 text-primary-light"></i>
-            ABAP 코드 갤러리
+            <span data-i18n="codelib.title">ABAP 코드 갤러리</span>
           </h2>
-          <p class="text-muted mb-0">실제 프로젝트 ABAP 소스를 등록하고 {{ 'f_analyst'|agent_label }}가 분석합니다.</p>
+          <p class="text-muted mb-0">
+            <span class="nav-ko">실제 프로젝트 ABAP 소스를 등록하고 {{ 'f_analyst'|agent_label }}가 분석합니다.</span>
+            <span class="nav-en" style="display:none">Register production ABAP here—our analyst agent uses it when generating interview questions.</span>
+          </p>
         </div>
         <div class="col-auto">
           <a href="/codelib/upload" class="btn btn-primary">
-            <i class="fa-solid fa-plus me-2"></i>코드 등록
+            <i class="fa-solid fa-plus me-2"></i><span data-i18n="codelib.upload">코드 등록</span>
           </a>
         </div>
       </div>
@@ -31,7 +34,7 @@
           </div>
           <div>
             <div class="stat-card-num">{{ counts.total }}</div>
-            <div class="stat-card-label">전체 코드</div>
+            <div class="stat-card-label" data-i18n="codelib.statTotal">전체 코드</div>
           </div>
         </div>
       </div>
@@ -42,7 +45,7 @@
           </div>
           <div>
             <div class="stat-card-num">{{ counts.analyzed }}</div>
-            <div class="stat-card-label">분석 완료</div>
+            <div class="stat-card-label" data-i18n="codelib.statAnalyzed">분석 완료</div>
           </div>
         </div>
       </div>
@@ -53,7 +56,7 @@
           </div>
           <div>
             <div class="stat-card-num">{{ counts.draft }}</div>
-            <div class="stat-card-label">임시 저장</div>
+            <div class="stat-card-label" data-i18n="codelib.statDraft">임시 저장</div>
           </div>
         </div>
       </div>
@@ -62,9 +65,9 @@
     <!-- 검색 -->
     <form method="get" action="/codelib" class="mb-4">
       <div class="input-group input-group-sm" style="max-width:400px">
-        <input type="text" name="q" class="form-control" placeholder="프로그램명, 모듈로 검색..." value="{{ q }}"/>
+        <input type="text" name="q" class="form-control" value="{{ q }}" data-i18n-placeholder="codelib.searchPlaceholder"/>
         <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
-        {% if q %}<a href="/codelib" class="btn btn-outline-secondary">초기화</a>{% endif %}
+        {% if q %}<a href="/codelib" class="btn btn-outline-secondary" data-i18n="codelib.reset">초기화</a>{% endif %}
       </div>
     </form>
 
@@ -72,7 +75,7 @@
     {% if codes %}
     <div class="menu-list-root menu-list-root--tile mb-4" data-menu-list-root data-menu-storage-key="codelib">
       <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <h5 class="mb-0 flex-grow-1 small text-muted text-uppercase">등록된 코드</h5>
+        <h5 class="mb-0 flex-grow-1 small text-muted text-uppercase" data-i18n="codelib.sectionList">등록된 코드</h5>
         {% include "partials/menu_list_view_toggle.html" %}
       </div>
       <div class="row g-3">
@@ -87,13 +90,14 @@
     {% else %}
     <div class="empty-state">
       <i class="fa-solid fa-database empty-icon"></i>
-      <h5>등록된 코드가 없습니다</h5>
+      <h5 data-i18n="codelib.emptyTitle">등록된 코드가 없습니다</h5>
       <p class="text-muted">
-        실제 프로젝트에서 개발한 ABAP 소스를 등록하면<br/>
-        {{ 'f_analyst'|agent_label }}가 분석한 결과는 인터뷰 질문 생성에 활용됩니다.
+        <span class="nav-ko">실제 프로젝트에서 개발한 ABAP 소스를 등록하면<br/>
+        {{ 'f_analyst'|agent_label }}가 분석한 결과는 인터뷰 질문 생성에 활용됩니다.</span>
+        <span class="nav-en" style="display:none" data-i18n="codelib.emptyDesc">Register ABAP from your projects—analysis feeds interview questions.</span>
       </p>
       <a href="/codelib/upload" class="btn btn-primary mt-2">
-        <i class="fa-solid fa-plus me-2"></i>첫 번째 코드 등록
+        <i class="fa-solid fa-plus me-2"></i><span data-i18n="codelib.emptyCta">첫 번째 코드 등록</span>
       </a>
     </div>
     {% endif %}

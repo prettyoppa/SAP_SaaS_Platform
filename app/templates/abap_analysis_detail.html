@@ -17,11 +17,11 @@
               </div>
               <div>
                 <h2 class="mb-1">{% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}SAP ABAP 분석&개선{% endif %}</h2>
-                <div class="small text-muted">#{{ row.id }} · {{ row.created_at.strftime('%Y-%m-%d %H:%M') }} · 분석&amp;개선</div>
+                <div class="small text-muted">#{{ row.id }} · {{ row.created_at.strftime('%Y-%m-%d %H:%M') }} · <span data-i18n="detail.analysisTag">분석&amp;개선</span></div>
                 {% if user.is_admin and owner %}
                 <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
                   <i class="fa-solid fa-user-shield me-1 text-warning"></i>
-                  요청자: <strong>{{ owner.full_name }}</strong>
+                  <span data-i18n="hub.ownerLabel">요청자</span>: <strong>{{ owner.full_name }}</strong>
                   {% if owner.company %}<span class="text-muted"> · {{ owner.company }}</span>{% endif %}
                   <span class="text-muted font-monospace"> · {{ owner.email }}</span>
                 </div>
@@ -65,9 +65,9 @@
 
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-request" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold">1. 요청</span>
+            <span class="fw-semibold" data-i18n="detail.phaseRequest">1. 요청</span>
             {% if row.is_draft %}
-            <span class="badge bg-secondary">임시저장</span>
+            <span class="badge bg-secondary" data-i18n="badge.draft">임시저장</span>
             {% endif %}
           </summary>
           <div class="rfp-hub-phase-body pt-2">
@@ -81,7 +81,7 @@
             {% if attachment_entries %}
             <div class="proposal-card mb-4">
               <div class="proposal-body">
-                <h4 class="mb-3" style="border-left:3px solid var(--primary);padding-left:.75rem">첨부</h4>
+                <h4 class="mb-3" style="border-left:3px solid var(--primary);padding-left:.75rem" data-i18n="detail.attachments">첨부</h4>
                 <ul class="mb-0">
                   {% for att in attachment_entries %}
                   <li class="mb-1">
@@ -97,7 +97,7 @@
             {% if row.is_draft %}
             <div class="alert alert-info mb-0">
               <i class="fa-solid fa-floppy-disk me-2"></i>
-              임시저장된 요청입니다. 제출 및 분석을 완료하려면 <a href="/abap-analysis/{{ row.id }}/edit">계속 작성</a>에서 <strong>제출 및 분석</strong>을 누르세요.
+              <span data-i18n="detail.draftHint">임시저장된 요청입니다. 계속 작성에서 제출 및 분석을 누르세요.</span>
             </div>
             {% endif %}
           </div>
@@ -106,19 +106,19 @@
         {% if not row.is_draft and analysis %}
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-analysis" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold">2. 분석 결과</span>
+            <span class="fw-semibold" data-i18n="detail.phaseAnalysis">2. 분석 결과</span>
             {% if analysis.get('error') %}
-            <span class="badge bg-danger">오류</span>
+            <span class="badge bg-danger" data-i18n="detail.analysisErrBadge">오류</span>
             {% else %}
-            <span class="badge bg-success">분석 완료</span>
+            <span class="badge bg-success" data-i18n="detail.analysisOkBadge">분석 완료</span>
             {% endif %}
           </summary>
           <div class="rfp-hub-phase-body pt-2">
         {% if analysis.get('error') %}
         <div class="alert alert-danger mb-0">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          분석 오류: {{ analysis.error }}
-          <div class="mt-2 small">재분석 버튼으로 다시 시도해 주세요.</div>
+          <span data-i18n="detail.analysisErrorPrefix">분석 오류:</span> {{ analysis.error }}
+          <div class="mt-2 small" data-i18n="detail.retryHint">재분석 버튼으로 다시 시도해 주세요.</div>
         </div>
         {% else %}
         <div class="proposal-card mb-0">
@@ -216,58 +216,58 @@
         {% if not row.is_draft and analysis and (analysis.get('requirement_analysis_error') or analysis.get('requirement_analysis')) %}
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-requirement-analysis" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold">3. 요구사항 연계 분석</span>
+            <span class="fw-semibold" data-i18n="detail.phaseReqLink">3. 요구사항 연계 분석</span>
             {% if analysis.get('requirement_analysis_error') %}
-            <span class="badge bg-warning text-dark">오류</span>
+            <span class="badge bg-warning text-dark" data-i18n="detail.reqLinkErrBadge">오류</span>
             {% else %}
-            <span class="badge bg-success">준비됨</span>
+            <span class="badge bg-success" data-i18n="detail.reqLinkOkBadge">준비됨</span>
             {% endif %}
           </summary>
           <div class="rfp-hub-phase-body pt-2">
         {% if analysis.get('requirement_analysis_error') %}
         <div class="alert alert-warning mb-0">
-          요구사항 연계 분석 오류: {{ analysis.requirement_analysis_error }}
+          <span data-i18n="detail.reqLinkErrorPrefix">요구사항 연계 분석 오류:</span> {{ analysis.requirement_analysis_error }}
         </div>
         {% elif analysis.get('requirement_analysis') %}
         {% set ra = analysis.requirement_analysis %}
         <div class="proposal-card mb-0">
           <div class="proposal-body">
             <h4 style="border-left:3px solid #22c55e;padding-left:.75rem;margin-top:0;margin-bottom:1.25rem">
-              <i class="fa-solid fa-link me-2 text-success"></i>요구사항 연계 분석
+              <i class="fa-solid fa-link me-2 text-success"></i><span data-i18n="analysis.reqLinkTitle">요구사항 연계 분석</span>
             </h4>
             {% if ra.get('interpretation') %}
             <details class="analysis-fold mb-3" open>
-              <summary class="analysis-fold-summary">요구사항 해석</summary>
+              <summary class="analysis-fold-summary" data-i18n="analysis.fold.interpretation">요구사항 해석</summary>
               <div class="analysis-fold-body">{{ ra.interpretation }}</div>
             </details>
             {% endif %}
             {% if ra.get('mapping') %}
             <details class="analysis-fold mb-3">
-              <summary class="analysis-fold-summary">코드와의 연관</summary>
+              <summary class="analysis-fold-summary" data-i18n="analysis.fold.mapping">코드와의 연관</summary>
               <div class="analysis-fold-body">{{ ra.mapping }}</div>
             </details>
             {% endif %}
             {% if ra.get('suspected_areas') %}
             <details class="analysis-fold mb-3">
-              <summary class="analysis-fold-summary">살펴볼 만한 위치</summary>
+              <summary class="analysis-fold-summary" data-i18n="analysis.fold.suspected">살펴볼 만한 위치</summary>
               <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.suspected_areas %}<li>{{ x }}</li>{% endfor %}</ul></div>
             </details>
             {% endif %}
             {% if ra.get('hypotheses') %}
             <details class="analysis-fold mb-3">
-              <summary class="analysis-fold-summary">가설</summary>
+              <summary class="analysis-fold-summary" data-i18n="analysis.fold.hypotheses">가설</summary>
               <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.hypotheses %}<li>{{ x }}</li>{% endfor %}</ul></div>
             </details>
             {% endif %}
             {% if ra.get('verification_suggestions') %}
             <details class="analysis-fold mb-3">
-              <summary class="analysis-fold-summary">검증 제안</summary>
+              <summary class="analysis-fold-summary" data-i18n="analysis.fold.verification">검증 제안</summary>
               <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.verification_suggestions %}<li>{{ x }}</li>{% endfor %}</ul></div>
             </details>
             {% endif %}
             {% if ra.get('open_questions') %}
             <details class="analysis-fold mb-0">
-              <summary class="analysis-fold-summary">추가 확인 질문</summary>
+              <summary class="analysis-fold-summary" data-i18n="analysis.fold.openQuestions">추가 확인 질문</summary>
               <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.open_questions %}<li>{{ x }}</li>{% endfor %}</ul></div>
             </details>
             {% endif %}
@@ -281,38 +281,38 @@
         {% if not row.is_draft and row.is_analyzed %}
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-improvement" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold">4. 개선 제안 요청</span>
+            <span class="fw-semibold" data-i18n="detail.phaseImprove">4. 개선 제안 요청</span>
             {% if row.workflow_rfp %}
-            <span class="badge bg-primary">워크플로 연결</span>
+            <span class="badge bg-primary" data-i18n="common.workflowLinked">워크플로 연결</span>
             {% else %}
-            <span class="badge bg-secondary">미연결</span>
+            <span class="badge bg-secondary" data-i18n="common.notLinked">미연결</span>
             {% endif %}
           </summary>
           <div class="rfp-hub-phase-body pt-2">
         <div class="proposal-card mb-0 border border-warning border-opacity-50" id="abap-improvement-proposal" style="background:var(--surface2);">
           <div class="proposal-body">
-            <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem">개선 제안 요청</h4>
+            <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem" data-i18n="detail.improveTitle">개선 제안 요청</h4>
             {% if wf_err == 'already' %}
-            <div class="alert alert-info small mb-3">이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.</div>
+            <div class="alert alert-info small mb-3" data-i18n="detail.improveWorkflow">이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.</div>
             {% endif %}
             {% if wf_err == 'short' %}
-            <div class="alert alert-warning small mb-3">개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)</div>
+            <div class="alert alert-warning small mb-3" data-i18n="detail.improveShort">개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)</div>
             {% endif %}
             {% if row.workflow_rfp %}
             {% set wr = row.workflow_rfp %}
             <div class="d-flex flex-wrap gap-2 mb-3">
               {% if (wr.proposal_text or '').strip() %}
-              <a href="/rfp/{{ wr.id }}/proposal" class="btn btn-sm btn-outline-primary">제안서 보기</a>
+              <a href="/rfp/{{ wr.id }}/proposal" class="btn btn-sm btn-outline-primary"><span data-i18n="detail.viewProposal">제안서 보기</span></a>
               {% elif wr.interview_status == 'generating_proposal' %}
-              <a href="/rfp/{{ wr.id }}/proposal/generating" class="btn btn-sm btn-outline-primary">제안서 생성 중…</a>
+              <a href="/rfp/{{ wr.id }}/proposal/generating" class="btn btn-sm btn-outline-primary"><span data-i18n="detail.proposalGen">제안서 생성 중…</span></a>
               {% endif %}
-              <a href="/rfp/{{ wr.id }}/request" class="btn btn-sm btn-outline-secondary">연결된 요청(RFP)</a>
+              <a href="/rfp/{{ wr.id }}/request" class="btn btn-sm btn-outline-secondary"><span data-i18n="detail.linkedRfp">연결된 요청(RFP)</span></a>
             </div>
             {% else %}
             <form method="post" action="/abap-analysis/{{ row.id }}/improvement-proposal">
               <textarea id="improvement_request_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" required>{{ row.improvement_request_text or '' }}</textarea>
               <button type="submit" class="btn btn-primary btn-sm">
-                <i class="fa-solid fa-paper-plane me-1"></i>제출
+                <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="common.submit">제출</span>
               </button>
             </form>
             {% endif %}
@@ -325,23 +325,25 @@
         {% if chat_enabled %}
         <p class="small text-muted mb-4">
           <i class="fa-solid fa-comments me-1 text-primary-light"></i>
-          이 분석에 대한 <strong>추가 질문·응답</strong>은 화면 <strong>오른쪽 아래</strong> 채팅 버튼에서 이어서 할 수 있습니다.
-          (회당 최대 {{ max_followup_user_turns }}회)
+          <span data-i18n="detail.chatHintAnalysis">이 분석에 대한 <strong>추가 질문·응답</strong>은 화면 <strong>오른쪽 아래</strong> 채팅 버튼에서 이어서 할 수 있습니다.</span>
+          <span class="nav-ko">(회당 최대 {{ max_followup_user_turns }}회)</span>
+          <span class="nav-en" style="display:none">(Up to {{ max_followup_user_turns }} messages per request)</span>
         </p>
         {% endif %}
 
         {% if reference_section_count > 0 %}
         <details class="interview-summary-toggle rfp-hub-phase mb-5" id="abap-phase-reference" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold">5. 참조 ABAP 본문</span>
-            <span class="badge bg-secondary">{{ reference_section_count }}개 섹션</span>
+            <span class="fw-semibold" data-i18n="detail.phaseRefAbap">5. 참조 ABAP 본문</span>
+            <span class="badge bg-secondary"><span class="nav-ko">{{ reference_section_count }}개 섹션</span><span class="nav-en" style="display:none">{{ reference_section_count }} sections</span></span>
           </summary>
           <div class="rfp-hub-phase-body pt-2">
             <details class="interview-summary-toggle codelib-source-details mb-0" open>
               <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
                 <i class="fa-solid fa-code me-1"></i>
-                <span>분석에 사용된 ABAP 본문 (제출 코드에서 추출)</span>
-                <span class="small text-muted">({{ reference_section_count }}개 섹션{% if source_program_groups and source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %} · 총 {{ abap_source_line_count }}줄)</span>
+                <span data-i18n="analysis.refBodyTitle">분석에 사용된 ABAP 본문 (제출 코드에서 추출)</span>
+                <span class="small text-muted nav-ko">({{ reference_section_count }}개 섹션{% if source_program_groups and source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %} · 총 {{ abap_source_line_count }}줄)</span>
+                <span class="small text-muted nav-en" style="display:none">({{ reference_section_count }} sections{% if source_program_groups and source_program_groups|length > 1 %} · {{ source_program_groups|length }} programs{% endif %} · {{ abap_source_line_count }} lines)</span>
               </summary>
               <div class="interview-summary-body p-0 px-0 pt-2">
                 {% set tabs_base_id = 'abap-ref-src' %}
@@ -359,8 +361,8 @@
 {% if chat_enabled %}
 <div id="abap-followup-chat" class="abap-float-chat" aria-live="polite">
   <div id="abapFloatChatPanel" class="abap-float-chat-panel" hidden
-       title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
-    <button type="button" class="abap-float-chat-resize" id="abapFloatChatResize" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
+       data-i18n-title="chat.panelResizeTitle" title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
+    <button type="button" class="abap-float-chat-resize" id="abapFloatChatResize" data-i18n-aria-label="chat.panelResizeAria" data-i18n-title="chat.panelResizeHint" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
       <span class="abap-resize-svg-wrap" aria-hidden="true">
         <svg class="abap-resize-svg abap-resize-svg-nw" width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
           <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 13V3h10"/>
@@ -371,13 +373,13 @@
       </span>
     </button>
     <div class="abap-float-chat-header">
-      <span class="abap-float-chat-header-title">이 분석에 대해 질문하기</span>
-      <button type="button" class="abap-float-chat-close" id="abapFloatChatClose" title="닫기" aria-label="채팅 패널 닫기">
+      <span class="abap-float-chat-header-title" data-i18n="chat.abapHeaderTitle">이 분석에 대해 질문하기</span>
+      <button type="button" class="abap-float-chat-close" id="abapFloatChatClose" data-i18n-title="chat.closeTitle" data-i18n-aria-label="chat.closeAria" title="닫기" aria-label="채팅 패널 닫기">
         <i class="fa-solid fa-xmark fa-lg"></i>
       </button>
     </div>
     <div class="abap-float-chat-body">
-      <p class="small text-muted mb-2 mb-md-3">
+      <p class="small text-muted mb-2 mb-md-3" data-i18n="chat.abapContextHelp">
         같은 제출 코드·분석 결과를 맥락으로 답합니다.
       </p>
       {% if chat_error %}
@@ -388,48 +390,48 @@
         {% for turn in followup_turns %}
         <details class="analysis-fold mb-2 abap-followup-turn" {% if loop.last %}open{% endif %}>
           <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2 w-100">
-            <span class="fw-semibold text-nowrap">대화 {{ loop.index }}</span>
+            <span class="fw-semibold text-nowrap"><span data-i18n="chat.thread">대화</span> {{ loop.index }}</span>
             {% if turn.question %}
             <span class="small text-muted text-nowrap">{{ turn.question.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
             <span class="small text-muted flex-grow-1 text-truncate" style="min-width:100px;" title="{{ turn.question.content }}">
               {{ turn.question.content[:80] }}{% if turn.question.content|length > 80 %}…{% endif %}
             </span>
             {% else %}
-            <span class="small text-muted">응답만 있음</span>
+            <span class="small text-muted" data-i18n="chat.answerOnly">응답만 있음</span>
             {% endif %}
           </summary>
           <div class="analysis-fold-body pt-1">
             {% if turn.question %}
             <div class="mb-2">
-              <div class="small fw-semibold text-muted mb-1">질문</div>
+              <div class="small fw-semibold text-muted mb-1" data-i18n="chat.question">질문</div>
               <div class="abap-followup-q">{{ turn.question.content }}</div>
             </div>
             {% endif %}
             {% if turn.answer %}
             <div>
-              <div class="small fw-semibold text-muted mb-1">응답</div>
+              <div class="small fw-semibold text-muted mb-1" data-i18n="chat.answer">응답</div>
               <div class="abap-followup-a">{{ turn.answer.content }}</div>
             </div>
             {% elif turn.question %}
-            <p class="small text-muted mb-0">응답이 아직 없습니다.</p>
+            <p class="small text-muted mb-0" data-i18n="chat.noAnswerYet">응답이 아직 없습니다.</p>
             {% endif %}
           </div>
         </details>
         {% endfor %}
       </div>
       {% else %}
-      <p class="small text-muted fst-italic mb-0">아직 대화가 없습니다. 아래에서 질문을 보내 보세요.</p>
+      <p class="small text-muted fst-italic mb-0" data-i18n="chat.noThreadsYet">아직 대화가 없습니다. 아래에서 질문을 보내 보세요.</p>
       {% endif %}
     </div>
     <div class="abap-float-chat-footer">
       {% if chat_limit_reached %}
-      <p class="small text-muted mb-0">후속 질문 횟수에 도달했습니다.</p>
+      <p class="small text-muted mb-0" data-i18n="chat.limitReached">후속 질문 횟수에 도달했습니다.</p>
       {% else %}
       <form method="post" action="/abap-analysis/{{ row.id }}/chat" class="abap-followup-form mb-0">
-        <label class="form-label small text-muted mb-1" for="abap-followup-msg">메시지</label>
+        <label class="form-label small text-muted mb-1" for="abap-followup-msg" data-i18n="chat.messageLabel">메시지</label>
         <div class="abap-followup-ta-wrap">
-          <textarea id="abap-followup-msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required placeholder="추가로 궁금한 점을 입력하세요."></textarea>
-          <button type="button" class="abap-followup-ta-resize" id="abapFollowupTaResize" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
+          <textarea id="abap-followup-msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required data-i18n-placeholder="chat.messagePlaceholder" placeholder="추가로 궁금한 점을 입력하세요."></textarea>
+          <button type="button" class="abap-followup-ta-resize" id="abapFollowupTaResize" data-i18n-aria-label="chat.taResizeAria" data-i18n-title="chat.taResizeTitle" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
             <span class="abap-resize-svg-wrap abap-resize-svg-wrap--sm" aria-hidden="true">
               <svg class="abap-resize-svg abap-resize-svg-nw" width="14" height="14" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
                 <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 13V3h10"/>
@@ -441,7 +443,7 @@
           </button>
         </div>
         <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">
-          <i class="fa-solid fa-paper-plane me-1"></i>보내기
+          <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="chat.send">보내기</span>
         </button>
       </form>
       {% endif %}
@@ -449,7 +451,7 @@
   </div>
   <button type="button" class="abap-float-chat-launcher" id="abapFloatChatLauncher" aria-expanded="false" aria-controls="abapFloatChatPanel">
     <i class="fa-solid fa-comments fa-lg abap-float-chat-launcher-icon" aria-hidden="true"></i>
-    <span class="abap-float-chat-launcher-text">이어서 질문</span>
+    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">이어서 질문</span>
     {% if followup_turns and followup_turns|length > 0 %}
     <span class="abap-float-chat-count" aria-hidden="true">{{ followup_turns|length }}</span>
     {% endif %}

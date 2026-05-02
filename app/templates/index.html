@@ -9,11 +9,13 @@
     <div class="row align-items-start g-4 g-lg-5">
       <div class="col-lg-5">
         <h1 class="hero-title">
-          {{ settings.get('home_headline_ko', 'SAP 개발을 AI로 혁신하세요') }}<br/>
+          <span class="nav-ko">{{ settings.get('home_headline_ko', 'SAP 개발을 AI로 혁신하세요') }}<br/></span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_headline_en', '') or 'Reinvent SAP development with AI' }}<br/></span>
           <span class="hero-power-agents text-gradient" data-i18n="hero.powerAgents">with 8 Power Agents</span>
         </h1>
         <p class="hero-sub">
-          {{ settings.get('home_subtitle_ko', '개발 요구사항을 제출하면 AI 에이전트가 심층 인터뷰를 진행하고 전문 수준의 개발 제안서를 무료로 제공합니다.') }}
+          <span class="nav-ko">{{ settings.get('home_subtitle_ko', '개발 요구사항을 제출하면 AI 에이전트가 심층 인터뷰를 진행하고 전문 수준의 개발 제안서를 무료로 제공합니다.') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_subtitle_en', '') or 'Submit requirements and our AI agents run a deep interview—then you get a professional development proposal, free.' }}</span>
         </p>
         {% if not user %}
         <div class="d-flex gap-3 flex-wrap">
@@ -55,7 +57,7 @@
               {% if notices %}
                 {% for n in notices %}
                 <div class="notice-item">
-                  <span class="notice-badge">공지</span>
+                  <span class="notice-badge" data-i18n="home.noticeBadge">공지</span>
                   <span class="notice-title">{{ n.title }}</span>
                   <span class="notice-date text-muted small">{{ n.created_at.strftime('%Y.%m.%d') }}</span>
                 </div>
@@ -93,14 +95,14 @@
             </div>
             <div class="tab-pane fade" id="tab-reviews">
               <div class="d-flex justify-content-between align-items-center mb-2">
-                <small class="text-muted">고객 이용후기</small>
+                <small class="text-muted" data-i18n="home.reviewsCaption">고객 이용후기</small>
                 {% if user %}
                 <a href="/reviews" class="btn btn-xs btn-outline-primary">
-                  <i class="fa-solid fa-pen-to-square me-1"></i>후기 작성
+                  <i class="fa-solid fa-pen-to-square me-1"></i><span data-i18n="home.review.write">후기 작성</span>
                 </a>
                 {% else %}
                 <a href="/register" class="btn btn-xs btn-outline-secondary">
-                  <i class="fa-solid fa-user-plus me-1"></i>로그인 후 작성
+                  <i class="fa-solid fa-user-plus me-1"></i><span data-i18n="home.review.login">로그인 후 작성</span>
                 </a>
                 {% endif %}
               </div>
@@ -124,7 +126,7 @@
               {% else %}
               <div class="empty-tab-msg">
                 <i class="fa-solid fa-star fa-2x text-muted mb-2"></i>
-                <p class="text-muted small">아직 등록된 이용후기가 없습니다.</p>
+                <p class="text-muted small" data-i18n="home.review.empty">아직 등록된 이용후기가 없습니다.</p>
               </div>
               {% endif %}
             </div>
@@ -166,8 +168,8 @@
           <span class="nav-ko">{{ settings.get('home_tile_abap_title_ko', '신규 개발') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_title_en', 'New development') }}</span>
           {% if user and home_counts %}
-          <span class="nav-ko text-muted small fw-normal">: 전체 {{ home_counts.rfp_total }}</span>
-          <span class="nav-en text-muted small fw-normal" style="display:none">: Total {{ home_counts.rfp_total }}</span>
+          <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.rfp_total }}</span>
+          <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.rfp_total }}</span>
           {% endif %}
         </h3>
         <p class="home-feature-desc text-muted small">
@@ -215,8 +217,8 @@
           <span class="nav-ko">{{ settings.get('home_tile_analysis_title_ko', '분석&개선') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_title_en', 'Analyze & improve') }}</span>
           {% if user and home_counts %}
-          <span class="nav-ko text-muted small fw-normal">: 전체 {{ home_counts.abap_analysis_total }}</span>
-          <span class="nav-en text-muted small fw-normal" style="display:none">: Total {{ home_counts.abap_analysis_total }}</span>
+          <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.abap_analysis_total }}</span>
+          <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.abap_analysis_total }}</span>
           {% endif %}
         </h3>
         <p class="home-feature-desc text-muted small">
@@ -261,8 +263,8 @@
           <span class="nav-ko">{{ settings.get('home_tile_integration_title_ko', '연동 개발') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_title_en', 'Integration') }}</span>
           {% if user and home_counts %}
-          <span class="nav-ko text-muted small fw-normal">: 전체 {{ home_counts.integration_total }}</span>
-          <span class="nav-en text-muted small fw-normal" style="display:none">: Total {{ home_counts.integration_total }}</span>
+          <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.integration_total }}</span>
+          <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.integration_total }}</span>
           {% endif %}
         </h3>
         <p class="home-feature-desc text-muted small">

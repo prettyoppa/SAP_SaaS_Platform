@@ -3,33 +3,33 @@
 <div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
   {% if rfp.status == 'draft' %}
   <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-warning text-dark">
-    <i class="fa-solid fa-pen me-1"></i>이어쓰기
+    <i class="fa-solid fa-pen me-1"></i><span data-i18n="phase.continueDraft">이어쓰기</span>
   </a>
   {% endif %}
   {% if ph.has_dev_code and ph.dev_code_href %}
-  <a href="{{ ph.dev_code_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">개발코드</a>
+  <a href="{{ ph.dev_code_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.devCode">개발코드</span></a>
   {% else %}
-  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">개발코드</span>
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.devCode">개발코드</span></span>
   {% endif %}
   {% if ph.has_fs and ph.fs_href %}
-  <a href="{{ ph.fs_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">FS</a>
+  <a href="{{ ph.fs_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.fs">FS</span></a>
   {% else %}
-  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">FS</span>
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.fs">FS</span></span>
   {% endif %}
   {% if user is defined and user.is_admin %}
-  <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" title="FS·컨설턴트 수정본 업로드·납품 ABAP 생성 요청">
-    <i class="fa-solid fa-gears me-1"></i>납품 관리
+  <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="FS·컨설턴트 수정본 업로드·납품 ABAP 생성 요청">
+    <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
   {% endif %}
   {% if ph.has_proposal and ph.proposal_href %}
-  <a href="{{ ph.proposal_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">제안서</a>
+  <a href="{{ ph.proposal_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.proposal">제안서</span></a>
   {% else %}
-  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">제안서</span>
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.proposal">제안서</span></span>
   {% endif %}
   {% if ph.has_interview and ph.interview_href %}
-  <a href="{{ ph.interview_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">인터뷰</a>
+  <a href="{{ ph.interview_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.interview">인터뷰</span></a>
   {% else %}
-  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true">인터뷰</span>
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.interview">인터뷰</span></span>
   {% endif %}
-  <a href="{{ ph.request_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn">요청</a>
+  <a href="{{ ph.request_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.request">요청</span></a>
 </div>
