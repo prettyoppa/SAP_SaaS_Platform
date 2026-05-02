@@ -553,11 +553,6 @@ def rfp_unified_hub(
     groups = reference_code_program_groups_for_tabs(rfp.reference_code_payload)
     ref_section_count = sum(len(g["sections"]) for g in groups) if groups else 0
     dc_s = (rfp.delivered_code_status or "none").strip() or "none"
-    dc_started = dc_s != "none"
-
-    if requested_phase == "devcode":
-        if ref_section_count < 1 and not dc_started:
-            return RedirectResponse(url=rfp_hub_url(rfp_id, "request"), status_code=302)
 
     fs_html = ""
     if (rfp.fs_status or "") == "ready" and (rfp.fs_text or "").strip():
@@ -606,11 +601,14 @@ def rfp_unified_hub(
     if getattr(user, "is_admin", False):
         owner = db.query(models.User).filter(models.User.id == rfp.user_id).first()
 
+    delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
         "rfp": rfp,
         "owner": owner,
+        "delete_blocked_reason": delete_blocked,
         "hub_phase_open": display_phase,
         "hub_embedded": hub_embedded,
         "attachment_entries": _rfp_attachment_entries(rfp),
@@ -780,6 +778,12 @@ def rfp_delete(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     rfp = q.first()
     if not rfp:
         return RedirectResponse(url="/services/abap", status_code=302)
+    fs_st = (getattr(rfp, "fs_status", None) or "").strip() or "none"
+    if fs_st != "none":
+        return RedirectResponse(
+            url=f"/rfp/{rfp_id}?delete_blocked=fs",
+            status_code=302,
+        )
     db.query(models.AbapAnalysisRequest).filter(
         models.AbapAnalysisRequest.workflow_rfp_id == rfp_id
     ).update({models.AbapAnalysisRequest.workflow_rfp_id: None}, synchronize_session=False)
@@ -1042,7 +1046,7 @@ async def rfp_edit_submit(
     db.commit()
     if is_draft:
         return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
-    return RedirectResponse(url="/", status_code=302)
+    return RedirectResponse(url=f"/rfp/{rfp_id}/success", status_code=302)
 
 
 @router.patch("/rfp/{rfp_id}/reference-codes")

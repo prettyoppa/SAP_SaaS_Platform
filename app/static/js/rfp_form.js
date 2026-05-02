@@ -301,27 +301,6 @@ function updateReview() {
 
 window.updateReview = updateReview;
 
-function activateProgressOnScroll() {
-  const sections = ['section-1', 'section-2', 'section-3', 'section-ref-code', 'section-5'];
-  const steps = ['prog-1', 'prog-2', 'prog-3', 'prog-4', 'prog-5'];
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const idx = sections.indexOf(entry.target.id);
-        steps.forEach((s, i) => {
-          const el = document.getElementById(s);
-          if (el) el.classList.toggle('active', i <= idx);
-        });
-      }
-    });
-  }, { threshold: 0.4 });
-
-  sections.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) observer.observe(el);
-  });
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   loadRfpNotePrefill();
 
@@ -357,8 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   updateReview();
-
-  activateProgressOnScroll();
 
   ;['rfp-form', 'abap-analysis-form', 'delivery-fs-upload-form'].forEach(fid => {
     const fEl = document.getElementById(fid);

@@ -25,5 +25,9 @@
       {% endfor %}
     </ul>
     {% endif %}
+    {% if source_program_groups and source_program_groups|length %}
+    <h6 class="text-muted mt-3 small text-uppercase">참고 ABAP 코드</h6>
+    {% include "partials/reference_code_program_boxes.html" %}
+    {% endif %}
   </div>
 </div>

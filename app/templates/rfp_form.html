@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}신규 개발 요청 – Catchy Lab SAP Dev Hub{% endblock %}
+{% block title %}{% if edit_mode %}개발 요청 수정{% else %}신규 요청{% endif %} – Catchy Lab SAP Dev Hub{% endblock %}
 
 {% block content %}
 <script>
@@ -21,36 +21,7 @@
         <!-- Header -->
         <div class="rfp-header mb-4">
           {% include 'partials/nav_prev_screen.html' %}
-          <h2 class="rfp-title" data-i18n="rfp.title">{% if edit_mode %}개발 요청 수정{% else %}신규 개발 요청{% endif %}</h2>
-          <p class="text-muted" data-i18n="rfp.sub">요구사항을 입력하시면 AI 에이전트가 무료로 개발 제안서를 생성합니다.</p>
-
-          <!-- Progress Steps -->
-          <div class="rfp-progress mt-4">
-            <div class="rfp-step active" id="prog-1">
-              <div class="rfp-step-circle">1</div>
-              <div class="rfp-step-label" data-i18n="rfp.prog1">모듈 &amp; 유형</div>
-            </div>
-            <div class="rfp-step-line"></div>
-            <div class="rfp-step" id="prog-2">
-              <div class="rfp-step-circle">2</div>
-              <div class="rfp-step-label" data-i18n="rfp.prog2">요구사항</div>
-            </div>
-            <div class="rfp-step-line"></div>
-            <div class="rfp-step" id="prog-3">
-              <div class="rfp-step-circle">3</div>
-              <div class="rfp-step-label" data-i18n="rfp.prog3">파일첨부</div>
-            </div>
-            <div class="rfp-step-line"></div>
-            <div class="rfp-step" id="prog-4">
-              <div class="rfp-step-circle">4</div>
-              <div class="rfp-step-label" data-i18n="rfp.prog4">ABAP 코드</div>
-            </div>
-            <div class="rfp-step-line"></div>
-            <div class="rfp-step" id="prog-5">
-              <div class="rfp-step-circle">5</div>
-              <div class="rfp-step-label" data-i18n="rfp.prog5">최종확인</div>
-            </div>
-          </div>
+          <h2 class="rfp-title">{% if edit_mode %}<span data-i18n="rfp.titleEdit">개발 요청 수정</span>{% else %}<span data-i18n="rfp.titleNew">신규 요청</span>{% endif %}</h2>
         </div>
 
         {% if error == 'invalid_file' %}
@@ -120,52 +91,23 @@
         <form method="post" action="{% if edit_mode %}/rfp/{{ rfp.id }}/edit{% else %}/rfp/new{% endif %}" enctype="multipart/form-data" id="rfp-form">
           <input type="hidden" name="reference_code_json" id="reference-code-json-field" value=""/>
 
-          <!-- ── STEP 1: 모듈·유형 우선 → 프로그램 ID·제목 ── -->
+          <!-- ── STEP 1: 제목 · 프로그램 ID · T-code · 모듈·유형 ── -->
           <div class="rfp-section" id="section-1">
             <div class="rfp-section-header">
               <span class="rfp-section-num">01</span>
               <div>
-                <h4 class="mb-0" data-i18n="rfp.s1.title">요청 제목 &amp; SAP 모듈</h4>
-                <small class="text-muted" data-i18n="rfp.s1.sub">먼저 SAP 모듈·개발 유형을 선택한 뒤, 프로그램 ID와 요청 제목을 입력해 주세요. 각 항목 최대 3개 선택.</small>
+                <h4 class="mb-0">요청 제목 · 프로그램 · 모듈</h4>
+                <small class="text-muted">요청 제목과 프로그램 ID·트랜잭션 코드를 입력한 뒤, SAP 모듈·개발 유형을 선택해 주세요. 모듈·유형은 각 최대 3개까지.</small>
               </div>
             </div>
 
-            <!-- SAP Modules -->
+            <!-- Request Title -->
             <div class="mb-4">
               <label class="form-label fw-semibold">
-                SAP 모듈 <span class="text-danger">*</span>
-                <span class="badge bg-secondary ms-2" id="module-count">0 / 3</span>
+                요청 제목 <span class="text-danger">*</span>
               </label>
-              <div class="chip-group" id="module-group">
-                {% for mod in modules %}
-                <label class="chip-label">
-                  <input type="checkbox" name="sap_modules" value="{{ mod.code }}"
-                         class="chip-input module-chip"
-                         {% if form and mod.code in form.sap_modules %}checked{% elif rfp and mod.code in rfp.sap_modules.split(',') %}checked{% endif %}/>
-                  <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
-                </label>
-                {% endfor %}
-              </div>
-              <small class="text-muted mt-1 d-block">최대 3개까지 선택 가능합니다.</small>
-            </div>
-
-            <!-- Dev Types -->
-            <div class="mb-4">
-              <label class="form-label fw-semibold">
-                개발 유형 <span class="text-danger">*</span>
-                <span class="badge bg-secondary ms-2" id="devtype-count">0 / 3</span>
-              </label>
-              <div class="chip-group" id="devtype-group">
-                {% for dt in devtypes %}
-                <label class="chip-label">
-                  <input type="checkbox" name="dev_types" value="{{ dt.code }}"
-                         class="chip-input devtype-chip"
-                         {% if form and dt.code in form.dev_types %}checked{% elif rfp and dt.code in rfp.dev_types.split(',') %}checked{% endif %}/>
-                  <span class="chip">{{ dt.label_ko }}</span>
-                </label>
-                {% endfor %}
-              </div>
-              <small class="text-muted mt-1 d-block">최대 3개까지 선택 가능합니다.</small>
+              <input type="text" name="title" class="form-control form-control-lg" required
+                     value="{{ form.title if form else (rfp.title if rfp else '') }}"/>
             </div>
 
             <!-- Program ID + Transaction Code -->
@@ -192,13 +134,42 @@
               </div>
             </div>
 
-            <!-- Request Title -->
+            <!-- SAP Modules -->
+            <div class="mb-4">
+              <label class="form-label fw-semibold">
+                SAP 모듈 <span class="text-danger">*</span>
+                <span class="badge bg-secondary ms-2" id="module-count">0 / 3</span>
+              </label>
+              <div class="chip-group" id="module-group">
+                {% for mod in modules %}
+                <label class="chip-label">
+                  <input type="checkbox" name="sap_modules" value="{{ mod.code }}"
+                         class="chip-input module-chip"
+                         {% if form and mod.code in form.sap_modules %}checked{% elif rfp and mod.code in rfp.sap_modules.split(',') %}checked{% endif %}/>
+                  <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
+                </label>
+                {% endfor %}
+              </div>
+              <small class="text-muted mt-1 d-block">최대 3개까지 선택 가능합니다.</small>
+            </div>
+
+            <!-- Dev Types -->
             <div class="mb-2">
               <label class="form-label fw-semibold">
-                요청 제목 <span class="text-danger">*</span>
+                개발 유형 <span class="text-danger">*</span>
+                <span class="badge bg-secondary ms-2" id="devtype-count">0 / 3</span>
               </label>
-              <input type="text" name="title" class="form-control form-control-lg" required
-                     value="{{ form.title if form else (rfp.title if rfp else '') }}"/>
+              <div class="chip-group" id="devtype-group">
+                {% for dt in devtypes %}
+                <label class="chip-label">
+                  <input type="checkbox" name="dev_types" value="{{ dt.code }}"
+                         class="chip-input devtype-chip"
+                         {% if form and dt.code in form.dev_types %}checked{% elif rfp and dt.code in rfp.dev_types.split(',') %}checked{% endif %}/>
+                  <span class="chip">{{ dt.label_ko }}</span>
+                </label>
+                {% endfor %}
+              </div>
+              <small class="text-muted mt-1 d-block">최대 3개까지 선택 가능합니다.</small>
             </div>
           </div>
 
@@ -207,7 +178,7 @@
             <div class="rfp-section-header">
               <span class="rfp-section-num">02</span>
               <div>
-                <h4 class="mb-0" data-i18n="rfp.s2.title">요구사항 상세 기술</h4>
+                <h4 class="mb-0" data-i18n="rfp.s2.title">요구사항 자유 기술</h4>
                 <small class="text-muted" data-i18n="rfp.s2.sub">현재 업무 흐름, 필요한 기능, 입출력 조건 등을 자세히 기술해 주세요.</small>
               </div>
             </div>
@@ -286,7 +257,7 @@
             <div class="rfp-section-header">
               <span class="rfp-section-num">04</span>
               <div>
-                <h4 class="mb-0">ABAP 코드 정보</h4>
+                <h4 class="mb-0">참고 ABAP 코드</h4>
                 <small class="text-muted">회원이 올리는 코드는 해당 요청 이해 및 최적의 제안서 작성을 위해서 이용됩니다. 광고, 제3자 제공, AI 모델 학습·재학습 등 그 밖의 목적으로는 사용하지 않습니다. 회원이 직접 삭제하신 경우, 지체 없이 복구 불가능한 방식으로 삭제합니다.</small>
               </div>
             </div>
@@ -382,29 +353,6 @@
               </div>
             </div>
 
-            <div class="review-box" id="review-box">
-              <div class="review-row">
-                <span class="review-label">프로그램 ID:</span>
-                <span class="review-value" id="review-program"><em class="text-muted">미입력</em></span>
-              </div>
-              <div class="review-row">
-                <span class="review-label">선택 모듈:</span>
-                <span class="review-value" id="review-modules"><em class="text-muted">선택 없음</em></span>
-              </div>
-              <div class="review-row">
-                <span class="review-label">개발 유형:</span>
-                <span class="review-value" id="review-types"><em class="text-muted">선택 없음</em></span>
-              </div>
-              <div class="review-row">
-                <span class="review-label">첨부 파일:</span>
-                <span class="review-value" id="review-file"><em class="text-muted">없음</em></span>
-              </div>
-              <div class="review-row">
-                <span class="review-label">ABAP 코드 (로컬):</span>
-                <span class="review-value" id="review-ref-code"><em class="text-muted">없음</em></span>
-              </div>
-            </div>
-
             <div class="free-badge-row mt-3">
               <div class="free-badge-card">
                 <i class="fa-solid fa-gift text-success me-2"></i>
@@ -421,7 +369,7 @@
               {% endif %}
               <button type="submit" name="save_action" value="submit" class="btn btn-primary btn-lg px-5" id="submit-btn">
                 <i class="fa-solid fa-paper-plane me-2"></i>
-                {% if edit_mode and rfp and rfp.status == 'draft' %}제출하기{% else %}<span data-i18n="rfp.submit">요청 제출</span>{% endif %}
+                <span data-i18n="rfp.submitBtn">제출</span>
               </button>
             </div>
           </div>
