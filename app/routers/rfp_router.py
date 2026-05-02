@@ -764,6 +764,36 @@ def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(g
     return RedirectResponse(url=f"/rfp/{new_rfp.id}/edit", status_code=302)
 
 
+@router.post("/rfp/{rfp_id}/delete")
+def rfp_delete(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    q = db.query(models.RFP).filter(models.RFP.id == rfp_id)
+    if not user.is_admin:
+        q = q.filter(models.RFP.user_id == user.id)
+    rfp = q.first()
+    if not rfp:
+        return RedirectResponse(url="/services/abap", status_code=302)
+    db.query(models.AbapAnalysisRequest).filter(
+        models.AbapAnalysisRequest.workflow_rfp_id == rfp_id
+    ).update({models.AbapAnalysisRequest.workflow_rfp_id: None}, synchronize_session=False)
+    db.query(models.IntegrationRequest).filter(
+        models.IntegrationRequest.workflow_rfp_id == rfp_id
+    ).update({models.IntegrationRequest.workflow_rfp_id: None}, synchronize_session=False)
+    for ent in _rfp_attachment_entries(rfp):
+        _remove_stored_file(ent.get("path"))
+    for sup in db.query(models.RfpFsSupplement).filter(models.RfpFsSupplement.rfp_id == rfp_id).all():
+        _remove_stored_file(sup.stored_path)
+    db.query(models.RFPMessage).filter(models.RFPMessage.rfp_id == rfp_id).delete(synchronize_session=False)
+    db.query(models.RfpFsSupplement).filter(models.RfpFsSupplement.rfp_id == rfp_id).delete(
+        synchronize_session=False
+    )
+    db.delete(rfp)
+    db.commit()
+    return RedirectResponse(url="/services/abap", status_code=302)
+
+
 @router.get("/rfp/{rfp_id}/edit", response_class=HTMLResponse)
 def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)

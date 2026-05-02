@@ -44,6 +44,7 @@ from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
     _get_modules_devtypes,
+    _remove_stored_file,
     duplicate_attachment_entries,
     r2_storage,
 )
@@ -415,6 +416,24 @@ def integration_duplicate_request(req_id: int, request: Request, db: Session = D
     db.commit()
     db.refresh(new_ir)
     return RedirectResponse(url=f"/integration/{new_ir.id}/edit", status_code=302)
+
+
+@router.post("/integration/{req_id}/delete")
+def integration_delete(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
+    if not user.is_admin:
+        q = q.filter(models.IntegrationRequest.user_id == user.id)
+    ir = q.first()
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    for ent in _attachment_entries(ir):
+        _remove_stored_file(ent.get("path"))
+    db.delete(ir)
+    db.commit()
+    return RedirectResponse(url="/integration", status_code=302)
 
 
 @router.get("/integration/{req_id}/edit", response_class=HTMLResponse)

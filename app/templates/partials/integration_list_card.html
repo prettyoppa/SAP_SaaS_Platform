@@ -53,10 +53,6 @@
   </div>
   <div class="rfp-list-right rfp-list-actions">
     <div class="d-flex flex-wrap gap-1 justify-content-end">
-      {% set duplicate_request_post_url = none %}
-      {% if user is defined and user.id == ir.user_id %}
-      {% set duplicate_request_post_url = '/integration/' ~ ir.id ~ '/duplicate-request' %}
-      {% endif %}
       {% set workflow_rfp = ir.workflow_rfp %}
       {% set request_href = '/integration/' ~ ir.id ~ '#integration-request-block' %}
       {% set interview_href = '/integration/' ~ ir.id ~ '#integration-followup-chat' %}

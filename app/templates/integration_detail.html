@@ -17,7 +17,20 @@
         </div>
         {% endif %}
       </div>
-      <span class="rfp-status-badge status-badge-submitted">제출됨</span>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <form method="post" action="/integration/{{ ir.id }}/delete" class="d-inline"
+              onsubmit="return confirm('이 연동 요청을 삭제할까요? 첨부·후속 대화가 삭제되며 되돌릴 수 없습니다. (이미 연결된 신규 개발 RFP는 삭제되지 않습니다.)')">
+          <button type="submit" class="btn btn-outline-danger btn-sm">
+            <i class="fa-solid fa-trash me-1"></i>삭제
+          </button>
+        </form>
+        {% if user.id == ir.user_id %}
+        <form method="post" action="/integration/{{ ir.id }}/duplicate-request" class="d-inline">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">요청복사</button>
+        </form>
+        {% endif %}
+        <span class="rfp-status-badge status-badge-submitted">제출됨</span>
+      </div>
     </div>
 
     <div id="integration-request-block" class="mb-4">

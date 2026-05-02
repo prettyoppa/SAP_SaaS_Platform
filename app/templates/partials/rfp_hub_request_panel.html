@@ -13,6 +13,17 @@
           <button type="button" class="btn btn-outline-secondary" id="requestEditReveal">
             <i class="fa-solid fa-pen me-1"></i>수정
           </button>
+          <form method="post" action="/rfp/{{ rfp.id }}/delete" class="d-inline"
+                onsubmit="return confirm('이 신규 개발 요청을 삭제할까요? 첨부·인터뷰·제안·FS·납품 기록이 함께 삭제되며 되돌릴 수 없습니다. 분석/연동 화면에 연결만 해제되고 해당 요청 자체는 유지됩니다.')">
+            <button type="submit" class="btn btn-outline-danger">
+              <i class="fa-solid fa-trash me-1"></i>삭제
+            </button>
+          </form>
+          {% if user is defined and user.id == rfp.user_id %}
+          <form method="post" action="/rfp/{{ rfp.id }}/duplicate-request" class="d-inline">
+            <button type="submit" class="btn btn-outline-secondary">요청복사</button>
+          </form>
+          {% endif %}
           <span class="badge bg-secondary">{{ rfp.status }}</span>
         </div>
       </div>

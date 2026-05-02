@@ -11,8 +11,9 @@
 
           <div class="proposal-header">
             <div class="d-flex align-items-center gap-3 mb-3">
-              <div class="proposal-icon" style="background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.3);color:var(--primary-light)">
-                <i class="fa-solid fa-microscope"></i>
+              <div class="proposal-icon nav-item-icon nav-icon-analysis text-primary-light" style="background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.3);color:var(--primary-light)">
+                <i class="fa-solid fa-hospital nav-icon-analysis-light"></i>
+                <i class="fa-regular fa-hospital nav-icon-analysis-dark"></i>
               </div>
               <div>
                 <h2 class="mb-1">{% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}SAP ABAP 분석&개선{% endif %}</h2>
@@ -46,6 +47,11 @@
                   <i class="fa-solid fa-trash me-1"></i>삭제
                 </button>
               </form>
+              {% if user.id == row.user_id %}
+              <form method="post" action="/abap-analysis/{{ row.id }}/duplicate-request" style="display:inline">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">요청복사</button>
+              </form>
+              {% endif %}
               {% if row.is_draft %}
               <span class="rfp-status-badge ms-2" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
               {% elif row.is_analyzed %}
