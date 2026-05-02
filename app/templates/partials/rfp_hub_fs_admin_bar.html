@@ -1,21 +1,24 @@
 {% if user.is_admin %}
 <div class="alert alert-warning border mb-3">
-  <button type="button" class="btn btn-sm btn-outline-dark mb-2" data-bs-toggle="collapse" data-bs-target="#adminFsHubEditHub" aria-expanded="false" aria-controls="adminFsHubEditHub">수정</button>
-  <div class="collapse" id="adminFsHubEditHub">
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline"
+          data-busy-agents='[{"agentKo":"「기능명세」","doingKo":"기능 명세서(FS) 초안을 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification (FS)"}]'>
+      <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy %}disabled{% endif %}>
+        {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
+      </button>
+    </form>
+    <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline"
+          data-busy-agents='[{"agentKo":"「납품 설계」","doingKo":"FS와 요구사항을 바탕으로 구현 윤곽을 잡고 있습니다","agentEn":"「Delivery planning」","doingEn":"shaping the implementation from the FS and requirements"},{"agentKo":"「납품 ABAP」","doingKo":"ABAP 초안을 작성·정리하고 있습니다","agentEn":"「Delivery ABAP」","doingEn":"writing and structuring the ABAP draft"}]'>
+      <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
+        {% if delivered_code_html %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
+      </button>
+    </form>
+  </div>
+  <p class="small text-muted mb-2 mb-md-0">컨설턴트 FS 첨부·실행 로그는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>에서 처리합니다.</p>
+  <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="collapse" data-bs-target="#adminFsHubEditHub" aria-expanded="false" aria-controls="adminFsHubEditHub">추가 안내</button>
+  <div class="collapse mt-2" id="adminFsHubEditHub">
     <hr class="my-2">
-    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline">
-        <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy %}disabled{% endif %}>
-          {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
-        </button>
-      </form>
-      <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
-        <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
-          {% if delivered_code_html %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
-        </button>
-      </form>
-    </div>
-    <p class="small text-muted mb-0">컨설턴트 FS 첨부·실행 로그는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>에서 처리합니다.</p>
+    <p class="small text-muted mb-0">FS·납품 코드는 서버에서 순차 실행되며, 완료까지 수 분 걸릴 수 있습니다. 진행 상태는 납품 관리의 실행 로그에서 확인할 수 있습니다.</p>
   </div>
 </div>
 {% endif %}

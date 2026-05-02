@@ -8,20 +8,22 @@
 
     {% if user.is_admin %}
     <div class="alert alert-warning border mb-4">
-      <button type="button" class="btn btn-sm btn-outline-dark mb-2" data-bs-toggle="collapse" data-bs-target="#adminDevCodeRegen" aria-expanded="false" aria-controls="adminDevCodeRegen">수정</button>
-      <div class="collapse" id="adminDevCodeRegen">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline"
+              data-busy-agents='[{"agentKo":"「납품 설계」","doingKo":"FS와 요구사항을 바탕으로 구현 윤곽을 잡고 있습니다","agentEn":"「Delivery planning」","doingEn":"shaping the implementation from the FS and requirements"},{"agentKo":"「납품 ABAP」","doingKo":"ABAP 초안을 작성·정리하고 있습니다","agentEn":"「Delivery ABAP」","doingEn":"writing and structuring the ABAP draft"}]'>
+          <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
+            {% if (rfp.delivered_code_status or '').strip() == 'ready' and (rfp.delivered_code_text or '').strip() %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
+          </button>
+        </form>
+        <a href="/rfp/{{ rfp.id }}/edit#section-ref-code" class="btn btn-outline-primary btn-sm">
+          <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>요청 수정에서 코드 편집
+        </a>
+      </div>
+      <p class="small text-muted mb-2 mb-md-0">실행 로그·컨설턴트 FS 첨부는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>, 납품 ABAP 미리보기는 <a href="/rfp/{{ rfp.id }}/fs" class="fw-semibold">FS·납품</a>에서 확인할 수 있습니다.</p>
+      <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="collapse" data-bs-target="#adminDevCodeRegen" aria-expanded="false" aria-controls="adminDevCodeRegen">추가 안내</button>
+      <div class="collapse mt-2" id="adminDevCodeRegen">
         <hr class="my-2">
-        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-          <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline">
-            <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
-              {% if (rfp.delivered_code_status or '').strip() == 'ready' and (rfp.delivered_code_text or '').strip() %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
-            </button>
-          </form>
-          <a href="/rfp/{{ rfp.id }}/edit#section-ref-code" class="btn btn-outline-primary btn-sm">
-            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>요청 수정에서 코드 편집
-          </a>
-        </div>
-        <p class="small text-muted mb-0">실행 로그·컨설턴트 FS 첨부는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>, 납품 ABAP 미리보기는 <a href="/rfp/{{ rfp.id }}/fs" class="fw-semibold">FS·납품</a>에서 확인할 수 있습니다.</p>
+        <p class="small text-muted mb-0">납품 코드 생성은 서버에서 수 분 걸릴 수 있습니다.</p>
       </div>
     </div>
     {% endif %}

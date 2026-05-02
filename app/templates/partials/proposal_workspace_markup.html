@@ -95,7 +95,8 @@
                   <button class="btn btn-outline-warning" id="toggleEditAnswers" onclick="toggleAnswerEdit()">
                     <i class="fa-solid fa-pen-to-square me-2"></i>답변 수정
                   </button>
-                  <form method="post" action="/rfp/{{ rfp.id }}/proposal/regenerate" id="regenForm" class="d-inline">
+                  <form method="post" action="/rfp/{{ rfp.id }}/proposal/regenerate" id="regenForm" class="d-inline"
+                        data-busy-agents='[{"agentKo":"「인터뷰 검토」","doingKo":"수정된 답변이 반영되도록 맥락을 정리하고 있습니다","agentEn":"「Interview review」","doingEn":"reconciling your edited answers into the interview context"},{"agentKo":"「개발 제안서」","doingKo":"제안서 본문을 다시 작성하고 있습니다","agentEn":"「Development Proposal」","doingEn":"regenerating the proposal body"}]'>
                     <button type="submit" class="btn btn-warning" id="regenBtn" disabled
                             title="답변 수정 후 활성화됩니다">
                       <i class="fa-solid fa-rotate me-2"></i>제안서 재생성
@@ -156,7 +157,9 @@
 
                   <!-- 편집 모드 -->
                   <form method="post" action="/rfp/{{ rfp.id }}/interview/edit-answer"
-                        class="edit-mode d-none mt-2" id="edit-{{ loop.index }}">
+                        class="edit-mode d-none mt-2" id="edit-{{ loop.index }}"
+                        data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
+                        data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">
                     <input type="hidden" name="message_id" value="{{ msg.id }}"/>
                     <input type="hidden" name="return_to" value="proposal"/>
                     <textarea name="answers_text" class="form-control mb-2 answer-edit-area"

@@ -48,7 +48,9 @@
             </div>
             </div>
             {% if current_message is defined and current_message and interview_sequential|default(true) %}
-            <form method="post" action="/rfp/{{ rfp.id }}/interview/answer-step" class="d-inline" id="save-exit-form">
+            <form method="post" action="/rfp/{{ rfp.id }}/interview/answer-step" class="d-inline" id="save-exit-form"
+                  data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
+                  data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">
               <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
               <input type="hidden" name="action" value="save_exit"/>
               <input type="hidden" name="current_answer" id="save-exit-answer" value=""/>
@@ -59,7 +61,8 @@
             </form>
             {% endif %}
             {% if can_request_proposal is defined and can_request_proposal %}
-            <form method="post" action="/rfp/{{ rfp.id }}/interview/request-proposal-now" class="d-inline">
+            <form method="post" action="/rfp/{{ rfp.id }}/interview/request-proposal-now" class="d-inline"
+                  data-busy-agents='[{"agentKo":"「개발 제안서」","doingKo":"지금까지의 인터뷰 답변을 반영해 제안서를 작성하고 있습니다","agentEn":"「Development Proposal」","doingEn":"drafting the proposal from your answers so far"}]'>
               <button type="submit" class="btn btn-outline-primary btn-sm" title="지금까지 제출·저장한 답을 반영한 제안서를 만듭니다(인터뷰를 끝내지 않아도 시도할 수 있음)">
                 <i class="fa-solid fa-file-contract me-1"></i> 지금까지로 제안서 생성
               </button>
@@ -241,7 +244,8 @@
               placeholder="{% if answer_suggestions is defined and answer_suggestions|length > 0 %}선택한 답에 덧붙일 내용(없으면 비워도 됨). 모를 때: 잘 모르겠다 등.{% else %}답을 입력하세요. (모를 때: 잘 모르겠다/표준에 맡긴다 등){% endif %}">{% if interview_draft_wip is defined and interview_draft_wip %}{{ interview_draft_wip }}{% endif %}</textarea>
             <input type="hidden" name="answer_payload" id="answer-payload-json" value=""/>
             <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
-              <button type="submit" class="btn btn-primary btn-lg px-4" id="seq-next-btn">
+              <button type="submit" class="btn btn-primary btn-lg px-4" id="seq-next-btn"
+                      data-busy-agents='[{"agentKo":"「인터뷰」","doingKo":"답변을 반영해 다음 질문·분석을 생성하고 있습니다","agentEn":"「Interview」","doingEn":"generating the next question and analysis from your answer"}]'>
                 <i class="fa-solid fa-arrow-right me-2"></i>
                 {% if interview_step_index|default(1) >= interview_max_questions|default(3) %}이 라운드 제출{% else %}답 제출{% endif %}
               </button>
@@ -276,7 +280,8 @@
               {% endfor %}
             </div>
             <div class="d-flex justify-content-end mt-3">
-              <button type="submit" class="btn btn-primary btn-lg px-5 d-none" id="answer-btn">
+              <button type="submit" class="btn btn-primary btn-lg px-5 d-none" id="answer-btn"
+                      data-busy-agents='[{"agentKo":"「인터뷰」","doingKo":"답변을 처리하고 다음 단계(또는 제안서)를 준비하고 있습니다","agentEn":"「Interview」","doingEn":"processing your answers and preparing the next step or proposal"}]'>
                 <i class="fa-solid fa-paper-plane me-2"></i>
                 {% if current_round >= max_rounds %}
                   답변 제출 후 Proposal 생성

@@ -1642,6 +1642,22 @@ html[data-theme="light"] .global-busy-overlay {
   color: var(--text);
   font-size: 1.05rem;
 }
+.global-busy-card.has-agent-lines {
+  max-width: min(32rem, 92vw);
+  text-align: left;
+}
+.global-busy-card.has-agent-lines .global-busy-spinner,
+.global-busy-card.has-agent-lines > .global-busy-title {
+  text-align: center;
+}
+.global-busy-agent-lines li {
+  padding: 0.2rem 0;
+  line-height: 1.45;
+  border-bottom: 1px solid var(--border);
+}
+.global-busy-agent-lines li:last-child {
+  border-bottom: none;
+}
 
 /* ABAP 후속 질문: 턴(질문+응답) 접기 */
 .abap-followup-turn .abap-followup-q,

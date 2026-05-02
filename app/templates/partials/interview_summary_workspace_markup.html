@@ -69,7 +69,9 @@
                 <div class="flex-grow-1 interview-qa-content" style="white-space:pre-wrap;">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
               </div>
               <form method="post" action="/rfp/{{ rfp.id }}/interview/edit-answer"
-                    class="summary-edit-form d-none mt-2" id="sum-edit-{{ loop.index }}">
+                    class="summary-edit-form d-none mt-2" id="sum-edit-{{ loop.index }}"
+                    data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
+                    data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">
                 <input type="hidden" name="message_id" value="{{ msg.id }}"/>
                 <input type="hidden" name="return_to" value="interview-summary"/>
                 <textarea name="answers_text" class="form-control mb-2 answer-edit-area-summary" rows="5">{{ msg.answers_text or "" }}</textarea>

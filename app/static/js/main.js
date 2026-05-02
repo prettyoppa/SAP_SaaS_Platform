@@ -1,14 +1,150 @@
 /* SAP Dev Hub – main.js */
 
 /* ── 전역 “처리 중” 오버레이 ─────────────────────────────────────────────────── */
-function showGlobalBusy() {
-  const el = document.getElementById('global-busy-overlay');
-  if (el) el.removeAttribute('hidden');
+
+function _busyOverlay() {
+  return document.getElementById('global-busy-overlay');
+}
+
+function _busyDefaults() {
+  const root = _busyOverlay();
+  if (!root) return { titleKo: '', titleEn: '', hintKo: '', hintEn: '' };
+  return {
+    titleKo: root.getAttribute('data-default-title-ko') || '처리 중입니다…',
+    titleEn: root.getAttribute('data-default-title-en') || 'Processing…',
+    hintKo: root.getAttribute('data-default-hint-ko') || '잠시만 기다려 주세요.',
+    hintEn: root.getAttribute('data-default-hint-en') || 'Please wait.',
+  };
+}
+
+function _setBusyTitles(titleKo, titleEn) {
+  const titles = document.querySelectorAll('#global-busy-overlay .global-busy-title');
+  titles.forEach((el) => {
+    if (el.classList.contains('nav-ko')) el.textContent = titleKo;
+    if (el.classList.contains('nav-en')) el.textContent = titleEn;
+  });
+}
+
+function _setBusyHints(hintKo, hintEn) {
+  const hints = document.querySelectorAll('#global-busy-overlay .global-busy-hint');
+  hints.forEach((el) => {
+    if (el.classList.contains('nav-ko')) el.textContent = hintKo;
+    if (el.classList.contains('nav-en')) el.textContent = hintEn;
+  });
+}
+
+function _clearAgentLines() {
+  const ko = document.getElementById('global-busy-agent-lines-ko');
+  const en = document.getElementById('global-busy-agent-lines-en');
+  const card = document.getElementById('global-busy-card');
+  if (ko) {
+    ko.innerHTML = '';
+    ko.classList.add('d-none');
+  }
+  if (en) {
+    en.innerHTML = '';
+    en.classList.add('d-none');
+  }
+  if (card) card.classList.remove('has-agent-lines');
+}
+
+function _agentSentence(row) {
+  const ak = (row.agentKo || '').trim();
+  const dk = (row.doingKo || '').trim();
+  const ae = (row.agentEn || '').trim();
+  const de = (row.doingEn || '').trim();
+  const ko = ak && dk ? `${ak} 에이전트가 ${dk}` : dk || ak || '';
+  const en = ae && de ? `${ae} is ${de}` : de || ae || ko;
+  return { ko, en };
+}
+
+/**
+ * @param {{ agents?: Array<{agentKo?:string,doingKo?:string,agentEn?:string,doingEn?:string}>|null,
+ *          titleKo?:string,titleEn?:string,hintKo?:string,hintEn?:string}|null|undefined} meta
+ */
+function showGlobalBusy(meta) {
+  const el = _busyOverlay();
+  if (!el) return;
+  const d = _busyDefaults();
+  _clearAgentLines();
+  const agents = meta && Array.isArray(meta.agents) && meta.agents.length ? meta.agents : null;
+
+  if (agents) {
+    const listKo = document.getElementById('global-busy-agent-lines-ko');
+    const listEn = document.getElementById('global-busy-agent-lines-en');
+    const card = document.getElementById('global-busy-card');
+    if (card) card.classList.add('has-agent-lines');
+    const titleKo = (meta && meta.titleKo) || '에이전트 작업을 진행하고 있습니다…';
+    const titleEn = (meta && meta.titleEn) || 'Running agent tasks…';
+    const hintKo = (meta && meta.hintKo) || '완료되면 화면이 바뀝니다. 창을 닫지 마세요.';
+    const hintEn = (meta && meta.hintEn) || 'The page will update when finished. Please keep this tab open.';
+    _setBusyTitles(titleKo, titleEn);
+    _setBusyHints(hintKo, hintEn);
+    agents.forEach((row) => {
+      const { ko, en } = _agentSentence(row);
+      if (!ko && !en) return;
+      if (listKo && ko) {
+        const li = document.createElement('li');
+        li.textContent = ko;
+        listKo.appendChild(li);
+      }
+      if (listEn && en) {
+        const li2 = document.createElement('li');
+        li2.textContent = en;
+        listEn.appendChild(li2);
+      }
+    });
+    if (listKo && listKo.childElementCount) listKo.classList.remove('d-none');
+    if (listEn && listEn.childElementCount) listEn.classList.remove('d-none');
+  } else {
+    const titleKo = (meta && meta.titleKo) || d.titleKo;
+    const titleEn = (meta && meta.titleEn) || d.titleEn;
+    const hintKo = (meta && meta.hintKo) || d.hintKo;
+    const hintEn = (meta && meta.hintEn) || d.hintEn;
+    _setBusyTitles(titleKo, titleEn);
+    _setBusyHints(hintKo, hintEn);
+  }
+  el.removeAttribute('hidden');
 }
 
 function hideGlobalBusy() {
-  const el = document.getElementById('global-busy-overlay');
+  const el = _busyOverlay();
   if (el) el.setAttribute('hidden', '');
+  const d = _busyDefaults();
+  _setBusyTitles(d.titleKo, d.titleEn);
+  _setBusyHints(d.hintKo, d.hintEn);
+  _clearAgentLines();
+}
+
+function _readDatasetBusy(form, submitter) {
+  const pick = (key) => {
+    if (submitter && submitter.dataset && submitter.dataset[key] != null && submitter.dataset[key] !== '') {
+      return submitter.dataset[key];
+    }
+    if (form && form.dataset && form.dataset[key] != null && form.dataset[key] !== '') {
+      return form.dataset[key];
+    }
+    return '';
+  };
+  const rawAgents = pick('busyAgents');
+  if (rawAgents && rawAgents.trim()) {
+    try {
+      const parsed = JSON.parse(rawAgents);
+      if (Array.isArray(parsed) && parsed.length) {
+        return { agents: parsed };
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  const titleKo = pick('busyTitleKo');
+  const titleEn = pick('busyTitleEn');
+  const hintKo = pick('busyHintKo');
+  const hintEn = pick('busyHintEn');
+  if (titleKo || titleEn || hintKo || hintEn) {
+    return { titleKo: titleKo || undefined, titleEn: titleEn || undefined, hintKo: hintKo || undefined, hintEn: hintEn || undefined };
+  }
+  return null;
 }
 
 /* ── 테마 토글 (슬라이드 스위치 + role="switch") ──────────────────────────────── */
@@ -53,7 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (form.dataset.noBusy === 'true' || form.dataset.noBusy === '') return;
       const t = form.getAttribute('target');
       if (t && t.toLowerCase() === '_blank') return;
-      showGlobalBusy();
+      const meta = _readDatasetBusy(form, e.submitter);
+      showGlobalBusy(meta);
     },
     true,
   );
@@ -76,7 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (_) {
         return;
       }
-      showGlobalBusy();
+      const meta = _readDatasetBusy(a, a);
+      showGlobalBusy(meta);
     },
     true,
   );
@@ -85,5 +223,3 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ev.persisted) hideGlobalBusy();
   });
 });
-
-

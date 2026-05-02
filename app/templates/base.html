@@ -27,12 +27,18 @@
 </head>
 <body>
 
-<!-- 전역 처리 중 오버레이 (폼 제출·내부 링크 이동 시) -->
-<div id="global-busy-overlay" class="global-busy-overlay" hidden aria-live="polite" aria-busy="true">
-  <div class="global-busy-card">
+<!-- 전역 처리 중 오버레이 (폼 제출·내부 링크 이동 시) — 문구는 main.js에서 복원·갱신 -->
+<div id="global-busy-overlay" class="global-busy-overlay" hidden aria-live="polite" aria-busy="true"
+     data-default-title-ko="처리 중입니다…"
+     data-default-title-en="Processing…"
+     data-default-hint-ko="잠시만 기다려 주세요."
+     data-default-hint-en="Please wait.">
+  <div class="global-busy-card" id="global-busy-card">
     <div class="spinner-border global-busy-spinner mb-3" role="status" aria-hidden="true"></div>
     <div class="global-busy-title fw-semibold nav-ko">처리 중입니다…</div>
     <div class="global-busy-title fw-semibold nav-en" style="display:none">Processing…</div>
+    <ul id="global-busy-agent-lines-ko" class="global-busy-agent-lines list-unstyled small mb-0 mt-2 nav-ko text-start text-muted d-none"></ul>
+    <ul id="global-busy-agent-lines-en" class="global-busy-agent-lines list-unstyled small mb-0 mt-2 nav-en text-start text-muted d-none" style="display:none"></ul>
     <p class="global-busy-hint small mb-0 mt-2 nav-ko text-muted">잠시만 기다려 주세요.</p>
     <p class="global-busy-hint small mb-0 mt-2 nav-en text-muted" style="display:none">Please wait.</p>
   </div>
@@ -175,7 +181,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/js/i18n.js?v=20260416i18n"></script>
-<script src="/static/js/main.js?v=20260428cat"></script>
+<script src="/static/js/main.js?v=20260429busy"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}
 </body>
