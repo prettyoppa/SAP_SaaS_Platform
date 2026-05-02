@@ -1,8 +1,8 @@
 """
 Paid Tier — FS·납품 ABAP
 
-- FS: CrewAI / Gemini (기능명세 에이전트). 키 없으면 예외만(가짜 문서 없음).
-- 납품 ABAP: ABAP → 코드검수 → 테스트시나리오 순 CrewAI·Gemini 호출. 키 필수.
+- FS: CrewAI / Gemini (대외명 「FS설계」 에이전트, 내부 role p_architect). 키 없으면 예외만(가짜 문서 없음).
+- 납품 ABAP: 「ABAP」→「코드검수」→「테스트」 순 CrewAI·Gemini 호출. 키 필수.
 """
 
 from __future__ import annotations
@@ -19,9 +19,9 @@ from .free_crew import (
     _fmt_rfp,
     _get_llm,
     _lib_block_heading,
-    _member_abap_block,
     _parse_code_library_context,
 )
+from ..agent_display import agent_label_ko
 from ..gemini_model import get_gemini_model_id
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
@@ -77,7 +77,7 @@ def generate_fs_markdown(
     if analysis_summary:
         lib_for = f"\n\n{_lib_block_heading(member_safe_output)}\n{analysis_summary}"
     member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
-    ref_block = _member_abap_block(member_ref)
+    ref_body_fs = member_ref if member_ref else "(고객 참고 ABAP 미첨부)"
     _ms = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
 
     pid = (rfp_data.get("program_id") or "").strip()
@@ -91,11 +91,16 @@ def generate_fs_markdown(
 """
 
     task = Task(
-        description=f"""아래 (1)(2)(3)을 **모두** 읽고 교차검증하라. 서로 모순되면 FS 끝에 **오픈 이슈**로 적시하라.
+        description=f"""아래 (1)(1b)(2)(3)을 **모두** 읽고 교차검증하라. 서로 모순되면 FS 끝에 **오픈 이슈**로 적시하라.
 
-### (1) RFP 원천 요구
+**구분(필수):** (1)은 서면 요구만이다. (1b)는 회원이 **요청 제출 시** 참고로 첨부한 **원본 ABAP**이며, **귀하가 작성하는 FS 본문이나 이후 납품 ABAP 자동생성 결과가 아니다.** FS에 넣을 예시·pseudo 코드는 (1b)를 복사하지 말고 **설계 관점에서 새로** 쓴다.
+
+### (1) RFP 원천 요구 (텍스트·모듈·설명만)
 {rfp_ctx}
-{lib_for}{ref_block}
+{lib_for}
+
+### (1b) 고객 참고 ABAP (요청 폼에 **직접 첨부**한 원본 — FS·납품 산출물 **아님**)
+{ref_body_fs}
 
 ### (2) 인터뷰 — 질의·고객 답변 전체
 {conv_ctx}
@@ -154,7 +159,7 @@ def generate_delivered_abap_markdown(
     phase_log: Callable[[str], None] | None = None,
 ) -> str:
     """
-    「ABAP」→「코드검수」→「테스트시나리오」 순으로 Gemini 호출(단계별 Crew).
+    「ABAP」→「코드검수」→「테스트」 순으로 Gemini 호출(단계별 Crew).
     키 없으면 _get_llm()에서 RuntimeError — placeholder 소스 없음.
     """
     llm = _get_llm()
@@ -184,7 +189,7 @@ def generate_delivered_abap_markdown(
     if analysis_summary:
         lib_for = f"\n\n{_lib_block_heading(member_safe_output)}\n{_truncate(analysis_summary, 8000)}"
     member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
-    ref_block = _member_abap_block(member_ref)
+    ref_for_prompt = member_ref if member_ref else "(고객 참고 ABAP 미첨부)"
     _ms = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
 
     pid = (rfp_data.get("program_id") or "").strip()
@@ -195,9 +200,17 @@ def generate_delivered_abap_markdown(
         description=f"""아래 **기능명세서(FS)** 를 1차 구현 기준으로 삼아 ABAP 초안을 작성하라.
 RFP·인터뷰·제안서는 FS와 충돌 시 **FS를 우선**한다.
 
-### RFP
+**역할 구분(반드시 준수):**
+- **「고객 참고 ABAP」** 블록: 회원이 **요청 제출 시** 폼에 넣은 **참고용 원본**이다. **납품 ABAP 초안이 아니며**, 출력물로 되돌려 제시할 코드가 아니다.
+- **「기능명세서(FS)」** 블록: {agent_label_ko("p_architect")}가 작성한 **설계 문서**이다. FS 안의 ABAP 예시·snippet은 **설명·의사코드**일 수 있으며 고객 첨부본과 **동일하지 않다**고 가정한다.
+- 네가 출력하는 `# 납품 ABAP 초안`만이 이 단계의 **공식 납품 코드 초안**이다.
+
+### RFP 요약
 {rfp_ctx}
-{lib_for}{ref_block}
+{lib_for}
+
+### 고객 참고 ABAP (요청 제출 시 첨부 — **납품 결과 아님**, 패턴·인터페이스 힌트로만 활용)
+{ref_for_prompt}
 
 ### 인터뷰 발췌
 {conv_snip}
@@ -205,7 +218,7 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS를 우선**한다.
 ### 제안서 발췌 (UI 힌트용, FS 미기재 필드 보완만)
 {prop_snip}
 
-### 기능명세서 (본문)
+### 기능명세서 (본문) — 구현 근거
 {fs_block}
 
 {_ms}
@@ -249,7 +262,7 @@ ABAP 작성 규칙:
         allow_delegation=False,
     )
 
-    _ph(f"「ABAP」에이전트 — Gemini({get_gemini_model_id()}) 호출 시작 · 수 분 걸릴 수 있음")
+    _ph(f"{agent_label_ko('p_coder')} — Gemini({get_gemini_model_id()}) 호출 시작 · 수 분 걸릴 수 있음")
     crew_k = Crew(
         agents=[abap_agent],
         tasks=[kevin_task],
@@ -257,7 +270,7 @@ ABAP 작성 규칙:
         verbose=False,
     )
     out_k = str(crew_k.kickoff()).strip()
-    _ph(f"「ABAP」에이전트 단계 완료 · 출력 길이 약 {len(out_k)}자")
+    _ph(f"{agent_label_ko('p_coder')} 단계 완료 · 출력 길이 약 {len(out_k)}자")
 
     young_task = Task(
         description=(
@@ -277,7 +290,7 @@ ABAP 작성 규칙:
         expected_output="검수 반영 마크다운 전체",
     )
 
-    _ph("「코드검수」에이전트 — Gemini 호출 시작")
+    _ph(f"{agent_label_ko('p_inspector')} — Gemini 호출 시작")
     crew_y = Crew(
         agents=[review_agent],
         tasks=[young_task],
@@ -285,7 +298,7 @@ ABAP 작성 규칙:
         verbose=False,
     )
     out_y = str(crew_y.kickoff()).strip()
-    _ph(f"「코드검수」에이전트 단계 완료 · 출력 길이 약 {len(out_y)}자")
+    _ph(f"{agent_label_ko('p_inspector')} 단계 완료 · 출력 길이 약 {len(out_y)}자")
 
     brian_task = Task(
         description=(
@@ -304,7 +317,7 @@ ABAP 작성 규칙:
         expected_output="테스트 시나리오까지 포함한 최종 마크다운",
     )
 
-    _ph("「테스트시나리오」에이전트 — Gemini 호출 시작")
+    _ph(f"{agent_label_ko('p_tester')} — Gemini 호출 시작")
     crew_b = Crew(
         agents=[test_scenario_agent],
         tasks=[brian_task],
@@ -312,5 +325,5 @@ ABAP 작성 규칙:
         verbose=False,
     )
     out_b = str(crew_b.kickoff()).strip()
-    _ph(f"「테스트시나리오」에이전트 단계 완료 · 최종 길이 약 {len(out_b)}자")
+    _ph(f"{agent_label_ko('p_tester')} 단계 완료 · 최종 길이 약 {len(out_b)}자")
     return out_b

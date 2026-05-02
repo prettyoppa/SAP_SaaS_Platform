@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy.orm import joinedload
 
 from . import models, r2_storage
+from .agent_display import agent_label_ko
 from .agents.agent_tools import get_code_library_context
 from .agents.paid_crew import generate_delivered_abap_markdown, generate_fs_markdown
 from .database import SessionLocal
@@ -36,7 +37,7 @@ def append_delivery_job_log_line(rfp_id: int, field: str, line: str) -> None:
 
 
 def _fs_heartbeat(rfp_id: int, stop: threading.Event, n_holder: dict) -> None:
-    """「기능명세」 단계가 한 번에 오래 걸릴 때 주기 상태 메시지."""
+    """FS설계(p_architect) 단계가 한 번에 오래 걸릴 때 주기 상태 메시지."""
     while True:
         if stop.wait(timeout=_HEARTBEAT_SEC):
             return
@@ -44,7 +45,7 @@ def _fs_heartbeat(rfp_id: int, stop: threading.Event, n_holder: dict) -> None:
         append_delivery_job_log_line(
             rfp_id,
             "fs_job_log",
-            f"「기능명세」에이전트 · Gemini 호출 진행 중… (heartbeat #{n_holder['count']}, 약 {_HEARTBEAT_SEC}초마다)",
+            f"{agent_label_ko('p_architect')} · Gemini 호출 진행 중… (heartbeat #{n_holder['count']}, 약 {_HEARTBEAT_SEC}초마다)",
         )
 
 
@@ -109,7 +110,7 @@ def run_fs_generation_job(rfp_id: int) -> None:
         append_delivery_job_log_line(
             rfp_id,
             "fs_job_log",
-            "「기능명세」에이전트(Gemini) 호출 직전 · 수 분 걸릴 수 있음",
+            f"{agent_label_ko('p_architect')}(Gemini) 호출 직전 · 수 분 걸릴 수 있음",
         )
         try:
             rfp.fs_text = generate_fs_markdown(
@@ -122,7 +123,7 @@ def run_fs_generation_job(rfp_id: int) -> None:
             rfp.fs_status = "ready"
             rfp.fs_generated_at = datetime.utcnow()
             rfp.fs_error = None
-            append_delivery_job_log_line(rfp_id, "fs_job_log", "「기능명세」에이전트 완료 · fs_text 저장")
+            append_delivery_job_log_line(rfp_id, "fs_job_log", f"{agent_label_ko('p_architect')} 완료 · fs_text 저장")
         except Exception as ex:
             rfp.fs_status = "failed"
             rfp.fs_error = str(ex)
@@ -177,7 +178,7 @@ def resolved_fs_markdown_for_codegen(db, rfp: models.RFP) -> tuple[str | None, s
     if not agent_fs:
         return (
             None,
-            "FS 본문이 없습니다. 「기능명세」생성을 완료하거나 컨설턴트 FS .md를 첨부하세요.",
+            "FS 본문이 없습니다. FS설계 에이전트 생성을 완료하거나 컨설턴트 FS .md를 첨부하세요.",
         )
     return rfp.fs_text or "", None
 

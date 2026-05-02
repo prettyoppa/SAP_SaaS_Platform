@@ -289,11 +289,12 @@ def _lib_block_heading(member_safe_output: bool) -> str:
 
 
 def _member_abap_block(member_ref: str) -> str:
+    """회원이 RFP **제출 시** 참고로 넣은 ABAP — FS·납품 자동생성물과 혼동되지 않게 제목을 고정한다."""
     if not (member_ref or "").strip():
         return ""
     return f"""
 
-[회원이 본 요청에 제출한 ABAP 코드]
+### 고객 참고 ABAP (요청서 제출 시 첨부한 **원본** · FS·납품 코드 **자동생성 결과 아님**)
 {member_ref}
 """
 

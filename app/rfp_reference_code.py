@@ -167,7 +167,7 @@ def format_reference_code_for_llm(payload: str | None) -> str:
         if not _slot_nonempty(sl):
             continue
         shown += 1
-        block: list[str] = [f"=== ABAP 코드 #{shown} ==="]
+        block: list[str] = [f"=== 참고용 ABAP (슬롯 {shown}) ==="]
         if (sl.get("program_id") or "").strip():
             block.append(f"프로그램 ID: {sl['program_id'].strip()}")
         if (sl.get("transaction_code") or "").strip():
@@ -200,8 +200,9 @@ def format_reference_code_for_llm(payload: str | None) -> str:
     if not parts:
         return ""
     intro = (
-        "아래는 회원이 본 개발 요청에 제출한 ABAP 코드입니다. "
-        "요청 이해·개발 제안서 작성에만 활용하고, RFP·인터뷰 내용과 모순되면 RFP·인터뷰를 우선합니다.\n"
+        "아래는 회원이 **개발 요청을 제출할 때** 폼에 넣은 **참고용** ABAP 코드 원본입니다. "
+        "이후 파이프라인에서 **FS설계·납품 ABAP** 등이 자동 생성되더라도, 그 결과물과 **동일하지 않으며** 본 블록은 **요청 시점의 참고 자료**입니다. "
+        "요청 이해·제안서·FS 작성 시 **맥락·패턴 참고용**으로만 사용합니다. RFP·인터뷰와 모순되면 RFP·인터뷰를 우선합니다.\n"
     )
     return intro + "\n\n".join(parts)
 

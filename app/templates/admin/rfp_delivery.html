@@ -7,7 +7,7 @@
     {% include 'partials/nav_prev_screen.html' %}
 
     {% if delivery_err == 'fs_not_ready' %}
-    <div class="alert alert-warning">코드 생성에 사용할 FS가 없습니다. 「기능명세」생성을 완료하거나 컨설턴트 FS .md를 첨부하세요.</div>
+    <div class="alert alert-warning">코드 생성에 사용할 FS가 없습니다. FS설계 에이전트 생성을 완료하거나 컨설턴트 FS .md를 첨부하세요.</div>
     {% endif %}
     {% if fs_codegen_preview_error %}
     <div class="alert alert-secondary small mb-3">{{ fs_codegen_preview_error }}</div>
@@ -165,7 +165,7 @@
               <div class="fw-semibold small mb-2">기능명세(FS)</div>
               <div class="d-flex justify-content-center gap-2">
                 <div class="text-center delivery-gen-step active" id="adm-fs-step">
-                  <div class="small">「기능명세」에이전트</div>
+                  <div class="small">{{ 'p_architect'|agent_label }}</div>
                   <div class="text-muted" style="font-size:0.75rem;">문서 작성</div>
                 </div>
               </div>
@@ -177,17 +177,17 @@
               <div class="fw-semibold small mb-2">납품 코드</div>
               <div class="d-flex justify-content-center align-items-start gap-2 flex-wrap mb-2">
                 <div class="text-center delivery-gen-step active" id="adm-dc-step1">
-                  <div class="small">「ABAP」에이전트</div>
+                  <div class="small">{{ 'p_coder'|agent_label }}</div>
                   <div class="text-muted" style="font-size:0.75rem;">초안</div>
                 </div>
                 <div class="text-muted pt-1">→</div>
                 <div class="text-center delivery-gen-step" id="adm-dc-step2">
-                  <div class="small">「코드검수」에이전트</div>
+                  <div class="small">{{ 'p_inspector'|agent_label }}</div>
                   <div class="text-muted" style="font-size:0.75rem;">검토·수정</div>
                 </div>
                 <div class="text-muted pt-1">→</div>
                 <div class="text-center delivery-gen-step" id="adm-dc-step3">
-                  <div class="small">「테스트시나리오」에이전트</div>
+                  <div class="small">{{ 'p_tester'|agent_label }}</div>
                   <div class="text-muted" style="font-size:0.75rem;">시나리오</div>
                 </div>
               </div>

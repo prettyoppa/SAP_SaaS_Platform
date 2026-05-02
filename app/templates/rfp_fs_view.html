@@ -10,13 +10,13 @@
     <div class="alert alert-warning border mb-4">
       <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
         <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline"
-              data-busy-agents='[{"agentKo":"「기능명세」","doingKo":"기능 명세서(FS) 초안을 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification (FS)"}]'>
+              data-busy-agents='[{"agentKo":"「FS설계」","doingKo":"RFP·인터뷰·제안서를 바탕으로 상세 기능명세서(FS)를 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification from the RFP, interview, and proposal"}]'>
           <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy %}disabled{% endif %}>
             {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
           </button>
         </form>
         <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline"
-              data-busy-agents='[{"agentKo":"「납품 설계」","doingKo":"FS와 요구사항을 바탕으로 구현 윤곽을 잡고 있습니다","agentEn":"「Delivery planning」","doingEn":"shaping the implementation from the FS and requirements"},{"agentKo":"「납품 ABAP」","doingKo":"ABAP 초안을 작성·정리하고 있습니다","agentEn":"「Delivery ABAP」","doingEn":"writing and structuring the ABAP draft"}]'>
+              data-busy-agents='[{"agentKo":"「ABAP」","doingKo":"기능명세를 바탕으로 납품 ABAP 초안을 작성하고 있습니다","agentEn":"「ABAP」","doingEn":"drafting delivered ABAP from the FS"},{"agentKo":"「코드검수」","doingKo":"초안을 검토·보완하고 있습니다","agentEn":"「Code Review」","doingEn":"reviewing and refining the draft"},{"agentKo":"「테스트」","doingKo":"단위 테스트 시나리오를 작성하고 있습니다","agentEn":"「Test」","doingEn":"writing unit test scenarios"}]'>
           <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
             {% if delivered_code_html %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
           </button>
@@ -161,7 +161,7 @@
               <div class="fw-semibold small mb-2">기능명세(FS)</div>
               <div class="d-flex justify-content-center gap-2">
                 <div class="text-center delivery-gen-step active" id="mem-fs-step">
-                  <div class="small">「기능명세」에이전트</div>
+                  <div class="small">{{ 'p_architect'|agent_label }}</div>
                   <div class="text-muted" style="font-size:0.75rem;">문서 작성</div>
                 </div>
               </div>
@@ -173,17 +173,17 @@
               <div class="fw-semibold small mb-2">납품 코드</div>
               <div class="d-flex justify-content-center align-items-start gap-2 flex-wrap mb-2">
                 <div class="text-center delivery-gen-step active" id="mem-dc-step1">
-                  <div class="small">「ABAP」에이전트</div>
+                  <div class="small">{{ 'p_coder'|agent_label }}</div>
                   <div class="text-muted" style="font-size:0.75rem;">초안</div>
                 </div>
                 <div class="text-muted pt-1">→</div>
                 <div class="text-center delivery-gen-step" id="mem-dc-step2">
-                  <div class="small">「코드검수」에이전트</div>
+                  <div class="small">{{ 'p_inspector'|agent_label }}</div>
                   <div class="text-muted" style="font-size:0.75rem;">검토·수정</div>
                 </div>
                 <div class="text-muted pt-1">→</div>
                 <div class="text-center delivery-gen-step" id="mem-dc-step3">
-                  <div class="small">「테스트시나리오」에이전트</div>
+                  <div class="small">{{ 'p_tester'|agent_label }}</div>
                   <div class="text-muted" style="font-size:0.75rem;">시나리오</div>
                 </div>
               </div>

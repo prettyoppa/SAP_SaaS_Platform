@@ -96,7 +96,7 @@
                     <i class="fa-solid fa-pen-to-square me-2"></i>답변 수정
                   </button>
                   <form method="post" action="/rfp/{{ rfp.id }}/proposal/regenerate" id="regenForm" class="d-inline"
-                        data-busy-agents='[{"agentKo":"「인터뷰 검토」","doingKo":"수정된 답변이 반영되도록 맥락을 정리하고 있습니다","agentEn":"「Interview review」","doingEn":"reconciling your edited answers into the interview context"},{"agentKo":"「개발 제안서」","doingKo":"제안서 본문을 다시 작성하고 있습니다","agentEn":"「Development Proposal」","doingEn":"regenerating the proposal body"}]'>
+                        data-busy-agents='[{"agentKo":"「요구분석」","doingKo":"수정된 인터뷰 답변을 반영해 요구 맥락을 정리하고 있습니다","agentEn":"「Requirements」","doingEn":"reconciling edited interview answers into the requirement context"},{"agentKo":"「제안서」","doingKo":"제안서 본문을 다시 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"regenerating the proposal body"},{"agentKo":"「제안검수」","doingKo":"품질·누락 항목을 검토하고 있습니다","agentEn":"「Review」","doingEn":"reviewing quality and gaps"}]'>
                     <button type="submit" class="btn btn-warning" id="regenBtn" disabled
                             title="답변 수정 후 활성화됩니다">
                       <i class="fa-solid fa-rotate me-2"></i>제안서 재생성

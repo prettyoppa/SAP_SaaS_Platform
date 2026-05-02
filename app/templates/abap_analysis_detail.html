@@ -36,7 +36,7 @@
               </a>
               {% else %}
               <form method="post" action="/abap-analysis/{{ row.id }}/reanalyze" style="display:inline"
-                    data-busy-agents='[{"agentKo":"「ABAP 분석」","doingKo":"요구사항·코드를 다시 분석하고 있습니다","agentEn":"「ABAP Analysis」","doingEn":"re-running the requirement and code analysis"}]'>
+                    data-busy-agents='[{"agentKo":"「요구분석」","doingKo":"요구사항·제출 코드를 다시 분석하고 있습니다","agentEn":"「Requirements」","doingEn":"re-running structured analysis on requirements and submitted code"}]'>
                 <button type="submit" class="btn btn-outline-primary btn-sm">
                   <i class="fa-solid fa-rotate me-1"></i>재분석
                 </button>
@@ -311,7 +311,7 @@
             </div>
             {% else %}
             <form method="post" action="/abap-analysis/{{ row.id }}/improvement-proposal"
-                  data-busy-agents='[{"agentKo":"「개발 제안서」","doingKo":"개선 요청을 반영해 연결 제안서를 작성하고 있습니다","agentEn":"「Development Proposal」","doingEn":"drafting the linked proposal from your improvement request"}]'>
+                  data-busy-agents='[{"agentKo":"「요구분석」","doingKo":"개선 요청을 반영할 맥락을 정리하고 있습니다","agentEn":"「Requirements」","doingEn":"structuring the improvement request for downstream agents"},{"agentKo":"「제안서」","doingKo":"연결된 RFP 제안서 초안을 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"drafting the linked RFP proposal"},{"agentKo":"「제안검수」","doingKo":"제안서 품질을 검토하고 있습니다","agentEn":"「Review」","doingEn":"reviewing proposal quality"}]'>
               <textarea id="improvement_request_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" required>{{ row.improvement_request_text or '' }}</textarea>
               <button type="submit" class="btn btn-primary btn-sm">
                 <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="common.submit">제출</span>
@@ -430,7 +430,7 @@
       <p class="small text-muted mb-0" data-i18n="chat.limitReached">후속 질문 횟수에 도달했습니다.</p>
       {% else %}
       <form method="post" action="/abap-analysis/{{ row.id }}/chat" class="abap-followup-form mb-0"
-            data-busy-agents='[{"agentKo":"「후속 질의」","doingKo":"질문에 맞는 응답을 작성하고 있습니다","agentEn":"「Follow-up QA」","doingEn":"composing a reply to your question"}]'>
+            data-busy-agents='[{"agentKo":"「질의」","doingKo":"추가 질문에 맞는 응답을 작성하고 있습니다","agentEn":"「Q&A」","doingEn":"composing a reply to your follow-up question"}]'>
         <label class="form-label small text-muted mb-1" for="abap-followup-msg" data-i18n="chat.messageLabel">메시지</label>
         <div class="abap-followup-ta-wrap">
           <textarea id="abap-followup-msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required data-i18n-placeholder="chat.messagePlaceholder" placeholder="추가로 궁금한 점을 입력하세요."></textarea>
