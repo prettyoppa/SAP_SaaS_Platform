@@ -34,7 +34,7 @@
           {% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}
         {% endif %}
         {% if rfp.file_name or rfp.attachments_json %}
-        <a href="/rfp/{{ rfp.id }}/attachment" class="text-muted small ms-2 text-decoration-none" data-i18n-title="list.attachmentsTitle" title="첨부">
+        <a href="/rfp/{{ rfp.id }}/attachment" class="text-muted small ms-2 text-decoration-none" data-i18n-title="list.attachmentsTitle" title="첨부" data-no-busy="true">
           <i class="fa-solid fa-paperclip"></i>
         </a>
         {% endif %}

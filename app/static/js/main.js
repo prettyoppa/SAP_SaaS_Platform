@@ -215,6 +215,9 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const u = new URL(a.href, window.location.href);
         if (u.origin !== window.location.origin) return;
+        /* 첨부 다운로드(/…/attachment): 같은 탭에서 파일만 받거나 R2 프리사인으로 나가도
+           전체 네비게이션이 없어 pageshow 가 없고 오버레이가 꺼지지 않음 */
+        if (u.pathname.endsWith('/attachment')) return;
       } catch (_) {
         return;
       }

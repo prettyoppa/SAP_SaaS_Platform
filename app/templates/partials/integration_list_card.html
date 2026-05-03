@@ -36,8 +36,14 @@
         <i class="fa-solid fa-user me-1"></i>{{ ir.owner.full_name }}{% if ir.owner.company %} · {{ ir.owner.company }}{% endif %} · {{ ir.owner.email }}
       </div>
       {% endif %}
-      <div class="rfp-list-meta small text-muted mb-1">
-        {{ ir.created_at.strftime('%Y-%m-%d %H:%M') }}
+      <div class="rfp-list-meta small text-muted mb-1 d-flex flex-wrap align-items-center gap-2">
+        <span>{{ ir.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        {% set int_att = (ir.attachments_json or '')|trim %}
+        {% if int_att and int_att != '[]' %}
+        <a href="/integration/{{ ir.id }}/attachment?idx=0" class="text-muted text-decoration-none" data-i18n-title="list.attachmentsTitle" title="첨부" data-no-busy="true" aria-label="첨부">
+          <i class="fa-solid fa-paperclip"></i>
+        </a>
+        {% endif %}
       </div>
       {% if (ir.impl_types or '').strip() %}
       <div class="d-flex flex-wrap gap-1">

@@ -1503,6 +1503,48 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 .rfp-list-dates { margin-top: .3rem; }
 .rfp-list-actions { flex-direction: column; align-items: flex-end; min-width: 180px; }
 
+/* 분석·개선 목록 타일 — 왼쪽 위 대각 코너 리본 */
+.rfp-list-surface-tile--corner-ribbon {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.rfp-list-surface-tile--corner-ribbon > .rfp-list-card {
+  position: relative;
+  z-index: 1;
+}
+.menu-tile-corner-ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  width: 5.75rem;
+  height: 5.75rem;
+  overflow: hidden;
+  pointer-events: none;
+}
+.menu-tile-corner-ribbon__text {
+  position: absolute;
+  display: block;
+  width: 9rem;
+  top: 1rem;
+  left: -2.65rem;
+  padding: 0.2rem 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  text-align: center;
+  color: #f8fafc;
+  background: linear-gradient(105deg, #6366f1 0%, #4338ca 92%);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.38);
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+html[data-theme="light"] .menu-tile-corner-ribbon__text {
+  box-shadow: 0 1px 4px rgba(67, 56, 202, 0.28);
+}
+
 /* 메뉴 목록: 타일 / 촘촘한 목록 전환 (localStorage 키별) */
 .menu-list-root--tile .menu-list-card .rfp-list-surface-list { display: none !important; }
 .menu-list-root--list .menu-list-card .rfp-list-surface-tile { display: none !important; }
