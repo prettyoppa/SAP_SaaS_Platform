@@ -107,37 +107,37 @@
     </div>
 
     <div class="mb-3">
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deliveryJobLogModal">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="deliveryJobLogOpenBtn">
         <i class="fa-solid fa-scroll me-1"></i>실행 로그</button>
     </div>
 
-    <div class="modal fade" id="deliveryJobLogModal" tabindex="-1" aria-labelledby="deliveryJobLogTitle" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="deliveryJobLogTitle">생성 작업 실행 로그</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+    {# 진행 모달과 별도 레이어 — Bootstrap 이중 모달 대신 오버레이로 열어 진행 팝업이 유지되게 함 #}
+    <div id="deliveryJobLogPanel" class="delivery-job-log-overlay d-none" aria-hidden="true">
+      <div class="delivery-job-log-backdrop" data-close-delivery-log="1" aria-hidden="true"></div>
+      <div class="delivery-job-log-sheet border shadow" role="dialog" aria-modal="true" aria-labelledby="deliveryJobLogTitle">
+        <div class="d-flex align-items-center border-bottom px-3 py-2 flex-shrink-0 bg-body">
+          <h5 class="modal-title mb-0" id="deliveryJobLogTitle">생성 작업 실행 로그</h5>
+          <button type="button" class="btn-close ms-auto" data-close-delivery-log="1" aria-label="닫기"></button>
+        </div>
+        <div class="delivery-job-log-body p-3">
+          <div class="d-flex flex-wrap gap-2 mb-2 small">
+            <span id="jobLogFsBadge" class="badge bg-secondary">fs: —</span>
+            <span id="jobLogDcBadge" class="badge bg-secondary">code: —</span>
           </div>
-          <div class="modal-body">
-            <div class="d-flex flex-wrap gap-2 mb-2 small">
-              <span id="jobLogFsBadge" class="badge bg-secondary">fs: —</span>
-              <span id="jobLogDcBadge" class="badge bg-secondary">code: —</span>
+          <ul class="nav nav-tabs small" id="jobLogTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="tab-fslog" data-bs-toggle="tab" data-bs-target="#paneFsLog" type="button" role="tab">기능명세(FS)</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-dclog" data-bs-toggle="tab" data-bs-target="#paneDcLog" type="button" role="tab">납품 코드</button>
+            </li>
+          </ul>
+          <div class="tab-content border border-top-0 rounded-bottom p-2" id="jobLogTabContent">
+            <div class="tab-pane fade show active" id="paneFsLog" role="tabpanel">
+              <pre id="jobLogFs" class="small mb-0 p-2 rounded" style="max-height:50vh;background:var(--surface2);white-space:pre-wrap;">(불러오는 중…)</pre>
             </div>
-            <ul class="nav nav-tabs small" id="jobLogTabs" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-fslog" data-bs-toggle="tab" data-bs-target="#paneFsLog" type="button" role="tab">기능명세(FS)</button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-dclog" data-bs-toggle="tab" data-bs-target="#paneDcLog" type="button" role="tab">납품 코드</button>
-              </li>
-            </ul>
-            <div class="tab-content border border-top-0 rounded-bottom p-2" id="jobLogTabContent">
-              <div class="tab-pane fade show active" id="paneFsLog" role="tabpanel">
-                <pre id="jobLogFs" class="small mb-0 p-2 rounded" style="max-height:50vh;background:var(--surface2);white-space:pre-wrap;">(불러오는 중…)</pre>
-              </div>
-              <div class="tab-pane fade" id="paneDcLog" role="tabpanel">
-                <pre id="jobLogDc" class="small mb-0 p-2 rounded" style="max-height:50vh;background:var(--surface2);white-space:pre-wrap;">(불러오는 중…)</pre>
-              </div>
+            <div class="tab-pane fade" id="paneDcLog" role="tabpanel">
+              <pre id="jobLogDc" class="small mb-0 p-2 rounded" style="max-height:50vh;background:var(--surface2);white-space:pre-wrap;">(불러오는 중…)</pre>
             </div>
           </div>
         </div>
@@ -204,6 +204,32 @@
 <style>
 .delivery-gen-step { opacity: 0.35; transition: opacity 0.5s; max-width: 7rem; }
 .delivery-gen-step.active { opacity: 1; }
+/* 로그 패널: Bootstrap 모달(1055)보다 위에 두어 진행 중 모달과 동시에 표시 */
+.delivery-job-log-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+.delivery-job-log-overlay.d-none { display: none !important; }
+.delivery-job-log-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+.delivery-job-log-sheet {
+  position: relative;
+  z-index: 1;
+  width: min(42rem, 96vw);
+  max-width: 100%;
+  background: var(--surface, #fff);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+.delivery-job-log-body { flex: 1; min-height: 0; overflow: auto; }
 </style>
 {% endblock %}
 
@@ -218,8 +244,32 @@
   const fsBusyStart = {{ fs_busy|tojson }};
   const dcBusyStart = {{ dc_busy|tojson }};
   let logTimer = null;
-  const logModal = document.getElementById('deliveryJobLogModal');
+  const logPanel = document.getElementById('deliveryJobLogPanel');
+  const logOpenBtn = document.getElementById('deliveryJobLogOpenBtn');
   const progressModal = document.getElementById('deliveryProgressModal');
+
+  function isLogPanelOpen() {
+    return logPanel && !logPanel.classList.contains('d-none');
+  }
+
+  function openDeliveryJobLogPanel() {
+    if (!logPanel) return;
+    logPanel.classList.remove('d-none');
+    logPanel.setAttribute('aria-hidden', 'false');
+    pollJobLog();
+    if (logTimer) clearInterval(logTimer);
+    logTimer = setInterval(pollJobLog, pollMs);
+  }
+
+  function closeDeliveryJobLogPanel() {
+    if (!logPanel) return;
+    logPanel.classList.add('d-none');
+    logPanel.setAttribute('aria-hidden', 'true');
+    if (logTimer) {
+      clearInterval(logTimer);
+      logTimer = null;
+    }
+  }
 
   async function pollJobLog() {
     try {
@@ -238,16 +288,25 @@
     } catch (e) { return null; }
   }
 
-  if (logModal) {
-    logModal.addEventListener('show.bs.modal', function () {
-      pollJobLog();
-      if (logTimer) clearInterval(logTimer);
-      logTimer = setInterval(pollJobLog, pollMs);
-    });
-    logModal.addEventListener('hidden.bs.modal', function () {
-      if (logTimer) { clearInterval(logTimer); logTimer = null; }
+  if (logOpenBtn) {
+    logOpenBtn.addEventListener('click', function () {
+      openDeliveryJobLogPanel();
     });
   }
+  if (logPanel) {
+    logPanel.addEventListener('click', function (e) {
+      if (e.target.closest('[data-close-delivery-log="1"]')) {
+        closeDeliveryJobLogPanel();
+      }
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (isLogPanelOpen()) {
+      closeDeliveryJobLogPanel();
+      e.stopPropagation();
+    }
+  }, true);
 
   let dcStepIdx = 0;
   let dcAnimTimer = null;
@@ -263,19 +322,9 @@
   if (genBusy && progressModal && typeof bootstrap !== 'undefined') {
     bootstrap.Modal.getOrCreateInstance(progressModal).show();
     const openLogBtn = document.getElementById('admOpenJobLogBtn');
-    if (openLogBtn && logModal) {
+    if (openLogBtn) {
       openLogBtn.addEventListener('click', function () {
-        const pm = bootstrap.Modal.getInstance(progressModal);
-        const showLog = function () {
-          bootstrap.Modal.getOrCreateInstance(logModal).show();
-        };
-        if (pm) {
-          progressModal.addEventListener('hidden.bs.modal', function once() {
-            progressModal.removeEventListener('hidden.bs.modal', once);
-            showLog();
-          }, { once: true });
-          pm.hide();
-        } else showLog();
+        openDeliveryJobLogPanel();
       });
     }
     if (dcBusyStart) {
