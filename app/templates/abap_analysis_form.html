@@ -2,174 +2,127 @@
 {% block title %}SAP ABAP 분석&개선 요청 – SAP 개발 파트너{% endblock %}
 
 {% block content %}
-<div class="proposal-page py-5">
+<script>
+  window.__RFP_CTX__ = {
+    userId: {{ user.id }},
+    rfpId: null,
+    scope: {% if edit_row %}'abap-e{{ edit_row.id }}'{% else %}'abap-new'{% endif %}
+  };
+</script>
+{% if ref_code_initial %}
+<script type="application/json" id="rfp-refcode-initial">{{ ref_code_initial | tojson }}</script>
+{% endif %}
+<div class="rfp-page py-5">
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-lg-9">
-        <div class="mb-3">
+
+        <div class="rfp-header mb-4">
           {% include 'partials/nav_prev_screen.html' %}
+          <h2 class="rfp-title">SAP ABAP 분석&개선 요청</h2>
         </div>
-        <h2 class="mb-4">SAP ABAP 분석&개선 요청</h2>
 
+        {% if error == 'invalid_file' %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span data-i18n="rfp.errorFile">파일 형식이 올바르지 않습니다. 허용: PDF, Excel, Word, 이미지, TXT</span>
+        </div>
+        {% endif %}
+        {% if error == 'file_too_large' %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>첨부 파일은 최대 20MB까지 업로드할 수 있습니다.</span>
+        </div>
+        {% endif %}
+        {% if error == 'empty_attachment' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>첨부 파일이 비어 있습니다. 파일을 다시 선택하거나, 드래그 대신 <strong>클릭해서 파일 선택</strong>으로 올려 보세요.</span>
+        </div>
+        {% endif %}
+        {% if error == 'max_selection' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>SAP 모듈 또는 개발 유형은 각각 최대 3개까지만 선택할 수 있습니다.</span>
+        </div>
+        {% endif %}
+        {% if error in ['program_id_required', 'program_id_too_long', 'program_id_ime', 'program_id_chars'] %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>
+            {% if error == 'program_id_required' %}프로그램 ID를 입력해 주세요.{% endif %}
+            {% if error == 'program_id_too_long' %}프로그램 ID는 40자 이내로 입력해 주세요.{% endif %}
+            {% if error == 'program_id_ime' %}한글·일본어·중국어 키보드로 입력할 수 없습니다. 영문·숫자·기호(공백 제외)만 사용해 주세요.{% endif %}
+            {% if error == 'program_id_chars' %}허용되지 않는 문자가 있습니다. 인쇄되는 영문·숫자·기호만 사용할 수 있습니다.{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% if error in ['transaction_code_too_long', 'transaction_code_ime', 'transaction_code_chars'] %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>
+            {% if error == 'transaction_code_too_long' %}트랜잭션 코드는 20자 이내로 입력해 주세요.{% endif %}
+            {% if error == 'transaction_code_ime' %}트랜잭션 코드에는 한글 등 IME 입력을 사용할 수 없습니다.{% endif %}
+            {% if error == 'transaction_code_chars' %}트랜잭션 코드에 허용되지 않는 문자가 있습니다.{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% if error == 'too_many_attachments' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>첨부 파일은 최대 5개까지 가능합니다.</span>
+        </div>
+        {% endif %}
+        {% if error == 'reference_code_too_large' %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>코드 정보가 허용 용량을 초과했습니다. ABAP 섹션을 줄이거나 항목 수를 조정해 주세요. (대략 JSON 6MB·UTF-8 기준)</span>
+        </div>
+        {% endif %}
+        {% if error == 'need_title' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>요청 제목을 입력해 주세요. (공백 제외 2자 이상)</span>
+        </div>
+        {% endif %}
         {% if error == 'need_requirement' %}
-        <div class="alert alert-warning">요구사항을 20자 이상 입력해 주세요.</div>
-        {% elif error == 'need_title' %}
-        <div class="alert alert-warning">요청 제목을 입력해 주세요. (공백 제외 2자 이상)</div>
-        {% elif error == 'need_reference_code' %}
-        <div class="alert alert-warning">ABAP 코드(본문)를 한 건 이상 입력해 주세요.</div>
-        {% elif error == 'code_too_short' %}
-        <div class="alert alert-warning">ABAP 본문이 너무 짧습니다. 분석 가능한 분량을 입력해 주세요.</div>
-        {% elif error == 'too_many_attachments' %}
-        <div class="alert alert-warning">첨부는 최대 {{ 5 }}개까지입니다.</div>
-        {% elif error == 'reference_code_too_large' %}
-        <div class="alert alert-warning">코드 정보가 허용 용량을 초과했습니다. ABAP 섹션을 줄이거나 항목 수를 조정해 주세요. (대략 JSON 6MB·UTF-8 기준)</div>
-        {% elif error == 'invalid_file' %}
-        <div class="alert alert-warning">허용되지 않는 파일 형식입니다.</div>
-        {% elif error == 'file_too_large' %}
-        <div class="alert alert-warning">첨부 파일이 너무 큽니다.</div>
-        {% elif error == 'empty_attachment' %}
-        <div class="alert alert-warning">빈 첨부 파일은 올릴 수 없습니다.</div>
-        {% elif error %}
-        <div class="alert alert-danger">제출 처리 중 오류가 발생했습니다. 입력 내용을 확인해 주세요.</div>
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>요구사항 자유 기술을 20자 이상 입력해 주세요.</span>
+        </div>
+        {% endif %}
+        {% if error == 'need_reference_code' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>ABAP 코드(본문)를 한 건 이상 입력해 주세요.</span>
+        </div>
+        {% endif %}
+        {% if error == 'code_too_short' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>ABAP 본문이 너무 짧습니다. 분석 가능한 분량을 입력해 주세요.</span>
+        </div>
+        {% endif %}
+        {% if error and error not in ['invalid_file', 'file_too_large', 'empty_attachment', 'max_selection', 'program_id_required', 'program_id_too_long', 'program_id_ime', 'program_id_chars', 'transaction_code_too_long', 'transaction_code_ime', 'transaction_code_chars', 'too_many_attachments', 'reference_code_too_large', 'need_title', 'need_requirement', 'need_reference_code', 'code_too_short'] %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>제출 처리 중 오류가 발생했습니다. 입력 내용을 확인해 주세요.</span>
+        </div>
         {% endif %}
 
-        {% if ref_code_initial %}
-        <script type="application/json" id="rfp-refcode-initial">{{ ref_code_initial | tojson }}</script>
-        {% endif %}
-        {% if notes_prefill %}
-        <script type="application/json" id="rfp-notes-prefill">{{ notes_prefill | tojson }}</script>
-        {% endif %}
-
-        <form method="post" action="{% if edit_row %}/abap-analysis/{{ edit_row.id }}/edit{% else %}/abap-analysis/new{% endif %}" enctype="multipart/form-data" id="abap-analysis-form">
-          <input type="hidden" name="reference_code_json" id="reference-code-json-field" value=""/>
-
-          <div class="rfp-section mb-4">
-            <div class="rfp-section-header">
-              <span class="rfp-section-num">01</span>
-              <div>
-                <h4 class="mb-0">요청 제목</h4>
-                <small class="text-muted">목록에서 보이는 이름입니다. <strong>제출·분석 시 필수</strong>이며, 임시저장 시에는 비워 둘 수 있습니다.</small>
-              </div>
-            </div>
-            <input type="text" name="title" class="form-control" maxlength="512" autocomplete="off"
-                   value="{{ form_title or '' }}" placeholder="예: ZSDR001 재고 업로드 ALV 속도 개선"/>
-          </div>
-
-          <div class="rfp-section mb-4">
-            <div class="rfp-section-header">
-              <span class="rfp-section-num">02</span>
-              <div>
-                <h4 class="mb-0">요구사항 상세</h4>
-                <small class="text-muted">개선 목표, 증상, 기대 동작 등을 구체적으로 적어 주세요. (임시저장 시 비워 둘 수 있습니다)</small>
-              </div>
-            </div>
-            <textarea class="form-control" name="requirement_text" rows="10">{{ form_requirement or '' }}</textarea>
-          </div>
-
-          <div class="rfp-section mb-4" id="section-abap-attach">
-            <div class="rfp-section-header">
-              <span class="rfp-section-num">03</span>
-              <div>
-                <h4 class="mb-0">첨부 파일</h4>
-                <small class="text-muted">필요 시 추가합니다. 목록에서 파일 이름을 누르면 저장 전에 미리 볼 수 있습니다.</small>
-              </div>
-            </div>
-
-            {% if edit_row and attachment_entries %}
-            <div class="border rounded p-3 mb-3" style="background:var(--surface2);border-color:var(--border)!important;">
-              <div class="fw-semibold mb-2"><i class="fa-solid fa-paperclip me-1"></i>저장된 첨부</div>
-              {% for att in attachment_entries %}
-              <div class="small mb-1">
-                <a href="/abap-analysis/{{ edit_row.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename }}</a>
-                {% if att.note %}<span class="text-muted">— {{ att.note }}</span>{% endif %}
-              </div>
-              {% endfor %}
-              <p class="small text-muted mb-0 mt-2">추가 첨부는 아래 영역에서 선택합니다. 기존 파일과 합쳐 최대 5개입니다.</p>
-            </div>
-            {% endif %}
-
-            <div class="file-drop-zone" id="drop-zone" data-max-files="5">
-              <div class="position-relative mb-2 file-drop-hit-target" id="file-drop-hit-target" style="min-height: 8.5rem;">
-                <label for="attachments" class="d-block position-relative mb-0 w-100 h-100" style="min-height: 8.5rem;">
-                  <input type="file" name="attachments" id="attachments" multiple
-                         accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg"
-                         class="file-drop-native-input"/>
-                  <span class="file-drop-content d-block text-center py-4 px-2" id="drop-content">
-                    <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
-                    <span class="fw-semibold d-block mb-1">클릭하거나 아래 영역으로 파일을 드래그하세요</span>
-                    <span class="text-muted small d-block mb-0">PDF, Excel, Word, 이미지, TXT · 파일당 최대 20MB · 최대 5개</span>
-                  </span>
-                </label>
-              </div>
-              <div id="attachment-list" class="w-100 px-1"></div>
-            </div>
-          </div>
-
-          <div class="rfp-section mb-4" id="section-ref-code">
-            <div class="rfp-section-header">
-              <span class="rfp-section-num">04</span>
-              <div>
-                <h4 class="mb-0">ABAP 코드 정보</h4>
-                <small class="text-muted">회원이 올리는 코드는 해당 요청 이해 및 최적의 제안서 작성을 위해서 이용됩니다. 광고, 제3자 제공, AI 모델 학습·재학습 등 그 밖의 목적으로는 사용하지 않습니다. 회원이 직접 삭제하신 경우, 지체 없이 복구 불가능한 방식으로 삭제합니다.</small>
-              </div>
-            </div>
-
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-              <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-abap-ref-code" aria-expanded="true" aria-controls="collapse-abap-ref-code">
-                <i class="fa-solid fa-code me-2"></i>ABAP 코드 입력란 펼치기 / 접기
-              </button>
-              {% if user and user.is_admin %}
-              <button type="button" class="btn btn-outline-primary btn-sm" data-codelib-import="abap" data-ref-collapse="#collapse-abap-ref-code" title="관리자: 코드 갤러리에서 한 건 불러오기">
-                <i class="fa-solid fa-folder-open me-1"></i>코드 갤러리에서 가져오기
-              </button>
-              {% endif %}
-            </div>
-
-            <div class="collapse show" id="collapse-abap-ref-code">
-              <div id="ref-code-slots-host">
-                {% for rs in [0, 1, 2] %}
-                <div class="ref-code-slot card mb-4 border" data-ref-slot="{{ rs }}" style="background:var(--surface2);border-color:var(--border)!important;">
-                  <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <strong>ABAP 코드 {{ rs + 1 }}</strong>
-                    <div class="d-flex align-items-center gap-2">
-                      <button type="button" class="btn btn-sm btn-outline-secondary js-ref-remove-last d-none" data-slot="{{ rs }}" title="가장 마지막에 연 항목만 닫을 수 있습니다">이 항목 닫기</button>
-                      <span class="badge bg-secondary small">분석 전용</span>
-                    </div>
-                  </div>
-                  <div class="card-body">
-                    <p class="text-muted small mb-3 mb-md-4">
-                      프로그램 ID·트랜잭션·모듈·개발 유형은 위 요청 정보와 본 ABAP 소스를 바탕으로 에이전트가 파악합니다. 여기서는 분석에 참고할 소스만 구성하면 됩니다.
-                    </p>
-                    <div class="mb-2 fw-semibold small">ABAP 소스 (섹션별)</div>
-                    <div id="ref-sections-{{ rs }}"></div>
-                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="ref-add-sec-{{ rs }}" data-slot="{{ rs }}">
-                      <i class="fa-solid fa-plus me-1"></i>Include / 섹션 추가
-                    </button>
-                  </div>
-                </div>
-                {% endfor %}
-              </div>
-              <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="ref-add-slot-btn">
-                  <i class="fa-solid fa-plus me-1"></i>코드 블록 추가 (최대 3건)
-                </button>
-                <button type="button" class="btn btn-outline-danger btn-sm" id="ref-delete-all-btn">
-                  <i class="fa-solid fa-trash me-1"></i>입력한 코드 모두 지우기
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="d-flex flex-wrap gap-2">
-            <button type="submit" name="save_action" value="draft" class="btn btn-outline-secondary btn-lg">
-              <i class="fa-solid fa-floppy-disk me-2"></i>임시저장
-            </button>
-            <button type="submit" name="save_action" value="submit" class="btn btn-primary btn-lg">
-              <i class="fa-solid fa-paper-plane me-2"></i>제출 및 분석
-            </button>
-            <a href="/abap-analysis" class="btn btn-outline-secondary btn-lg">취소</a>
-          </div>
-        </form>
+        {% set form_scope = 'abap' %}
+        {% set form_id = 'abap-analysis-form' %}
+        {% set form_action %}{% if edit_row %}/abap-analysis/{{ edit_row.id }}/edit{% else %}/abap-analysis/new{% endif %}{% endset %}
+        {% set resource = edit_row %}
+        {% set attach_base = 'abap-analysis' %}
+        {% set cancel_url = '/abap-analysis' %}
+        {% set submit_button_label = '제출 및 분석' %}
+        {% set show_draft_button = true %}
+        {% set description_field_name = 'requirement_text' %}
+        {% set section_02_subtitle = '개선 목표, 증상, 기대 동작 등, 분석 및 개선 요구사항을 구체적으로 적어 주세요. (임시저장 시 비워 둘 수 있습니다)' %}
+        {% set title_maxlen = 512 %}
+        {% set edit_mode = true if edit_row else false %}
+        {% include 'partials/rfp_shared_request_form.html' %}
       </div>
     </div>
   </div>
@@ -177,7 +130,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/js/sap_field_input.js?v=20260415c"></script>
 <script src="/static/js/rfp_local_ref_code.js?v=20260422b"></script>
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
-<script src="/static/js/rfp_form.js?v=20260417a"></script>
+<script src="/static/js/rfp_form.js?v=20260422rfpai"></script>
 {% endblock %}

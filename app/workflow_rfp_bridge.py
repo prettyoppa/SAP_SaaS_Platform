@@ -181,6 +181,18 @@ def create_workflow_rfp_from_abap_analysis(
 ) -> models.RFP:
     mc, dc = _pick_default_module_devtype_codes(db)
     pid, tcode = _first_slot_program_meta(getattr(row, "reference_code_payload", None))
+    pid_row = (getattr(row, "program_id", None) or "").strip()
+    tcode_row = (getattr(row, "transaction_code", None) or "").strip()
+    sm_row = (getattr(row, "sap_modules", None) or "").strip()
+    dt_row = (getattr(row, "dev_types", None) or "").strip()
+    if pid_row:
+        pid = pid_row
+    if tcode_row:
+        tcode = tcode_row
+    if sm_row:
+        mc = sm_row
+    if dt_row:
+        dc = dt_row
     title_base = (row.title or "").strip() or f"ABAP 분석 개선 #{row.id}"
     title = (title_base + " · 개선제안")[:512]
 

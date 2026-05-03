@@ -353,14 +353,16 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   });
 
-  const form = document.getElementById('rfp-form');
-  const submitBtn = document.getElementById('submit-btn');
-  if (form && submitBtn) {
-    form.addEventListener('submit', () => {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
-    });
-  }
+  ['rfp-form', 'abap-analysis-form'].forEach((fid) => {
+    const form = document.getElementById(fid);
+    const submitBtn = document.getElementById('submit-btn');
+    if (form && submitBtn) {
+      form.addEventListener('submit', () => {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+      });
+    }
+  });
 
   const MIN_DESC_FOR_AI = 40;
   function rfpDescTooShortForAi() {

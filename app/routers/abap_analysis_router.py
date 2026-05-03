@@ -14,7 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 
-from .. import auth, models, r2_storage
+from .. import auth, models, r2_storage, sap_fields
 from ..abap_followup_chat import (
     MAX_USER_TURNS_PER_REQUEST,
     generate_followup_reply,
@@ -45,6 +45,8 @@ from .rfp_router import (
     _build_attachment_entries_from_uploads,
     _remove_stored_file,
     duplicate_attachment_entries,
+    _rfp_core_fields_incomplete_response,
+    _rfp_missing_core_field_labels,
 )
 from ..workflow_rfp_bridge import create_workflow_rfp_from_abap_analysis
 
@@ -56,6 +58,46 @@ MIN_REQUIREMENT_LEN = 20
 MIN_ABAP_SOURCE_LEN = 50
 MIN_TITLE_LEN = 2
 TITLE_MAX_LEN = 512
+
+
+def _split_csv_chips(s: Optional[str]) -> List[str]:
+    return [x.strip() for x in (s or "").split(",") if x.strip()]
+
+
+def _abap_form_dict(
+    *,
+    title: str = "",
+    requirement_text: str = "",
+    program_id: str = "",
+    transaction_code: str = "",
+    sap_modules: Optional[List[str]] = None,
+    dev_types: Optional[List[str]] = None,
+    notes: Optional[List[str]] = None,
+) -> dict:
+    n = notes if notes is not None else [""] * 5
+    pad = list(n) + [""] * 5
+    return {
+        "title": title or "",
+        "requirement_text": requirement_text or "",
+        "program_id": program_id or "",
+        "transaction_code": transaction_code or "",
+        "sap_modules": list(sap_modules or []),
+        "dev_types": list(dev_types or []),
+        "notes": pad[:5],
+    }
+
+
+def _abap_form_dict_from_row(row: models.AbapAnalysisRequest) -> dict:
+    notes = _notes_from_entries(_attachment_entries(row))[:5]
+    return _abap_form_dict(
+        title=row.title or "",
+        requirement_text=row.requirement_text or "",
+        program_id=getattr(row, "program_id", None) or "",
+        transaction_code=getattr(row, "transaction_code", None) or "",
+        sap_modules=_split_csv_chips(getattr(row, "sap_modules", None)),
+        dev_types=_split_csv_chips(getattr(row, "dev_types", None)),
+        notes=notes,
+    )
 
 
 def _ref_initial_from_raw(reference_code_json: str) -> Optional[dict]:
@@ -165,6 +207,8 @@ def _run_analysis(
     requirement_text: str,
     source_code: str,
     attachment_entries: Optional[list[dict]] = None,
+    sap_modules: Optional[List[str]] = None,
+    dev_types: Optional[List[str]] = None,
 ) -> dict:
     from ..agents.free_crew import analyze_code_for_library, augment_abap_analysis_with_requirement
 
@@ -175,8 +219,8 @@ def _run_analysis(
     structural = analyze_code_for_library(
         source_code=source_code,
         title=title_snip,
-        modules=[],
-        dev_types=[],
+        modules=list(sap_modules or []),
+        dev_types=list(dev_types or []),
         include_interview_questions=False,
         attachment_digest=digest,
     )
@@ -201,12 +245,10 @@ def _form_template_response(
     db: Session,
     *,
     error: Optional[str],
-    form_title: str,
-    form_requirement: str,
+    form: dict,
     ref_code_initial: Optional[dict],
     edit_row: Optional[models.AbapAnalysisRequest] = None,
     attachment_entries: Optional[list[dict]] = None,
-    notes_prefill: Optional[list[str]] = None,
     status_code: int = 200,
 ):
     modules = (
@@ -221,6 +263,10 @@ def _form_template_response(
         .order_by(models.DevType.sort_order)
         .all()
     )
+    writing_tip_setting = (
+        db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
+    )
+    writing_tip = writing_tip_setting.value if writing_tip_setting else ""
     return templates.TemplateResponse(
         request,
         "abap_analysis_form.html",
@@ -228,14 +274,13 @@ def _form_template_response(
             "request": request,
             "user": user,
             "error": error,
-            "form_title": form_title,
-            "form_requirement": form_requirement,
+            "form": form,
             "ref_code_initial": ref_code_initial,
             "edit_row": edit_row,
             "attachment_entries": attachment_entries or [],
-            "notes_prefill": notes_prefill,
             "modules": modules,
             "devtypes": devtypes,
+            "writing_tip": writing_tip,
         },
         status_code=status_code,
     )
@@ -322,10 +367,10 @@ def abap_analysis_new_form(request: Request, db: Session = Depends(get_db)):
         user,
         db,
         error=None,
-        form_title="",
-        form_requirement="",
+        form=_abap_form_dict(),
         ref_code_initial=None,
-        notes_prefill=None,
+        edit_row=None,
+        attachment_entries=[],
     )
 
 
@@ -333,6 +378,10 @@ def abap_analysis_new_form(request: Request, db: Session = Depends(get_db)):
 async def abap_analysis_create(
     request: Request,
     title: str = Form(""),
+    program_id: str = Form(""),
+    transaction_code: str = Form(""),
+    sap_modules: List[str] = Form(default=[]),
+    dev_types: List[str] = Form(default=[]),
     requirement_text: str = Form(""),
     reference_code_json: str = Form(""),
     attachments: List[UploadFile] = File(default=[]),
@@ -353,22 +402,63 @@ async def abap_analysis_create(
     ref_initial = _ref_initial_from_raw(reference_code_json)
     is_draft_save = (save_action or "").strip().lower() == "draft"
 
+    def _form_state() -> dict:
+        return _abap_form_dict(
+            title=title_raw,
+            requirement_text=req_raw,
+            program_id=program_id,
+            transaction_code=transaction_code,
+            sap_modules=sap_modules,
+            dev_types=dev_types,
+            notes=notes_in,
+        )
+
     def _bad(err: str, ref_init=None):
         return _form_template_response(
             request,
             user,
             db,
             error=err,
-            form_title=title_raw,
-            form_requirement=req_raw,
+            form=_form_state(),
             ref_code_initial=ref_init if ref_init is not None else ref_initial,
+            edit_row=None,
+            attachment_entries=[],
             status_code=400,
         )
 
-    try:
-        norm_ref = normalize_reference_code_payload(reference_code_json)
-    except ValueError:
-        return _bad("reference_code_too_large", ref_init=ref_initial)
+    if len(sap_modules) > 3 or len(dev_types) > 3:
+        return _bad("max_selection")
+
+    min_desc = 0 if is_draft_save else MIN_REQUIREMENT_LEN
+    miss = _rfp_missing_core_field_labels(
+        title_raw,
+        program_id,
+        sap_modules,
+        dev_types,
+        req_clean,
+        min_description_chars=min_desc,
+    )
+    if miss:
+        return _rfp_core_fields_incomplete_response(request, miss)
+
+    pid, perr = sap_fields.validate_program_id(program_id, required=True)
+    if perr:
+        err_key = {
+            "required": "program_id_required",
+            "too_long": "program_id_too_long",
+            "no_ime_chars": "program_id_ime",
+            "invalid_chars": "program_id_chars",
+        }[perr]
+        return _bad(err_key)
+
+    tc, terr = sap_fields.validate_transaction_code(transaction_code)
+    if terr:
+        err_key = {
+            "too_long": "transaction_code_too_long",
+            "no_ime_chars": "transaction_code_ime",
+            "invalid_chars": "transaction_code_chars",
+        }[terr]
+        return _bad(err_key)
 
     n_uploads = sum(1 for f in attachments if f.filename)
     if n_uploads > MAX_RFP_ATTACHMENTS:
@@ -379,12 +469,22 @@ async def abap_analysis_create(
         att_entries, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
         if err_a:
             return _bad(err_a)
+
+    try:
+        norm_ref = normalize_reference_code_payload(reference_code_json)
+    except ValueError:
+        return _bad("reference_code_too_large", ref_init=ref_initial)
+
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
     if is_draft_save:
         row = models.AbapAnalysisRequest(
             user_id=user.id,
             title=title_clean,
+            program_id=pid,
+            transaction_code=tc,
+            sap_modules=",".join(sap_modules) if sap_modules else "",
+            dev_types=",".join(dev_types) if dev_types else "",
             requirement_text=req_clean,
             reference_code_payload=norm_ref,
             source_code=src,
@@ -400,19 +500,27 @@ async def abap_analysis_create(
 
     if len(title_clean) < MIN_TITLE_LEN:
         return _bad("need_title")
-    if len(req_clean) < MIN_REQUIREMENT_LEN:
-        return _bad("need_requirement")
     if not norm_ref:
         return _bad("need_reference_code")
     if len(src) < MIN_ABAP_SOURCE_LEN:
         return _bad("code_too_short")
 
-    analysis = _run_analysis(req_clean, src, att_entries)
+    analysis = _run_analysis(
+        req_clean,
+        src,
+        att_entries,
+        sap_modules=sap_modules,
+        dev_types=dev_types,
+    )
     analyzed = not bool(analysis.get("error"))
 
     row = models.AbapAnalysisRequest(
         user_id=user.id,
         title=title_clean,
+        program_id=pid,
+        transaction_code=tc,
+        sap_modules=",".join(sap_modules) if sap_modules else "",
+        dev_types=",".join(dev_types) if dev_types else "",
         requirement_text=req_clean,
         reference_code_payload=norm_ref,
         source_code=src,
@@ -444,6 +552,10 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
     new_row = models.AbapAnalysisRequest(
         user_id=user.id,
         title=title or "요청 복사",
+        program_id=getattr(row, "program_id", None),
+        transaction_code=getattr(row, "transaction_code", None),
+        sap_modules=getattr(row, "sap_modules", None),
+        dev_types=getattr(row, "dev_types", None),
         requirement_text=row.requirement_text or "",
         reference_code_payload=row.reference_code_payload,
         source_code=src,
@@ -466,18 +578,15 @@ def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends
     row = _get_request_for_user(db, user, req_id)
     if not row or not row.is_draft:
         return RedirectResponse(url="/abap-analysis", status_code=302)
-    notes = _notes_from_entries(_attachment_entries(row))[:5]
     return _form_template_response(
         request,
         user,
         db,
         error=None,
-        form_title=row.title or "",
-        form_requirement=row.requirement_text or "",
+        form=_abap_form_dict_from_row(row),
         ref_code_initial=_ref_initial_from_row(row),
         edit_row=row,
         attachment_entries=_attachment_entries(row),
-        notes_prefill=notes,
     )
 
 
@@ -486,6 +595,10 @@ async def abap_analysis_edit_save(
     req_id: int,
     request: Request,
     title: str = Form(""),
+    program_id: str = Form(""),
+    transaction_code: str = Form(""),
+    sap_modules: List[str] = Form(default=[]),
+    dev_types: List[str] = Form(default=[]),
     requirement_text: str = Form(""),
     reference_code_json: str = Form(""),
     attachments: List[UploadFile] = File(default=[]),
@@ -494,6 +607,16 @@ async def abap_analysis_edit_save(
     note_2: str = Form(""),
     note_3: str = Form(""),
     note_4: str = Form(""),
+    note_orig_0: str = Form(""),
+    note_orig_1: str = Form(""),
+    note_orig_2: str = Form(""),
+    note_orig_3: str = Form(""),
+    note_orig_4: str = Form(""),
+    delete_0: str = Form(""),
+    delete_1: str = Form(""),
+    delete_2: str = Form(""),
+    delete_3: str = Form(""),
+    delete_4: str = Form(""),
     save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
@@ -507,9 +630,22 @@ async def abap_analysis_edit_save(
     req_raw = requirement_text or ""
     req_clean = req_raw.strip()
     notes_in = [note_0, note_1, note_2, note_3, note_4]
+    notes_orig = [note_orig_0, note_orig_1, note_orig_2, note_orig_3, note_orig_4]
+    del_flags = [bool(delete_0), bool(delete_1), bool(delete_2), bool(delete_3), bool(delete_4)]
     ref_initial = _ref_initial_from_raw(reference_code_json)
     is_draft_save = (save_action or "").strip().lower() == "draft"
     existing_att = _attachment_entries(row)
+
+    def _form_state() -> dict:
+        return _abap_form_dict(
+            title=title_raw,
+            requirement_text=req_raw,
+            program_id=program_id,
+            transaction_code=transaction_code,
+            sap_modules=sap_modules,
+            dev_types=dev_types,
+            notes=notes_in,
+        )
 
     def _bad(err: str, ref_init=None):
         return _form_template_response(
@@ -517,37 +653,88 @@ async def abap_analysis_edit_save(
             user,
             db,
             error=err,
-            form_title=title_raw,
-            form_requirement=req_raw,
+            form=_form_state(),
             ref_code_initial=ref_init if ref_init is not None else ref_initial,
             edit_row=row,
             attachment_entries=existing_att,
-            notes_prefill=notes_in,
             status_code=400,
         )
+
+    if len(sap_modules) > 3 or len(dev_types) > 3:
+        return _bad("max_selection")
+
+    min_desc = 0 if is_draft_save else MIN_REQUIREMENT_LEN
+    miss = _rfp_missing_core_field_labels(
+        title_raw,
+        program_id,
+        sap_modules,
+        dev_types,
+        req_clean,
+        min_description_chars=min_desc,
+    )
+    if miss:
+        return _rfp_core_fields_incomplete_response(request, miss)
+
+    pid, perr = sap_fields.validate_program_id(program_id, required=True)
+    if perr:
+        err_key = {
+            "required": "program_id_required",
+            "too_long": "program_id_too_long",
+            "no_ime_chars": "program_id_ime",
+            "invalid_chars": "program_id_chars",
+        }[perr]
+        return _bad(err_key)
+
+    tc, terr = sap_fields.validate_transaction_code(transaction_code)
+    if terr:
+        err_key = {
+            "too_long": "transaction_code_too_long",
+            "no_ime_chars": "transaction_code_ime",
+            "invalid_chars": "transaction_code_chars",
+        }[terr]
+        return _bad(err_key)
+
+    kept: list[dict] = []
+    for i, att in enumerate(existing_att):
+        if i < len(del_flags) and del_flags[i]:
+            _remove_stored_file(att.get("path"))
+            continue
+        note = (notes_orig[i] if i < len(notes_orig) else "") or ""
+        kept.append({
+            "path": att["path"],
+            "filename": att.get("filename", ""),
+            "note": note.strip(),
+        })
+
+    n_uploads = sum(1 for f in attachments if f.filename)
+    if n_uploads > MAX_RFP_ATTACHMENTS:
+        return _bad("too_many_attachments")
+
+    new_parts: list[dict] = []
+    if n_uploads > 0:
+        new_parts, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
+        if err_a:
+            return _bad(err_a)
+
+    remaining = MAX_RFP_ATTACHMENTS - len(kept)
+    if len(new_parts) > remaining:
+        return _bad("too_many_attachments")
+
+    merged_att = kept + new_parts
 
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
         return _bad("reference_code_too_large", ref_init=ref_initial)
 
-    n_uploads = sum(1 for f in attachments if f.filename)
-    if n_uploads > MAX_RFP_ATTACHMENTS:
-        return _bad("too_many_attachments")
-
-    merged_att = list(existing_att)
-    if n_uploads > 0:
-        new_e, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
-        if err_a:
-            return _bad(err_a)
-        merged_att = merged_att + (new_e or [])
-        if len(merged_att) > MAX_RFP_ATTACHMENTS:
-            return _bad("too_many_attachments")
-
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
     if is_draft_save:
         row.title = title_clean
+        row.program_id = pid
+        row.transaction_code = tc
+        row.sap_modules = ",".join(sap_modules) if sap_modules else ""
+        row.dev_types = ",".join(dev_types) if dev_types else ""
         row.requirement_text = req_clean
         row.reference_code_payload = norm_ref
         row.source_code = src
@@ -561,16 +748,24 @@ async def abap_analysis_edit_save(
 
     if len(title_clean) < MIN_TITLE_LEN:
         return _bad("need_title")
-    if len(req_clean) < MIN_REQUIREMENT_LEN:
-        return _bad("need_requirement")
     if not norm_ref:
         return _bad("need_reference_code")
     if len(src) < MIN_ABAP_SOURCE_LEN:
         return _bad("code_too_short")
 
-    analysis = _run_analysis(req_clean, src, merged_att)
+    analysis = _run_analysis(
+        req_clean,
+        src,
+        merged_att,
+        sap_modules=sap_modules,
+        dev_types=dev_types,
+    )
     analyzed = not bool(analysis.get("error"))
     row.title = title_clean
+    row.program_id = pid
+    row.transaction_code = tc
+    row.sap_modules = ",".join(sap_modules) if sap_modules else ""
+    row.dev_types = ",".join(dev_types) if dev_types else ""
     row.requirement_text = req_clean
     row.reference_code_payload = norm_ref
     row.source_code = src

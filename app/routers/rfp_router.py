@@ -44,8 +44,14 @@ def _rfp_missing_core_field_labels(
     sap_modules: list,
     dev_types: list,
     description: str,
+    min_description_chars: int | None = None,
 ) -> list[str]:
     """임시저장·제출 공통 필수(요청 제목, 프로그램 ID, 모듈·유형, 요구사항 분량)."""
+    min_chars = (
+        min_description_chars
+        if min_description_chars is not None
+        else MIN_RFP_DESCRIPTION_CHARS
+    )
     miss: list[str] = []
     if not (title or "").strip():
         miss.append("요청 제목")
@@ -55,8 +61,8 @@ def _rfp_missing_core_field_labels(
         miss.append("SAP 모듈(1개 이상)")
     if not dev_types:
         miss.append("개발 유형(1개 이상)")
-    if len((description or "").strip()) < MIN_RFP_DESCRIPTION_CHARS:
-        miss.append(f"요구사항 자유 기술(공백 제외 {MIN_RFP_DESCRIPTION_CHARS}자 이상)")
+    if len((description or "").strip()) < min_chars:
+        miss.append(f"요구사항 자유 기술(공백 제외 {min_chars}자 이상)")
     return miss
 
 
@@ -327,6 +333,7 @@ def rfp_form(request: Request, db: Session = Depends(get_db)):
         "writing_tip": writing_tip,
         "attachment_entries": [],
         "ref_code_initial": None,
+        "edit_mode": False,
     })
 
 
