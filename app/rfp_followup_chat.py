@@ -12,6 +12,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
+from .ai_inquiry_guard import ai_inquiry_model_policy_footer
 from .attachment_context import build_attachment_llm_digest
 from .gemini_model import get_gemini_model_id
 from .abap_followup_chat import MAX_USER_TURNS_PER_REQUEST
@@ -160,6 +161,7 @@ def generate_rfp_followup_reply(
 {user_question.strip()}
 
 위 새 질문에 대해서만 답변 본문을 작성하라. 인사말 생략."""
+    prompt = prompt + ai_inquiry_model_policy_footer()
 
     model = _get_model()
     response = model.generate_content(prompt)

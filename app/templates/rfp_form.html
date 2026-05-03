@@ -91,7 +91,6 @@
         {% set submit_button_label = '제출' %}
         {% set show_draft_button = (not edit_mode) or (rfp and rfp.status == 'draft') %}
         {% set description_field_name = 'description' %}
-        {% set section_02_subtitle = '' %}
         {% set title_maxlen = 200 %}
         {% with form = form|default(none) %}
         {% include 'partials/rfp_shared_request_form.html' %}
@@ -99,6 +98,9 @@
       </div>
     </div>
   </div>
+  {% if ai_inquiry is defined %}
+  {% include 'partials/ai_inquiry_float.html' %}
+  {% endif %}
 </div>
 {% endblock %}
 
@@ -107,4 +109,7 @@
 <script src="/static/js/rfp_local_ref_code.js?v=20260422b"></script>
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
 <script src="/static/js/rfp_form.js?v=20260422rfpai"></script>
+{% if user and user.is_admin %}
+<script src="/static/js/writing_guides_admin.js?v=202604141"></script>
+{% endif %}
 {% endblock %}

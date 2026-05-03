@@ -43,6 +43,7 @@ from ..stripe_service import stripe_keys_configured
 from . import interview_router as _interview_views
 from ..database import get_db
 from ..templates_config import templates
+from ..writing_guides_service import get_writing_guides_by_lang_bundle
 
 router = APIRouter()
 
@@ -282,6 +283,7 @@ def _rfp_form_ctx(
     modules,
     devtypes,
     writing_tip: str,
+    db: Session,
     error: str | None = None,
     form: dict | None = None,
     rfp=None,
@@ -294,6 +296,7 @@ def _rfp_form_ctx(
         "modules": modules,
         "devtypes": devtypes,
         "writing_tip": writing_tip,
+        "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
         "error": error,
         "form": form,
         "rfp": rfp,
@@ -325,16 +328,26 @@ def rfp_form(request: Request, db: Session = Depends(get_db)):
     modules, devtypes = _get_modules_devtypes(db)
     writing_tip_setting = db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
-    return templates.TemplateResponse(request, "rfp_form.html", {
-        "request": request,
-        "user": user,
-        "modules": modules,
-        "devtypes": devtypes,
-        "writing_tip": writing_tip,
-        "attachment_entries": [],
-        "ref_code_initial": None,
-        "edit_mode": False,
-    })
+    return templates.TemplateResponse(
+        request,
+        "rfp_form.html",
+        {
+            "request": request,
+            "user": user,
+            "modules": modules,
+            "devtypes": devtypes,
+            "writing_tip": writing_tip,
+            "attachment_entries": [],
+            "ref_code_initial": None,
+            "edit_mode": False,
+            "ai_inquiry": {
+                "mode": "teaser",
+                "float_id": "rfp-new-ai-teaser",
+                "teaser_i18n": "chat.formAiTeaserRfp",
+            },
+            "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
+        },
+    )
 
 
 @router.post("/rfp/api/suggest-field")
@@ -420,7 +433,7 @@ async def submit_rfp(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error="max_selection",
                 form=_form_dict(),
             ),
@@ -443,7 +456,7 @@ async def submit_rfp(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error=err_key,
                 form=_form_dict(),
             ),
@@ -461,7 +474,7 @@ async def submit_rfp(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error=err_key,
                 form=_form_dict(),
             ),
@@ -474,7 +487,7 @@ async def submit_rfp(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error="too_many_attachments",
                 form=_form_dict(),
             ),
@@ -489,7 +502,7 @@ async def submit_rfp(
                 request,
                 "rfp_form.html",
                 _rfp_form_ctx(
-                    request, user, modules, devtypes, writing_tip,
+                    request, user, modules, devtypes, writing_tip, db,
                     error=err_a,
                     form=_form_dict(),
                 ),
@@ -503,7 +516,7 @@ async def submit_rfp(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error="reference_code_too_large",
                 form=_form_dict(),
             ),
@@ -744,11 +757,19 @@ def rfp_unified_hub(
     return templates.TemplateResponse(request, "rfp_unified_hub.html", ctx)
 
 
+def _rfp_ai_chat_redirect(rfp_id: int, return_to: str | None, chat_err: str | None = None) -> str:
+    rt = (return_to or "hub").strip().lower()
+    base = f"/rfp/{rfp_id}/edit" if rt == "edit" else f"/rfp/{rfp_id}"
+    suffix = f"?chat_err={quote(chat_err)}" if chat_err else ""
+    return f"{base}{suffix}#rfp-followup-chat"
+
+
 @router.post("/rfp/{rfp_id}/chat")
 def rfp_hub_chat_post(
     rfp_id: int,
     request: Request,
     message: str = Form(""),
+    return_to: str = Form("hub"),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -761,7 +782,7 @@ def rfp_hub_chat_post(
     msg, verr = validate_rfp_user_message(message)
     if verr:
         return RedirectResponse(
-            url=f"/rfp/{rfp_id}?chat_err={quote(verr)}#rfp-followup-chat",
+            url=_rfp_ai_chat_redirect(rfp_id, return_to, verr),
             status_code=303,
         )
 
@@ -775,7 +796,7 @@ def rfp_hub_chat_post(
     )
     if n_user >= RFP_FOLLOWUP_MAX_USER:
         return RedirectResponse(
-            url=f"/rfp/{rfp_id}?chat_err={quote('후속 질문은 상한에 도달했습니다.')}#rfp-followup-chat",
+            url=_rfp_ai_chat_redirect(rfp_id, return_to, "후속 질문은 상한에 도달했습니다."),
             status_code=303,
         )
 
@@ -812,7 +833,7 @@ def rfp_hub_chat_post(
     db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="user", content=msg))
     db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="assistant", content=reply))
     db.commit()
-    return RedirectResponse(url=f"/rfp/{rfp_id}#rfp-followup-chat", status_code=303)
+    return RedirectResponse(url=_rfp_ai_chat_redirect(rfp_id, return_to), status_code=303)
 
 
 @router.get("/rfp/{rfp_id}/request", response_class=HTMLResponse)
@@ -984,19 +1005,55 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
-    if not rfp:
-        return RedirectResponse(url="/", status_code=302)
     modules, devtypes = _get_modules_devtypes(db)
     writing_tip_setting = db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
-    return templates.TemplateResponse(request, "rfp_form.html", {
-        "request": request, "user": user, "rfp": rfp,
-        "modules": modules, "devtypes": devtypes, "writing_tip": writing_tip,
-        "edit_mode": True,
-        "attachment_entries": _rfp_attachment_entries(rfp),
-        "ref_code_initial": _ref_code_initial_from_rfp(rfp),
-    })
+    rfp_w = (
+        db.query(models.RFP)
+        .options(joinedload(models.RFP.followup_messages))
+        .filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id)
+        .first()
+    )
+    if not rfp_w:
+        return RedirectResponse(url="/", status_code=302)
+    follow_msgs = sorted(
+        list(rfp_w.followup_messages or []),
+        key=lambda m: (m.created_at or rfp_w.created_at),
+    )
+    followup_turns = pair_followup_turn_messages(follow_msgs)
+    n_fu = sum(1 for m in follow_msgs if (m.role or "") == "user")
+    chat_err = (request.query_params.get("chat_err") or "").strip() or None
+    ai_inquiry = {
+        "mode": "live",
+        "float_id": "rfp-followup-chat",
+        "size_key": "rfp-followup-chat-size",
+        "post_url": f"/rfp/{rfp_w.id}/chat",
+        "return_to": "edit",
+        "followup_turns": followup_turns,
+        "chat_error": chat_err,
+        "chat_limit_reached": n_fu >= RFP_FOLLOWUP_MAX_USER,
+        "max_turns": RFP_FOLLOWUP_MAX_USER,
+        "header_i18n": "chat.rfpHeaderTitle",
+        "context_i18n": "chat.rfpContextHelp",
+        "form_ready": True,
+    }
+    return templates.TemplateResponse(
+        request,
+        "rfp_form.html",
+        {
+            "request": request,
+            "user": user,
+            "rfp": rfp_w,
+            "modules": modules,
+            "devtypes": devtypes,
+            "writing_tip": writing_tip,
+            "edit_mode": True,
+            "attachment_entries": _rfp_attachment_entries(rfp_w),
+            "ref_code_initial": _ref_code_initial_from_rfp(rfp_w),
+            "ai_inquiry": ai_inquiry,
+            "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
+        },
+    )
 
 
 @router.post("/rfp/{rfp_id}/edit")
@@ -1064,7 +1121,7 @@ async def rfp_edit_submit(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error="max_selection",
                 form=_form_dict(),
                 rfp=rfp,
@@ -1089,7 +1146,7 @@ async def rfp_edit_submit(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error=err_key,
                 form=_form_dict(),
                 rfp=rfp,
@@ -1109,7 +1166,7 @@ async def rfp_edit_submit(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error=err_key,
                 form=_form_dict(),
                 rfp=rfp,
@@ -1137,7 +1194,7 @@ async def rfp_edit_submit(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error="too_many_attachments",
                 form=_form_dict(),
                 rfp=rfp,
@@ -1154,7 +1211,7 @@ async def rfp_edit_submit(
                 request,
                 "rfp_form.html",
                 _rfp_form_ctx(
-                    request, user, modules, devtypes, writing_tip,
+                    request, user, modules, devtypes, writing_tip, db,
                     error=err_a,
                     form=_form_dict(),
                     rfp=rfp,
@@ -1169,7 +1226,7 @@ async def rfp_edit_submit(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error="too_many_attachments",
                 form=_form_dict(),
                 rfp=rfp,
@@ -1187,7 +1244,7 @@ async def rfp_edit_submit(
             request,
             "rfp_form.html",
             _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
+                request, user, modules, devtypes, writing_tip, db,
                 error="reference_code_too_large",
                 form=_form_dict(),
                 rfp=rfp,

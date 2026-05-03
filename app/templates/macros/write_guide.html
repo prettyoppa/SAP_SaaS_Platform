@@ -1,0 +1,31 @@
+{# 작성 가이드: writing_guides_by_lang { ko: {}, en: {} }, 논리 키, 슬러그, user(관리자 인라인 편집) #}
+{% macro wg_btn(slug) %}
+<button type="button" class="btn btn-link btn-sm py-0 px-1 text-decoration-none int-write-guide-toggle" data-bs-toggle="collapse" data-bs-target="#wg-{{ slug }}" aria-expanded="false" aria-controls="wg-{{ slug }}"><span data-i18n="form.writeGuide">작성 가이드</span></button>
+{% endmacro %}
+
+{% macro wg_panel(bundle, key, slug, user=None) %}
+{% set mko = bundle['ko'] if bundle and bundle is mapping and 'ko' in bundle else {} %}
+{% set men = bundle['en'] if bundle and bundle is mapping and 'en' in bundle else {} %}
+<div class="collapse int-write-guide-body mb-2 w-100" id="wg-{{ slug }}">
+  <div class="nav-ko wg-readonly">{% if mko and key in mko %}{{ mko[key]|safe }}{% endif %}</div>
+  <div class="nav-en wg-readonly" style="display:none">{% if men and key in men %}{{ men[key]|safe }}{% endif %}</div>
+  {% if user and user.is_admin %}
+  <div class="wg-admin border-top pt-2 mt-2" data-wg-key="{{ key }}" style="border-color:var(--border)!important;">
+    <button type="button" class="btn btn-sm btn-outline-primary wg-admin-toggle mb-2 nav-ko">가이드 편집</button>
+    <button type="button" class="btn btn-sm btn-outline-primary wg-admin-toggle mb-2 nav-en" style="display:none">Edit guide</button>
+    <div class="wg-admin-editor d-none">
+      <label class="form-label small text-muted mb-1 nav-ko">HTML (KO)</label>
+      <label class="form-label small text-muted mb-1 nav-en" style="display:none">HTML (EN)</label>
+      <textarea class="form-control form-control-sm font-monospace mb-2 nav-ko wg-html-src" rows="6" data-wg-lang="ko">{% if mko and key in mko %}{{ mko[key]|e }}{% endif %}</textarea>
+      <textarea class="form-control form-control-sm font-monospace mb-2 nav-en wg-html-src" style="display:none" rows="6" data-wg-lang="en">{% if men and key in men %}{{ men[key]|e }}{% endif %}</textarea>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-sm btn-primary wg-admin-save" data-i18n="form.writeGuideSave">저장</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary wg-admin-cancel" data-i18n="form.writeGuideCancel">취소</button>
+      </div>
+      <p class="text-muted small mb-0 mt-1 nav-ko">한·영 각각 저장되며, 저장 후 페이지가 새로고침됩니다.</p>
+      <p class="text-muted small mb-0 mt-1 nav-en" style="display:none">Both KO/EN bodies are saved; the page reloads.</p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

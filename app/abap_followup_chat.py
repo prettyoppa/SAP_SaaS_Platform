@@ -14,6 +14,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 
 from .agents.free_crew import SAP_KOREAN_CODE_ANALYSIS_STYLE
+from .ai_inquiry_guard import ai_inquiry_model_policy_footer, check_ai_inquiry_user_text
 from .gemini_model import get_gemini_model_id
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -272,6 +273,7 @@ def generate_followup_reply(
 {user_question.strip()}
 
 위 새 질문에 대해서만 답변 본문을 작성하라. 인사말 생략."""
+    prompt = prompt + ai_inquiry_model_policy_footer()
 
     model = _get_model()
     response = model.generate_content(prompt)
@@ -293,4 +295,7 @@ def validate_user_message(text: str) -> tuple[str | None, str | None]:
         return None, f"질문은 {MAX_USER_MESSAGE_CHARS:,}자 이하로 입력해 주세요."
     if not re.search(r"\S", s):
         return None, "질문 내용을 입력해 주세요."
+    blocked = check_ai_inquiry_user_text(s)
+    if blocked:
+        return None, blocked
     return s, None

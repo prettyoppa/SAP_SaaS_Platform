@@ -1,20 +1,30 @@
-{# 신규 개발(RFP) · 분석·개선(ABAP 분석) 공용 요청 입력 본문 — 부모에서 form_scope, description_field_name, section_02_subtitle 등 전달 #}
+{# 신규 개발(RFP) · 분석·개선(ABAP 분석) 공용 요청 입력 본문 — 부모에서 form_scope, description_field_name 등 전달 #}
+{% import "macros/write_guide.html" as wg %}
+{% set s02_body_key = 'shared.s02_rfp_body' if form_scope == 'rfp' else 'shared.s02_abap_body' %}
+{% set s04_policy_key = 'shared.s04_ref_policy_rfp' if form_scope == 'rfp' else 'shared.s04_ref_policy_abap' %}
 <form method="post" action="{{ form_action }}" enctype="multipart/form-data" id="{{ form_id }}">
   <input type="hidden" name="reference_code_json" id="reference-code-json-field" value=""/>
 
   <div class="rfp-section" id="section-1">
     <div class="rfp-section-header">
       <span class="rfp-section-num">01</span>
-      <div>
-        <h4 class="mb-0">요청 제목</h4>
-        <small class="text-muted">요청 제목, 개발 필요한 프로그램 ID·트랜잭션 코드를 입력 및 관련 SAP 모듈·개발 유형을 선택해 주세요.</small>
+      <div class="flex-grow-1">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+          <h4 class="mb-0">요청 제목</h4>
+          {{ wg.wg_btn('sh-s01-h') }}
+        </div>
+        {{ wg.wg_panel(writing_guides_by_lang, 'shared.s01_header', 'sh-s01-h', user) }}
       </div>
     </div>
 
     <div class="mb-4">
-      <label class="form-label fw-semibold">
-        요청 제목 <span class="text-danger">*</span>
-      </label>
+      <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+        <label class="form-label fw-semibold mb-0" for="title">
+          요청 제목 <span class="text-danger">*</span>
+        </label>
+        {{ wg.wg_btn('sh-title') }}
+      </div>
+      {{ wg.wg_panel(writing_guides_by_lang, 'shared.field_title', 'sh-title', user) }}
       <div class="input-group input-group-lg rfp-field-ai-wrap rfp-field-ai-title">
         <input type="text" name="title" id="title" class="form-control" maxlength="{{ title_maxlen|default(200) }}" autocomplete="off"
                value="{{ (form.get('title') if form else None) or (resource.title if resource else '') or '' }}"/>
@@ -26,10 +36,13 @@
 
     <div class="row g-3 mb-4">
       <div class="col-md-5">
-        <label class="form-label fw-semibold">
-          프로그램 ID <span class="text-danger">*</span>
-          <small class="text-muted fw-normal ms-1">(영문·숫자·기호, 공백 제외 · 한글 키보드 불가)</small>
-        </label>
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+          <label class="form-label fw-semibold mb-0" for="program_id">
+            프로그램 ID <span class="text-danger">*</span>
+          </label>
+          {{ wg.wg_btn('sh-pid') }}
+        </div>
+        {{ wg.wg_panel(writing_guides_by_lang, 'shared.field_program_id', 'sh-pid', user) }}
         <div class="input-group rfp-field-ai-wrap rfp-field-ai-pid">
           <input type="text" name="program_id" id="program_id" class="form-control font-monospace" maxlength="40" autocomplete="off"
                  value="{{ (form.get('program_id') if form else None) or (resource.program_id if resource else '') or '' }}"/>
@@ -40,10 +53,11 @@
         <div class="small mt-1 text-warning" id="program-id-feedback" style="min-height:1.25rem"></div>
       </div>
       <div class="col-md-4">
-        <label class="form-label fw-semibold">
-          트랜잭션 코드
-          <small class="text-muted fw-normal ms-1">(선택)</small>
-        </label>
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+          <label class="form-label fw-semibold mb-0" for="transaction_code">트랜잭션 코드</label>
+          {{ wg.wg_btn('sh-tcode') }}
+        </div>
+        {{ wg.wg_panel(writing_guides_by_lang, 'shared.field_transaction', 'sh-tcode', user) }}
         <input type="text" name="transaction_code" id="transaction_code" class="form-control"
                maxlength="20" autocomplete="off"
                value="{{ (form.get('transaction_code') if form else None) or (resource.transaction_code if resource else '') or '' }}"/>
@@ -52,10 +66,14 @@
     </div>
 
     <div class="mb-4">
-      <label class="form-label fw-semibold">
-        SAP 모듈 <span class="text-danger">*</span>
-        <span class="badge bg-secondary ms-2" id="module-count">0 / 3</span>
-      </label>
+      <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+        <label class="form-label fw-semibold mb-0">
+          SAP 모듈 <span class="text-danger">*</span>
+          <span class="badge bg-secondary ms-2" id="module-count">0 / 3</span>
+        </label>
+        {{ wg.wg_btn('sh-mod') }}
+      </div>
+      {{ wg.wg_panel(writing_guides_by_lang, 'shared.field_modules', 'sh-mod', user) }}
       <div class="chip-group" id="module-group">
         {% for mod in modules %}
         <label class="chip-label">
@@ -66,14 +84,17 @@
         </label>
         {% endfor %}
       </div>
-      <small class="text-muted mt-1 d-block">최대 3개까지 선택 가능합니다.</small>
     </div>
 
     <div class="mb-2">
-      <label class="form-label fw-semibold">
-        개발 유형 <span class="text-danger">*</span>
-        <span class="badge bg-secondary ms-2" id="devtype-count">0 / 3</span>
-      </label>
+      <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+        <label class="form-label fw-semibold mb-0">
+          개발 유형 <span class="text-danger">*</span>
+          <span class="badge bg-secondary ms-2" id="devtype-count">0 / 3</span>
+        </label>
+        {{ wg.wg_btn('sh-dt') }}
+      </div>
+      {{ wg.wg_panel(writing_guides_by_lang, 'shared.field_devtypes', 'sh-dt', user) }}
       <div class="chip-group" id="devtype-group">
         {% for dt in devtypes %}
         <label class="chip-label">
@@ -84,28 +105,23 @@
         </label>
         {% endfor %}
       </div>
-      <small class="text-muted mt-1 d-block">최대 3개까지 선택 가능합니다.</small>
     </div>
   </div>
 
   <div class="rfp-section" id="section-2">
     <div class="rfp-section-header">
       <span class="rfp-section-num">02</span>
-      <div>
-        <h4 class="mb-0" {% if form_scope == 'rfp' %}data-i18n="rfp.s2.title"{% endif %}>요구사항 자유 기술</h4>
-        {% if form_scope == 'rfp' %}
-        <small class="text-muted" data-i18n="rfp.s2.sub">최대한 자세히 작성할수록 더 정확한 제안서가 생성됩니다.</small>
-        {% else %}
-        <small class="text-muted">{{ section_02_subtitle }}</small>
-        {% endif %}
+      <div class="flex-grow-1">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+          <h4 class="mb-0" {% if form_scope == 'rfp' %}data-i18n="rfp.s2.title"{% endif %}>요구사항 자유 기술</h4>
+          {{ wg.wg_btn('sh-s02-h') }}
+        </div>
+        {{ wg.wg_panel(writing_guides_by_lang, s02_body_key, 'sh-s02-h', user) }}
       </div>
     </div>
     <div class="mb-3">
       <textarea name="{{ description_field_name }}" id="description" class="form-control rfp-textarea" rows="10">{% if form and form.get(description_field_name) %}{{ form.get(description_field_name) }}{% elif resource and description_field_name == 'description' %}{{ resource.description or '' }}{% elif resource and description_field_name == 'requirement_text' %}{{ resource.requirement_text or '' }}{% endif %}</textarea>
-      <div class="d-flex {% if form_scope == 'rfp' %}justify-content-between{% else %}justify-content-end{% endif %} mt-1">
-        {% if form_scope == 'rfp' %}
-        <small class="text-muted">구체적인 내용일수록 더 좋은 제안서가 만들어집니다.</small>
-        {% endif %}
+      <div class="d-flex justify-content-end mt-1">
         <small class="text-muted"><span id="char-count">0</span> 자</small>
       </div>
     </div>
@@ -124,9 +140,12 @@
   <div class="rfp-section" id="section-3">
     <div class="rfp-section-header">
       <span class="rfp-section-num">03</span>
-      <div>
-        <h4 class="mb-0" {% if form_scope == 'rfp' %}data-i18n="rfp.s3.title"{% endif %}>첨부 파일</h4>
-        <small class="text-muted" {% if form_scope == 'rfp' %}data-i18n="rfp.s3.sub"{% endif %}>엑셀 양식, 기존 리포트, 화면 캡처, 관련 문서 등을 첨부하세요.</small>
+      <div class="flex-grow-1">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+          <h4 class="mb-0" {% if form_scope == 'rfp' %}data-i18n="rfp.s3.title"{% endif %}>첨부 파일</h4>
+          {{ wg.wg_btn('sh-s03-h') }}
+        </div>
+        {{ wg.wg_panel(writing_guides_by_lang, 'shared.s03_attach', 'sh-s03-h', user) }}
       </div>
     </div>
 
@@ -145,7 +164,6 @@
       </div>
       <div id="attachment-list" class="w-100 px-1"></div>
     </div>
-    <p class="small text-muted mt-2 mb-0">파일마다 한 줄에 이름·설명이 붙습니다. 드래그로 여러 번 추가할 수 있습니다.</p>
     {% if form and form.notes is defined %}
     <script type="application/json" id="rfp-notes-prefill">{{ form.notes | tojson }}</script>
     {% endif %}
@@ -174,13 +192,12 @@
   <div class="rfp-section rfp-section-last" id="section-ref-code">
     <div class="rfp-section-header">
       <span class="rfp-section-num">04</span>
-      <div>
-        <h4 class="mb-0">참고 ABAP 코드</h4>
-        <small class="text-muted rfp-ref-code-policy-lede">
-          회원이 올리는 코드는 <strong class="text-primary">해당 요청 이해 및 최적의 제안서 작성</strong>을 위해서만 이용됩니다.
-          <strong class="text-danger">광고, 제3자 제공, AI 모델 학습·재학습</strong> 등 그 밖의 목적으로는 사용하지 않습니다.
-          회원이 직접 삭제하신 경우 <strong class="text-warning">지체 없이 복구 불가능한 방식으로 삭제</strong>합니다.
-        </small>
+      <div class="flex-grow-1">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+          <h4 class="mb-0">참고 ABAP 코드</h4>
+          {{ wg.wg_btn('sh-s04-pol') }}
+        </div>
+        {{ wg.wg_panel(writing_guides_by_lang, s04_policy_key, 'sh-s04-pol', user) }}
       </div>
     </div>
 
@@ -207,10 +224,11 @@
             </div>
           </div>
           <div class="card-body">
-            <p class="text-muted small mb-3 mb-md-4">
-              프로그램 ID·트랜잭션·모듈·개발 유형은 <strong>01 요청 제목</strong>에서 입력한 값과 본 ABAP 소스를 바탕으로 에이전트가 파악합니다. 여기서는 참고할 소스만 구성하면 됩니다.
-            </p>
-            <div class="mb-2 fw-semibold small">ABAP 소스 (섹션별)</div>
+            <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
+              <div class="fw-semibold small mb-0">ABAP 소스 (섹션별)</div>
+              {{ wg.wg_btn('sh-ref-slot-' ~ (rs|string)) }}
+            </div>
+            {{ wg.wg_panel(writing_guides_by_lang, 'shared.ref_slot_agent_note', 'sh-ref-slot-' ~ (rs|string), user) }}
             <div id="ref-sections-{{ rs }}"></div>
             <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="ref-add-sec-{{ rs }}" data-slot="{{ rs }}">
               <i class="fa-solid fa-plus me-1"></i>Include / 섹션 추가

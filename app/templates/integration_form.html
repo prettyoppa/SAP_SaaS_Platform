@@ -12,6 +12,7 @@
 {% if integration_ref_code_initial %}
 <script type="application/json" id="int-refcode-initial">{{ integration_ref_code_initial | tojson }}</script>
 {% endif %}
+{% import "macros/write_guide.html" as wg %}
 <div class="rfp-page py-5">
   <div class="container">
     <div class="row justify-content-center">
@@ -53,13 +54,20 @@
           <div class="rfp-section" id="int-section-1">
             <div class="rfp-section-header">
               <span class="rfp-section-num">01</span>
-              <div>
-                <h4 class="mb-0">요청 제목</h4>
-                <small class="text-muted">구현 형태를 선택한 뒤 제목을 입력해 주세요.</small>
+              <div class="flex-grow-1">
+                <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+                  <h4 class="mb-0">요청 제목</h4>
+                  {{ wg.wg_btn('int-s01-h') }}
+                </div>
+                {{ wg.wg_panel(writing_guides_by_lang, 'integration.s01_header', 'int-s01-h', user) }}
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label fw-semibold">요청 제목 <span class="text-danger">*</span></label>
+              <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+                <label class="form-label fw-semibold mb-0" for="int-title">요청 제목 <span class="text-danger">*</span></label>
+                {{ wg.wg_btn('int-title') }}
+              </div>
+              {{ wg.wg_panel(writing_guides_by_lang, 'shared.field_title', 'int-title', user) }}
               <input type="text" name="title" id="int-title" class="form-control form-control-lg" required
                      value="{{ form.title if form else '' }}"/>
             </div>
@@ -82,51 +90,39 @@
           <div class="rfp-section" id="int-section-2">
             <div class="rfp-section-header">
               <span class="rfp-section-num">02</span>
-              <div>
-                <h4 class="mb-0">요구사항 자유 기술</h4>
-                <small class="text-muted">아래 항목에 나누어 적어도 되고, 한 항목에만 몰아 적어도 됩니다. 비어 있어도 되는 칸은 그대로 두셔도 됩니다.</small>
+              <div class="flex-grow-1">
+                <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+                  <h4 class="mb-0">요구사항 자유 기술</h4>
+                  {{ wg.wg_btn('int-s02-h') }}
+                </div>
+                {{ wg.wg_panel(writing_guides_by_lang, 'integration.s02_intro', 'int-s02-h', user) }}
               </div>
             </div>
 
             <div class="mb-3">
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
                 <label class="form-label fw-semibold mb-0" for="int-sap-touchpoints">SAP 터치포인트 / 인터페이스</label>
-                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none int-write-guide-toggle" data-bs-toggle="collapse" data-bs-target="#int-guide-touch" aria-expanded="false" aria-controls="int-guide-touch">작성 가이드</button>
+                {{ wg.wg_btn('int-guide-touch') }}
               </div>
-              <div class="collapse int-write-guide-body mb-2" id="int-guide-touch">
-                SAP와 어디서 이어지는지 알려 주시면 제안서에 반영하기 좋습니다. 전문 이름이 없어도 괜찮습니다.<br/>
-                · 예: Excel에서 SAP으로 숫자를 넣는다, 밤에 파일을 읽어서 처리한다, 특정 화면 메뉴까지 들어가서 조회한다<br/>
-                · 어떤 자료가 오가는지(주문, 재고, 금액 등)를 쉬운 말로 적어 주셔도 됩니다.<br/>
-                · 화면·양식 그림은 03절 첨부에 올려 주세요.
-              </div>
+              {{ wg.wg_panel(writing_guides_by_lang, 'integration.guide_touch', 'int-guide-touch', user) }}
               <textarea name="sap_touchpoints" id="int-sap-touchpoints" class="form-control" rows="4">{{ form.sap_touchpoints if form else '' }}</textarea>
             </div>
 
             <div class="mb-3">
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
                 <label class="form-label fw-semibold mb-0" for="int-environment-notes">실행 환경</label>
-                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none int-write-guide-toggle" data-bs-toggle="collapse" data-bs-target="#int-guide-env" aria-expanded="false">작성 가이드</button>
+                {{ wg.wg_btn('int-guide-env') }}
               </div>
-              <div class="collapse int-write-guide-body mb-2" id="int-guide-env">
-                프로그램이 실제로 돌아갈 곳을 알려 주세요. 대략만 적어도 됩니다.<br/>
-                · 예: 사무실 PC(윈도우), Excel 사용, SAP 화면도 같이 쓴다 / 서버에서만 돈다 등<br/>
-                · 나중에 운영할 PC와 지금 테스트하는 PC가 다르면, 둘 다 적어 주시면 좋습니다.
-              </div>
+              {{ wg.wg_panel(writing_guides_by_lang, 'integration.guide_env', 'int-guide-env', user) }}
               <textarea name="environment_notes" id="int-environment-notes" class="form-control" rows="3">{{ form.environment_notes if form else '' }}</textarea>
             </div>
 
             <div class="mb-2">
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
                 <label class="form-label fw-semibold mb-0" for="int-description">상세 설명</label>
-                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none int-write-guide-toggle" data-bs-toggle="collapse" data-bs-target="#int-guide-desc" aria-expanded="false">작성 가이드</button>
+                {{ wg.wg_btn('int-guide-desc') }}
               </div>
-              <div class="collapse int-write-guide-body mb-2" id="int-guide-desc">
-                하고 싶은 일을 편지 쓰듯 적어 주세요. 제안서를 쓸 때 그대로 참고합니다.<br/>
-                · 누가, 언제, 무엇을 하면, 결과로 무엇이 나오면 좋은지<br/>
-                · 지금 불편한 점이나 자주 나는 오류<br/>
-                · 꼭 지켜야 하는 기한·규칙이 있으면 함께 적어 주세요.<br/>
-                위 칸을 비워 두고 이 칸에만 모아 적으셔도 됩니다.
-              </div>
+              {{ wg.wg_panel(writing_guides_by_lang, 'integration.guide_desc', 'int-guide-desc', user) }}
               <textarea name="description" id="int-description" class="form-control rfp-textarea" rows="10">{{ form.description if form else '' }}</textarea>
               <div class="d-flex justify-content-end mt-1">
                 <small class="text-muted"><span id="int-char-count">0</span> 자</small>
@@ -137,9 +133,12 @@
           <div class="rfp-section" id="int-section-3">
             <div class="rfp-section-header">
               <span class="rfp-section-num">03</span>
-              <div>
-                <h4 class="mb-0">첨부 파일</h4>
-                <small class="text-muted">엑셀 양식, 기존 리포트, 화면 캡처, 관련 문서 등을 첨부하세요.</small>
+              <div class="flex-grow-1">
+                <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+                  <h4 class="mb-0">첨부 파일</h4>
+                  {{ wg.wg_btn('int-s03-h') }}
+                </div>
+                {{ wg.wg_panel(writing_guides_by_lang, 'integration.s03_attach', 'int-s03-h', user) }}
               </div>
             </div>
 
@@ -158,7 +157,6 @@
               </div>
               <div id="attachment-list" class="w-100 px-1"></div>
             </div>
-            <p class="small text-muted mt-2 mb-0">파일마다 한 줄에 이름·설명이 붙습니다. 드래그로 여러 번 추가할 수 있습니다.</p>
             {% if form and form.notes is defined %}
             <script type="application/json" id="integration-notes-prefill">{{ form.notes | tojson }}</script>
             {% endif %}
@@ -182,12 +180,12 @@
           <div class="rfp-section rfp-section-last" id="int-section-ref">
             <div class="rfp-section-header">
               <span class="rfp-section-num">04</span>
-              <div>
-                <h4 class="mb-0">참고 코드</h4>
-                <small class="text-muted rfp-ref-code-policy-lede">
-                  회원이 올리는 코드는 <strong class="text-primary">해당 요청 이해 및 제안·분석</strong>을 위해서만 이용됩니다.
-                  <strong class="text-danger">광고, 제3자 제공, AI 모델 학습·재학습</strong> 등 그 밖의 목적으로는 사용하지 않습니다.
-                </small>
+              <div class="flex-grow-1">
+                <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+                  <h4 class="mb-0">참고 코드</h4>
+                  {{ wg.wg_btn('int-s04-pol') }}
+                </div>
+                {{ wg.wg_panel(writing_guides_by_lang, 'integration.s04_ref_policy', 'int-s04-pol', user) }}
               </div>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -307,6 +305,9 @@
       </div>
     </div>
   </div>
+  {% if ai_inquiry is defined %}
+  {% include 'partials/ai_inquiry_float.html' %}
+  {% endif %}
 </div>
 {% endblock %}
 
@@ -315,4 +316,7 @@
 <script src="/static/js/integration_ref_code.js?v=20260504a"></script>
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
 <script src="/static/js/integration_form.js?v=20260504a"></script>
+{% if user and user.is_admin %}
+<script src="/static/js/writing_guides_admin.js?v=202604141"></script>
+{% endif %}
 {% endblock %}

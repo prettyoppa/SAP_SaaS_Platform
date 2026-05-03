@@ -39,6 +39,7 @@ from ..rfp_reference_code import (
     reference_code_program_groups_for_tabs,
 )
 from ..templates_config import templates
+from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from .interview_router import _markdown_to_html
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
@@ -251,6 +252,7 @@ def _form_template_response(
     edit_row: Optional[models.AbapAnalysisRequest] = None,
     attachment_entries: Optional[list[dict]] = None,
     status_code: int = 200,
+    form_chat_err: Optional[str] = None,
 ):
     modules = (
         db.query(models.SAPModule)
@@ -265,6 +267,44 @@ def _form_template_response(
         db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     )
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
+
+    ai_inquiry = None
+    if edit_row:
+        row_w = (
+            db.query(models.AbapAnalysisRequest)
+            .options(joinedload(models.AbapAnalysisRequest.followup_messages))
+            .filter(models.AbapAnalysisRequest.id == edit_row.id)
+            .first()
+        )
+        if row_w:
+            follow_msgs = sorted(
+                list(row_w.followup_messages or []),
+                key=lambda m: (m.created_at or row_w.created_at),
+            )
+            turns = _pair_abap_followup_turns(follow_msgs)
+            n_fu = sum(1 for m in follow_msgs if (m.role or "") == "user")
+            eff = _effective_abap_source(row_w).strip()
+            ai_inquiry = {
+                "mode": "live",
+                "float_id": "abap-followup-chat",
+                "size_key": "abap-followup-chat-size",
+                "post_url": f"/abap-analysis/{row_w.id}/chat",
+                "return_to": "edit",
+                "followup_turns": turns,
+                "chat_error": form_chat_err,
+                "chat_limit_reached": n_fu >= MAX_USER_TURNS_PER_REQUEST,
+                "max_turns": MAX_USER_TURNS_PER_REQUEST,
+                "header_i18n": "chat.abapHeaderTitle",
+                "context_i18n": "chat.abapContextHelp",
+                "form_ready": bool(eff),
+            }
+    else:
+        ai_inquiry = {
+            "mode": "teaser",
+            "float_id": "abap-new-ai-teaser",
+            "teaser_i18n": "chat.formAiTeaserAbap",
+        }
+
     return templates.TemplateResponse(
         request,
         "abap_analysis_form.html",
@@ -279,6 +319,8 @@ def _form_template_response(
             "modules": modules,
             "devtypes": devtypes,
             "writing_tip": writing_tip,
+            "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
+            "ai_inquiry": ai_inquiry,
         },
         status_code=status_code,
     )
@@ -576,6 +618,7 @@ def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends
     row = _get_request_for_user(db, user, req_id)
     if not row or not row.is_draft:
         return RedirectResponse(url="/abap-analysis", status_code=302)
+    chat_err = (request.query_params.get("chat_err") or "").strip() or None
     return _form_template_response(
         request,
         user,
@@ -585,6 +628,7 @@ def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends
         ref_code_initial=_ref_initial_from_row(row),
         edit_row=row,
         attachment_entries=_attachment_entries(row),
+        form_chat_err=chat_err,
     )
 
 
@@ -878,19 +922,20 @@ def abap_analysis_chat_post(
 ):
     user = _require_user(request, db)
     row = _get_request_for_user(db, user, req_id)
-    if not row or row.is_draft:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=303)
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=303)
+    chat_base = f"/abap-analysis/{req_id}/edit" if row.is_draft else f"/abap-analysis/{req_id}"
     eff_src = _effective_abap_source(row)
     if not eff_src.strip():
         return RedirectResponse(
-            url=f"/abap-analysis/{req_id}?chat_err={quote('분석에 사용된 코드가 없어 대화를 시작할 수 없습니다.')}",
+            url=f"{chat_base}?chat_err={quote('코드가 없어 AI 문의를 시작할 수 없습니다.')}",
             status_code=303,
         )
 
     msg, verr = validate_user_message(message)
     if verr:
         return RedirectResponse(
-            url=f"/abap-analysis/{req_id}?chat_err={quote(verr)}",
+            url=f"{chat_base}?chat_err={quote(verr)}",
             status_code=303,
         )
 
@@ -904,7 +949,7 @@ def abap_analysis_chat_post(
     )
     if n_user >= MAX_USER_TURNS_PER_REQUEST:
         return RedirectResponse(
-            url=f"/abap-analysis/{req_id}?chat_err={quote('이 분석 건의 후속 질문은 상한에 도달했습니다.')}",
+            url=f"{chat_base}?chat_err={quote('이 분석 건의 후속 질문은 상한에 도달했습니다.')}",
             status_code=303,
         )
 
@@ -914,6 +959,8 @@ def abap_analysis_chat_post(
             analysis = json.loads(row.analysis_json)
         except Exception:
             analysis = {}
+    if row.is_draft:
+        analysis = {}
 
     prior = (
         db.query(models.AbapAnalysisFollowupMessage)
@@ -950,7 +997,7 @@ def abap_analysis_chat_post(
         )
     )
     db.commit()
-    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-followup-chat", status_code=303)
+    return RedirectResponse(url=f"{chat_base}#abap-followup-chat", status_code=303)
 
 
 @router.get("/{req_id}/attachment")

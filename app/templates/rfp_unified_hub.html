@@ -333,6 +333,7 @@
       {% else %}
       <form method="post" action="/rfp/{{ rfp.id }}/chat" class="abap-followup-form mb-0"
             data-busy-agents='[{"agentKo":"「질의」","doingKo":"추가 질문에 맞는 응답을 작성하고 있습니다","agentEn":"「Q&A」","doingEn":"composing a reply to your follow-up question"}]'>
+        <input type="hidden" name="return_to" value="hub"/>
         <label class="form-label small text-muted mb-1" for="rfp-followup-msg" data-i18n="chat.messageLabel">메시지</label>
         <div class="abap-followup-ta-wrap">
           <textarea id="rfp-followup-msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required data-i18n-placeholder="chat.messagePlaceholder" placeholder="추가로 궁금한 점을 입력하세요."></textarea>

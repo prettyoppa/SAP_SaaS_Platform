@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 
 from sqlalchemy.orm import Session
 
+from .ai_inquiry_guard import ai_inquiry_model_policy_footer, check_ai_inquiry_user_text
 from .devtype_catalog import format_integration_impl_types_for_llm
 from .gemini_model import get_gemini_model_id
 
@@ -70,6 +71,7 @@ def generate_integration_followup_reply(
 {user_question.strip()}
 
 위 새 질문에 대해서만 답변 본문을 작성하라. 인사말 생략."""
+    prompt = prompt + ai_inquiry_model_policy_footer()
 
     model = _get_model()
     response = model.generate_content(prompt)

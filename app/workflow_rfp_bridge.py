@@ -149,7 +149,7 @@ def build_workflow_seed_answer_abap(
     pairs = _followup_pairs_for_seed(followup_messages)
     if pairs:
         lines.append("")
-        lines.append("### 후속 질의응답(인터뷰)")
+        lines.append("### 작성 중 AI 문의·응답 (회원 ↔ 안내형 AI)")
         for qi, (uq, ua) in enumerate(pairs, start=1):
             lines.append(f"- **Q{qi} (회원)**: {uq}")
             if ua:
@@ -188,7 +188,7 @@ def build_workflow_seed_answer_integration(
     pairs = _followup_pairs_for_seed(followup_messages)
     if pairs:
         lines.append("")
-        lines.append("### 후속 질의응답(인터뷰)")
+        lines.append("### 작성 중 AI 문의·응답 (회원 ↔ 안내형 AI)")
         for qi, (uq, ua) in enumerate(pairs, start=1):
             lines.append(f"- **Q{qi} (회원)**: {uq}")
             if ua:
@@ -205,8 +205,8 @@ def build_workflow_description_abap(row: models.AbapAnalysisRequest, improvement
         [
             "[워크플로: ABAP 분석·개선에서 연결된 신규 개발(RFP)]",
             "",
-            "분석·개선 단계의 코드·분석 JSON·후속 대화는 RFP 허브 「1. 요청」에 동일하게 표시됩니다.",
-            "이하 필드는 인터뷰·제안서 에이전트가 참고할 요약입니다.",
+            "분석·개선 단계의 코드·분석 JSON·작성 중 AI 문의 내용은 RFP 허브 「1. 요청」에 동일하게 표시됩니다.",
+            "이하 필드는 신규 개발(인터뷰·제안서) 에이전트가 참고할 요약입니다.",
             "",
             "### 개선 제안 요청",
             (improvement_text or "").strip(),

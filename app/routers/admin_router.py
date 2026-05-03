@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Form, Query
+from fastapi import APIRouter, Body, Depends, Request, Form, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from ..codelib_reference_import import build_reference_payload_dict_from_abap_co
 from ..account_lifecycle import purge_user_and_owned_data as lifecycle_purge_user
 from ..database import get_db
 from ..templates_config import templates
+from ..writing_guides_service import LOGICAL_KEYS, save_writing_guide_bilingual
 
 router = APIRouter(prefix="/admin")
 
@@ -458,6 +459,33 @@ def admin_review_delete(review_id: int, request: Request, db: Session = Depends(
         db.delete(r)
         db.commit()
     return RedirectResponse(url="/admin/reviews", status_code=302)
+
+
+# ── 작성 가이드 인라인 저장 (관리자, JSON) ────────────────────────────
+
+@router.post("/api/writing-guide")
+async def admin_api_writing_guide_save(
+    request: Request,
+    db: Session = Depends(get_db),
+    payload: dict = Body(...),
+):
+    """요청 폼에서 관리자가 작성 가이드(한/영 HTML)를 저장할 때 사용."""
+    user = _require_admin(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
+    key = (payload.get("key") or "").strip()
+    if key not in LOGICAL_KEYS:
+        return JSONResponse({"ok": False, "error": "invalid_key"}, status_code=400)
+    try:
+        save_writing_guide_bilingual(
+            db,
+            logical_key=key,
+            html_ko=payload.get("html_ko"),
+            html_en=payload.get("html_en"),
+        )
+    except ValueError:
+        return JSONResponse({"ok": False, "error": "invalid_key"}, status_code=400)
+    return {"ok": True}
 
 
 # ── 코드 갤러리 → 참고 코드 가져오기(단건) API ─────────────────────────

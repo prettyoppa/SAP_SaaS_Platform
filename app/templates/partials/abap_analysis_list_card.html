@@ -48,7 +48,7 @@
     <div class="d-flex flex-wrap gap-1 justify-content-end">
       {% set workflow_rfp = row.workflow_rfp %}
       {% set request_href = '/abap-analysis/' ~ row.id ~ '#abap-request-block' %}
-      {% set interview_href = '/abap-analysis/' ~ row.id ~ '#abap-followup-chat' %}
+      {% set ai_inquiry_href = '/abap-analysis/' ~ row.id ~ '#abap-followup-chat' %}
       {% include "partials/workflow_phase_nav.html" %}
     </div>
   </div>
@@ -73,7 +73,7 @@
     {% endif %}
     {% set workflow_rfp = row.workflow_rfp %}
     {% set request_href = '/abap-analysis/' ~ row.id ~ '#abap-request-block' %}
-    {% set interview_href = '/abap-analysis/' ~ row.id ~ '#abap-followup-chat' %}
+    {% set ai_inquiry_href = '/abap-analysis/' ~ row.id ~ '#abap-followup-chat' %}
     {% include "partials/workflow_phase_nav.html" %}
   </div>
 </div>

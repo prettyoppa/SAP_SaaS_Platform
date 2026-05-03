@@ -38,6 +38,7 @@ from ..devtype_catalog import (
     integration_impl_labels_map,
 )
 from ..templates_config import templates
+from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from ..workflow_rfp_bridge import create_workflow_rfp_from_integration
 from ..integration_followup_chat import (
     generate_integration_followup_reply,
@@ -60,10 +61,11 @@ MIN_IMPROVEMENT_PROPOSAL_LEN = 20
 
 
 def _integration_impl_ui_ctx(db: Session) -> dict:
-    """연동 구현 형태: 폼 칩(순서) + 배지용 코드→라벨 맵."""
+    """연동 구현 형태: 폼 칩(순서) + 배지용 코드→라벨 맵 + 작성 가이드 맵."""
     return {
         "integration_impl_devtypes": active_integration_impl_devtypes(db),
         "impl_labels": integration_impl_labels_map(db),
+        "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
     }
 
 
@@ -252,6 +254,11 @@ def integration_new_form(request: Request, db: Session = Depends(get_db)):
             "edit_ir": None,
             "integration_ref_code_initial": None,
             "attachment_entries": None,
+            "ai_inquiry": {
+                "mode": "teaser",
+                "float_id": "integration-new-ai-teaser",
+                "teaser_i18n": "chat.formAiTeaserInt",
+            },
             **_integration_impl_ui_ctx(db),
         },
     )
@@ -449,6 +456,7 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
         )
     ir = (
         db.query(models.IntegrationRequest)
+        .options(joinedload(models.IntegrationRequest.followup_messages))
         .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
         .first()
     )
@@ -474,6 +482,27 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
             ref_init = json.loads(ir.reference_code_payload)
         except Exception:
             ref_init = None
+    follow_msgs = sorted(
+        list(ir.followup_messages or []),
+        key=lambda m: (m.created_at or ir.created_at),
+    )
+    followup_turns = _pair_integration_followup_turns(follow_msgs)
+    n_fu = sum(1 for m in follow_msgs if (m.role or "") == "user")
+    chat_err = (request.query_params.get("chat_err") or "").strip() or None
+    ai_inquiry = {
+        "mode": "live",
+        "float_id": "integration-followup-chat",
+        "size_key": "integration-followup-chat-size",
+        "post_url": f"/integration/{ir.id}/chat",
+        "return_to": "edit",
+        "followup_turns": followup_turns,
+        "chat_error": chat_err,
+        "chat_limit_reached": n_fu >= INT_CHAT_MAX_USER,
+        "max_turns": INT_CHAT_MAX_USER,
+        "header_i18n": "chat.intHeaderTitle",
+        "context_i18n": "chat.intContextHelp",
+        "form_ready": True,
+    }
     return templates.TemplateResponse(
         request,
         "integration_form.html",
@@ -488,6 +517,7 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
             "edit_ir": ir,
             "integration_ref_code_initial": ref_init,
             "attachment_entries": ents,
+            "ai_inquiry": ai_inquiry,
         },
     )
 
@@ -739,10 +769,13 @@ def integration_chat_post(
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
 
+    st = (ir.status or "").strip().lower()
+    chat_base = f"/integration/{req_id}/edit" if st == "draft" else f"/integration/{req_id}"
+
     msg, verr = validate_integration_user_message(message)
     if verr:
         return RedirectResponse(
-            url=f"/integration/{req_id}?chat_err={quote(verr)}#integration-followup-chat",
+            url=f"{chat_base}?chat_err={quote(verr)}#integration-followup-chat",
             status_code=303,
         )
 
@@ -756,8 +789,7 @@ def integration_chat_post(
     )
     if n_user >= INT_CHAT_MAX_USER:
         return RedirectResponse(
-            url=f"/integration/{req_id}?chat_err={quote('후속 질문은 상한에 도달했습니다.')}"
-            f"#integration-followup-chat",
+            url=f"{chat_base}?chat_err={quote('후속 질문은 상한에 도달했습니다.')}#integration-followup-chat",
             status_code=303,
         )
 
@@ -794,7 +826,7 @@ def integration_chat_post(
         )
     )
     db.commit()
-    return RedirectResponse(url=f"/integration/{req_id}#integration-followup-chat", status_code=303)
+    return RedirectResponse(url=f"{chat_base}#integration-followup-chat", status_code=303)
 
 
 @router.post("/integration/{req_id}/improvement-proposal")
