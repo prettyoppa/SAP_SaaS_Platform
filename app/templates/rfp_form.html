@@ -100,11 +100,10 @@
               <label class="form-label fw-semibold">
                 요청 제목 <span class="text-danger">*</span>
               </label>
-              <div class="d-flex flex-wrap align-items-stretch gap-2">
-                <input type="text" name="title" id="title" class="form-control form-control-lg flex-grow-1" style="min-width:12rem;"
-                       maxlength="200" autocomplete="off"
+              <div class="input-group input-group-lg rfp-field-ai-wrap rfp-field-ai-title">
+                <input type="text" name="title" id="title" class="form-control" maxlength="200" autocomplete="off"
                        value="{{ form.title if form else (rfp.title if rfp else '') }}"/>
-                <button type="button" class="btn btn-outline-secondary align-self-center text-nowrap" id="rfp-ai-title-btn" title="요구사항 본문 언어에 맞춰 제목 초안(한·영 등)">
+                <button type="button" class="btn rfp-ai-inline-btn rfp-ai-inline-btn--title" id="rfp-ai-title-btn" title="요구사항 본문 언어에 맞춰 제목 초안(한·영 등)">
                   AI 자동생성
                 </button>
               </div>
@@ -117,11 +116,10 @@
                   프로그램 ID <span class="text-danger">*</span>
                   <small class="text-muted fw-normal ms-1">(영문·숫자·기호, 공백 제외 · 한글 키보드 불가)</small>
                 </label>
-                <div class="d-flex flex-wrap align-items-stretch gap-2">
-                  <input type="text" name="program_id" id="program_id" class="form-control flex-grow-1" style="min-width:10rem;"
-                         maxlength="40" autocomplete="off"
+                <div class="input-group rfp-field-ai-wrap rfp-field-ai-pid">
+                  <input type="text" name="program_id" id="program_id" class="form-control font-monospace" maxlength="40" autocomplete="off"
                          value="{{ form.program_id if form else (rfp.program_id if rfp else '') }}"/>
-                  <button type="button" class="btn btn-outline-secondary align-self-center text-nowrap" id="rfp-ai-program-btn" title="요청 제목을 바탕으로 Z 프로그램명 초안">
+                  <button type="button" class="btn rfp-ai-inline-btn rfp-ai-inline-btn--pid" id="rfp-ai-program-btn" title="요청 제목을 바탕으로 Z 프로그램명 초안">
                     AI 자동생성
                   </button>
                 </div>
@@ -320,7 +318,7 @@
           <div class="rfp-form-footer mt-4 pt-4 border-top" style="border-color:var(--border)!important;">
             <div class="free-badge-row mb-4">
               <div class="free-badge-card">
-                <i class="fa-solid fa-gift text-success me-2"></i>
+                <i class="fa-solid fa-cat text-primary me-2" aria-hidden="true"></i>
                 <span><strong>구체적인 요구사항</strong>을 작성할수록 제안서가 더 정확해집니다. 개발 제안서 생성은 <strong class="text-success">완전 무료</strong>이며, 제출 후 <strong>AI 인터뷰</strong>를 거쳐 생성됩니다.</span>
               </div>
             </div>
