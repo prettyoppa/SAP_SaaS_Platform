@@ -1,9 +1,6 @@
 {# context: row (AbapAnalysisRequest), show_request_owner, user #}
-<div class="menu-list-card menu-list-card--abap-analysis">
-<div class="rfp-list-surface-tile rfp-list-surface-tile--corner-ribbon">
-  <div class="menu-tile-corner-ribbon">
-    <span class="menu-tile-corner-ribbon__text" data-i18n="detail.analysisTag">분석·개선</span>
-  </div>
+<div class="menu-list-card">
+<div class="rfp-list-surface-tile">
 <div class="rfp-list-card rfp-list-card-v2">
   <div class="rfp-list-left">
     <div class="rfp-list-status {% if row.is_draft %}status-draft{% elif row.is_analyzed %}status-completed{% else %}status-submitted{% endif %}">
@@ -11,6 +8,7 @@
     </div>
     <div class="rfp-list-info flex-grow-1 min-w-0">
       <div class="rfp-list-title">
+        <span class="badge bg-secondary me-2 small" data-i18n="badge.analysis">분석</span>
         <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-reset fw-semibold text-decoration-none">
           {% if row.title and row.title.strip() %}
           {{ row.title.strip() }}
