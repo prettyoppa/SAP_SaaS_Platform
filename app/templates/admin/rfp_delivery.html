@@ -154,7 +154,10 @@
           </div>
           <div class="modal-body pt-2">
             <div class="text-center mb-4">
-              <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;"></div>
+              <div class="busy-spinner-ring" aria-hidden="true">
+                <div class="spinner-border text-primary" role="status"></div>
+                <i class="fa-solid fa-cat busy-spinner-icon" aria-hidden="true"></i>
+              </div>
               <p class="text-muted small mb-3">완료되면 화면이 자동으로 새로 고침됩니다.</p>
               <button type="button" class="btn btn-sm btn-outline-secondary" id="admOpenJobLogBtn">
                 <i class="fa-solid fa-scroll me-1"></i>실행 로그</button>
@@ -202,8 +205,7 @@
 </div>
 
 <style>
-.delivery-gen-step { opacity: 0.35; transition: opacity 0.5s; max-width: 7rem; }
-.delivery-gen-step.active { opacity: 1; }
+/* .delivery-gen-step → app/static/css/style.css */
 /* 로그 패널: Bootstrap 모달(1055)보다 위에 두어 진행 중 모달과 동시에 표시 */
 .delivery-job-log-overlay {
   position: fixed;

@@ -9,7 +9,10 @@
       </div>
       <div class="modal-body pt-2">
         <div class="text-center mb-4">
-          <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;"></div>
+          <div class="busy-spinner-ring" aria-hidden="true">
+            <div class="spinner-border text-primary" role="status"></div>
+            <i class="fa-solid fa-cat busy-spinner-icon" aria-hidden="true"></i>
+          </div>
           <p class="text-muted small mb-0">완료되면 화면이 자동으로 새로 고침됩니다.</p>
         </div>
 
@@ -50,8 +53,4 @@
     </div>
   </div>
 </div>
-<style>
-.delivery-gen-step { opacity: 0.35; transition: opacity 0.5s; max-width: 7rem; }
-.delivery-gen-step.active { opacity: 1; }
-</style>
 {% endif %}

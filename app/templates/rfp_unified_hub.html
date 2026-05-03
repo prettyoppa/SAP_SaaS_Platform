@@ -5,9 +5,54 @@
 {% set hub_request_edit_locked = (interview_summary_messages and interview_summary_messages|length > 0) or proposal_html or hub_proposal_generating %}
 {% set hub_delete_locked = fs_stat != 'none' %}
 <style>
+/* 단계 본문: summary(.interview-summary-header)와 동일한 좌우 여백 + 중첩 container/col 제거로 폭 일치 */
+.rfp-unified-hub .rfp-hub-phase-body {
+  padding: 0.5rem 1.25rem 1.25rem;
+}
 .rfp-unified-hub .rfp-hub-phase-body .proposal-page {
   padding-top: 0 !important;
   padding-bottom: 0.75rem !important;
+}
+.rfp-unified-hub .rfp-hub-phase-body .proposal-page > .container {
+  max-width: 100%;
+  width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+}
+.rfp-unified-hub .rfp-hub-phase-body .proposal-page > .container > .row {
+  margin-left: 0;
+  margin-right: 0;
+  justify-content: flex-start;
+}
+.rfp-unified-hub .rfp-hub-phase-body .proposal-page > .container > .row > [class*="col-"] {
+  flex: 0 0 100%;
+  max-width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+}
+/* 제안서 생성 중 패널(직접 자식 .container max-width:640px) */
+.rfp-unified-hub .rfp-hub-phase-body > .container {
+  max-width: 100% !important;
+  width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+}
+/* 허브에 임베드된 인터뷰 위저드(.interview-page) */
+.rfp-unified-hub .rfp-hub-phase-body .interview-page > .container {
+  max-width: 100%;
+  width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+}
+.rfp-unified-hub .rfp-hub-phase-body .interview-page > .container > .row {
+  margin-left: 0;
+  margin-right: 0;
+}
+.rfp-unified-hub .rfp-hub-phase-body .interview-page > .container > .row > [class*="col-"] {
+  flex: 0 0 100%;
+  max-width: 100%;
+  padding-left: 0;
+  padding-right: 0;
 }
 .rfp-unified-hub .rfp-hub-phase > summary {
   display: flex;
@@ -95,7 +140,7 @@
         <span class="fw-semibold" data-i18n="hub.phaseRequest">1. 요청</span>
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
-      <div class="rfp-hub-phase-body pt-2">
+      <div class="rfp-hub-phase-body">
         {% include 'partials/rfp_hub_request_panel.html' %}
       </div>
     </details>
@@ -116,7 +161,7 @@
         {% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
-      <div class="rfp-hub-phase-body pt-2">
+      <div class="rfp-hub-phase-body">
         {% if hub_embedded|default(false) %}
           {% include 'partials/interview_workspace_markup.html' %}
         {% else %}
@@ -139,7 +184,7 @@
         {% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
-      <div class="rfp-hub-phase-body pt-2">
+      <div class="rfp-hub-phase-body">
         {% if hub_proposal_generating %}
           {% include 'partials/proposal_generating_panel.html' %}
         {% elif proposal_html %}
@@ -168,7 +213,7 @@
         {% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
-      <div class="rfp-hub-phase-body pt-2">
+      <div class="rfp-hub-phase-body">
         {% include 'partials/rfp_hub_fs_admin_bar.html' %}
         {% include 'partials/rfp_hub_fs_body_flat.html' %}
       </div>
@@ -186,7 +231,7 @@
         {% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
-      <div class="rfp-hub-phase-body pt-2">
+      <div class="rfp-hub-phase-body">
         <div class="mb-0">
           <h6 class="text-muted small text-uppercase mb-2" data-i18n="hub.agentDelivered">납품 ABAP (에이전트 생성)</h6>
           {% include 'partials/rfp_hub_dc_body_flat.html' %}

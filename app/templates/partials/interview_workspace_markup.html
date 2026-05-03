@@ -47,6 +47,8 @@
               <p class="text-muted mb-0 small">SAP 컨설턴트 AI가 요구사항을 분석하고 있습니다</p>
             </div>
             </div>
+            {% if (current_message is defined and current_message and interview_sequential|default(true)) or (can_request_proposal is defined and can_request_proposal) %}
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
             {% if current_message is defined and current_message and interview_sequential|default(true) %}
             <form method="post" action="/rfp/{{ rfp.id }}/interview/answer-step" class="d-inline" id="save-exit-form"
                   data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
@@ -67,6 +69,8 @@
                 <i class="fa-solid fa-file-contract me-1"></i> 지금까지로 제안서 생성
               </button>
             </form>
+            {% endif %}
+            </div>
             {% endif %}
           </div>
 
@@ -298,7 +302,10 @@
 
         {% elif not error %}
         <div class="loading-card text-center py-5">
-          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <div class="busy-spinner-ring" aria-hidden="true">
+            <div class="spinner-border text-primary" role="status"></div>
+            <i class="fa-solid fa-cat busy-spinner-icon" aria-hidden="true"></i>
+          </div>
           <p class="fw-semibold">AI가 다음 질문을 생성하고 있습니다...</p>
           <p class="text-muted small">잠시만 기다려 주세요</p>
         </div>

@@ -1092,6 +1092,20 @@ html {
 .interview-summary-header:hover { color: var(--text); }
 .interview-summary-body { padding: 0 1.25rem 1.25rem; }
 
+/* FS·납품 “생성 진행 중” 모달 — 에이전트 라벨 (max-width:7rem 등으로 한글·「」 라벨이 단어 중간에서 끊기던 문제) */
+.delivery-gen-step {
+  opacity: 0.35;
+  transition: opacity 0.5s;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+  padding: 0 0.25rem;
+  box-sizing: border-box;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+.delivery-gen-step.active { opacity: 1; }
+
 /* Next Step CTA */
 .next-step-cta {
   background: linear-gradient(135deg, rgba(99,102,241,.1) 0%, rgba(167,139,250,.08) 100%);
@@ -1604,14 +1618,55 @@ html[data-theme="light"] .codelib-source-tabs .nav-link.active {
   color: var(--primary) !important;
 }
 
+/* 스피너 링 중앙 아이콘 (전역 처리 중·생성 진행 모달·인터뷰 로딩 등) */
+.busy-spinner-ring {
+  position: relative;
+  width: 3rem;
+  height: 3rem;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 0.75rem;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.busy-spinner-ring--sm {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+.busy-spinner-ring .spinner-border {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+}
+.busy-spinner-ring .busy-spinner-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.05rem;
+  line-height: 1;
+  pointer-events: none;
+  color: var(--primary-light, #6ea8fe);
+}
+.busy-spinner-ring--sm .busy-spinner-icon {
+  font-size: 0.9rem;
+}
+html[data-theme="light"] .busy-spinner-ring .busy-spinner-icon {
+  color: var(--primary, #0d6efd);
+}
+
 /* ── 전역 처리 중 오버레이 ─────────────────────────────────── */
 .global-busy-overlay {
   position: fixed;
   inset: 0;
   z-index: 20000;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: min(14vh, 7.5rem);
   background: rgba(15, 17, 23, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -1632,9 +1687,7 @@ html[data-theme="light"] .global-busy-overlay {
   min-width: 260px;
   max-width: 90vw;
 }
-.global-busy-spinner {
-  width: 2.5rem;
-  height: 2.5rem;
+.global-busy-card .busy-spinner-ring--sm .spinner-border {
   color: var(--primary-light) !important;
   border-width: 0.2em;
 }
@@ -1646,7 +1699,6 @@ html[data-theme="light"] .global-busy-overlay {
   max-width: min(32rem, 92vw);
   text-align: left;
 }
-.global-busy-card.has-agent-lines .global-busy-spinner,
 .global-busy-card.has-agent-lines > .global-busy-title {
   text-align: center;
 }

@@ -146,7 +146,7 @@ const TRANSLATIONS = {
     "success.next1.title": "Requirements analysis", "success.next1.desc": "AI agents read your RFP and attachments to structure the requirement context.",
     "success.next2.title": "AI interview", "success.next2.desc": "The interview agent asks a few rounds of questions so scope and details are clear before drafting.",
     "success.next3.title": "Development Proposal", "success.next3.desc": "Proposal and review agents draft and refine your Development Proposal; you open it on this site when it is ready.",
-    "success.newRequest": "New Request", "success.dashboard": "Go to Dashboard",
+    "success.newRequest": "New Request", "success.dashboard": "Back to list",
     /* Services ABAP landing */
     "svcAbap.createdFrom": "Created date",
     "svcAbap.searchTitle": "Title",
@@ -503,7 +503,7 @@ const TRANSLATIONS = {
     "success.next1.title": "요구 분석", "success.next1.desc": "요구분석 에이전트가 RFP·첨부·참고 자료를 바탕으로 요구 맥락을 구조화합니다.",
     "success.next2.title": "AI 인터뷰", "success.next2.desc": "질의 에이전트가 라운드별 질문으로 범위와 세부 요건을 구체화합니다.",
     "success.next3.title": "제안서 생성", "success.next3.desc": "제안서·제안검수 에이전트가 Development Proposal을 작성·다듬으며, 완료되면 이 사이트에서 바로 확인합니다.",
-    "success.newRequest": "새 요청 만들기", "success.dashboard": "대시보드로",
+    "success.newRequest": "새 요청 만들기", "success.dashboard": "목록으로",
     /* Services ABAP landing */
     "svcAbap.createdFrom": "생성일",
     "svcAbap.searchTitle": "제목",
