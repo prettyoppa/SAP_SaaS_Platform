@@ -2,6 +2,7 @@
 {% if wf_abap_mirror is defined and wf_abap_mirror %}
 {% include 'partials/rfp_hub_abap_workflow_mirror.html' %}
 {% endif %}
+{% if not (wf_abap_mirror is defined and wf_abap_mirror) %}
 <div class="proposal-card mb-0">
   <div class="proposal-body">
     <dl class="row mb-0 small">
@@ -47,3 +48,4 @@
     {% endif %}
   </div>
 </div>
+{% endif %}

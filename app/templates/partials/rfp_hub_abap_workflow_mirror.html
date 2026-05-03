@@ -1,14 +1,16 @@
 {# 분석·개선 → RFP 연결 시 1. 요청 영역에 표시 (읽기 전용). 컨텍스트: wf_row, wf_analysis, wf_attachment_entries, wf_source_program_groups, wf_followup_turns, wf_tabs_base_id, rfp #}
-<div class="mb-4 p-3 rounded border" style="background:rgba(99,102,241,.06);border-color:rgba(99,102,241,.22)!important;">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+<div class="mb-3 p-2 rounded border" style="background:rgba(99,102,241,.06);border-color:rgba(99,102,241,.22)!important;">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0">
     <div class="small fw-semibold text-primary" data-i18n="hub.wfAbapMirrorTitle">분석·개선 단계 기록</div>
     <a href="/abap-analysis/{{ wf_row.id }}" class="btn btn-sm btn-outline-primary" data-i18n="hub.wfAbapOpenSource">원 분석 요청 열기</a>
   </div>
-  <p class="small text-muted mb-0" data-i18n="hub.wfAbapMirrorHint">아래는 분석·개선 메뉴에서 제출하신 1~4단계와, 같은 화면에서 나눈 후속 질의 로그입니다. 신규 개발 인터뷰(2단계)와는 별도입니다.</p>
 </div>
 
-<details class="interview-summary-toggle rfp-hub-phase mb-3" open>
-  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+<details class="interview-summary-toggle rfp-hub-phase mb-3 wf-abap-mirror-phase" open>
+  <summary class="interview-summary-header wf-abap-mirror-phase-summary w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="rfp-workflow-abap-ribbon rfp-workflow-abap-ribbon--hub-mirror" aria-hidden="true">
+      <span class="rfp-workflow-abap-ribbon__text rfp-workflow-abap-ribbon__text--hub-mirror" data-i18n="detail.analysisTag">분석·개선</span>
+    </span>
     <span class="fw-semibold" data-i18n="detail.phaseRequest">1. 요청</span>
     <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
   </summary>
@@ -70,8 +72,11 @@
 </details>
 
 {% if not wf_row.is_draft and wf_analysis %}
-<details class="interview-summary-toggle rfp-hub-phase mb-3" open>
-  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+<details class="interview-summary-toggle rfp-hub-phase mb-3 wf-abap-mirror-phase" open>
+  <summary class="interview-summary-header wf-abap-mirror-phase-summary w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="rfp-workflow-abap-ribbon rfp-workflow-abap-ribbon--hub-mirror" aria-hidden="true">
+      <span class="rfp-workflow-abap-ribbon__text rfp-workflow-abap-ribbon__text--hub-mirror" data-i18n="detail.analysisTag">분석·개선</span>
+    </span>
     <span class="fw-semibold" data-i18n="detail.phaseAnalysis">2. 분석 결과</span>
     {% if wf_analysis.get('error') %}
     <span class="badge bg-danger" data-i18n="detail.analysisErrBadge">오류</span>
@@ -171,8 +176,11 @@
 {% endif %}
 
 {% if not wf_row.is_draft and wf_analysis and (wf_analysis.get('requirement_analysis_error') or wf_analysis.get('requirement_analysis')) %}
-<details class="interview-summary-toggle rfp-hub-phase mb-3" open>
-  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+<details class="interview-summary-toggle rfp-hub-phase mb-3 wf-abap-mirror-phase" open>
+  <summary class="interview-summary-header wf-abap-mirror-phase-summary w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="rfp-workflow-abap-ribbon rfp-workflow-abap-ribbon--hub-mirror" aria-hidden="true">
+      <span class="rfp-workflow-abap-ribbon__text rfp-workflow-abap-ribbon__text--hub-mirror" data-i18n="detail.analysisTag">분석·개선</span>
+    </span>
     <span class="fw-semibold" data-i18n="detail.phaseReqLink">3. 요구사항 연계 분석</span>
     {% if wf_analysis.get('requirement_analysis_error') %}
     <span class="badge bg-warning text-dark" data-i18n="detail.reqLinkErrBadge">오류</span>
@@ -237,8 +245,11 @@
 {% endif %}
 
 {% if not wf_row.is_draft and wf_row.is_analyzed %}
-<details class="interview-summary-toggle rfp-hub-phase mb-3" open>
-  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+<details class="interview-summary-toggle rfp-hub-phase mb-3 wf-abap-mirror-phase" open>
+  <summary class="interview-summary-header wf-abap-mirror-phase-summary w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="rfp-workflow-abap-ribbon rfp-workflow-abap-ribbon--hub-mirror" aria-hidden="true">
+      <span class="rfp-workflow-abap-ribbon__text rfp-workflow-abap-ribbon__text--hub-mirror" data-i18n="detail.analysisTag">분석·개선</span>
+    </span>
     <span class="fw-semibold" data-i18n="detail.phaseImprove">4. 개선 제안 요청</span>
     <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
   </summary>
@@ -253,11 +264,15 @@
 {% endif %}
 
 {% if wf_followup_turns and wf_followup_turns|length > 0 %}
-<details class="interview-summary-toggle rfp-hub-phase mb-3">
-  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-    <span class="fw-semibold" data-i18n="hub.wfAbapFollowupLog">분석 단계 후속 질의 로그</span>
-    <span class="badge bg-secondary">{{ wf_followup_turns|length }} <span data-i18n="hub.wfAbapTurns">턴</span></span>
-    <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+<details class="interview-summary-toggle rfp-hub-phase mb-3 wf-abap-followup-log">
+  <summary class="interview-summary-header wf-abap-followup-log-summary w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="fw-semibold flex-grow-1 min-w-0" data-i18n="hub.wfAbapFollowupLog">분석 단계 후속 질의 로그</span>
+    <span class="d-inline-flex align-items-center gap-2 ms-auto flex-shrink-0">
+      <span class="abap-float-chat-count" aria-hidden="true">{{ wf_followup_turns|length }}</span>
+      <span class="visually-hidden">{{ wf_followup_turns|length }} <span data-i18n="hub.wfAbapTurns">턴</span></span>
+      <i class="fa-solid fa-comments fa-lg wf-abap-followup-log-icon" aria-hidden="true"></i>
+      <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+    </span>
   </summary>
   <div class="rfp-hub-phase-body pt-2">
     {% for turn in wf_followup_turns %}
@@ -281,6 +296,3 @@
   </div>
 </details>
 {% endif %}
-
-<hr class="my-4 opacity-25" />
-<div class="small text-muted mb-2" data-i18n="hub.wfAbapRfpMetaLead">이 아래는 신규 개발(RFP)으로 등록된 요청 정보입니다.</div>

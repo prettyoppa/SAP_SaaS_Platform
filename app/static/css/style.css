@@ -848,16 +848,16 @@ html[data-theme="dark"] .nav-icon-analysis .nav-icon-analysis-dark { display: in
   border-bottom: 1px solid var(--border);
 }
 
-/* Stat Cards */
+/* Stat Cards (컴팩트: 패딩·간격 축소) */
 .stat-card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 1.5rem;
-  display: flex; align-items: center; gap: 1.25rem;
+  border-radius: var(--radius); padding: 0.75rem 1rem;
+  display: flex; align-items: center; gap: 0.85rem;
 }
 .stat-card-icon {
-  width: 52px; height: 52px; border-radius: var(--radius-sm);
+  width: 44px; height: 44px; border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.3rem; flex-shrink: 0;
+  font-size: 1.12rem; flex-shrink: 0;
 }
 .stat-card-num { font-size: 1.8rem; font-weight: 700; line-height: 1; }
 .stat-card-label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
@@ -866,15 +866,15 @@ html[data-theme="dark"] .nav-icon-analysis .nav-icon-analysis-dark { display: in
   box-shadow: 0 0 0 1px rgba(129,140,248,.35);
 }
 
-/* RFP List Cards */
+/* RFP List Cards (컴팩트: 타일 상하·좌우 여백 축소) */
 .rfp-list-card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 1rem 1.25rem;
+  border-radius: var(--radius-sm); padding: 0.55rem 0.75rem;
   display: flex; align-items: center; justify-content: space-between;
-  gap: 1rem; transition: border-color .2s;
+  gap: 0.65rem; transition: border-color .2s;
 }
 .rfp-list-card:hover { border-color: var(--primary); }
-.rfp-list-left { display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 0; }
+.rfp-list-left { display: flex; align-items: center; gap: 0.65rem; flex: 1; min-width: 0; }
 .rfp-list-right { display: flex; align-items: center; flex-shrink: 0; }
 .rfp-list-status {
   width: 36px; height: 36px; border-radius: var(--radius-sm);
@@ -1486,8 +1486,8 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 .service-integration-intro.markdown-body-lite strong { color: var(--text); }
 
 /* stat-card-sm */
-.stat-card-sm .stat-card-num { font-size: 1.5rem; }
-.stat-card-sm { padding: .75rem 1rem; }
+.stat-card-sm .stat-card-num { font-size: 1.45rem; }
+.stat-card-sm { padding: 0.45rem 0.65rem !important; }
 
 /* ── Dashboard stat tile link ───────────────── */
 .stat-card-link {
@@ -1498,7 +1498,7 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 .active-tile { border-color: var(--primary) !important; background: rgba(99,102,241,.08); }
 
 /* ── RFP list v2 ────────────────────────────── */
-.rfp-list-card-v2 { flex-wrap: wrap; gap: .75rem; }
+.rfp-list-card-v2 { flex-wrap: wrap; gap: 0.5rem; }
 .rfp-list-info { flex: 1; min-width: 0; }
 .rfp-list-dates { margin-top: .3rem; }
 .rfp-list-actions { flex-direction: column; align-items: flex-end; min-width: 180px; }
@@ -1558,9 +1558,93 @@ html[data-theme="light"] .rfp-workflow-abap-ribbon__text {
   letter-spacing: 0.02em;
 }
 
+/* 통합 허브 — ABAP 미러 단계 summary: 목록과 동일 계열 코너 리본 */
+.rfp-unified-hub .wf-abap-mirror-phase > summary.wf-abap-mirror-phase-summary {
+  position: relative;
+  overflow: hidden;
+  padding-left: 2.65rem;
+  min-height: 2.35rem;
+}
+.rfp-unified-hub .wf-abap-mirror-phase .rfp-workflow-abap-ribbon--hub-mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 3.55rem;
+  height: 3.55rem;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rfp-unified-hub .wf-abap-mirror-phase .rfp-workflow-abap-ribbon__text--hub-mirror {
+  width: 6.35rem;
+  top: 0.52rem;
+  left: -1.78rem;
+  padding: 0.1rem 0;
+  font-size: 0.48rem;
+  letter-spacing: 0.02em;
+}
+html[data-theme="light"] .rfp-unified-hub .wf-abap-mirror-phase .rfp-workflow-abap-ribbon__text--hub-mirror {
+  box-shadow: 0 1px 4px rgba(67, 56, 202, 0.28);
+}
+
+/* 통합 허브 — 분석 단계 후속 질의: 이어서 질문(launcher)과 동일 톤의 summary */
+.rfp-unified-hub details.wf-abap-followup-log > summary.wf-abap-followup-log-summary {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  color: #fff !important;
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  padding: 0.55rem 0.85rem !important;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.rfp-unified-hub details.wf-abap-followup-log > summary.wf-abap-followup-log-summary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+}
+.rfp-unified-hub details.wf-abap-followup-log > summary .wf-abap-followup-log-icon {
+  color: #fff;
+  line-height: 1;
+}
+.rfp-unified-hub details.wf-abap-followup-log > summary .abap-float-chat-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  min-width: 1.25rem;
+  text-align: center;
+  color: #fff !important;
+}
+.rfp-unified-hub details.wf-abap-followup-log > summary .rfp-hub-phase-chevron {
+  margin-left: 0 !important;
+  color: #fff !important;
+  opacity: 0.92;
+}
+
 /* 메뉴 목록: 타일 / 촘촘한 목록 전환 (localStorage 키별) */
 .menu-list-root--tile .menu-list-card .rfp-list-surface-list { display: none !important; }
 .menu-list-root--list .menu-list-card .rfp-list-surface-tile { display: none !important; }
+
+/* ── 전역 컴팩트 간격: 타일·목록 행(g-3)·허브 단계 ───────────────── */
+.row.g-3 {
+  --bs-gutter-x: 0.5rem;
+  --bs-gutter-y: 0.5rem;
+}
+.menu-list-root.mb-4 {
+  margin-bottom: 0.75rem !important;
+}
+.rfp-unified-hub .interview-summary-toggle.rfp-hub-phase.mb-3 {
+  margin-bottom: 0.6rem !important;
+}
+.proposal-page.py-5 {
+  padding-top: 1.75rem !important;
+  padding-bottom: 1.75rem !important;
+}
+.dashboard-page.py-4 {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
 .menu-list-view-btns .btn.active {
   background: var(--primary);
   border-color: var(--primary);
@@ -1574,8 +1658,8 @@ html[data-theme="light"] .menu-list-view-btns .btn.active {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 0.65rem;
-  padding: 0.5rem 1rem;
+  gap: 0.45rem;
+  padding: 0.38rem 0.65rem !important;
   flex-wrap: wrap;
 }
 .rfp-list-card--compact-row .rfp-list-compact-main {
