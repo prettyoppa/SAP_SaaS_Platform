@@ -3,6 +3,7 @@ import mimetypes
 import os
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
@@ -20,6 +21,12 @@ from ..rfp_download_names import (
     delivered_abap_download_basename,
     fs_md_download_basename,
 )
+from ..rfp_form_suggest import (
+    MIN_RFP_DESCRIPTION_CHARS,
+    description_sufficient_for_suggest,
+    suggest_program_id_from_title,
+    suggest_title_from_description,
+)
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..rfp_hub import normalize_rfp_hub_phase, rfp_hub_url
 from ..rfp_phase_gates import rfp_for_owner_or_admin
@@ -29,6 +36,45 @@ from ..database import get_db
 from ..templates_config import templates
 
 router = APIRouter()
+
+
+def _rfp_missing_core_field_labels(
+    title: str,
+    program_id: str,
+    sap_modules: list,
+    dev_types: list,
+    description: str,
+) -> list[str]:
+    """임시저장·제출 공통 필수(요청 제목, 프로그램 ID, 모듈·유형, 요구사항 분량)."""
+    miss: list[str] = []
+    if not (title or "").strip():
+        miss.append("요청 제목")
+    if not (program_id or "").strip():
+        miss.append("프로그램 ID")
+    if not sap_modules:
+        miss.append("SAP 모듈(1개 이상)")
+    if not dev_types:
+        miss.append("개발 유형(1개 이상)")
+    if len((description or "").strip()) < MIN_RFP_DESCRIPTION_CHARS:
+        miss.append(f"요구사항 자유 기술(공백 제외 {MIN_RFP_DESCRIPTION_CHARS}자 이상)")
+    return miss
+
+
+def _rfp_core_fields_incomplete_response(request: Request, missing: list[str]) -> Response:
+    msg = "다음 필수 항목을 입력해 주세요: " + " · ".join(missing) + "."
+    return templates.TemplateResponse(
+        request,
+        "form_validation_error.html",
+        {"message": msg},
+        status_code=422,
+    )
+
+
+class RfpSuggestFieldIn(BaseModel):
+    kind: str = Field(..., description="title | program_id")
+    description: str = ""
+    title: str = ""
+
 
 # 대시보드 연동 요청 배지용 (integration_router.IMPL_LABELS 와 동일)
 INTEGRATION_IMPL_LABELS = {
@@ -284,6 +330,42 @@ def rfp_form(request: Request, db: Session = Depends(get_db)):
     })
 
 
+@router.post("/rfp/api/suggest-field")
+async def rfp_api_suggest_field(
+    request: Request,
+    body: RfpSuggestFieldIn,
+    db: Session = Depends(get_db),
+):
+    """폼용: 요구사항 요약 제목(원문 언어 유지) / 요청 제목 기반 Z 프로그램 ID (Gemini)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "error": "login_required"}, status_code=401)
+    k = (body.kind or "").strip().lower()
+    try:
+        if k == "title":
+            if not description_sufficient_for_suggest(body.description):
+                return JSONResponse({"ok": False, "error": "description_insufficient"}, status_code=400)
+            out = await run_in_threadpool(
+                lambda: suggest_title_from_description((body.description or "").strip())
+            )
+            return JSONResponse({"ok": True, "title": out})
+        if k == "program_id":
+            if not description_sufficient_for_suggest(body.description):
+                return JSONResponse({"ok": False, "error": "description_insufficient"}, status_code=400)
+            tit = (body.title or "").strip()
+            if not tit:
+                return JSONResponse({"ok": False, "error": "title_empty"}, status_code=400)
+            pid = await run_in_threadpool(lambda: suggest_program_id_from_title(tit))
+            return JSONResponse({"ok": True, "program_id": pid, "mirror_transaction": True})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    except RuntimeError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=503)
+    except Exception:
+        return JSONResponse({"ok": False, "error": "llm_failed"}, status_code=503)
+    return JSONResponse({"ok": False, "error": "invalid_kind"}, status_code=400)
+
+
 @router.post("/rfp/new")
 async def submit_rfp(
     request: Request,
@@ -338,19 +420,11 @@ async def submit_rfp(
             status_code=400,
         )
 
-    if not is_draft and (not sap_modules or not dev_types):
-        return templates.TemplateResponse(
-            request,
-            "rfp_form.html",
-            _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
-                error="need_modules",
-                form=_form_dict(),
-            ),
-            status_code=400,
-        )
+    miss = _rfp_missing_core_field_labels(title, program_id, sap_modules, dev_types, description)
+    if miss:
+        return _rfp_core_fields_incomplete_response(request, miss)
 
-    pid, perr = sap_fields.validate_program_id(program_id, required=(not is_draft))
+    pid, perr = sap_fields.validate_program_id(program_id, required=True)
     if perr:
         err_key = {
             "required": "program_id_required",
@@ -897,21 +971,11 @@ async def rfp_edit_submit(
             status_code=400,
         )
 
-    if not is_draft and (not sap_modules or not dev_types):
-        return templates.TemplateResponse(
-            request,
-            "rfp_form.html",
-            _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip,
-                error="need_modules",
-                form=_form_dict(),
-                rfp=rfp,
-                edit_mode=True,
-            ),
-            status_code=400,
-        )
+    miss = _rfp_missing_core_field_labels(title, program_id, sap_modules, dev_types, description)
+    if miss:
+        return _rfp_core_fields_incomplete_response(request, miss)
 
-    pid, perr = sap_fields.validate_program_id(program_id, required=(not is_draft))
+    pid, perr = sap_fields.validate_program_id(program_id, required=True)
     if perr:
         err_key = {
             "required": "program_id_required",

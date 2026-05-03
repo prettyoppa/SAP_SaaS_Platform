@@ -361,4 +361,111 @@ document.addEventListener('DOMContentLoaded', () => {
       submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
     });
   }
+
+  const MIN_DESC_FOR_AI = 40;
+  function rfpDescTooShortForAi() {
+    const d = document.getElementById('description');
+    return !d || d.value.trim().length < MIN_DESC_FOR_AI;
+  }
+  function rfpAiInsufficientMsg() {
+    const en = typeof currentLang !== 'undefined' && currentLang === 'en';
+    return en
+      ? 'The free-text requirements section is too short for AI suggestions (minimum 40 characters).'
+      : '「요구사항 자유 기술」 입력정보가 부족합니다.';
+  }
+
+  async function postRfpSuggest(body) {
+    const res = await fetch('/rfp/api/suggest-field', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (_) {
+      data = {};
+    }
+    return { res, data };
+  }
+
+  const aiTitleBtn = document.getElementById('rfp-ai-title-btn');
+  if (aiTitleBtn) {
+    aiTitleBtn.addEventListener('click', async () => {
+      if (rfpDescTooShortForAi()) {
+        alert(rfpAiInsufficientMsg());
+        return;
+      }
+      aiTitleBtn.disabled = true;
+      try {
+        const desc = document.getElementById('description');
+        const { res, data } = await postRfpSuggest({
+          kind: 'title',
+          description: desc ? desc.value : '',
+        });
+        if (!res.ok) {
+          if (data.error === 'description_insufficient') alert(rfpAiInsufficientMsg());
+          else alert(data.error === 'login_required' ? '로그인이 필요합니다.' : '제목 자동 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          return;
+        }
+        const ti = document.getElementById('title');
+        if (ti && data.title) {
+          ti.value = data.title;
+          ti.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (typeof window.updateReview === 'function') window.updateReview();
+      } finally {
+        aiTitleBtn.disabled = false;
+      }
+    });
+  }
+
+  const aiProgBtn = document.getElementById('rfp-ai-program-btn');
+  if (aiProgBtn) {
+    aiProgBtn.addEventListener('click', async () => {
+      const ti = document.getElementById('title');
+      if (!ti || !ti.value.trim()) {
+        alert(typeof currentLang !== 'undefined' && currentLang === 'en'
+          ? 'Enter a request title first (or use AI on the title field).'
+          : '요청 제목을 먼저 입력해 주세요.');
+        return;
+      }
+      if (rfpDescTooShortForAi()) {
+        alert(rfpAiInsufficientMsg());
+        return;
+      }
+      aiProgBtn.disabled = true;
+      try {
+        const desc = document.getElementById('description');
+        const { res, data } = await postRfpSuggest({
+          kind: 'program_id',
+          title: ti.value.trim(),
+          description: desc ? desc.value : '',
+        });
+        if (!res.ok) {
+          if (data.error === 'description_insufficient') alert(rfpAiInsufficientMsg());
+          else if (data.error === 'title_empty') {
+            alert('요청 제목을 먼저 입력해 주세요.');
+          } else {
+            alert('프로그램 ID 자동 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          }
+          return;
+        }
+        const pid = document.getElementById('program_id');
+        const tc = document.getElementById('transaction_code');
+        if (pid && data.program_id) {
+          pid.value = data.program_id;
+          pid.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (data.mirror_transaction && tc && !(tc.value || '').trim() && pid && pid.value) {
+          tc.value = pid.value.slice(0, 20);
+          tc.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (typeof window.updateReview === 'function') window.updateReview();
+      } finally {
+        aiProgBtn.disabled = false;
+      }
+    });
+  }
 });

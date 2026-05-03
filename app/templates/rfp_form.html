@@ -69,12 +69,6 @@
           </span>
         </div>
         {% endif %}
-        {% if error == 'need_modules' %}
-        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
-          <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>제출 시에는 SAP 모듈과 개발 유형을 각각 1개 이상 선택해 주세요.</span>
-        </div>
-        {% endif %}
         {% if error == 'too_many_attachments' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
@@ -97,7 +91,7 @@
               <span class="rfp-section-num">01</span>
               <div>
                 <h4 class="mb-0">요청 제목</h4>
-                <small class="text-muted">요청 제목과 프로그램 ID·트랜잭션 코드를 입력한 뒤, SAP 모듈·개발 유형을 선택해 주세요. 모듈·유형은 각 최대 3개까지.</small>
+                <small class="text-muted">요청 제목, 개발 필요한 프로그램 ID·트랜잭션 코드를 입력 및 관련 SAP 모듈·개발 유형을 선택해 주세요.</small>
               </div>
             </div>
 
@@ -106,8 +100,14 @@
               <label class="form-label fw-semibold">
                 요청 제목 <span class="text-danger">*</span>
               </label>
-              <input type="text" name="title" class="form-control form-control-lg" required
-                     value="{{ form.title if form else (rfp.title if rfp else '') }}"/>
+              <div class="d-flex flex-wrap align-items-stretch gap-2">
+                <input type="text" name="title" id="title" class="form-control form-control-lg flex-grow-1" style="min-width:12rem;"
+                       maxlength="200" autocomplete="off"
+                       value="{{ form.title if form else (rfp.title if rfp else '') }}"/>
+                <button type="button" class="btn btn-outline-secondary align-self-center text-nowrap" id="rfp-ai-title-btn" title="요구사항 본문 언어에 맞춰 제목 초안(한·영 등)">
+                  AI 자동생성
+                </button>
+              </div>
             </div>
 
             <!-- Program ID + Transaction Code -->
@@ -117,9 +117,14 @@
                   프로그램 ID <span class="text-danger">*</span>
                   <small class="text-muted fw-normal ms-1">(영문·숫자·기호, 공백 제외 · 한글 키보드 불가)</small>
                 </label>
-                <input type="text" name="program_id" id="program_id" class="form-control"
-                       maxlength="40" autocomplete="off"
-                       value="{{ form.program_id if form else (rfp.program_id if rfp else '') }}"/>
+                <div class="d-flex flex-wrap align-items-stretch gap-2">
+                  <input type="text" name="program_id" id="program_id" class="form-control flex-grow-1" style="min-width:10rem;"
+                         maxlength="40" autocomplete="off"
+                         value="{{ form.program_id if form else (rfp.program_id if rfp else '') }}"/>
+                  <button type="button" class="btn btn-outline-secondary align-self-center text-nowrap" id="rfp-ai-program-btn" title="요청 제목을 바탕으로 Z 프로그램명 초안">
+                    AI 자동생성
+                  </button>
+                </div>
                 <div class="small mt-1 text-warning" id="program-id-feedback" style="min-height:1.25rem"></div>
               </div>
               <div class="col-md-4">
@@ -179,7 +184,7 @@
               <span class="rfp-section-num">02</span>
               <div>
                 <h4 class="mb-0" data-i18n="rfp.s2.title">요구사항 자유 기술</h4>
-                <small class="text-muted" data-i18n="rfp.s2.sub">현재 업무 흐름, 필요한 기능, 입출력 조건 등을 자세히 기술해 주세요.</small>
+                <small class="text-muted" data-i18n="rfp.s2.sub">최대한 자세히 작성할수록 더 정확한 제안서가 생성됩니다.</small>
               </div>
             </div>
             <div class="mb-3">
@@ -207,7 +212,7 @@
               <span class="rfp-section-num">03</span>
               <div>
                 <h4 class="mb-0" data-i18n="rfp.s3.title">첨부 파일</h4>
-                <small class="text-muted" data-i18n="rfp.s3.sub">현황 화면 캡처, 기존 리포트 양식, 업로드용 Excel 양식 등을 첨부하면 좋습니다.</small>
+                <small class="text-muted" data-i18n="rfp.s3.sub">엑셀 양식, 기존 리포트, 화면 캡처, 관련 문서 등을 첨부하세요.</small>
               </div>
             </div>
 
@@ -258,7 +263,11 @@
               <span class="rfp-section-num">04</span>
               <div>
                 <h4 class="mb-0">참고 ABAP 코드</h4>
-                <small class="text-muted">회원이 올리는 코드는 해당 요청 이해 및 최적의 제안서 작성을 위해서 이용됩니다. 광고, 제3자 제공, AI 모델 학습·재학습 등 그 밖의 목적으로는 사용하지 않습니다. 회원이 직접 삭제하신 경우, 지체 없이 복구 불가능한 방식으로 삭제합니다.</small>
+                <small class="text-muted rfp-ref-code-policy-lede">
+                  회원이 올리는 코드는 <strong class="text-primary">해당 요청 이해 및 최적의 제안서 작성</strong>을 위해서만 이용됩니다.
+                  <strong class="text-danger">광고, 제3자 제공, AI 모델 학습·재학습</strong> 등 그 밖의 목적으로는 사용하지 않습니다.
+                  회원이 직접 삭제하신 경우 <strong class="text-warning">지체 없이 복구 불가능한 방식으로 삭제</strong>합니다.
+                </small>
               </div>
             </div>
 
@@ -312,13 +321,13 @@
             <div class="free-badge-row mb-4">
               <div class="free-badge-card">
                 <i class="fa-solid fa-gift text-success me-2"></i>
-                <span>개발 제안서 생성은 <strong>완전 무료</strong>입니다. 제출 후 AI 인터뷰를 통해 제안서가 생성됩니다.</span>
+                <span><strong>구체적인 요구사항</strong>을 작성할수록 제안서가 더 정확해집니다. 개발 제안서 생성은 <strong class="text-success">완전 무료</strong>이며, 제출 후 <strong>AI 인터뷰</strong>를 거쳐 생성됩니다.</span>
               </div>
             </div>
             <div class="d-flex gap-3 justify-content-end flex-wrap">
               <a href="/" class="btn btn-outline-secondary px-4">취소</a>
               {% if not edit_mode or (rfp and rfp.status == 'draft') %}
-              <button type="submit" name="save_action" value="draft" formnovalidate class="btn btn-outline-warning px-4" id="draft-btn">
+              <button type="submit" name="save_action" value="draft" class="btn btn-outline-warning px-4" id="draft-btn">
                 <i class="fa-solid fa-floppy-disk me-2"></i>임시저장
               </button>
               {% endif %}
@@ -340,5 +349,5 @@
 <script src="/static/js/sap_field_input.js?v=20260415c"></script>
 <script src="/static/js/rfp_local_ref_code.js?v=20260422b"></script>
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
-<script src="/static/js/rfp_form.js?v=20260417a"></script>
+<script src="/static/js/rfp_form.js?v=20260422rfpai"></script>
 {% endblock %}
