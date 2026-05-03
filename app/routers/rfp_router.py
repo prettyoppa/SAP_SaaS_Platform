@@ -520,6 +520,7 @@ async def submit_rfp(
         description=description,
         status="draft" if is_draft else "submitted",
         interview_status="pending",
+        workflow_origin="direct",
         reference_code_payload=norm_ref,
     )
     _set_rfp_attachments(rfp, att_entries)
@@ -840,6 +841,7 @@ def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(g
         reference_code_payload=rfp.reference_code_payload,
         status="draft",
         interview_status="pending",
+        workflow_origin="direct",
     )
     _set_rfp_attachments(new_rfp, entries)
     db.add(new_rfp)

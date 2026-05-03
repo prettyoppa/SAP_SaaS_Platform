@@ -59,6 +59,8 @@ class RFP(Base):
     # 회원 제출 ABAP 코드(본 RFP 전용, abap_codes 미등록). 에이전트 프롬프트용.
     reference_code_payload = Column(Text, nullable=True)
     status = Column(String, default="draft")           # draft | submitted | in_review | completed
+    # direct: 일반 신규 개발 제출 | abap_analysis | integration — 워크플로 연결 시 인터뷰·제안서 톤 분기
+    workflow_origin = Column(String, default="direct", nullable=False)
     interview_status = Column(String, default="pending")  # pending | in_progress | generating_proposal | completed
     proposal_text = Column(Text, nullable=True)
     proposal_generated_at = Column(DateTime, nullable=True)

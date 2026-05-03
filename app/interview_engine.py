@@ -61,15 +61,31 @@ def _get_model() -> genai.GenerativeModel:
     return genai.GenerativeModel(get_gemini_model_id())
 
 
+def _workflow_origin_context_note(rfp_data: dict) -> str:
+    w = str(rfp_data.get("workflow_origin") or "direct").strip().lower()
+    if w == "abap_analysis":
+        return (
+            "\n- 워크플로 출처: ABAP 분석·개선에서 연결된 신규 개발(RFP)입니다. "
+            "설명에 선행 분석 요약이 있을 수 있으니 중복 질문을 피하고 미확정 사항만 다룹니다."
+        )
+    if w == "integration":
+        return (
+            "\n- 워크플로 출처: 연동 분석에서 연결된 신규 개발(RFP)입니다. "
+            "선행 맥락이 설명에 포함될 수 있으니 연동 전제를 존중하고 RFP 공백만 보완합니다."
+        )
+    return ""
+
+
 def _format_rfp_context(rfp_data: dict) -> str:
     modules = [_SAP_MODULE_LABELS.get(m, m) for m in rfp_data.get("sap_modules", [])]
     dev_types = [_DEV_TYPE_LABELS.get(d, d) for d in rfp_data.get("dev_types", [])]
-    return (
+    base = (
         f"- 요청 제목: {rfp_data.get('title', '(없음)')}\n"
         f"- SAP 모듈: {', '.join(modules) if modules else '(미선택)'}\n"
         f"- 개발 유형: {', '.join(dev_types) if dev_types else '(미선택)'}\n"
         f"- 요구사항 설명:\n{rfp_data.get('description', '(없음)')}"
     )
+    return base + _workflow_origin_context_note(rfp_data)
 
 
 def _format_conversation(messages: list[dict]) -> str:

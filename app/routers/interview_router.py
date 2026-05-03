@@ -59,6 +59,7 @@ def _fc():
 
 def _rfp_to_dict(rfp: models.RFP) -> dict:
     payload = getattr(rfp, "reference_code_payload", None)
+    wo = (getattr(rfp, "workflow_origin", None) or "direct").strip()
     return {
         "title": rfp.title,
         "program_id": (getattr(rfp, "program_id", None) or "").strip() or None,
@@ -71,6 +72,7 @@ def _rfp_to_dict(rfp: models.RFP) -> dict:
         else [],
         "description": rfp.description or "",
         "reference_code_for_agents": format_reference_code_for_llm(payload),
+        "workflow_origin": wo or "direct",
     }
 
 

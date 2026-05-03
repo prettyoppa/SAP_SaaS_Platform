@@ -32,6 +32,7 @@ def _run_migrations():
     dialect = engine.dialect.name
     # (table, column, sqlite_def, postgres_def)
     migrations = [
+        ("rfps", "workflow_origin", "VARCHAR DEFAULT 'direct'", "VARCHAR DEFAULT 'direct'"),
         ("rfps", "interview_status", "VARCHAR DEFAULT 'pending'", "VARCHAR DEFAULT 'pending'"),
         ("rfps", "proposal_text", "TEXT", "TEXT"),
         ("rfps", "program_id", "VARCHAR", "VARCHAR"),

@@ -49,6 +49,46 @@ def _first_slot_program_meta(payload_raw: str | None) -> tuple[str, str]:
     return (str(s0.get("program_id") or "").strip()[:40], str(s0.get("transaction_code") or "").strip()[:40])
 
 
+def _requirement_analysis_text_for_seed(analysis_json_raw: str | None, limit: int = 8000) -> str:
+    """analysis_json 내 requirement_analysis 블록을 제안서 시드용 텍스트로 축약."""
+    if not analysis_json_raw or not str(analysis_json_raw).strip():
+        return ""
+    try:
+        data = json.loads(analysis_json_raw)
+    except Exception:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    ra = data.get("requirement_analysis")
+    if not isinstance(ra, dict):
+        return ""
+    chunks: list[str] = []
+    order = [
+        ("interpretation", "요구사항 해석"),
+        ("mapping", "코드와의 연관"),
+        ("suspected_areas", "살펴볼 만한 위치"),
+        ("hypotheses", "가설"),
+        ("verification_suggestions", "검증 제안"),
+        ("open_questions", "추가 확인 질문"),
+    ]
+    for key, title in order:
+        val = ra.get(key)
+        if val is None:
+            continue
+        if isinstance(val, list):
+            body = "\n".join(f"- {str(x).strip()}" for x in val if str(x).strip())
+        else:
+            body = str(val).strip()
+        if body:
+            chunks.append(f"#### {title}\n{body}")
+    if not chunks:
+        return ""
+    text = "\n\n".join(chunks)
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "\n…(이하 생략)…"
+
+
 def _trim_analysis_json(raw: str | None, limit: int = 28_000) -> str:
     if not raw or not str(raw).strip():
         return "(분석 JSON 없음)"
@@ -92,6 +132,11 @@ def build_workflow_seed_answer_abap(
     lines.append("")
     lines.append("### 에이전트 분석 결과(JSON)")
     lines.append(_trim_analysis_json(analysis_json_raw))
+    ra_txt = _requirement_analysis_text_for_seed(analysis_json_raw)
+    if ra_txt:
+        lines.append("")
+        lines.append("### 요구사항 연계 분석 (에이전트 요약)")
+        lines.append(ra_txt)
     pairs = _followup_pairs_for_seed(followup_messages)
     if pairs:
         lines.append("")
@@ -215,6 +260,7 @@ def create_workflow_rfp_from_abap_analysis(
         attachments_json=getattr(row, "attachments_json", None),
         reference_code_payload=getattr(row, "reference_code_payload", None),
         status="submitted",
+        workflow_origin="abap_analysis",
         interview_status="generating_proposal",
     )
     db.add(rfp)
@@ -273,6 +319,7 @@ def create_workflow_rfp_from_integration(
         attachments_json=getattr(ir, "attachments_json", None),
         reference_code_payload=getattr(ir, "reference_code_payload", None),
         status="submitted",
+        workflow_origin="integration",
         interview_status="generating_proposal",
     )
     db.add(rfp)

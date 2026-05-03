@@ -89,6 +89,16 @@
         <div>
           <h2 class="mb-1">{{ rfp.title }}</h2>
           <div class="small text-muted">#{{ rfp.id }} · {{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }} · <span data-i18n="detail.newDevTag">신규 개발</span></div>
+          {% set wo = (rfp.workflow_origin or 'direct') %}
+          {% if wo == 'abap_analysis' or wo == 'integration' %}
+          <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+            {% if wo == 'abap_analysis' %}
+            <span class="badge rounded-pill" style="background:rgba(59,130,246,.15);color:#2563eb;border:1px solid rgba(37,99,235,.35);" data-i18n="hub.workflowFromAbap">ABAP 분석에서 연결</span>
+            {% else %}
+            <span class="badge rounded-pill" style="background:rgba(168,85,247,.15);color:#7c3aed;border:1px solid rgba(124,58,237,.35);" data-i18n="hub.workflowFromIntegration">연동 분석에서 연결</span>
+            {% endif %}
+          </div>
+          {% endif %}
           {% if user.is_admin and owner %}
           <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
             <i class="fa-solid fa-user-shield me-1 text-warning"></i>

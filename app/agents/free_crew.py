@@ -425,12 +425,30 @@ IT 전문 용어는 고객 친화적 언어로 풀어서 설명하며,
 
 # ── 헬퍼 ─────────────────────────────────────────────
 
+def _workflow_origin_rfp_addendum(rfp: dict) -> str:
+    """분석·연동 워크플로에서 생성된 RFP — 인터뷰·제안 에이전트가 선행 산출물과 역할을 혼동하지 않도록."""
+    w = str(rfp.get("workflow_origin") or "direct").strip().lower()
+    if w == "abap_analysis":
+        return (
+            "\n- 워크플로 출처: ABAP 분석·개선 단계에서 신규 개발(RFP)로 연결된 건입니다. "
+            "요구사항 본문에 선행 분석·개선 요청 요약이 포함될 수 있으므로 같은 취지를 다시 묻지 말고, "
+            "신규 개발 범위·검증·인터페이스·운영 조건 등 **아직 확정되지 않은 항목**만 보완하십시오."
+        )
+    if w == "integration":
+        return (
+            "\n- 워크플로 출처: 연동 요구 분석에서 신규 개발(RFP)로 연결된 건입니다. "
+            "선행 인터뷰·분석·연동 개선 맥락이 본문에 반영될 수 있으니 연동 전제는 유지하되, "
+            "RFP(신규·확대 개발) 관점에서 **비어 있는 결정**만 질문·명세에 반영하십시오."
+        )
+    return ""
+
+
 def _fmt_rfp(rfp: dict) -> str:
     modules = [_MODULE_LABELS.get(m, m) for m in rfp.get("sap_modules", [])]
     devtypes = [_DEVTYPE_LABELS.get(d, d) for d in rfp.get("dev_types", [])]
     pid = (rfp.get("program_id") or "").strip()
     tcode = (rfp.get("transaction_code") or "").strip()
-    return (
+    base = (
         f"- 요청 제목: {rfp.get('title', '(없음)')}\n"
         f"- SAP 모듈: {', '.join(modules) or '(미선택)'}\n"
         f"- 개발 유형: {', '.join(devtypes) or '(미선택)'}\n"
@@ -438,6 +456,7 @@ def _fmt_rfp(rfp: dict) -> str:
         f"- 고객이 지정한 트랜잭션 코드(있으면 실행 경로는 이 코드로만): {tcode or '(미입력·제안서에서 임의 T-Code는 금지)'}\n"
         f"- 요구사항:\n{rfp.get('description', '(없음)')}"
     )
+    return base + _workflow_origin_rfp_addendum(rfp)
 
 
 def _fmt_conv(conv: list[dict]) -> str:
