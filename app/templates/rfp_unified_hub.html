@@ -250,8 +250,119 @@
     </details>
 
     {% include 'partials/rfp_hub_member_delivery_modal.html' %}
+
+    {% if user.id == rfp.user_id %}
+    <p class="small text-muted mb-0 mt-2">
+      <i class="fa-solid fa-comments me-1 text-primary-light"></i>
+      <span data-i18n="detail.chatHintRfp">요청·인터뷰·제안서 내용에 대해 궁금한 점은 화면 <strong>오른쪽 아래</strong> <strong>AI 에게 문의하세요</strong> 버튼으로 물어보실 수 있습니다.</span>
+      <span class="nav-ko">(회당 최대 {{ rfp_followup_max_user }}회)</span>
+      <span class="nav-en" style="display:none">(Up to {{ rfp_followup_max_user }} messages per request)</span>
+    </p>
+    {% endif %}
   </div>
 </div>
+
+{% if user.id == rfp.user_id %}
+<div id="rfp-followup-chat" class="abap-float-chat" aria-live="polite">
+  <div id="rfpFloatChatPanel" class="abap-float-chat-panel" hidden
+       data-i18n-title="chat.panelResizeTitle" title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
+    <button type="button" class="abap-float-chat-resize" id="rfpFloatChatResize" data-i18n-aria-label="chat.panelResizeAria" data-i18n-title="chat.panelResizeHint" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
+      <span class="abap-resize-svg-wrap" aria-hidden="true">
+        <svg class="abap-resize-svg abap-resize-svg-nw" width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 13V3h10"/>
+        </svg>
+        <svg class="abap-resize-svg abap-resize-svg-se" width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M13 3v10H3"/>
+        </svg>
+      </span>
+    </button>
+    <div class="abap-float-chat-header">
+      <span class="abap-float-chat-header-title" data-i18n="chat.rfpHeaderTitle">이 신규 개발 요청에 대해 질문하기</span>
+      <button type="button" class="abap-float-chat-close" id="rfpFloatChatClose" data-i18n-title="chat.closeTitle" data-i18n-aria-label="chat.closeAria" title="닫기" aria-label="채팅 패널 닫기">
+        <i class="fa-solid fa-xmark fa-lg"></i>
+      </button>
+    </div>
+    <div class="abap-float-chat-body">
+      <p class="small text-muted mb-2 mb-md-3" data-i18n="chat.rfpContextHelp">
+        지금까지 적어 주신 요청·인터뷰·제안서(있는 경우)를 바탕으로 답합니다.
+      </p>
+      {% if rfp_chat_error %}
+      <div class="alert alert-warning py-2 small mb-3">{{ rfp_chat_error }}</div>
+      {% endif %}
+      {% if rfp_followup_turns and rfp_followup_turns|length > 0 %}
+      <div class="abap-chat-log abap-chat-log-panel mb-0">
+        {% for turn in rfp_followup_turns %}
+        <details class="analysis-fold mb-2 abap-followup-turn" {% if loop.last %}open{% endif %}>
+          <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2 w-100">
+            <span class="fw-semibold text-nowrap"><span data-i18n="chat.thread">대화</span> {{ loop.index }}</span>
+            {% if turn.question %}
+            <span class="small text-muted text-nowrap">{{ turn.question.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            <span class="small text-muted flex-grow-1 text-truncate" style="min-width:100px;" title="{{ turn.question.content }}">
+              {{ turn.question.content[:80] }}{% if turn.question.content|length > 80 %}…{% endif %}
+            </span>
+            {% else %}
+            <span class="small text-muted" data-i18n="chat.answerOnly">응답만 있음</span>
+            {% endif %}
+          </summary>
+          <div class="analysis-fold-body pt-1">
+            {% if turn.question %}
+            <div class="mb-2">
+              <div class="small fw-semibold text-muted mb-1" data-i18n="chat.question">질문</div>
+              <div class="abap-followup-q">{{ turn.question.content }}</div>
+            </div>
+            {% endif %}
+            {% if turn.answer %}
+            <div>
+              <div class="small fw-semibold text-muted mb-1" data-i18n="chat.answer">응답</div>
+              <div class="abap-followup-a">{{ turn.answer.content }}</div>
+            </div>
+            {% elif turn.question %}
+            <p class="small text-muted mb-0" data-i18n="chat.noAnswerYet">응답이 아직 없습니다.</p>
+            {% endif %}
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="small text-muted fst-italic mb-0" data-i18n="chat.noThreadsYet">아직 대화가 없습니다. 아래에서 질문을 보내 보세요.</p>
+      {% endif %}
+    </div>
+    <div class="abap-float-chat-footer">
+      {% if rfp_chat_limit_reached %}
+      <p class="small text-muted mb-0" data-i18n="chat.limitReached">후속 질문 횟수에 도달했습니다.</p>
+      {% else %}
+      <form method="post" action="/rfp/{{ rfp.id }}/chat" class="abap-followup-form mb-0"
+            data-busy-agents='[{"agentKo":"「질의」","doingKo":"추가 질문에 맞는 응답을 작성하고 있습니다","agentEn":"「Q&A」","doingEn":"composing a reply to your follow-up question"}]'>
+        <label class="form-label small text-muted mb-1" for="rfp-followup-msg" data-i18n="chat.messageLabel">메시지</label>
+        <div class="abap-followup-ta-wrap">
+          <textarea id="rfp-followup-msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required data-i18n-placeholder="chat.messagePlaceholder" placeholder="추가로 궁금한 점을 입력하세요."></textarea>
+          <button type="button" class="abap-followup-ta-resize" id="rfpFollowupTaResize" data-i18n-aria-label="chat.taResizeAria" data-i18n-title="chat.taResizeTitle" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
+            <span class="abap-resize-svg-wrap abap-resize-svg-wrap--sm" aria-hidden="true">
+              <svg class="abap-resize-svg abap-resize-svg-nw" width="14" height="14" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 13V3h10"/>
+              </svg>
+              <svg class="abap-resize-svg abap-resize-svg-se" width="14" height="14" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M13 3v10H3"/>
+              </svg>
+            </span>
+          </button>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">
+          <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="chat.send">보내기</span>
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <button type="button" class="abap-float-chat-launcher" id="rfpFloatChatLauncher" aria-expanded="false" aria-controls="rfpFloatChatPanel">
+    <i class="fa-solid fa-comments fa-lg abap-float-chat-launcher-icon" aria-hidden="true"></i>
+    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">AI 에게 문의하세요</span>
+    {% if rfp_followup_turns and rfp_followup_turns|length > 0 %}
+    <span class="abap-float-chat-count" aria-hidden="true">{{ rfp_followup_turns|length }}</span>
+    {% endif %}
+  </button>
+</div>
+{% endif %}
 
 <script>
 (function () {
@@ -281,4 +392,207 @@
 {% include 'partials/proposal_workspace_scripts.html' %}
 {% endif %}
 {% include 'partials/rfp_hub_gen_poll_script.html' %}
+{% if user.id == rfp.user_id %}
+<script>
+(function () {
+  var root = document.getElementById('rfp-followup-chat');
+  if (!root) return;
+  var panel = document.getElementById('rfpFloatChatPanel');
+  var launcher = document.getElementById('rfpFloatChatLauncher');
+  var closeBtn = document.getElementById('rfpFloatChatClose');
+  if (!panel || !launcher) return;
+
+  var SIZE_KEY = 'rfp-followup-chat-size';
+  var saveTimer = null;
+
+  function clamp(n, lo, hi) {
+    return Math.max(lo, Math.min(hi, n));
+  }
+
+  function sizeBounds() {
+    var vw = window.innerWidth || 800;
+    var vh = window.innerHeight || 600;
+    return {
+      minW: 280,
+      minH: 260,
+      maxW: Math.min(vw * 0.96, 920),
+      maxH: vh * 0.9
+    };
+  }
+
+  function loadStoredSizeIfAny() {
+    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) {
+      panel.style.width = '';
+      panel.style.height = '';
+      return;
+    }
+    try {
+      var raw = localStorage.getItem(SIZE_KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (typeof o.w !== 'number' || typeof o.h !== 'number') return;
+      var b = sizeBounds();
+      panel.style.width = clamp(o.w, b.minW, b.maxW) + 'px';
+      panel.style.height = clamp(o.h, b.minH, b.maxH) + 'px';
+    } catch (e) { /* ignore */ }
+  }
+
+  function clampPanelToViewport() {
+    if (panel.hasAttribute('hidden')) return;
+    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) {
+      panel.style.width = '';
+      panel.style.height = '';
+      return;
+    }
+    var b = sizeBounds();
+    var r = panel.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return;
+    var w = clamp(Math.round(r.width), b.minW, b.maxW);
+    var h = clamp(Math.round(r.height), b.minH, b.maxH);
+    panel.style.width = w + 'px';
+    panel.style.height = h + 'px';
+  }
+
+  function scheduleSaveSize() {
+    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      saveTimer = null;
+      if (panel.hasAttribute('hidden')) return;
+      try {
+        var r = panel.getBoundingClientRect();
+        var b = sizeBounds();
+        var w = clamp(Math.round(r.width), b.minW, b.maxW);
+        var h = clamp(Math.round(r.height), b.minH, b.maxH);
+        localStorage.setItem(SIZE_KEY, JSON.stringify({ w: w, h: h }));
+      } catch (e) { /* ignore */ }
+    }, 200);
+  }
+
+  loadStoredSizeIfAny();
+
+  function bindResizeGrip() {
+    var grip = document.getElementById('rfpFloatChatResize');
+    if (!grip) return;
+    function desktopOnly() {
+      return !(window.matchMedia && window.matchMedia('(max-width: 576px)').matches);
+    }
+    grip.addEventListener('pointerdown', function (e) {
+      if (!desktopOnly() || e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var startX = e.clientX;
+      var startY = e.clientY;
+      var rect = panel.getBoundingClientRect();
+      var w0 = rect.width;
+      var h0 = rect.height;
+      function move(ev) {
+        if (!desktopOnly()) return;
+        var dw = startX - ev.clientX;
+        var dh = startY - ev.clientY;
+        var b = sizeBounds();
+        var nw = clamp(Math.round(w0 + dw), b.minW, b.maxW);
+        var nh = clamp(Math.round(h0 + dh), b.minH, b.maxH);
+        panel.style.width = nw + 'px';
+        panel.style.height = nh + 'px';
+      }
+      function up() {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        scheduleSaveSize();
+      }
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
+  }
+
+  function bindTextareaResizeGrip() {
+    var ta = document.getElementById('rfp-followup-msg');
+    var grip = document.getElementById('rfpFollowupTaResize');
+    var wrap = ta && ta.closest ? ta.closest('.abap-followup-ta-wrap') : null;
+    if (!ta || !grip || !wrap) return;
+
+    var minH = 56;
+    var maxH = 420;
+    var minW = 120;
+
+    grip.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var startX = e.clientX;
+      var startY = e.clientY;
+      var w0 = ta.offsetWidth;
+      var h0 = ta.offsetHeight;
+      var panelW0 = panel.offsetWidth;
+      var panelH0 = panel.offsetHeight;
+      function move(ev) {
+        var maxW = Math.max(minW, wrap.clientWidth);
+        var dw = startX - ev.clientX;
+        var dh = startY - ev.clientY;
+        var nw = clamp(Math.round(w0 + dw), minW, maxW);
+        var nh = clamp(Math.round(h0 + dh), minH, maxH);
+        ta.style.width = nw + 'px';
+        ta.style.maxWidth = '100%';
+        ta.style.height = nh + 'px';
+        ta.style.minHeight = minH + 'px';
+        var b = sizeBounds();
+        var newPH = clamp(Math.round(panelH0 + (nh - h0)), b.minH, b.maxH);
+        var newPW = clamp(Math.round(panelW0 + (nw - w0)), b.minW, b.maxW);
+        panel.style.height = newPH + 'px';
+        panel.style.width = newPW + 'px';
+      }
+      function up() {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        scheduleSaveSize();
+      }
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
+  }
+
+  bindResizeGrip();
+  bindTextareaResizeGrip();
+
+  window.addEventListener('resize', clampPanelToViewport);
+
+  function openPanel() {
+    panel.removeAttribute('hidden');
+    launcher.setAttribute('aria-expanded', 'true');
+    loadStoredSizeIfAny();
+    clampPanelToViewport();
+  }
+  function closePanel() {
+    panel.setAttribute('hidden', '');
+    launcher.setAttribute('aria-expanded', 'false');
+    scheduleSaveSize();
+  }
+  function togglePanel() {
+    if (panel.hasAttribute('hidden')) openPanel();
+    else closePanel();
+  }
+
+  launcher.addEventListener('click', function (e) {
+    e.stopPropagation();
+    togglePanel();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', function () { closePanel(); });
+
+  function shouldAutoOpen() {
+    if (window.location.hash === '#rfp-followup-chat') return true;
+    try {
+      return new URLSearchParams(window.location.search).has('chat_err');
+    } catch (e) {
+      return false;
+    }
+  }
+  if (shouldAutoOpen()) openPanel();
+})();
+</script>
+{% endif %}
 {% endblock %}

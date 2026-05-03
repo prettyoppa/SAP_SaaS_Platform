@@ -86,6 +86,12 @@ class RFP(Base):
 
     owner = relationship("User", back_populates="rfps")
     messages = relationship("RFPMessage", back_populates="rfp", order_by="RFPMessage.round_number")
+    followup_messages = relationship(
+        "RfpFollowupMessage",
+        back_populates="rfp",
+        order_by="RfpFollowupMessage.created_at",
+        cascade="all, delete-orphan",
+    )
     fs_supplements = relationship(
         "RfpFsSupplement",
         foreign_keys="RfpFsSupplement.rfp_id",
@@ -111,6 +117,20 @@ class RFPMessage(Base):
     updated_at = Column(DateTime, nullable=True)
 
     rfp = relationship("RFP", back_populates="messages")
+
+
+class RfpFollowupMessage(Base):
+    """신규 개발(RFP) 허브 — 요청·인터뷰·제안 맥락에서 회원 질문·AI 응답."""
+
+    __tablename__ = "rfp_followup_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rfp_id = Column(Integer, ForeignKey("rfps.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String(16), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    rfp = relationship("RFP", back_populates="followup_messages")
 
 
 class RfpFsSupplement(Base):

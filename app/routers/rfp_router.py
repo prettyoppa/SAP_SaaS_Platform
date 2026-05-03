@@ -4,7 +4,8 @@ import os
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from urllib.parse import quote
 from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
@@ -30,7 +31,14 @@ from ..rfp_form_suggest import (
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..rfp_hub import normalize_rfp_hub_phase, rfp_hub_url
 from ..workflow_abap_rfp_context import load_workflow_abap_mirror_context
-from ..rfp_phase_gates import rfp_for_owner_or_admin
+from ..rfp_followup_chat import (
+    MAX_USER_TURNS_PER_REQUEST as RFP_FOLLOWUP_MAX_USER,
+    generate_rfp_followup_reply,
+    pair_followup_turn_messages,
+    rfp_followup_context_block,
+    validate_rfp_user_message,
+)
+from ..rfp_phase_gates import rfp_for_owner_or_admin, rfp_owned_only
 from ..stripe_service import stripe_keys_configured
 from . import interview_router as _interview_views
 from ..database import get_db
@@ -594,6 +602,7 @@ def rfp_unified_hub(
         rfp_id=rfp_id,
         load_messages=True,
         load_fs_supplements=True,
+        load_followup_messages=True,
     )
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
@@ -715,7 +724,95 @@ def rfp_unified_hub(
     if wf_ctx:
         ctx.update(wf_ctx)
 
+    follow_msgs = sorted(
+        list(rfp.followup_messages or []),
+        key=lambda m: (m.created_at or rfp.created_at),
+    )
+    followup_turns = pair_followup_turn_messages(follow_msgs)
+    n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
+    rfp_chat_limit_reached = n_followup_user >= RFP_FOLLOWUP_MAX_USER
+    rfp_chat_error = (request.query_params.get("chat_err") or "").strip() or None
+    ctx.update(
+        {
+            "rfp_followup_turns": followup_turns,
+            "rfp_chat_limit_reached": rfp_chat_limit_reached,
+            "rfp_chat_error": rfp_chat_error,
+            "rfp_followup_max_user": RFP_FOLLOWUP_MAX_USER,
+        }
+    )
+
     return templates.TemplateResponse(request, "rfp_unified_hub.html", ctx)
+
+
+@router.post("/rfp/{rfp_id}/chat")
+def rfp_hub_chat_post(
+    rfp_id: int,
+    request: Request,
+    message: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_owned_only(db, user_id=user.id, rfp_id=rfp_id)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+
+    msg, verr = validate_rfp_user_message(message)
+    if verr:
+        return RedirectResponse(
+            url=f"/rfp/{rfp_id}?chat_err={quote(verr)}#rfp-followup-chat",
+            status_code=303,
+        )
+
+    n_user = (
+        db.query(models.RfpFollowupMessage)
+        .filter(
+            models.RfpFollowupMessage.rfp_id == rfp.id,
+            models.RfpFollowupMessage.role == "user",
+        )
+        .count()
+    )
+    if n_user >= RFP_FOLLOWUP_MAX_USER:
+        return RedirectResponse(
+            url=f"/rfp/{rfp_id}?chat_err={quote('후속 질문은 상한에 도달했습니다.')}#rfp-followup-chat",
+            status_code=303,
+        )
+
+    prior = (
+        db.query(models.RfpFollowupMessage)
+        .filter(models.RfpFollowupMessage.rfp_id == rfp.id)
+        .order_by(models.RfpFollowupMessage.created_at.asc())
+        .all()
+    )
+
+    rfp_ctx = (
+        db.query(models.RFP)
+        .options(joinedload(models.RFP.messages))
+        .filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id)
+        .first()
+    )
+    if not rfp_ctx:
+        return RedirectResponse(url="/", status_code=302)
+
+    try:
+        ctx_block = rfp_followup_context_block(
+            db=db,
+            rfp=rfp_ctx,
+            attachment_entries=_rfp_attachment_entries(rfp_ctx),
+        )
+        reply = generate_rfp_followup_reply(
+            context_block=ctx_block,
+            history_messages=prior,
+            user_question=msg,
+        )
+    except Exception:
+        reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+
+    db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="user", content=msg))
+    db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="assistant", content=reply))
+    db.commit()
+    return RedirectResponse(url=f"/rfp/{rfp_id}#rfp-followup-chat", status_code=303)
 
 
 @router.get("/rfp/{rfp_id}/request", response_class=HTMLResponse)

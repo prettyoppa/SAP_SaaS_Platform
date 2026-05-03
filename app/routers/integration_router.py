@@ -264,7 +264,6 @@ async def integration_new_submit(
     impl_types: List[str] = Form(default=[]),
     sap_touchpoints: str = Form(""),
     environment_notes: str = Form(""),
-    security_notes: str = Form(""),
     description: str = Form(""),
     attachments: List[UploadFile] = File(default=[]),
     note_0: str = Form(""),
@@ -288,7 +287,6 @@ async def integration_new_submit(
             "impl_types": impl_types,
             "sap_touchpoints": sap_touchpoints,
             "environment_notes": environment_notes,
-            "security_notes": security_notes,
             "description": description,
             "notes": notes_in,
         }
@@ -372,7 +370,7 @@ async def integration_new_submit(
         impl_types=",".join(impl_clean) if impl_clean else "",
         sap_touchpoints=sap_touchpoints.strip() or None,
         environment_notes=environment_notes.strip() or None,
-        security_notes=security_notes.strip() or None,
+        security_notes=None,
         description=description.strip() or None,
         reference_code_payload=norm_ref,
         status="submitted",
@@ -467,7 +465,6 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
         "impl_types": raw_impl,
         "sap_touchpoints": ir.sap_touchpoints or "",
         "environment_notes": ir.environment_notes or "",
-        "security_notes": ir.security_notes or "",
         "description": ir.description or "",
         "notes": notes,
     }
@@ -503,7 +500,6 @@ async def integration_edit_submit(
     impl_types: List[str] = Form(default=[]),
     sap_touchpoints: str = Form(""),
     environment_notes: str = Form(""),
-    security_notes: str = Form(""),
     description: str = Form(""),
     attachments: List[UploadFile] = File(default=[]),
     note_0: str = Form(""),
@@ -534,7 +530,6 @@ async def integration_edit_submit(
             "impl_types": impl_types,
             "sap_touchpoints": sap_touchpoints,
             "environment_notes": environment_notes,
-            "security_notes": security_notes,
             "description": description,
             "notes": notes_in,
         }
@@ -652,7 +647,7 @@ async def integration_edit_submit(
     ir.impl_types = ",".join(impl_clean) if impl_clean else ""
     ir.sap_touchpoints = sap_touchpoints.strip() or None
     ir.environment_notes = environment_notes.strip() or None
-    ir.security_notes = security_notes.strip() or None
+    ir.security_notes = None
     ir.description = description.strip() or None
     ir.reference_code_payload = norm_ref
     ir.status = "submitted"
@@ -699,8 +694,6 @@ def integration_detail(
     chat_limit_reached = n_followup_user >= INT_CHAT_MAX_USER
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
     wf_err = (request.query_params.get("wf_err") or "").strip() or None
-    chat_enabled = True
-
     return templates.TemplateResponse(
         request,
         "integration_detail.html",
@@ -715,7 +708,6 @@ def integration_detail(
             "source_program_groups": program_groups,
             "reference_section_count": ref_section_count,
             "followup_turns": followup_turns,
-            "chat_enabled": chat_enabled,
             "chat_limit_reached": chat_limit_reached,
             "chat_error": chat_error,
             "wf_err": wf_err,

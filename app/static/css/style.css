@@ -1587,7 +1587,7 @@ html[data-theme="light"] .rfp-unified-hub .wf-abap-mirror-phase .rfp-workflow-ab
   box-shadow: 0 1px 4px rgba(67, 56, 202, 0.28);
 }
 
-/* 통합 허브 — 분석 단계 후속 질의: 이어서 질문(launcher)과 동일 톤의 summary */
+/* 통합 허브 — 분석 단계 후속 질의: 플로팅 AI 문의(launcher)와 동일 톤의 summary */
 .rfp-unified-hub details.wf-abap-followup-log > summary.wf-abap-followup-log-summary {
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   color: #fff !important;
@@ -1912,6 +1912,16 @@ html[data-theme="light"] .global-busy-overlay {
 .abap-float-chat-panel .abap-followup-turn .abap-followup-a {
   background: var(--abap-float-chat-surface2);
   border-color: var(--abap-float-chat-border);
+}
+
+/* 연동 요청 폼 — 작성 가이드 본문(토글과 같은 글자 크기·링크 색, 테두리 없음) */
+.int-write-guide-body {
+  border: none !important;
+  padding: 0.15rem 0 0.65rem 0 !important;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--bs-link-color);
 }
 
 /* ── ABAP 분석: 플로팅 후속 질문 패널 ─────────────────────── */

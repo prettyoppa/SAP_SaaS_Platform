@@ -166,7 +166,6 @@ def build_workflow_seed_answer_integration(
     impl_types: str,
     sap_touchpoints: str | None,
     environment_notes: str | None,
-    security_notes: str | None,
     description: str | None,
     followup_messages: list,
     improvement_text: str,
@@ -183,9 +182,6 @@ def build_workflow_seed_answer_integration(
     lines.append("")
     lines.append("### 실행 환경")
     lines.append((environment_notes or "").strip() or "—")
-    lines.append("")
-    lines.append("### 보안·권한")
-    lines.append((security_notes or "").strip() or "—")
     lines.append("")
     lines.append("### 상세 설명")
     lines.append((description or "").strip() or "—")
@@ -316,7 +312,6 @@ def create_workflow_rfp_from_integration(
         impl_types=impl_disp,
         sap_touchpoints=ir.sap_touchpoints,
         environment_notes=ir.environment_notes,
-        security_notes=ir.security_notes,
         description=ir.description,
         followup_messages=fmsgs,
         improvement_text=improvement_text,

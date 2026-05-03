@@ -102,7 +102,6 @@ def integration_request_llm_summary(ir, db: Optional[Session] = None) -> str:
         f"구현 형태: {impl_disp}",
         f"SAP 터치포인트:\n{getattr(ir, 'sap_touchpoints', '') or '—'}",
         f"실행 환경:\n{getattr(ir, 'environment_notes', '') or '—'}",
-        f"보안·권한:\n{getattr(ir, 'security_notes', '') or '—'}",
         f"상세 설명:\n{getattr(ir, 'description', '') or '—'}",
     ]
     return "\n\n".join(parts)

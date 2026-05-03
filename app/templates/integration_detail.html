@@ -69,13 +69,6 @@
       </div>
       {% endif %}
 
-      {% if ir.security_notes %}
-      <div class="mb-4">
-        <h5 class="small text-uppercase text-muted" data-i18n="detail.security">보안·권한</h5>
-        <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.security_notes }}</div>
-      </div>
-      {% endif %}
-
       {% if ir.description %}
       <div class="mb-4">
         <h5 class="small text-uppercase text-muted" data-i18n="detail.description">상세 설명</h5>
@@ -165,19 +158,16 @@
       </div>
     </details>
 
-    {% if chat_enabled %}
     <p class="small text-muted mb-4">
       <i class="fa-solid fa-comments me-1 text-primary-light"></i>
-      <span data-i18n="detail.chatHintInt">이 연동 요청에 대한 <strong>추가 질문·응답</strong>은 화면 <strong>오른쪽 아래</strong> 채팅 버튼에서 이어서 할 수 있습니다.</span>
+      <span data-i18n="detail.chatHintInt">이 연동 요청에 대해 궁금한 점은 화면 <strong>오른쪽 아래</strong> <strong>AI 에게 문의하세요</strong> 버튼으로 물어보실 수 있습니다.</span>
       <span class="nav-ko">(회당 최대 {{ max_followup_user_turns }}회)</span>
       <span class="nav-en" style="display:none">(Up to {{ max_followup_user_turns }} messages per request)</span>
     </p>
-    {% endif %}
 
   </div>
 </div>
 
-{% if chat_enabled %}
 <div id="integration-followup-chat" class="abap-float-chat" aria-live="polite">
   <div id="integrationFloatChatPanel" class="abap-float-chat-panel" hidden
        data-i18n-title="chat.panelResizeTitle" title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
@@ -271,17 +261,15 @@
   </div>
   <button type="button" class="abap-float-chat-launcher" id="integrationFloatChatLauncher" aria-expanded="false" aria-controls="integrationFloatChatPanel">
     <i class="fa-solid fa-comments fa-lg abap-float-chat-launcher-icon" aria-hidden="true"></i>
-    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">이어서 질문</span>
+    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">AI 에게 문의하세요</span>
     {% if followup_turns and followup_turns|length > 0 %}
     <span class="abap-float-chat-count" aria-hidden="true">{{ followup_turns|length }}</span>
     {% endif %}
   </button>
 </div>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
-{% if chat_enabled %}
 <script>
 (function () {
   var root = document.getElementById('integration-followup-chat');
@@ -483,5 +471,4 @@
   if (shouldAutoOpen()) openPanel();
 })();
 </script>
-{% endif %}
 {% endblock %}

@@ -91,10 +91,13 @@
             <div class="mb-3">
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
                 <label class="form-label fw-semibold mb-0" for="int-sap-touchpoints">SAP 터치포인트 / 인터페이스</label>
-                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#int-guide-touch" aria-expanded="false" aria-controls="int-guide-touch">작성 가이드</button>
+                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none int-write-guide-toggle" data-bs-toggle="collapse" data-bs-target="#int-guide-touch" aria-expanded="false" aria-controls="int-guide-touch">작성 가이드</button>
               </div>
-              <div class="collapse small text-muted border rounded p-3 mb-2" id="int-guide-touch">
-                SAP와 데이터·화면·배치가 맞닿는 지점을 적어 주세요. 예: 사용 중인 <strong>RFC 함수 모듈 이름</strong>, <strong>OData 서비스 URL 또는 서비스명</strong>, <strong>IDoc 유형</strong>, 파일 입출력 경로, 외부 DB 연결 등. 정확한 이름을 모르면 화면 캡처나 메뉴 경로를 첨부(03절)해 주셔도 됩니다.
+              <div class="collapse int-write-guide-body mb-2" id="int-guide-touch">
+                SAP와 어디서 이어지는지 알려 주시면 제안서에 반영하기 좋습니다. 전문 이름이 없어도 괜찮습니다.<br/>
+                · 예: Excel에서 SAP으로 숫자를 넣는다, 밤에 파일을 읽어서 처리한다, 특정 화면 메뉴까지 들어가서 조회한다<br/>
+                · 어떤 자료가 오가는지(주문, 재고, 금액 등)를 쉬운 말로 적어 주셔도 됩니다.<br/>
+                · 화면·양식 그림은 03절 첨부에 올려 주세요.
               </div>
               <textarea name="sap_touchpoints" id="int-sap-touchpoints" class="form-control" rows="4">{{ form.sap_touchpoints if form else '' }}</textarea>
             </div>
@@ -102,32 +105,27 @@
             <div class="mb-3">
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
                 <label class="form-label fw-semibold mb-0" for="int-environment-notes">실행 환경</label>
-                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#int-guide-env" aria-expanded="false">작성 가이드</button>
+                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none int-write-guide-toggle" data-bs-toggle="collapse" data-bs-target="#int-guide-env" aria-expanded="false">작성 가이드</button>
               </div>
-              <div class="collapse small text-muted border rounded p-3 mb-2" id="int-guide-env">
-                프로그램이 돌아가는 곳을 알려 주세요. 예: <strong>Windows 버전</strong>, <strong>Office(Excel) 버전</strong>, 32/64비트, 서버 OS, 배치 스케줄러 사용 여부, SAP GUI 버전, 네트워크(DMZ·VPN·방화벽) 제약 등. 개발·검증 PC와 운영 PC가 다르면 둘 다 적어 주시면 좋습니다.
+              <div class="collapse int-write-guide-body mb-2" id="int-guide-env">
+                프로그램이 실제로 돌아갈 곳을 알려 주세요. 대략만 적어도 됩니다.<br/>
+                · 예: 사무실 PC(윈도우), Excel 사용, SAP 화면도 같이 쓴다 / 서버에서만 돈다 등<br/>
+                · 나중에 운영할 PC와 지금 테스트하는 PC가 다르면, 둘 다 적어 주시면 좋습니다.
               </div>
               <textarea name="environment_notes" id="int-environment-notes" class="form-control" rows="3">{{ form.environment_notes if form else '' }}</textarea>
-            </div>
-
-            <div class="mb-3">
-              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
-                <label class="form-label fw-semibold mb-0" for="int-security-notes">보안·권한</label>
-                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#int-guide-sec" aria-expanded="false">작성 가이드</button>
-              </div>
-              <div class="collapse small text-muted border rounded p-3 mb-2" id="int-guide-sec">
-                계정·키·개인정보를 어떻게 다루는지 적어 주세요. 예: SAP·OS 계정 분리, 서비스 계정 사용, 암호·API 키 보관 방식, 개인정보·민감 데이터 마스킹, 로그 보관 기간, 권한 상승이 필요한지 등. 모르면 "사내 보안팀 지침 따름" 정도만 적어도 됩니다.
-              </div>
-              <textarea name="security_notes" id="int-security-notes" class="form-control" rows="3">{{ form.security_notes if form else '' }}</textarea>
             </div>
 
             <div class="mb-2">
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
                 <label class="form-label fw-semibold mb-0" for="int-description">상세 설명</label>
-                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#int-guide-desc" aria-expanded="false">작성 가이드</button>
+                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none int-write-guide-toggle" data-bs-toggle="collapse" data-bs-target="#int-guide-desc" aria-expanded="false">작성 가이드</button>
               </div>
-              <div class="collapse small text-muted border rounded p-3 mb-2" id="int-guide-desc">
-                전체 흐름을 자유롭게 적어 주세요. 예: <strong>누가·언제·어떤 화면에서</strong> 무엇을 하다가 어떤 결과를 기대하는지, 오류가 나면 어떻게 되는지, 샘플 데이터나 기한, &quot;반드시 지켜야 할&quot; 규칙이 있으면 함께 적어 주세요. 위 칸이 비어 있으면 이 칸에 모두 모아 적으셔도 됩니다.
+              <div class="collapse int-write-guide-body mb-2" id="int-guide-desc">
+                하고 싶은 일을 편지 쓰듯 적어 주세요. 제안서를 쓸 때 그대로 참고합니다.<br/>
+                · 누가, 언제, 무엇을 하면, 결과로 무엇이 나오면 좋은지<br/>
+                · 지금 불편한 점이나 자주 나는 오류<br/>
+                · 꼭 지켜야 하는 기한·규칙이 있으면 함께 적어 주세요.<br/>
+                위 칸을 비워 두고 이 칸에만 모아 적으셔도 됩니다.
               </div>
               <textarea name="description" id="int-description" class="form-control rfp-textarea" rows="10">{{ form.description if form else '' }}</textarea>
               <div class="d-flex justify-content-end mt-1">

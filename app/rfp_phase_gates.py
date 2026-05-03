@@ -117,6 +117,7 @@ def rfp_for_owner_or_admin(
     rfp_id: int,
     load_messages: bool = False,
     load_fs_supplements: bool = False,
+    load_followup_messages: bool = False,
 ) -> models.RFP | None:
     """조회 페이지용: 본인 또는 관리자."""
     q = db.query(models.RFP).filter(models.RFP.id == rfp_id)
@@ -125,6 +126,8 @@ def rfp_for_owner_or_admin(
         preload.append(joinedload(models.RFP.messages))
     if load_fs_supplements:
         preload.append(joinedload(models.RFP.fs_supplements))
+    if load_followup_messages:
+        preload.append(joinedload(models.RFP.followup_messages))
     if preload:
         q = q.options(*preload)
     if not user.is_admin:
