@@ -106,7 +106,7 @@ const TRANSLATIONS = {
     "rfp.s4.sub": "Your request will be reviewed and a free Development Proposal will be generated.",
     "rfp.reviewModules": "Selected Modules:", "rfp.reviewTypes": "Development Types:",
     "rfp.reviewFile": "Attachment:", "rfp.none": "None selected", "rfp.noFile": "No file attached",
-    "rfp.freeNote": "Development Proposal generation is <strong>completely free</strong>. You'll receive it within 24 hours.",
+    "rfp.freeNote": "Development Proposal generation is <strong>completely free</strong>. Follow the interview, then open the proposal on this site.",
     "rfp.cancel": "Cancel", "rfp.submit": "Submit Request", "rfp.submitBtn": "Submit",
     "rfp.errorFile": "Invalid file type. Allowed: PDF, Excel, Word, images, TXT.",
     /* Modules */
@@ -143,9 +143,9 @@ const TRANSLATIONS = {
     "success.title2": "Request Title", "success.modules": "SAP Modules",
     "success.types": "Dev Types", "success.status": "Status",
     "success.nextTitle": "What happens next?",
-    "success.next1.title": "AI Analysis", "success.next1.desc": "Our AI parses your requirements and generates a structured Development Proposal.",
-    "success.next2.title": "Expert Review", "success.next2.desc": "An SAP consultant reviews and enriches the proposal with professional insights.",
-    "success.next3.title": "Proposal Delivered", "success.next3.desc": "You'll receive your free Development Proposal within 24 hours via email.",
+    "success.next1.title": "Requirements analysis", "success.next1.desc": "AI agents read your RFP and attachments to structure the requirement context.",
+    "success.next2.title": "AI interview", "success.next2.desc": "The interview agent asks a few rounds of questions so scope and details are clear before drafting.",
+    "success.next3.title": "Development Proposal", "success.next3.desc": "Proposal and review agents draft and refine your Development Proposal; you open it on this site when it is ready.",
     "success.newRequest": "New Request", "success.dashboard": "Go to Dashboard",
     /* Services ABAP landing */
     "svcAbap.createdFrom": "Created date",
@@ -463,7 +463,7 @@ const TRANSLATIONS = {
     "rfp.s4.sub": "요청이 검토되고 무료 개발 제안서가 생성됩니다.",
     "rfp.reviewModules": "선택 모듈:", "rfp.reviewTypes": "개발 유형:",
     "rfp.reviewFile": "첨부 파일:", "rfp.none": "선택 없음", "rfp.noFile": "파일 없음",
-    "rfp.freeNote": "개발 제안서 생성은 <strong>완전 무료</strong>입니다. 24시간 내에 이메일로 받아보실 수 있습니다.",
+    "rfp.freeNote": "개발 제안서 생성은 <strong>완전 무료</strong>입니다. 인터뷰를 마친 뒤 이 사이트에서 제안서를 확인하실 수 있습니다.",
     "rfp.cancel": "취소", "rfp.submit": "요청 제출", "rfp.submitBtn": "제출",
     "rfp.errorFile": "허용되지 않는 파일 형식입니다. 허용: PDF, Excel, Word, 이미지, TXT.",
     /* Modules */
@@ -500,9 +500,9 @@ const TRANSLATIONS = {
     "success.title2": "요청 제목", "success.modules": "SAP 모듈",
     "success.types": "개발 유형", "success.status": "상태",
     "success.nextTitle": "다음 단계는 무엇인가요?",
-    "success.next1.title": "AI 분석", "success.next1.desc": "AI가 요구사항을 분석하여 구조화된 개발 제안서를 생성합니다.",
-    "success.next2.title": "전문가 검토", "success.next2.desc": "SAP 컨설턴트가 제안서를 검토하고 전문적인 인사이트를 추가합니다.",
-    "success.next3.title": "제안서 발송", "success.next3.desc": "무료 개발 제안서가 24시간 이내에 이메일로 발송됩니다.",
+    "success.next1.title": "요구 분석", "success.next1.desc": "요구분석 에이전트가 RFP·첨부·참고 자료를 바탕으로 요구 맥락을 구조화합니다.",
+    "success.next2.title": "AI 인터뷰", "success.next2.desc": "질의 에이전트가 라운드별 질문으로 범위와 세부 요건을 구체화합니다.",
+    "success.next3.title": "제안서 생성", "success.next3.desc": "제안서·제안검수 에이전트가 Development Proposal을 작성·다듬으며, 완료되면 이 사이트에서 바로 확인합니다.",
     "success.newRequest": "새 요청 만들기", "success.dashboard": "대시보드로",
     /* Services ABAP landing */
     "svcAbap.createdFrom": "생성일",

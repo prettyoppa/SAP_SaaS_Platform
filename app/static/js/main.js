@@ -190,9 +190,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const t = form.getAttribute('target');
       if (t && t.toLowerCase() === '_blank') return;
       const meta = _readDatasetBusy(form, e.submitter);
-      showGlobalBusy(meta);
+      /* 캡처에서 바로 showGlobalBusy 하면 onsubmit="return confirm…" 취소 후에도 오버레이가 켜짐.
+         버블 + microtask: 동기 핸들러(확인 취소 등)까지 반영된 defaultPrevented 를 본 뒤 표시. */
+      queueMicrotask(() => {
+        if (e.defaultPrevented) return;
+        showGlobalBusy(meta);
+      });
     },
-    true,
+    false,
   );
 
   document.addEventListener(
