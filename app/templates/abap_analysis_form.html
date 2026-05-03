@@ -137,44 +137,9 @@
                     </div>
                   </div>
                   <div class="card-body">
-                    <div class="row g-3 mb-3">
-                      <div class="col-md-4">
-                        <label class="form-label fw-semibold">프로그램 ID</label>
-                        <input type="text" class="form-control js-ref-pid" maxlength="40" autocomplete="off" id="abap-ref-pid-{{ rs }}"/>
-                        <div class="small mt-1 text-warning js-ref-fb-pid" style="min-height:1.25rem"></div>
-                      </div>
-                      <div class="col-md-4">
-                        <label class="form-label fw-semibold">트랜잭션 코드</label>
-                        <input type="text" class="form-control js-ref-tcode" maxlength="20" autocomplete="off" id="abap-ref-tcode-{{ rs }}"/>
-                        <div class="small mt-1 text-warning js-ref-fb-tcode" style="min-height:1.25rem"></div>
-                      </div>
-                      <div class="col-md-12">
-                        <label class="form-label fw-semibold">프로그램 설명</label>
-                        <input type="text" class="form-control js-ref-title" maxlength="200" autocomplete="off"/>
-                      </div>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label fw-semibold">SAP 모듈 <span class="badge bg-secondary ms-1" id="ref-mod-count-{{ rs }}">0 / 3</span></label>
-                      <div class="chip-group">
-                        {% for mod in modules %}
-                        <label class="chip-label">
-                          <input type="checkbox" value="{{ mod.code }}" class="chip-input ref-mod-{{ rs }}"/>
-                          <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
-                        </label>
-                        {% endfor %}
-                      </div>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label fw-semibold">개발 유형 <span class="badge bg-secondary ms-1" id="ref-dt-count-{{ rs }}">0 / 3</span></label>
-                      <div class="chip-group">
-                        {% for dt in devtypes %}
-                        <label class="chip-label">
-                          <input type="checkbox" value="{{ dt.code }}" class="chip-input ref-dt-{{ rs }}"/>
-                          <span class="chip">{{ dt.label_ko }}</span>
-                        </label>
-                        {% endfor %}
-                      </div>
-                    </div>
+                    <p class="text-muted small mb-3 mb-md-4">
+                      프로그램 ID·트랜잭션·모듈·개발 유형은 위 요청 정보와 본 ABAP 소스를 바탕으로 에이전트가 파악합니다. 여기서는 분석에 참고할 소스만 구성하면 됩니다.
+                    </p>
                     <div class="mb-2 fw-semibold small">ABAP 소스 (섹션별)</div>
                     <div id="ref-sections-{{ rs }}"></div>
                     <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="ref-add-sec-{{ rs }}" data-slot="{{ rs }}">
@@ -212,7 +177,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/rfp_local_ref_code.js?v=20260422a"></script>
+<script src="/static/js/rfp_local_ref_code.js?v=20260422b"></script>
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
 <script src="/static/js/rfp_form.js?v=20260417a"></script>
 {% endblock %}

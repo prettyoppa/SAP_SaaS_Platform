@@ -108,47 +108,6 @@
     });
   }
 
-  function refreshSlotCounts(slotIdx) {
-    var max = 3;
-    var modCls = 'ref-mod-' + slotIdx;
-    var dtCls = 'ref-dt-' + slotIdx;
-    function upd(cls, countId) {
-      var inputs = document.querySelectorAll('.' + cls);
-      var countEl = document.getElementById(countId);
-      var checked = document.querySelectorAll('.' + cls + ':checked').length;
-      if (countEl) countEl.textContent = checked + ' / ' + max;
-      inputs.forEach(function (inp) {
-        if (!inp.checked) inp.disabled = checked >= max;
-      });
-    }
-    upd(modCls, 'ref-mod-count-' + slotIdx);
-    upd(dtCls, 'ref-dt-count-' + slotIdx);
-  }
-
-  function setupSlotMaxSelect(slotIdx, clsMod, clsDt, modCountId, dtCountId) {
-    var max = 3;
-    function bind(cls, countId) {
-      var inputs = document.querySelectorAll('.' + cls);
-      var countEl = document.getElementById(countId);
-      function upd() {
-        var checked = document.querySelectorAll('.' + cls + ':checked').length;
-        if (countEl) countEl.textContent = checked + ' / ' + max;
-        inputs.forEach(function (inp) {
-          if (!inp.checked) inp.disabled = checked >= max;
-        });
-      }
-      inputs.forEach(function (inp) {
-        inp.addEventListener('change', function () {
-          upd();
-          scheduleSave();
-        });
-      });
-      upd();
-    }
-    bind(clsMod, modCountId);
-    bind(clsDt, dtCountId);
-  }
-
   function gather() {
     var slots = [];
     for (var i = 0; i < MAX_SLOTS; i++) {
@@ -223,26 +182,7 @@
   }
 
   function clearSlot(slotIdx) {
-    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
-    if (!root) return;
-    var pid = root.querySelector('.js-ref-pid');
-    var tc = root.querySelector('.js-ref-tcode');
-    var tit = root.querySelector('.js-ref-title');
-    if (pid) pid.value = '';
-    if (tc) tc.value = '';
-    if (tit) tit.value = '';
-    root.querySelectorAll('.ref-mod-' + slotIdx).forEach(function (cb) {
-      cb.checked = false;
-    });
-    root.querySelectorAll('.ref-dt-' + slotIdx).forEach(function (cb) {
-      cb.checked = false;
-    });
     rebuildSections(slotIdx, defaultSections());
-    var fb1 = root.querySelector('.js-ref-fb-pid');
-    var fb2 = root.querySelector('.js-ref-fb-tcode');
-    if (fb1) fb1.textContent = '';
-    if (fb2) fb2.textContent = '';
-    refreshSlotCounts(slotIdx);
   }
 
   function applySlotVisibility() {
@@ -325,53 +265,11 @@
 
     for (var i = 0; i < MAX_SLOTS; i++) {
       var slotData = (loaded && loaded.slots && loaded.slots[i]) || {};
-      var root = document.querySelector('[data-ref-slot="' + i + '"]');
-      if (root) {
-        var pid = root.querySelector('.js-ref-pid');
-        var tc = root.querySelector('.js-ref-tcode');
-        var tit = root.querySelector('.js-ref-title');
-        if (pid) pid.value = slotData.program_id || '';
-        if (tc) tc.value = slotData.transaction_code || '';
-        if (tit) tit.value = slotData.title || '';
-      }
-
       rebuildSections(
         i,
         slotData.sections && slotData.sections.length ? slotData.sections : defaultSections()
       );
-
-      if (root) {
-        root.querySelectorAll('.ref-mod-' + i).forEach(function (cb) {
-          cb.checked = (slotData.sap_modules || []).indexOf(cb.value) >= 0;
-        });
-        root.querySelectorAll('.ref-dt-' + i).forEach(function (cb) {
-          cb.checked = (slotData.dev_types || []).indexOf(cb.value) >= 0;
-        });
-      }
-
-      setupSlotMaxSelect(
-        i,
-        'ref-mod-' + i,
-        'ref-dt-' + i,
-        'ref-mod-count-' + i,
-        'ref-dt-count-' + i
-      );
       wireAddSection(i);
-
-      if (root && window.initSapPidTcodePair) {
-        window.initSapPidTcodePair({
-          programEl: root.querySelector('.js-ref-pid'),
-          transactionEl: root.querySelector('.js-ref-tcode'),
-          feedbackPid: root.querySelector('.js-ref-fb-pid'),
-          feedbackTc: root.querySelector('.js-ref-fb-tcode'),
-          maxPid: 40,
-          maxTc: 20,
-          mirrorTc: true,
-          onChange: scheduleSave,
-        });
-        var titleEl = root.querySelector('.js-ref-title');
-        if (titleEl) titleEl.addEventListener('input', scheduleSave);
-      }
     }
 
     applySlotVisibility();
@@ -405,7 +303,6 @@
             clearSlot(j);
           }
           applySlotVisibility();
-          for (var k = 0; k < MAX_SLOTS; k++) refreshSlotCounts(k);
           syncHiddenInput();
           if (typeof window.updateReview === 'function') window.updateReview();
         }
@@ -478,33 +375,13 @@
 
     for (var i = 0; i < MAX_SLOTS; i++) {
       var slotData = payload.slots[i] || {};
-      var root = document.querySelector('[data-ref-slot="' + i + '"]');
-      if (root) {
-        var pid = root.querySelector('.js-ref-pid');
-        var tc = root.querySelector('.js-ref-tcode');
-        var tit = root.querySelector('.js-ref-title');
-        if (pid) pid.value = slotData.program_id || '';
-        if (tc) tc.value = slotData.transaction_code || '';
-        if (tit) tit.value = slotData.title || '';
-      }
-
       rebuildSections(
         i,
         slotData.sections && slotData.sections.length ? slotData.sections : defaultSections()
       );
-
-      if (root) {
-        root.querySelectorAll('.ref-mod-' + i).forEach(function (cb) {
-          cb.checked = (slotData.sap_modules || []).indexOf(cb.value) >= 0;
-        });
-        root.querySelectorAll('.ref-dt-' + i).forEach(function (cb) {
-          cb.checked = (slotData.dev_types || []).indexOf(cb.value) >= 0;
-        });
-      }
     }
 
     applySlotVisibility();
-    for (var k = 0; k < MAX_SLOTS; k++) refreshSlotCounts(k);
     syncHiddenInput();
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = null;
@@ -521,15 +398,16 @@
     for (var i = 0; i < visibleSlotCount; i++) {
       var root = document.querySelector('[data-ref-slot="' + i + '"]');
       if (!root) continue;
-      var pid = ((root.querySelector('.js-ref-pid') || {}).value || '').trim();
-      var tit = ((root.querySelector('.js-ref-title') || {}).value || '').trim();
-      var hasCode = false;
+      var filled = false;
       root.querySelectorAll('.section-code').forEach(function (ta) {
-        if (ta.value.trim()) hasCode = true;
+        if (ta.value.trim()) filled = true;
       });
-      var mods = root.querySelectorAll('.ref-mod-' + i + ':checked').length;
-      var dts = root.querySelectorAll('.ref-dt-' + i + ':checked').length;
-      if (pid || tit || hasCode || mods || dts) n++;
+      if (!filled) {
+        root.querySelectorAll('.section-name-input').forEach(function (inp) {
+          if (inp.value.trim()) filled = true;
+        });
+      }
+      if (filled) n++;
     }
     return n;
   };
