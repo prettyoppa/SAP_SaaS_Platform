@@ -195,9 +195,21 @@ def build_workflow_seed_answer_integration(
 
 
 def build_workflow_description_abap(row: models.AbapAnalysisRequest, improvement_text: str) -> str:
-    header = "[워크플로: 분석·개선 → 신규 개발 제안서]"
-    parts = [header, "", "**개선 제안 요청**", improvement_text.strip(), "", "**원본 요구사항**", (row.requirement_text or "").strip()]
-    return "\n".join(parts)
+    """에이전트용 RFP 본문: 인터뷰 라운드와 분리된 요약(상세 단계는 허브에서 사람이 확인)."""
+    return "\n".join(
+        [
+            "[워크플로: ABAP 분석·개선에서 연결된 신규 개발(RFP)]",
+            "",
+            "분석·개선 단계의 코드·분석 JSON·후속 대화는 RFP 허브 「1. 요청」에 동일하게 표시됩니다.",
+            "이하 필드는 인터뷰·제안서 에이전트가 참고할 요약입니다.",
+            "",
+            "### 개선 제안 요청",
+            (improvement_text or "").strip(),
+            "",
+            "### 원 요구사항(분석 요청 시 제출)",
+            (row.requirement_text or "").strip(),
+        ]
+    )
 
 
 def build_workflow_description_integration(ir: models.IntegrationRequest, improvement_text: str) -> str:
@@ -241,14 +253,6 @@ def create_workflow_rfp_from_abap_analysis(
     title_base = (row.title or "").strip() or f"ABAP 분석 개선 #{row.id}"
     title = (title_base + " · 개선제안")[:512]
 
-    fmsgs = followup_messages if followup_messages is not None else list(row.followup_messages or [])
-    seed = build_workflow_seed_answer_abap(
-        requirement_text=row.requirement_text or "",
-        analysis_json_raw=row.analysis_json,
-        followup_messages=fmsgs,
-        improvement_text=improvement_text,
-    )
-
     rfp = models.RFP(
         user_id=owner_user_id,
         program_id=pid or None,
@@ -261,20 +265,10 @@ def create_workflow_rfp_from_abap_analysis(
         reference_code_payload=getattr(row, "reference_code_payload", None),
         status="submitted",
         workflow_origin="abap_analysis",
-        interview_status="generating_proposal",
+        interview_status="pending",
     )
     db.add(rfp)
     db.flush()
-
-    msg = models.RFPMessage(
-        rfp_id=rfp.id,
-        round_number=1,
-        questions_json=json.dumps(["[분석·후속 대화 기반] 제안서 작성용 요약"], ensure_ascii=False),
-        answers_text=seed,
-        is_answered=True,
-        source_label="workflow_abap_analysis",
-    )
-    db.add(msg)
 
     row.workflow_rfp_id = rfp.id
     row.improvement_request_text = improvement_text.strip()

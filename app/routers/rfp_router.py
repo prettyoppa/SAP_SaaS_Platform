@@ -29,6 +29,7 @@ from ..rfp_form_suggest import (
 )
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..rfp_hub import normalize_rfp_hub_phase, rfp_hub_url
+from ..workflow_abap_rfp_context import load_workflow_abap_mirror_context
 from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
 from . import interview_router as _interview_views
@@ -718,6 +719,10 @@ def rfp_unified_hub(
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
         ctx.update(ws_out.wizard_ctx)
+
+    wf_ctx = load_workflow_abap_mirror_context(db, user, rfp)
+    if wf_ctx:
+        ctx.update(wf_ctx)
 
     return templates.TemplateResponse(request, "rfp_unified_hub.html", ctx)
 

@@ -10,7 +10,7 @@ import os
 from typing import List, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 
@@ -39,7 +39,7 @@ from ..rfp_reference_code import (
     reference_code_program_groups_for_tabs,
 )
 from ..templates_config import templates
-from .interview_router import _markdown_to_html, _run_proposal_background
+from .interview_router import _markdown_to_html
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
@@ -48,6 +48,7 @@ from .rfp_router import (
     _rfp_core_fields_incomplete_response,
     _rfp_missing_core_field_labels,
 )
+from ..rfp_hub import rfp_hub_url
 from ..workflow_rfp_bridge import create_workflow_rfp_from_abap_analysis
 
 router = APIRouter(prefix="/abap-analysis", tags=["abap_analysis"])
@@ -848,17 +849,11 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
 def abap_analysis_improvement_proposal_post(
     req_id: int,
     request: Request,
-    background_tasks: BackgroundTasks,
     improvement_request_text: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
-    row_el = (
-        _query_for_user(db, user)
-        .options(joinedload(models.AbapAnalysisRequest.followup_messages))
-        .filter(models.AbapAnalysisRequest.id == req_id)
-        .first()
-    )
+    row_el = _query_for_user(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
     if not row_el or row_el.is_draft or not row_el.is_analyzed:
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     if getattr(row_el, "workflow_rfp_id", None):
@@ -867,19 +862,14 @@ def abap_analysis_improvement_proposal_post(
     if len(txt) < MIN_IMPROVEMENT_PROPOSAL_LEN:
         return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=short", status_code=302)
 
-    fmsgs = sorted(
-        list(row_el.followup_messages or []),
-        key=lambda m: (m.created_at or row_el.created_at),
-    )
     rfp = create_workflow_rfp_from_abap_analysis(
         db,
         row=row_el,
         improvement_text=txt,
         owner_user_id=user.id,
-        followup_messages=fmsgs,
+        followup_messages=None,
     )
-    background_tasks.add_task(_run_proposal_background, rfp.id)
-    return RedirectResponse(url=f"/rfp/{rfp.id}/proposal/generating", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp.id, "request"), status_code=302)
 
 
 @router.post("/{req_id}/chat")

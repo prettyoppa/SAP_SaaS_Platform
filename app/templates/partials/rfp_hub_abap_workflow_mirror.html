@@ -1,0 +1,286 @@
+{# 분석·개선 → RFP 연결 시 1. 요청 영역에 표시 (읽기 전용). 컨텍스트: wf_row, wf_analysis, wf_attachment_entries, wf_source_program_groups, wf_followup_turns, wf_tabs_base_id, rfp #}
+<div class="mb-4 p-3 rounded border" style="background:rgba(99,102,241,.06);border-color:rgba(99,102,241,.22)!important;">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div class="small fw-semibold text-primary" data-i18n="hub.wfAbapMirrorTitle">분석·개선 단계 기록</div>
+    <a href="/abap-analysis/{{ wf_row.id }}" class="btn btn-sm btn-outline-primary" data-i18n="hub.wfAbapOpenSource">원 분석 요청 열기</a>
+  </div>
+  <p class="small text-muted mb-0" data-i18n="hub.wfAbapMirrorHint">아래는 분석·개선 메뉴에서 제출하신 1~4단계와, 같은 화면에서 나눈 후속 질의 로그입니다. 신규 개발 인터뷰(2단계)와는 별도입니다.</p>
+</div>
+
+<details class="interview-summary-toggle rfp-hub-phase mb-3" open>
+  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="fw-semibold" data-i18n="detail.phaseRequest">1. 요청</span>
+    <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+  </summary>
+  <div class="rfp-hub-phase-body pt-2">
+    <div class="proposal-card mb-0">
+      <div class="proposal-body">
+        <dl class="row mb-0 small">
+          {% if wf_row.program_id %}
+          <dt class="col-sm-3 text-muted" data-i18n="reqPanel.programId">프로그램 ID</dt>
+          <dd class="col-sm-9 font-monospace">{{ wf_row.program_id }}</dd>
+          {% endif %}
+          {% if wf_row.transaction_code %}
+          <dt class="col-sm-3 text-muted" data-i18n="reqPanel.tcode">T-code</dt>
+          <dd class="col-sm-9 font-monospace">{{ wf_row.transaction_code }}</dd>
+          {% endif %}
+          <dt class="col-sm-3 text-muted" data-i18n="reqPanel.modules">SAP 모듈</dt>
+          <dd class="col-sm-9">
+            {% if wf_row.sap_modules %}
+            {% for m in wf_row.sap_modules.split(',') %}
+            {% set mm = m|trim %}
+            {% if mm %}<span class="badge-module me-1">{{ mm }}</span>{% endif %}
+            {% endfor %}
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-sm-3 text-muted" data-i18n="reqPanel.devTypes">개발 유형</dt>
+          <dd class="col-sm-9">
+            {% if wf_row.dev_types %}
+            {% for d in wf_row.dev_types.split(',') %}
+            {% set dd = d|trim %}
+            {% if dd %}<span class="badge-devtype me-1">{{ dd|replace('_',' ') }}</span>{% endif %}
+            {% endfor %}
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
+          <dd class="col-sm-9">{{ wf_row.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+        </dl>
+        <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.requirements">요구사항</h6>
+        <div class="border rounded p-3 small" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ wf_row.requirement_text or '' }}</div>
+        {% if wf_attachment_entries %}
+        <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.attachments">첨부</h6>
+        <ul class="mb-0">
+          {% for att in wf_attachment_entries %}
+          <li class="mb-1">
+            <a href="/abap-analysis/{{ wf_row.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener" data-no-busy="true">{{ att.filename or '파일' }}</a>
+            {% if att.note %}<span class="text-muted small">— {{ att.note }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% if wf_source_program_groups and wf_source_program_groups|length %}
+        <h6 class="text-muted mt-3 small text-uppercase">참고 ABAP 코드</h6>
+        {% set tabs_base_id = wf_tabs_base_id %}
+        {% set source_program_groups = wf_source_program_groups %}
+        {% include "partials/reference_code_program_boxes.html" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</details>
+
+{% if not wf_row.is_draft and wf_analysis %}
+<details class="interview-summary-toggle rfp-hub-phase mb-3" open>
+  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="fw-semibold" data-i18n="detail.phaseAnalysis">2. 분석 결과</span>
+    {% if wf_analysis.get('error') %}
+    <span class="badge bg-danger" data-i18n="detail.analysisErrBadge">오류</span>
+    {% else %}
+    <span class="badge bg-success" data-i18n="detail.analysisOkBadge">분석 완료</span>
+    {% endif %}
+    <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+  </summary>
+  <div class="rfp-hub-phase-body pt-2">
+    {% if wf_analysis.get('error') %}
+    <div class="alert alert-danger mb-0 small">
+      <span data-i18n="detail.analysisErrorPrefix">분석 오류:</span> {{ wf_analysis.error }}
+    </div>
+    {% else %}
+    <div class="proposal-card mb-0">
+      <div class="proposal-body">
+        <h4 class="h6 mb-3" style="border-left:3px solid var(--primary);padding-left:.75rem">
+          <i class="fa-solid fa-robot me-2 text-primary-light"></i>{{ 'f_analyst'|agent_label }} – 코드 구조 분석
+        </h4>
+        {% if wf_analysis.program_purpose %}
+        <details class="analysis-fold mb-3" open>
+          <summary class="analysis-fold-summary"><i class="fa-solid fa-book me-2 text-info"></i>프로그램 개요</summary>
+          <div class="analysis-fold-body">{{ wf_analysis.program_purpose }}</div>
+        </details>
+        {% endif %}
+        {% set screen_list = wf_analysis.get('screens', []) %}
+        {% if screen_list and screen_list|length > 0 %}
+        <div class="mb-2 small text-muted"><i class="fa-solid fa-display me-1"></i>식별된 스크린·UI</div>
+        {% for scr in screen_list %}
+        <details class="analysis-fold mb-3">
+          <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2">
+            <i class="fa-solid fa-window-maximize me-2 text-warning"></i>
+            <span class="font-monospace text-muted small">{{ scr.get('screen_key', '—') }}</span>
+            <span>{{ scr.get('title', '') }}</span>
+          </summary>
+          <div class="analysis-fold-body">
+            {% set bullets = scr.get('summary_bullets', []) %}
+            {% if bullets and bullets|length > 0 %}
+            <ul class="analysis-list mb-0">{% for b in bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+            {% else %}
+            <p class="mb-0 text-muted small">상세 불릿이 없습니다.</p>
+            {% endif %}
+          </div>
+        </details>
+        {% endfor %}
+        {% endif %}
+        <div class="row g-3">
+          {% if wf_analysis.validations %}
+          <div class="col-md-6">
+            <details class="analysis-fold h-100">
+              <summary class="analysis-fold-summary"><i class="fa-solid fa-shield-halved me-2 text-danger"></i>Validation</summary>
+              <div class="analysis-fold-body">
+                <ul class="analysis-list mb-0">{% for v in wf_analysis.validations %}<li>{{ v }}</li>{% endfor %}</ul>
+              </div>
+            </details>
+          </div>
+          {% endif %}
+          {% if wf_analysis.key_bapis or wf_analysis.key_fms %}
+          <div class="col-md-6">
+            <details class="analysis-fold h-100">
+              <summary class="analysis-fold-summary"><i class="fa-solid fa-plug me-2 text-primary-light"></i>BAPI / FM</summary>
+              <div class="analysis-fold-body">
+                {% for b in wf_analysis.key_bapis or [] %}
+                <span class="badge-module me-1 mb-1 font-monospace" style="font-size:.78rem">{{ b }}</span>
+                {% endfor %}
+                {% for f in wf_analysis.key_fms or [] %}
+                <span class="badge-devtype me-1 mb-1 font-monospace" style="font-size:.78rem">{{ f }}</span>
+                {% endfor %}
+              </div>
+            </details>
+          </div>
+          {% endif %}
+          {% if wf_analysis.applied_techniques %}
+          <div class="col-12">
+            <details class="analysis-fold">
+              <summary class="analysis-fold-summary"><i class="fa-solid fa-wand-magic-sparkles me-2 text-warning"></i>적용 기법</summary>
+              <div class="analysis-fold-body">
+                <ul class="analysis-list mb-0">{% for t in wf_analysis.applied_techniques %}<li>{{ t }}</li>{% endfor %}</ul>
+              </div>
+            </details>
+          </div>
+          {% endif %}
+        </div>
+        {% if wf_analysis.get('questions') %}
+        <details class="analysis-fold mb-0 mt-3">
+          <summary class="analysis-fold-summary"><i class="fa-solid fa-comments me-2 text-info"></i>추가 확인 질문</summary>
+          <div class="analysis-fold-body">
+            <ul class="analysis-list mb-0">{% for q in wf_analysis.questions %}<li>{{ q }}</li>{% endfor %}</ul>
+          </div>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</details>
+{% endif %}
+
+{% if not wf_row.is_draft and wf_analysis and (wf_analysis.get('requirement_analysis_error') or wf_analysis.get('requirement_analysis')) %}
+<details class="interview-summary-toggle rfp-hub-phase mb-3" open>
+  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="fw-semibold" data-i18n="detail.phaseReqLink">3. 요구사항 연계 분석</span>
+    {% if wf_analysis.get('requirement_analysis_error') %}
+    <span class="badge bg-warning text-dark" data-i18n="detail.reqLinkErrBadge">오류</span>
+    {% else %}
+    <span class="badge bg-success" data-i18n="detail.reqLinkOkBadge">준비됨</span>
+    {% endif %}
+    <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+  </summary>
+  <div class="rfp-hub-phase-body pt-2">
+    {% if wf_analysis.get('requirement_analysis_error') %}
+    <div class="alert alert-warning mb-0 small">
+      <span data-i18n="detail.reqLinkErrorPrefix">요구사항 연계 분석 오류:</span> {{ wf_analysis.requirement_analysis_error }}
+    </div>
+    {% elif wf_analysis.get('requirement_analysis') %}
+    {% set ra = wf_analysis.requirement_analysis %}
+    <div class="proposal-card mb-0">
+      <div class="proposal-body">
+        <h4 class="h6 mb-3" style="border-left:3px solid #22c55e;padding-left:.75rem">
+          <i class="fa-solid fa-link me-2 text-success"></i><span data-i18n="analysis.reqLinkTitle">요구사항 연계 분석</span>
+        </h4>
+        {% if ra.get('interpretation') %}
+        <details class="analysis-fold mb-3" open>
+          <summary class="analysis-fold-summary" data-i18n="analysis.fold.interpretation">요구사항 해석</summary>
+          <div class="analysis-fold-body">{{ ra.interpretation }}</div>
+        </details>
+        {% endif %}
+        {% if ra.get('mapping') %}
+        <details class="analysis-fold mb-3">
+          <summary class="analysis-fold-summary" data-i18n="analysis.fold.mapping">코드와의 연관</summary>
+          <div class="analysis-fold-body">{{ ra.mapping }}</div>
+        </details>
+        {% endif %}
+        {% if ra.get('suspected_areas') %}
+        <details class="analysis-fold mb-3">
+          <summary class="analysis-fold-summary" data-i18n="analysis.fold.suspected">살펴볼 만한 위치</summary>
+          <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.suspected_areas %}<li>{{ x }}</li>{% endfor %}</ul></div>
+        </details>
+        {% endif %}
+        {% if ra.get('hypotheses') %}
+        <details class="analysis-fold mb-3">
+          <summary class="analysis-fold-summary" data-i18n="analysis.fold.hypotheses">가설</summary>
+          <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.hypotheses %}<li>{{ x }}</li>{% endfor %}</ul></div>
+        </details>
+        {% endif %}
+        {% if ra.get('verification_suggestions') %}
+        <details class="analysis-fold mb-3">
+          <summary class="analysis-fold-summary" data-i18n="analysis.fold.verification">검증 제안</summary>
+          <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.verification_suggestions %}<li>{{ x }}</li>{% endfor %}</ul></div>
+        </details>
+        {% endif %}
+        {% if ra.get('open_questions') %}
+        <details class="analysis-fold mb-0">
+          <summary class="analysis-fold-summary" data-i18n="analysis.fold.openQuestions">추가 확인 질문</summary>
+          <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.open_questions %}<li>{{ x }}</li>{% endfor %}</ul></div>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</details>
+{% endif %}
+
+{% if not wf_row.is_draft and wf_row.is_analyzed %}
+<details class="interview-summary-toggle rfp-hub-phase mb-3" open>
+  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="fw-semibold" data-i18n="detail.phaseImprove">4. 개선 제안 요청</span>
+    <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+  </summary>
+  <div class="rfp-hub-phase-body pt-2">
+    <div class="proposal-card mb-0 border border-warning border-opacity-50" style="background:var(--surface2);">
+      <div class="proposal-body">
+        <div class="border rounded p-3 small" style="white-space:pre-wrap;border-color:var(--border)!important">{{ wf_row.improvement_request_text or '' }}</div>
+      </div>
+    </div>
+  </div>
+</details>
+{% endif %}
+
+{% if wf_followup_turns and wf_followup_turns|length > 0 %}
+<details class="interview-summary-toggle rfp-hub-phase mb-3">
+  <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+    <span class="fw-semibold" data-i18n="hub.wfAbapFollowupLog">분석 단계 후속 질의 로그</span>
+    <span class="badge bg-secondary">{{ wf_followup_turns|length }} <span data-i18n="hub.wfAbapTurns">턴</span></span>
+    <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+  </summary>
+  <div class="rfp-hub-phase-body pt-2">
+    {% for turn in wf_followup_turns %}
+    <div class="proposal-card mb-3 mb-md-2">
+      <div class="proposal-body small">
+        {% if turn.question %}
+        <div class="mb-2">
+          <span class="text-muted text-uppercase fw-semibold" style="font-size:.68rem" data-i18n="hub.wfAbapUserMsg">회원</span>
+          <div class="border rounded p-2 mt-1" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ turn.question.content or '' }}</div>
+        </div>
+        {% endif %}
+        {% if turn.answer %}
+        <div>
+          <span class="text-muted text-uppercase fw-semibold" style="font-size:.68rem" data-i18n="hub.wfAbapAssistantMsg">어시스턴트</span>
+          <div class="border rounded p-2 mt-1" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ turn.answer.content or '' }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
+
+<hr class="my-4 opacity-25" />
+<div class="small text-muted mb-2" data-i18n="hub.wfAbapRfpMetaLead">이 아래는 신규 개발(RFP)으로 등록된 요청 정보입니다.</div>
