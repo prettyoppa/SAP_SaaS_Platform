@@ -5,10 +5,14 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from typing import Optional
 
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+from sqlalchemy.orm import Session
+
+from .devtype_catalog import format_integration_impl_types_for_llm
 from .gemini_model import get_gemini_model_id
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -89,11 +93,13 @@ def validate_integration_user_message(text: str) -> tuple[str | None, str | None
     return s, None
 
 
-def integration_request_llm_summary(ir) -> str:
+def integration_request_llm_summary(ir, db: Optional[Session] = None) -> str:
     """프롬프트용 요약 문자열."""
+    impl_raw = getattr(ir, "impl_types", "") or ""
+    impl_disp = format_integration_impl_types_for_llm(db, impl_raw) if db is not None else impl_raw
     parts = [
         f"제목: {getattr(ir, 'title', '') or ''}",
-        f"구현 형태: {getattr(ir, 'impl_types', '') or ''}",
+        f"구현 형태: {impl_disp}",
         f"SAP 터치포인트:\n{getattr(ir, 'sap_touchpoints', '') or '—'}",
         f"실행 환경:\n{getattr(ir, 'environment_notes', '') or '—'}",
         f"보안·권한:\n{getattr(ir, 'security_notes', '') or '—'}",

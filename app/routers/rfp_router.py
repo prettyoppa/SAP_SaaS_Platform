@@ -83,17 +83,6 @@ class RfpSuggestFieldIn(BaseModel):
     title: str = ""
 
 
-# 대시보드 연동 요청 배지용 (integration_router.IMPL_LABELS 와 동일)
-INTEGRATION_IMPL_LABELS = {
-    "excel_vba": "Excel / VBA 매크로",
-    "python_script": "Python 스크립트",
-    "small_webapp": "소규모 웹앱",
-    "windows_batch": "Windows 배치 / 작업 스케줄러",
-    "api_integration": "API·시스템 연동",
-    "other": "기타",
-}
-
-
 def _billing_flash_message(checkout: str | None) -> str | None:
     key = (checkout or "").strip().lower()
     if not key:
@@ -313,8 +302,10 @@ def _rfp_form_ctx(
 
 
 def _get_modules_devtypes(db: Session):
+    from ..devtype_catalog import active_abap_devtypes
+
     modules = db.query(models.SAPModule).filter(models.SAPModule.is_active == True).order_by(models.SAPModule.sort_order).all()
-    devtypes = db.query(models.DevType).filter(models.DevType.is_active == True).order_by(models.DevType.sort_order).all()
+    devtypes = active_abap_devtypes(db)
     return modules, devtypes
 
 

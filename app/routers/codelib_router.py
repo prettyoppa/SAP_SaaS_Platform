@@ -219,8 +219,10 @@ def _parse_upload_sections_for_edit(source_code: str) -> list[dict]:
 
 
 def _get_modules_devtypes(db: Session):
+    from ..devtype_catalog import active_abap_devtypes
+
     modules = db.query(models.SAPModule).filter(models.SAPModule.is_active == True).order_by(models.SAPModule.sort_order).all()
-    devtypes = db.query(models.DevType).filter(models.DevType.is_active == True).order_by(models.DevType.sort_order).all()
+    devtypes = active_abap_devtypes(db)
     return modules, devtypes
 
 

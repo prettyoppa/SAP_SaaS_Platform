@@ -258,12 +258,9 @@ def _form_template_response(
         .order_by(models.SAPModule.sort_order)
         .all()
     )
-    devtypes = (
-        db.query(models.DevType)
-        .filter(models.DevType.is_active == True)
-        .order_by(models.DevType.sort_order)
-        .all()
-    )
+    from ..devtype_catalog import active_abap_devtypes
+
+    devtypes = active_abap_devtypes(db)
     writing_tip_setting = (
         db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     )

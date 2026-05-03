@@ -165,16 +165,42 @@ def admin_devtype_add(
     code: str = Form(...),
     label_ko: str = Form(...),
     label_en: str = Form(...),
+    usage: str = Form("abap"),
     db: Session = Depends(get_db),
 ):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
     code = code.strip()
+    u = (usage or "abap").strip().lower()
+    if u not in ("abap", "integration", "both"):
+        u = "abap"
     if code and not db.query(models.DevType).filter(models.DevType.code == code).first():
         max_order = db.query(models.DevType).count()
-        db.add(models.DevType(code=code, label_ko=label_ko.strip(), label_en=label_en.strip(), sort_order=max_order))
+        db.add(
+            models.DevType(
+                code=code,
+                label_ko=label_ko.strip(),
+                label_en=label_en.strip(),
+                sort_order=max_order,
+                usage=u,
+            )
+        )
         db.commit()
+    return RedirectResponse(url="/admin/devtypes", status_code=302)
+
+
+@router.post("/devtypes/{dt_id}/usage")
+def admin_devtype_usage(dt_id: int, request: Request, usage: str = Form(...), db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    d = db.query(models.DevType).filter(models.DevType.id == dt_id).first()
+    if d:
+        u = (usage or "abap").strip().lower()
+        if u in ("abap", "integration", "both"):
+            d.usage = u
+            db.commit()
     return RedirectResponse(url="/admin/devtypes", status_code=302)
 
 

@@ -32,6 +32,11 @@ from ..rfp_landing import (
     filtered_rfp_list_for_landing,
     rfp_landing_aggregate,
 )
+from ..devtype_catalog import (
+    active_integration_impl_devtypes,
+    integration_impl_allowed_codes,
+    integration_impl_labels_map,
+)
 from ..templates_config import templates
 from ..workflow_rfp_bridge import create_workflow_rfp_from_integration
 from ..integration_followup_chat import (
@@ -51,16 +56,15 @@ from .rfp_router import (
 
 router = APIRouter()
 
-IMPL_LABELS = {
-    "excel_vba": "Excel / VBA 매크로",
-    "python_script": "Python 스크립트",
-    "small_webapp": "소규모 웹앱",
-    "windows_batch": "Windows 배치 / 작업 스케줄러",
-    "api_integration": "API·시스템 연동",
-    "other": "기타",
-}
-
 MIN_IMPROVEMENT_PROPOSAL_LEN = 20
+
+
+def _integration_impl_ui_ctx(db: Session) -> dict:
+    """연동 구현 형태: 폼 칩(순서) + 배지용 코드→라벨 맵."""
+    return {
+        "integration_impl_devtypes": active_integration_impl_devtypes(db),
+        "impl_labels": integration_impl_labels_map(db),
+    }
 
 
 def _attachment_entries(ir: models.IntegrationRequest) -> list[dict]:
@@ -224,7 +228,7 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
             "filtered_menu_rows": filtered_rows if user else [],
             "show_request_owner": show_request_owner,
             "menu_landing_form_action": "/integration",
-            "impl_labels": IMPL_LABELS,
+            **_integration_impl_ui_ctx(db),
         },
     )
 
@@ -243,12 +247,12 @@ def integration_new_form(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "modules": modules,
             "devtypes": devtypes,
-            "impl_labels": IMPL_LABELS,
             "error": None,
             "form": None,
             "edit_ir": None,
             "integration_ref_code_initial": None,
             "attachment_entries": None,
+            **_integration_impl_ui_ctx(db),
         },
     )
 
@@ -299,7 +303,7 @@ async def integration_new_submit(
                 "user": user,
                 "modules": modules,
                 "devtypes": devtypes,
-                "impl_labels": IMPL_LABELS,
+                **_integration_impl_ui_ctx(db),
                 "error": "too_many_attachments",
                 "form": _form_dict(),
             },
@@ -320,7 +324,7 @@ async def integration_new_submit(
                     "user": user,
                     "modules": modules,
                     "devtypes": devtypes,
-                    "impl_labels": IMPL_LABELS,
+                    **_integration_impl_ui_ctx(db),
                     "error": err_a,
                     "form": _form_dict(),
                 },
@@ -338,14 +342,15 @@ async def integration_new_submit(
                 "user": user,
                 "modules": modules,
                 "devtypes": devtypes,
-                "impl_labels": IMPL_LABELS,
+                **_integration_impl_ui_ctx(db),
                 "error": "reference_code_too_large",
                 "form": _form_dict(),
             },
             status_code=400,
         )
 
-    impl_clean = [x for x in impl_types if x in IMPL_LABELS]
+    allowed_impl = integration_impl_allowed_codes(db)
+    impl_clean = [x for x in impl_types if x in allowed_impl]
     if not impl_clean:
         return templates.TemplateResponse(
             request,
@@ -355,7 +360,7 @@ async def integration_new_submit(
                 "user": user,
                 "modules": modules,
                 "devtypes": devtypes,
-                "impl_labels": IMPL_LABELS,
+                **_integration_impl_ui_ctx(db),
                 "error": "need_impl_types",
                 "form": _form_dict(),
             },
@@ -456,10 +461,10 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
     notes: list[str] = []
     for i in range(5):
         notes.append((ents[i].get("note") or "") if i < len(ents) else "")
-    impl_clean = [t.strip() for t in (ir.impl_types or "").split(",") if t.strip() in IMPL_LABELS]
+    raw_impl = [t.strip() for t in (ir.impl_types or "").split(",") if t.strip()]
     form = {
         "title": ir.title or "",
-        "impl_types": impl_clean,
+        "impl_types": raw_impl,
         "sap_touchpoints": ir.sap_touchpoints or "",
         "environment_notes": ir.environment_notes or "",
         "security_notes": ir.security_notes or "",
@@ -480,7 +485,7 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
             "user": user,
             "modules": modules,
             "devtypes": devtypes,
-            "impl_labels": IMPL_LABELS,
+            **_integration_impl_ui_ctx(db),
             "error": None,
             "form": form,
             "edit_ir": ir,
@@ -544,7 +549,7 @@ async def integration_edit_submit(
                 "user": user,
                 "modules": modules,
                 "devtypes": devtypes,
-                "impl_labels": IMPL_LABELS,
+                **_integration_impl_ui_ctx(db),
                 "error": "too_many_attachments",
                 "form": _form_dict(),
                 "edit_ir": ir,
@@ -571,7 +576,7 @@ async def integration_edit_submit(
                 "user": user,
                 "modules": modules,
                 "devtypes": devtypes,
-                "impl_labels": IMPL_LABELS,
+                **_integration_impl_ui_ctx(db),
                 "error": "reference_code_too_large",
                 "form": _form_dict(),
                 "edit_ir": ir,
@@ -593,7 +598,7 @@ async def integration_edit_submit(
                     "user": user,
                     "modules": modules,
                     "devtypes": devtypes,
-                    "impl_labels": IMPL_LABELS,
+                    **_integration_impl_ui_ctx(db),
                     "error": err_a,
                     "form": _form_dict(),
                     "edit_ir": ir,
@@ -612,7 +617,7 @@ async def integration_edit_submit(
                     "user": user,
                     "modules": modules,
                     "devtypes": devtypes,
-                    "impl_labels": IMPL_LABELS,
+                    **_integration_impl_ui_ctx(db),
                     "error": "too_many_attachments",
                     "form": _form_dict(),
                     "edit_ir": ir,
@@ -622,7 +627,8 @@ async def integration_edit_submit(
                 status_code=400,
             )
 
-    impl_clean = [x for x in impl_types if x in IMPL_LABELS]
+    allowed_impl = integration_impl_allowed_codes(db)
+    impl_clean = [x for x in impl_types if x in allowed_impl]
     if not impl_clean:
         return templates.TemplateResponse(
             request,
@@ -632,7 +638,7 @@ async def integration_edit_submit(
                 "user": user,
                 "modules": modules,
                 "devtypes": devtypes,
-                "impl_labels": IMPL_LABELS,
+                **_integration_impl_ui_ctx(db),
                 "error": "need_impl_types",
                 "form": _form_dict(),
                 "edit_ir": ir,
@@ -704,7 +710,7 @@ def integration_detail(
             "ir": ir,
             "owner": owner,
             "attachment_entries": _attachment_entries(ir),
-            "impl_labels": IMPL_LABELS,
+            **_integration_impl_ui_ctx(db),
             "types_list": types_list,
             "source_program_groups": program_groups,
             "reference_section_count": ref_section_count,
@@ -773,7 +779,7 @@ def integration_chat_post(
     try:
         att_digest = build_attachment_llm_digest(_attachment_entries(ir), max_total_chars=10_000)
         reply = generate_integration_followup_reply(
-            ir_summary=integration_request_llm_summary(ir),
+            ir_summary=integration_request_llm_summary(ir, db),
             history_messages=prior,
             user_question=msg,
             attachment_digest=att_digest,

@@ -81,6 +81,7 @@ def _run_migrations():
         ("abap_analysis_requests", "transaction_code", "VARCHAR", "VARCHAR"),
         ("abap_analysis_requests", "sap_modules", "VARCHAR", "VARCHAR"),
         ("abap_analysis_requests", "dev_types", "VARCHAR", "VARCHAR"),
+        ("dev_types", "usage", "VARCHAR(16) DEFAULT 'abap'", "VARCHAR(16) DEFAULT 'abap'"),
         ("integration_requests", "workflow_rfp_id", "INTEGER", "INTEGER"),
         ("integration_requests", "improvement_request_text", "TEXT", "TEXT"),
         ("users", "pending_account_deletion", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
@@ -101,6 +102,52 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 conn.rollback()
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "UPDATE dev_types SET usage = 'abap' "
+                    "WHERE usage IS NULL OR TRIM(COALESCE(usage, '')) = ''"
+                )
+            )
+            conn.commit()
+    except Exception:
+        pass
+
+
+DEFAULT_INTEGRATION_IMPL_DEVTYPES = [
+    ("excel_vba", "Excel / VBA 매크로", "Excel / VBA macro"),
+    ("python_script", "Python 스크립트", "Python script"),
+    ("small_webapp", "소규모 웹앱", "Small web app"),
+    ("windows_batch", "Windows 배치 / 작업 스케줄러", "Windows batch / Task Scheduler"),
+    ("api_integration", "API·시스템 연동", "API / system integration"),
+    ("other", "기타", "Other"),
+]
+_LEGACY_INTEGRATION_CODES = {c for c, _, _ in DEFAULT_INTEGRATION_IMPL_DEVTYPES}
+
+
+def _ensure_integration_impl_devtypes():
+    """연동 구현 형태 기본 행(기존 하드코드 목록)을 DevType.usage=integration 으로 보장."""
+    db: Session = SessionLocal()
+    try:
+        for i, (code, ko, en) in enumerate(DEFAULT_INTEGRATION_IMPL_DEVTYPES):
+            row = db.query(models.DevType).filter(models.DevType.code == code).first()
+            if row is None:
+                db.add(
+                    models.DevType(
+                        code=code,
+                        label_ko=ko,
+                        label_en=en,
+                        sort_order=100 + i,
+                        is_active=True,
+                        usage="integration",
+                    )
+                )
+            elif (getattr(row, "usage", None) or "abap") == "abap" and code in _LEGACY_INTEGRATION_CODES:
+                row.usage = "integration"
+        db.commit()
+    finally:
+        db.close()
 
 
 def _seed_home_tile_settings():
@@ -176,7 +223,15 @@ def _seed_modules_and_devtypes():
 
         if db.query(models.DevType).count() == 0:
             for i, (code, lbl_ko, lbl_en) in enumerate(DEFAULT_DEVTYPES):
-                db.add(models.DevType(code=code, label_ko=lbl_ko, label_en=lbl_en, sort_order=i))
+                db.add(
+                    models.DevType(
+                        code=code,
+                        label_ko=lbl_ko,
+                        label_en=lbl_en,
+                        sort_order=i,
+                        usage="abap",
+                    )
+                )
             db.commit()
     finally:
         db.close()
@@ -221,6 +276,7 @@ def _bootstrap_database():
     models.Base.metadata.create_all(bind=engine)
     _run_migrations()
     _seed_modules_and_devtypes()
+    _ensure_integration_impl_devtypes()
     _seed_home_tile_settings()
     _sync_admins()
     _log.info("[DB] bootstrap complete")

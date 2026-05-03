@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from . import models
 from .attachment_context import build_attachment_llm_digest
+from .devtype_catalog import format_integration_impl_types_for_llm
 from .rfp_reference_code import normalize_reference_code_payload
 
 if TYPE_CHECKING:
@@ -25,7 +27,14 @@ def _pick_default_module_devtype_codes(db: Session) -> tuple[str, str]:
     )
     dt = (
         db.query(models.DevType)
-        .filter(models.DevType.is_active == True)
+        .filter(
+            models.DevType.is_active == True,
+            or_(
+                models.DevType.usage == "abap",
+                models.DevType.usage == "both",
+                models.DevType.usage.is_(None),
+            ),
+        )
         .order_by(models.DevType.sort_order)
         .first()
     )
@@ -212,7 +221,17 @@ def build_workflow_description_abap(row: models.AbapAnalysisRequest, improvement
     )
 
 
-def build_workflow_description_integration(ir: models.IntegrationRequest, improvement_text: str) -> str:
+def build_workflow_description_integration(
+    ir: models.IntegrationRequest,
+    improvement_text: str,
+    *,
+    impl_types_display: str | None = None,
+) -> str:
+    impl_line = (
+        impl_types_display
+        if impl_types_display is not None
+        else ((ir.impl_types or "").strip() or "—")
+    )
     lines = [
         "[워크플로: 연동 개발 → 신규 개발 제안서]",
         "",
@@ -221,7 +240,7 @@ def build_workflow_description_integration(ir: models.IntegrationRequest, improv
         "",
         "**연동 요청 요약**",
         f"제목: {ir.title}",
-        f"구현 형태: {ir.impl_types or '—'}",
+        f"구현 형태: {impl_line}",
         "",
         (ir.description or "").strip(),
     ]
@@ -291,9 +310,10 @@ def create_workflow_rfp_from_integration(
     title = ((ir.title or "").strip() + " · 연동개선제안")[:512]
 
     fmsgs = followup_messages if followup_messages is not None else list(ir.followup_messages or [])
+    impl_disp = format_integration_impl_types_for_llm(db, ir.impl_types or "")
     seed = build_workflow_seed_answer_integration(
         title=ir.title or "",
-        impl_types=ir.impl_types or "",
+        impl_types=impl_disp,
         sap_touchpoints=ir.sap_touchpoints,
         environment_notes=ir.environment_notes,
         security_notes=ir.security_notes,
@@ -309,7 +329,7 @@ def create_workflow_rfp_from_integration(
         title=title,
         sap_modules=mc,
         dev_types=dc,
-        description=build_workflow_description_integration(ir, improvement_text),
+        description=build_workflow_description_integration(ir, improvement_text, impl_types_display=impl_disp),
         attachments_json=getattr(ir, "attachments_json", None),
         reference_code_payload=getattr(ir, "reference_code_payload", None),
         status="submitted",

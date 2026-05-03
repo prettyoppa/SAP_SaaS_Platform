@@ -136,7 +136,7 @@ class IntegrationRequest(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     title = Column(String, nullable=False)
-    # comma-separated: excel_vba, python_script, small_webapp, windows_batch, api_integration, other
+    # comma-separated codes — 옵션은 DevType(usage=integration|both)에서 관리
     impl_types = Column(String, nullable=True)
     sap_touchpoints = Column(Text, nullable=True)
     environment_notes = Column(Text, nullable=True)
@@ -281,6 +281,8 @@ class DevType(Base):
     label_en = Column(String, nullable=False)
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    # abap: 신규·분석·코드갤러리 칩 / integration: 연동 요청 구현 형태 / both: 양쪽
+    usage = Column(String(16), nullable=False, default="abap")
 
 
 class SiteSettings(Base):

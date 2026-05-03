@@ -90,13 +90,13 @@
             <div class="mb-2">
               <label class="form-label fw-semibold">구현 형태 <span class="text-danger">*</span></label>
               <div class="chip-group flex-wrap">
-                {% for key, label in impl_labels.items() %}
+                {% for dt in integration_impl_devtypes %}
                 <label class="chip-label">
-                  <input type="checkbox" name="impl_types" value="{{ key }}"
+                  <input type="checkbox" name="impl_types" value="{{ dt.code }}"
                          class="chip-input int-impl-type"
-                         data-label="{{ label }}"
-                         {% if form and key in form.impl_types %}checked{% endif %}/>
-                  <span class="chip">{{ label }}</span>
+                         data-label="{{ dt.label_ko }}"
+                         {% if form and dt.code in form.impl_types %}checked{% endif %}/>
+                  <span class="chip">{{ dt.label_ko }}</span>
                 </label>
                 {% endfor %}
               </div>
