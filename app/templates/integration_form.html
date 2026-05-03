@@ -9,6 +9,9 @@
     scope: {% if edit_ir %}'edit'{% else %}'new'{% endif %}
   };
 </script>
+{% if integration_ref_code_initial %}
+<script type="application/json" id="int-refcode-initial">{{ integration_ref_code_initial | tojson }}</script>
+{% endif %}
 <div class="rfp-page py-5">
   <div class="container">
     <div class="row justify-content-center">
@@ -17,33 +20,6 @@
           {% include 'partials/nav_prev_screen.html' %}
           <h2 class="rfp-title">{% if edit_ir %}연동 요청 수정 (초안){% else %}SAP 연동 개발 요청{% endif %}</h2>
           <p class="text-muted mb-0">{% if edit_ir %}복사·수정한 내용을 확인한 뒤 제출하면 새 요청으로 등록됩니다.{% else %}구현 형태·SAP 접점·환경을 입력하고 필요 시 파일과 ABAP 코드를 첨부합니다.{% endif %}</p>
-
-          <div class="rfp-progress mt-4">
-            <div class="rfp-step active" id="int-prog-1">
-              <div class="rfp-step-circle">1</div>
-              <div class="rfp-step-label">개요</div>
-            </div>
-            <div class="rfp-step-line"></div>
-            <div class="rfp-step" id="int-prog-2">
-              <div class="rfp-step-circle">2</div>
-              <div class="rfp-step-label">상세</div>
-            </div>
-            <div class="rfp-step-line"></div>
-            <div class="rfp-step" id="int-prog-3">
-              <div class="rfp-step-circle">3</div>
-              <div class="rfp-step-label">첨부</div>
-            </div>
-            <div class="rfp-step-line"></div>
-            <div class="rfp-step" id="int-prog-4">
-              <div class="rfp-step-circle">4</div>
-              <div class="rfp-step-label">ABAP 코드</div>
-            </div>
-            <div class="rfp-step-line"></div>
-            <div class="rfp-step" id="int-prog-5">
-              <div class="rfp-step-circle">5</div>
-              <div class="rfp-step-label">제출</div>
-            </div>
-          </div>
         </div>
 
         {% if error == 'need_impl_types' %}
@@ -71,15 +47,15 @@
         </div>
         {% endif %}
 
-        <form method="post" action="/integration/new" enctype="multipart/form-data" id="integration-form">
+        <form method="post" action="{% if edit_ir %}/integration/{{ edit_ir.id }}/edit{% else %}/integration/new{% endif %}" enctype="multipart/form-data" id="integration-form">
           <input type="hidden" name="reference_code_json" id="reference-code-json-field" value=""/>
 
           <div class="rfp-section" id="int-section-1">
             <div class="rfp-section-header">
               <span class="rfp-section-num">01</span>
               <div>
-                <h4 class="mb-0">제목 &amp; 구현 형태</h4>
-                <small class="text-muted">어떤 방식으로 SAP와 연동할지 선택합니다.</small>
+                <h4 class="mb-0">요청 제목</h4>
+                <small class="text-muted">구현 형태를 선택한 뒤 제목을 입력해 주세요.</small>
               </div>
             </div>
             <div class="mb-3">
@@ -107,30 +83,54 @@
             <div class="rfp-section-header">
               <span class="rfp-section-num">02</span>
               <div>
-                <h4 class="mb-0">SAP 접점 &amp; 요구사항</h4>
-                <small class="text-muted">RFC, OData, 파일, DB 등 SAP와 맞닿는 지점과 상세 설명을 적어 주세요.</small>
+                <h4 class="mb-0">요구사항 자유 기술</h4>
+                <small class="text-muted">아래 항목에 나누어 적어도 되고, 한 항목에만 몰아 적어도 됩니다. 비어 있어도 되는 칸은 그대로 두셔도 됩니다.</small>
               </div>
             </div>
+
             <div class="mb-3">
-              <label class="form-label fw-semibold">SAP 터치포인트 / 인터페이스</label>
-              <textarea name="sap_touchpoints" id="int-sap-touchpoints" class="form-control" rows="4"
-                        placeholder="예: RFC 함수 모듈 ZXXX, OData 서비스, IDoc 유형, 파일 경로 등">{{ form.sap_touchpoints if form else '' }}</textarea>
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+                <label class="form-label fw-semibold mb-0" for="int-sap-touchpoints">SAP 터치포인트 / 인터페이스</label>
+                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#int-guide-touch" aria-expanded="false" aria-controls="int-guide-touch">작성 가이드</button>
+              </div>
+              <div class="collapse small text-muted border rounded p-3 mb-2" id="int-guide-touch">
+                SAP와 데이터·화면·배치가 맞닿는 지점을 적어 주세요. 예: 사용 중인 <strong>RFC 함수 모듈 이름</strong>, <strong>OData 서비스 URL 또는 서비스명</strong>, <strong>IDoc 유형</strong>, 파일 입출력 경로, 외부 DB 연결 등. 정확한 이름을 모르면 화면 캡처나 메뉴 경로를 첨부(03절)해 주셔도 됩니다.
+              </div>
+              <textarea name="sap_touchpoints" id="int-sap-touchpoints" class="form-control" rows="4">{{ form.sap_touchpoints if form else '' }}</textarea>
             </div>
+
             <div class="mb-3">
-              <label class="form-label fw-semibold">실행 환경</label>
-              <textarea name="environment_notes" class="form-control" rows="3"
-                        placeholder="OS, Office 버전, 배치 스케줄, 네트워크(DMZ/VPN) 등">{{ form.environment_notes if form else '' }}</textarea>
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+                <label class="form-label fw-semibold mb-0" for="int-environment-notes">실행 환경</label>
+                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#int-guide-env" aria-expanded="false">작성 가이드</button>
+              </div>
+              <div class="collapse small text-muted border rounded p-3 mb-2" id="int-guide-env">
+                프로그램이 돌아가는 곳을 알려 주세요. 예: <strong>Windows 버전</strong>, <strong>Office(Excel) 버전</strong>, 32/64비트, 서버 OS, 배치 스케줄러 사용 여부, SAP GUI 버전, 네트워크(DMZ·VPN·방화벽) 제약 등. 개발·검증 PC와 운영 PC가 다르면 둘 다 적어 주시면 좋습니다.
+              </div>
+              <textarea name="environment_notes" id="int-environment-notes" class="form-control" rows="3">{{ form.environment_notes if form else '' }}</textarea>
             </div>
+
             <div class="mb-3">
-              <label class="form-label fw-semibold">보안·권한</label>
-              <textarea name="security_notes" class="form-control" rows="3"
-                        placeholder="계정 분리, 키 보관, 개인정보 취급 등">{{ form.security_notes if form else '' }}</textarea>
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+                <label class="form-label fw-semibold mb-0" for="int-security-notes">보안·권한</label>
+                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#int-guide-sec" aria-expanded="false">작성 가이드</button>
+              </div>
+              <div class="collapse small text-muted border rounded p-3 mb-2" id="int-guide-sec">
+                계정·키·개인정보를 어떻게 다루는지 적어 주세요. 예: SAP·OS 계정 분리, 서비스 계정 사용, 암호·API 키 보관 방식, 개인정보·민감 데이터 마스킹, 로그 보관 기간, 권한 상승이 필요한지 등. 모르면 "사내 보안팀 지침 따름" 정도만 적어도 됩니다.
+              </div>
+              <textarea name="security_notes" id="int-security-notes" class="form-control" rows="3">{{ form.security_notes if form else '' }}</textarea>
             </div>
+
             <div class="mb-2">
-              <label class="form-label fw-semibold">상세 설명</label>
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+                <label class="form-label fw-semibold mb-0" for="int-description">상세 설명</label>
+                <button type="button" class="btn btn-link btn-sm py-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#int-guide-desc" aria-expanded="false">작성 가이드</button>
+              </div>
+              <div class="collapse small text-muted border rounded p-3 mb-2" id="int-guide-desc">
+                전체 흐름을 자유롭게 적어 주세요. 예: <strong>누가·언제·어떤 화면에서</strong> 무엇을 하다가 어떤 결과를 기대하는지, 오류가 나면 어떻게 되는지, 샘플 데이터나 기한, &quot;반드시 지켜야 할&quot; 규칙이 있으면 함께 적어 주세요. 위 칸이 비어 있으면 이 칸에 모두 모아 적으셔도 됩니다.
+              </div>
               <textarea name="description" id="int-description" class="form-control rfp-textarea" rows="10">{{ form.description if form else '' }}</textarea>
-              <div class="d-flex justify-content-between mt-1">
-                <small class="text-muted">기대 동작, 오류 처리, 샘플 데이터 등을 포함하면 좋습니다.</small>
+              <div class="d-flex justify-content-end mt-1">
                 <small class="text-muted"><span id="int-char-count">0</span> 자</small>
               </div>
             </div>
@@ -141,111 +141,131 @@
               <span class="rfp-section-num">03</span>
               <div>
                 <h4 class="mb-0">첨부 파일</h4>
-                <small class="text-muted">명세, 샘플 Excel, 캡처 등 (PDF, Office, 이미지, TXT · 최대 5개)</small>
+                <small class="text-muted">엑셀 양식, 기존 리포트, 화면 캡처, 관련 문서 등을 첨부하세요.</small>
               </div>
             </div>
-            <div class="file-drop-zone" id="int-drop-zone" data-max-files="5">
-              <div class="position-relative mb-2 file-drop-hit-target" id="int-file-drop-hit-target" style="min-height: 8.5rem;">
-                <label for="int-attachments" class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
-                  <input type="file" name="attachments" id="int-attachments" multiple
+
+            <div class="file-drop-zone" id="drop-zone" data-max-files="5">
+              <div class="position-relative mb-2 file-drop-hit-target" id="file-drop-hit-target" style="min-height: 8.5rem;">
+                <label for="attachments" class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
+                  <input type="file" name="attachments" id="attachments" multiple
                          accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg"
                          class="file-drop-native-input"/>
-                  <span class="file-drop-content d-block text-center py-4 px-2" id="int-drop-content">
+                  <span class="file-drop-content d-block text-center py-4 px-2" id="drop-content">
                     <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
-                    <span class="fw-semibold d-block mb-1">클릭하거나 파일을 드래그하세요</span>
-                    <span class="text-muted small d-block mb-0">파일당 최대 20MB · 최대 5개</span>
+                    <p class="fw-semibold mb-1">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+                    <p class="text-muted small mb-0">PDF, Excel, Word, 이미지, TXT · 파일당 최대 20MB · 최대 5개 (여러 줄로 표시됩니다)</p>
                   </span>
                 </label>
               </div>
-              <div id="int-attachment-list" class="w-100 px-1"></div>
+              <div id="attachment-list" class="w-100 px-1"></div>
             </div>
-            {% if attachment_entries and edit_ir %}
-            <div class="mb-3 mt-2">
-              <div class="small text-uppercase text-muted mb-1">기존 첨부</div>
-              <ul class="mb-1 ps-3 small">
-                {% for att in attachment_entries %}
-                <li>
-                  <a href="/integration/{{ edit_ir.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename or '파일' }}</a>
-                </li>
-                {% endfor %}
-              </ul>
-              <p class="text-muted small mb-0">아래에서 파일을 추가하면 기존 첨부에 더해집니다 (합계 최대 5개).</p>
-            </div>
-            {% endif %}
+            <p class="small text-muted mt-2 mb-0">파일마다 한 줄에 이름·설명이 붙습니다. 드래그로 여러 번 추가할 수 있습니다.</p>
             {% if form and form.notes is defined %}
             <script type="application/json" id="integration-notes-prefill">{{ form.notes | tojson }}</script>
             {% endif %}
+
+            {% if attachment_entries and edit_ir %}
+            <div class="border rounded p-3 mt-3" style="background:var(--surface2);border-color:var(--border)!important;">
+              <div class="fw-semibold mb-2"><i class="fa-solid fa-paperclip me-1"></i>저장된 첨부</div>
+              {% for att in attachment_entries %}
+              <div class="d-flex flex-wrap align-items-start gap-2 mb-2 pb-2 border-bottom" style="border-color:var(--border)!important;">
+                <div class="flex-grow-1">
+                  <a href="/integration/{{ edit_ir.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename }}</a>
+                  <span class="text-muted small">(미리보기/다운로드)</span>
+                </div>
+              </div>
+              {% endfor %}
+              <p class="text-muted small mb-0">아래에서 파일을 추가하면 기존 첨부에 더해집니다 (합계 최대 5개).</p>
+            </div>
+            {% endif %}
           </div>
 
-          <div class="rfp-section" id="int-section-ref">
+          <div class="rfp-section rfp-section-last" id="int-section-ref">
             <div class="rfp-section-header">
               <span class="rfp-section-num">04</span>
               <div>
-                <h4 class="mb-0">참고 코드 (선택)</h4>
-                <small class="text-muted">기존 ABAP·스크립트 맥락을 넣으면 분석에만 사용됩니다.</small>
+                <h4 class="mb-0">참고 코드</h4>
+                <small class="text-muted rfp-ref-code-policy-lede">
+                  회원이 올리는 코드는 <strong class="text-primary">해당 요청 이해 및 제안·분석</strong>을 위해서만 이용됩니다.
+                  <strong class="text-danger">광고, 제3자 제공, AI 모델 학습·재학습</strong> 등 그 밖의 목적으로는 사용하지 않습니다.
+                </small>
               </div>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-              <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#int-collapse-ref" aria-expanded="false">
-                <i class="fa-solid fa-code me-2"></i>ABAP 코드 입력란 펼치기 / 접기
+              <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-int-ref-code" aria-expanded="false" aria-controls="collapse-int-ref-code">
+                <i class="fa-solid fa-code me-2"></i>참고 코드 입력란 펼치기 / 접기
               </button>
               {% if user and user.is_admin %}
-              <button type="button" class="btn btn-outline-primary btn-sm" data-codelib-import="integration" data-ref-collapse="#int-collapse-ref" title="관리자: 코드 갤러리에서 한 건 불러오기">
+              <button type="button" class="btn btn-outline-primary btn-sm" data-codelib-import="integration" data-ref-collapse="#collapse-int-ref-code" title="관리자: 코드 갤러리에서 한 건 불러오기">
                 <i class="fa-solid fa-folder-open me-1"></i>코드 갤러리에서 가져오기
               </button>
               {% endif %}
             </div>
-            <div class="collapse" id="int-collapse-ref">
+            <div class="collapse" id="collapse-int-ref-code">
               <div id="ref-code-slots-host">
                 {% for rs in [0, 1, 2] %}
                 <div class="ref-code-slot card mb-4 border" data-ref-slot="{{ rs }}" style="background:var(--surface2);border-color:var(--border)!important;">
                   <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <strong>ABAP 코드 {{ rs + 1 }}</strong>
+                    <strong>참고 코드 {{ rs + 1 }}</strong>
                     <div class="d-flex align-items-center gap-2">
                       <button type="button" class="btn btn-sm btn-outline-secondary js-ref-remove-last d-none" data-slot="{{ rs }}">이 항목 닫기</button>
                       <span class="badge bg-secondary small">본 요청 분석용</span>
                     </div>
                   </div>
                   <div class="card-body">
-                    <div class="row g-3 mb-3">
-                      <div class="col-md-4">
-                        <label class="form-label fw-semibold">프로그램 ID</label>
-                        <input type="text" class="form-control js-ref-pid" maxlength="40" autocomplete="off"/>
-                        <div class="small mt-1 text-warning js-ref-fb-pid" style="min-height:1.25rem"></div>
-                      </div>
-                      <div class="col-md-4">
-                        <label class="form-label fw-semibold">트랜잭션 코드</label>
-                        <input type="text" class="form-control js-ref-tcode" maxlength="20" autocomplete="off"/>
-                        <div class="small mt-1 text-warning js-ref-fb-tcode" style="min-height:1.25rem"></div>
-                      </div>
-                      <div class="col-md-12">
-                        <label class="form-label fw-semibold">프로그램 설명</label>
-                        <input type="text" class="form-control js-ref-title" maxlength="200" autocomplete="off"/>
-                      </div>
-                    </div>
                     <div class="mb-3">
-                      <label class="form-label fw-semibold">SAP 모듈 <span class="badge bg-secondary ms-1" id="ref-mod-count-{{ rs }}">0 / 3</span></label>
-                      <div class="chip-group">
-                        {% for mod in modules %}
-                        <label class="chip-label">
-                          <input type="checkbox" value="{{ mod.code }}" class="chip-input ref-mod-{{ rs }}"/>
-                          <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
-                        </label>
-                        {% endfor %}
+                      <label class="form-label fw-semibold">코드 유형</label>
+                      <select class="form-select js-ref-code-type" data-slot="{{ rs }}">
+                        <option value="abap">ABAP (SAP)</option>
+                        <option value="vba">VBA / Excel 매크로</option>
+                        <option value="python">Python</option>
+                        <option value="sql">SQL / 저장 프로시저</option>
+                        <option value="other">기타 (C#, JavaScript, PowerShell 등)</option>
+                      </select>
+                      <div class="form-text">유형에 맞게 아래 섹션 제목 목록이 바뀝니다. ABAP가 아니어도 무방합니다.</div>
+                    </div>
+                    <div class="js-ref-abap-meta">
+                      <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                          <label class="form-label fw-semibold">식별자 <span class="text-muted fw-normal small">(프로그램 ID 등)</span></label>
+                          <input type="text" class="form-control js-ref-pid" maxlength="40" autocomplete="off"/>
+                          <div class="small mt-1 text-warning js-ref-fb-pid" style="min-height:1.25rem"></div>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label fw-semibold">부가 참조 <span class="text-muted fw-normal small">(T-code 등)</span></label>
+                          <input type="text" class="form-control js-ref-tcode" maxlength="20" autocomplete="off"/>
+                          <div class="small mt-1 text-warning js-ref-fb-tcode" style="min-height:1.25rem"></div>
+                        </div>
+                        <div class="col-md-12">
+                          <label class="form-label fw-semibold">한 줄 설명</label>
+                          <input type="text" class="form-control js-ref-title" maxlength="200" autocomplete="off"/>
+                        </div>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">SAP 모듈 <span class="badge bg-secondary ms-1" id="ref-mod-count-{{ rs }}">0 / 3</span></label>
+                        <div class="chip-group">
+                          {% for mod in modules %}
+                          <label class="chip-label">
+                            <input type="checkbox" value="{{ mod.code }}" class="chip-input ref-mod-{{ rs }}"/>
+                            <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
+                          </label>
+                          {% endfor %}
+                        </div>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">개발 유형 <span class="badge bg-secondary ms-1" id="ref-dt-count-{{ rs }}">0 / 3</span></label>
+                        <div class="chip-group">
+                          {% for dt in devtypes %}
+                          <label class="chip-label">
+                            <input type="checkbox" value="{{ dt.code }}" class="chip-input ref-dt-{{ rs }}"/>
+                            <span class="chip">{{ dt.label_ko }}</span>
+                          </label>
+                          {% endfor %}
+                        </div>
                       </div>
                     </div>
-                    <div class="mb-3">
-                      <label class="form-label fw-semibold">개발 유형 <span class="badge bg-secondary ms-1" id="ref-dt-count-{{ rs }}">0 / 3</span></label>
-                      <div class="chip-group">
-                        {% for dt in devtypes %}
-                        <label class="chip-label">
-                          <input type="checkbox" value="{{ dt.code }}" class="chip-input ref-dt-{{ rs }}"/>
-                          <span class="chip">{{ dt.label_ko }}</span>
-                        </label>
-                        {% endfor %}
-                      </div>
-                    </div>
-                    <div class="mb-2 fw-semibold small">소스 (섹션별)</div>
+                    <div class="mb-2 fw-semibold small js-ref-sections-heading">ABAP 소스 (섹션별)</div>
                     <div id="ref-sections-{{ rs }}"></div>
                     <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="ref-add-sec-{{ rs }}">
                       <i class="fa-solid fa-plus me-1"></i>섹션 추가
@@ -259,44 +279,23 @@
                   <i class="fa-solid fa-plus me-1"></i>참고 코드 추가 (최대 3건)
                 </button>
                 <button type="button" class="btn btn-outline-danger btn-sm" id="ref-delete-all-btn">
-                  <i class="fa-solid fa-trash me-1"></i>모두 삭제
+                  <i class="fa-solid fa-trash me-1"></i>저장된 참고 코드 모두 삭제
                 </button>
               </div>
             </div>
           </div>
 
-          <div class="rfp-section rfp-section-last" id="int-section-5">
-            <div class="rfp-section-header">
-              <span class="rfp-section-num">05</span>
-              <div>
-                <h4 class="mb-0">확인 &amp; 제출</h4>
-                <small class="text-muted">제출 후 상세 페이지에서 내용을 다시 확인할 수 있습니다.</small>
+          <div class="rfp-form-footer mt-4 pt-4 border-top" style="border-color:var(--border)!important;">
+            <div class="free-badge-row mb-4">
+              <div class="free-badge-card">
+                <i class="fa-solid fa-cat text-primary me-2" aria-hidden="true"></i>
+                <span>
+                  <strong>구체적인 요구사항</strong>을 작성할수록 연동 방안·제안이 더 정확해집니다. 제출 후 상세 화면에서 내용을 다시 확인할 수 있습니다.
+                </span>
               </div>
             </div>
-            <div class="review-box" id="int-review-box">
-              <div class="review-row">
-                <span class="review-label">제목:</span>
-                <span class="review-value" id="int-review-title"><em class="text-muted">미입력</em></span>
-              </div>
-              <div class="review-row">
-                <span class="review-label">구현 형태:</span>
-                <span class="review-value" id="int-review-impl"><em class="text-muted">선택 없음</em></span>
-              </div>
-              <div class="review-row">
-                <span class="review-label">SAP 접점:</span>
-                <span class="review-value" id="int-review-touch"><em class="text-muted">없음</em></span>
-              </div>
-              <div class="review-row">
-                <span class="review-label">첨부:</span>
-                <span class="review-value" id="int-review-files"><em class="text-muted">없음</em></span>
-              </div>
-              <div class="review-row">
-                <span class="review-label">ABAP 코드:</span>
-                <span class="review-value" id="int-review-ref"><em class="text-muted">없음</em></span>
-              </div>
-            </div>
-            <div class="d-flex gap-3 justify-content-end mt-4 flex-wrap">
-              <a href="{% if edit_ir %}/integration{% else %}/integration{% endif %}" class="btn btn-outline-secondary px-4">취소</a>
+            <div class="d-flex gap-3 justify-content-end flex-wrap">
+              <a href="/integration" class="btn btn-outline-secondary px-4">취소</a>
               <button type="submit" class="btn btn-primary btn-lg px-5" id="int-submit-btn">
                 {% if edit_ir %}
                 <i class="fa-solid fa-check me-2"></i>수정 완료 및 제출
@@ -315,7 +314,7 @@
 
 {% block extra_js %}
 <script src="/static/js/sap_field_input.js?v=20260415c"></script>
-<script src="/static/js/integration_ref_code.js?v=20260422a"></script>
+<script src="/static/js/integration_ref_code.js?v=20260504a"></script>
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
-<script src="/static/js/integration_form.js?v=20260417a"></script>
+<script src="/static/js/integration_form.js?v=20260504a"></script>
 {% endblock %}

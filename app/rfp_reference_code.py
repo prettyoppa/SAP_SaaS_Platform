@@ -36,10 +36,14 @@ def normalize_reference_code_payload(raw: str | None) -> str | None:
     slots_in = data.get("slots")
     if not isinstance(slots_in, list):
         return None
+    _allowed_code_types = frozenset({"abap", "vba", "python", "sql", "other"})
+
     slots_out: list[dict] = []
     for i, slot in enumerate(slots_in[:3]):
         if not isinstance(slot, dict):
             continue
+        ct_raw = _clean_str(slot.get("code_type"), 32).lower() or "abap"
+        code_type = ct_raw if ct_raw in _allowed_code_types else "abap"
         pid = _clean_str(slot.get("program_id"), 40)
         tc = _clean_str(slot.get("transaction_code"), 20)
         title = _clean_str(slot.get("title"), 200)
@@ -59,6 +63,7 @@ def normalize_reference_code_payload(raw: str | None) -> str | None:
         if not sections_out:
             sections_out = [{"type": "메인 프로그램", "name": "", "code": ""}]
         slots_out.append({
+            "code_type": code_type,
             "program_id": pid,
             "transaction_code": tc,
             "title": title,
@@ -68,6 +73,7 @@ def normalize_reference_code_payload(raw: str | None) -> str | None:
         })
     while len(slots_out) < 3:
         slots_out.append({
+            "code_type": "abap",
             "program_id": "",
             "transaction_code": "",
             "title": "",
@@ -167,18 +173,26 @@ def format_reference_code_for_llm(payload: str | None) -> str:
         if not _slot_nonempty(sl):
             continue
         shown += 1
-        block: list[str] = [f"=== 참고용 ABAP (슬롯 {shown}) ==="]
+        ct = (sl.get("code_type") or "abap").strip().lower()
+        kind_ko = {
+            "abap": "ABAP",
+            "vba": "VBA/Excel",
+            "python": "Python",
+            "sql": "SQL/DB",
+            "other": "기타 코드",
+        }.get(ct, ct or "코드")
+        block: list[str] = [f"=== 참고 코드 (슬롯 {shown}) — {kind_ko} ==="]
         if (sl.get("program_id") or "").strip():
-            block.append(f"프로그램 ID: {sl['program_id'].strip()}")
+            block.append(f"식별자: {sl['program_id'].strip()}")
         if (sl.get("transaction_code") or "").strip():
-            block.append(f"트랜잭션: {sl['transaction_code'].strip()}")
+            block.append(f"부가 참조: {sl['transaction_code'].strip()}")
         if (sl.get("title") or "").strip():
             block.append(f"설명: {sl['title'].strip()}")
         sm = sl.get("sap_modules") or []
-        if sm:
+        if sm and ct == "abap":
             block.append(f"표시 모듈 태그: {', '.join(sm)}")
         dt = sl.get("dev_types") or []
-        if dt:
+        if dt and ct == "abap":
             block.append(f"표시 개발유형 태그: {', '.join(dt)}")
         secs = sl.get("sections") or []
         for j, sec in enumerate(secs, start=1):
@@ -288,6 +302,7 @@ def reference_slots_for_detail_ui(payload: str | None) -> list[dict]:
             })
         out.append({
             "index": len(out) + 1,
+            "code_type": (sl.get("code_type") or "abap").strip().lower() or "abap",
             "program_id": (sl.get("program_id") or "").strip(),
             "transaction_code": (sl.get("transaction_code") or "").strip(),
             "title": (sl.get("title") or "").strip(),
@@ -327,7 +342,17 @@ def reference_code_program_groups_for_tabs(payload: str | None) -> list[dict]:
             })
         if not secs_out:
             continue
+        ct = (slot.get("code_type") or "abap").strip().lower() or "abap"
+        ct_label = {
+            "abap": "ABAP",
+            "vba": "VBA",
+            "python": "Python",
+            "sql": "SQL",
+            "other": "기타",
+        }.get(ct, ct.upper())
         groups.append({
+            "code_type": ct,
+            "code_type_label": ct_label,
             "program_id": (slot.get("program_id") or "").strip(),
             "transaction_code": (slot.get("transaction_code") or "").strip(),
             "title": (slot.get("title") or "").strip(),

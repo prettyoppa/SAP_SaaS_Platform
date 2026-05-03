@@ -5,6 +5,9 @@
      style="border-color:var(--border)!important;background:var(--surface2);">
   <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
        style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
+    {% if grp.code_type_label and grp.code_type != 'abap' %}
+    <span class="badge rounded-pill bg-secondary me-1" style="font-size:.72rem;">{{ grp.code_type_label }}</span>
+    {% endif %}
     <span class="fw-semibold font-monospace">{{ grp.program_id or '—' }}</span>
     {% if grp.transaction_code %}
     <span class="badge rounded-pill"

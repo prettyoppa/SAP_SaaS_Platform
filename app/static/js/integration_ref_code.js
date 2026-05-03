@@ -1,5 +1,5 @@
 /**
- * SAP 연동 개발 요청 – 참고 코드 정보 (본 integration_requests 행에 저장)
+ * SAP 연동 개발 요청 – 참고 코드 (ABAP·VBA·Python 등, integration_requests.reference_code_payload)
  */
 (function () {
   'use strict';
@@ -9,16 +9,22 @@
   var saveTimer = null;
   var visibleSlotCount = 1;
 
-  var TYPE_OPTIONS = [
-    '메인 프로그램',
-    'TOP Include',
-    'Selection Screen',
-    'Form Subroutines',
-    'PBO Modules',
-    'PAI Modules',
-    'Class',
-    '기타 Include',
-  ];
+  var SECTION_TYPES_BY_KIND = {
+    abap: [
+      '메인 프로그램',
+      'TOP Include',
+      'Selection Screen',
+      'Form Subroutines',
+      'PBO Modules',
+      'PAI Modules',
+      'Class',
+      '기타 Include',
+    ],
+    vba: ['모듈(.bas)', '클래스', 'UserForm', 'Sheet 모듈', 'ThisWorkbook', '기타'],
+    python: ['메인 스크립트', '모듈', '설정/유틸', '기타'],
+    sql: ['쿼리/스크립트', '저장 프로시저', '뷰', '기타'],
+    other: ['코드', '설정·구성', '기타'],
+  };
 
   function requestId() {
     var c = window.__INTEGRATION_CTX__ || {};
@@ -35,13 +41,34 @@
     }
   }
 
-  function defaultSections() {
-    return [{ type: '메인 프로그램', name: '', code: '' }];
+  function getKindFromRoot(root) {
+    if (!root) return 'abap';
+    var sel = root.querySelector('.js-ref-code-type');
+    var v = (sel && sel.value) || 'abap';
+    return SECTION_TYPES_BY_KIND[v] ? v : 'abap';
   }
 
-  function makeSectionEl(slotIdx, idx, sec) {
-    sec = sec || { type: '메인 프로그램', name: '', code: '' };
-    if (TYPE_OPTIONS.indexOf(sec.type) < 0) sec.type = '메인 프로그램';
+  function defaultSections(kind) {
+    var types = SECTION_TYPES_BY_KIND[kind] || SECTION_TYPES_BY_KIND.abap;
+    return [{ type: types[0], name: '', code: '' }];
+  }
+
+  function toggleAbapMeta(slotIdx) {
+    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+    if (!root) return;
+    var kind = getKindFromRoot(root);
+    var box = root.querySelector('.js-ref-abap-meta');
+    if (box) box.classList.toggle('d-none', kind !== 'abap');
+    var h = root.querySelector('.js-ref-sections-heading');
+    if (h) {
+      h.textContent = kind === 'abap' ? 'ABAP 소스 (섹션별)' : '코드 (섹션·블록별)';
+    }
+  }
+
+  function makeSectionEl(slotIdx, idx, sec, kind) {
+    sec = sec || { type: '', name: '', code: '' };
+    var types = SECTION_TYPES_BY_KIND[kind] || SECTION_TYPES_BY_KIND.abap;
+    if (!sec.type || types.indexOf(sec.type) < 0) sec.type = types[0];
     var div = document.createElement('div');
     div.className = 'ref-code-section border rounded p-2 mb-2';
 
@@ -50,8 +77,8 @@
 
     var sel = document.createElement('select');
     sel.className = 'form-select form-select-sm section-type-select';
-    sel.style.maxWidth = '220px';
-    TYPE_OPTIONS.forEach(function (t) {
+    sel.style.maxWidth = '240px';
+    types.forEach(function (t) {
       var o = document.createElement('option');
       o.value = t;
       o.textContent = t;
@@ -62,7 +89,8 @@
     var nameInp = document.createElement('input');
     nameInp.type = 'text';
     nameInp.className = 'form-control form-control-sm section-name-input';
-    nameInp.style.maxWidth = '200px';
+    nameInp.style.maxWidth = '220px';
+    nameInp.placeholder = '이름·파일명 등 (선택)';
     nameInp.value = sec.name || '';
 
     var rm = document.createElement('button');
@@ -80,6 +108,7 @@
     var ta = document.createElement('textarea');
     ta.className = 'form-control section-code';
     ta.rows = 8;
+    ta.placeholder = '';
     ta.value = sec.code || '';
 
     div.appendChild(bar);
@@ -101,14 +130,18 @@
   function rebuildSections(slotIdx, sections) {
     var host = document.getElementById('ref-sections-' + slotIdx);
     if (!host) return;
+    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+    var kind = getKindFromRoot(root);
     host.innerHTML = '';
-    var list = sections && sections.length ? sections : defaultSections();
+    var list = sections && sections.length ? sections : defaultSections(kind);
     list.forEach(function (s, i) {
-      host.appendChild(makeSectionEl(slotIdx, i, s));
+      host.appendChild(makeSectionEl(slotIdx, i, s, kind));
     });
   }
 
   function refreshSlotCounts(slotIdx) {
+    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+    if (!root || getKindFromRoot(root) !== 'abap') return;
     var max = 3;
     var modCls = 'ref-mod-' + slotIdx;
     var dtCls = 'ref-dt-' + slotIdx;
@@ -131,6 +164,8 @@
       var inputs = document.querySelectorAll('.' + cls);
       var countEl = document.getElementById(countId);
       function upd() {
+        var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+        if (!root || getKindFromRoot(root) !== 'abap') return;
         var checked = document.querySelectorAll('.' + cls + ':checked').length;
         if (countEl) countEl.textContent = checked + ' / ' + max;
         inputs.forEach(function (inp) {
@@ -154,6 +189,8 @@
     for (var i = 0; i < MAX_SLOTS; i++) {
       var root = document.querySelector('[data-ref-slot="' + i + '"]');
       if (!root) continue;
+      var kindEl = root.querySelector('.js-ref-code-type');
+      var code_type = (kindEl && kindEl.value) || 'abap';
       var sections = [];
       var host = document.getElementById('ref-sections-' + i);
       if (host) {
@@ -165,24 +202,30 @@
           });
         });
       }
-      slots.push({
+      var slot = {
+        code_type: code_type,
         program_id: (root.querySelector('.js-ref-pid') || {}).value || '',
         transaction_code: (root.querySelector('.js-ref-tcode') || {}).value || '',
         title: (root.querySelector('.js-ref-title') || {}).value || '',
-        sap_modules: Array.prototype.map.call(
+        sap_modules: [],
+        dev_types: [],
+        sections: sections,
+      };
+      if (code_type === 'abap') {
+        slot.sap_modules = Array.prototype.map.call(
           root.querySelectorAll('.ref-mod-' + i + ':checked'),
           function (c) {
             return c.value;
-          }
-        ),
-        dev_types: Array.prototype.map.call(
+          },
+        );
+        slot.dev_types = Array.prototype.map.call(
           root.querySelectorAll('.ref-dt-' + i + ':checked'),
           function (c) {
             return c.value;
-          }
-        ),
-        sections: sections,
-      });
+          },
+        );
+      }
+      slots.push(slot);
     }
     return {
       v: 1,
@@ -225,6 +268,8 @@
   function clearSlot(slotIdx) {
     var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
     if (!root) return;
+    var ct = root.querySelector('.js-ref-code-type');
+    if (ct) ct.value = 'abap';
     var pid = root.querySelector('.js-ref-pid');
     var tc = root.querySelector('.js-ref-tcode');
     var tit = root.querySelector('.js-ref-title');
@@ -237,7 +282,8 @@
     root.querySelectorAll('.ref-dt-' + slotIdx).forEach(function (cb) {
       cb.checked = false;
     });
-    rebuildSections(slotIdx, defaultSections());
+    toggleAbapMeta(slotIdx);
+    rebuildSections(slotIdx, defaultSections('abap'));
     var fb1 = root.querySelector('.js-ref-fb-pid');
     var fb2 = root.querySelector('.js-ref-fb-tcode');
     if (fb1) fb1.textContent = '';
@@ -268,8 +314,10 @@
     if ((s.program_id || '').trim()) return true;
     if ((s.transaction_code || '').trim()) return true;
     if ((s.title || '').trim()) return true;
-    if ((s.sap_modules || []).length) return true;
-    if ((s.dev_types || []).length) return true;
+    if ((s.code_type || 'abap') === 'abap') {
+      if (s.sap_modules && s.sap_modules.length) return true;
+      if (s.dev_types && s.dev_types.length) return true;
+    }
     var secs = s.sections || [];
     for (var j = 0; j < secs.length; j++) {
       if ((secs[j].code || '').trim()) return true;
@@ -296,15 +344,40 @@
     scheduleSave();
   }
 
+  function wireCodeTypeChange(slotIdx) {
+    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+    if (!root) return;
+    var sel = root.querySelector('.js-ref-code-type');
+    if (!sel) return;
+    sel.addEventListener('change', function () {
+      toggleAbapMeta(slotIdx);
+      var k = getKindFromRoot(root);
+      if (k !== 'abap') {
+        root.querySelectorAll('.ref-mod-' + slotIdx).forEach(function (cb) {
+          cb.checked = false;
+        });
+        root.querySelectorAll('.ref-dt-' + slotIdx).forEach(function (cb) {
+          cb.checked = false;
+        });
+      }
+      rebuildSections(slotIdx, defaultSections(k));
+      refreshSlotCounts(slotIdx);
+      scheduleSave();
+    });
+  }
+
   function wireAddSection(slotIdx) {
     var addBtn = document.getElementById('ref-add-sec-' + slotIdx);
     if (!addBtn) return;
     addBtn.addEventListener('click', function () {
+      var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
       var host = document.getElementById('ref-sections-' + slotIdx);
-      if (!host) return;
+      if (!host || !root) return;
+      var kind = getKindFromRoot(root);
+      var types = SECTION_TYPES_BY_KIND[kind] || SECTION_TYPES_BY_KIND.abap;
       var n = host.querySelectorAll('.ref-code-section').length;
       host.appendChild(
-        makeSectionEl(slotIdx, n, { type: 'Form Subroutines', name: '', code: '' })
+        makeSectionEl(slotIdx, n, { type: types[Math.min(1, types.length - 1)] || types[0], name: '', code: '' }, kind),
       );
       scheduleSave();
     });
@@ -327,6 +400,9 @@
       var slotData = (loaded && loaded.slots && loaded.slots[i]) || {};
       var root = document.querySelector('[data-ref-slot="' + i + '"]');
       if (root) {
+        var ctSel = root.querySelector('.js-ref-code-type');
+        var ct = (slotData.code_type || 'abap').toLowerCase();
+        if (ctSel) ctSel.value = SECTION_TYPES_BY_KIND[ct] ? ct : 'abap';
         var pid = root.querySelector('.js-ref-pid');
         var tc = root.querySelector('.js-ref-tcode');
         var tit = root.querySelector('.js-ref-title');
@@ -335,9 +411,10 @@
         if (tit) tit.value = slotData.title || '';
       }
 
+      toggleAbapMeta(i);
       rebuildSections(
         i,
-        slotData.sections && slotData.sections.length ? slotData.sections : defaultSections()
+        slotData.sections && slotData.sections.length ? slotData.sections : defaultSections(getKindFromRoot(root)),
       );
 
       if (root) {
@@ -354,11 +431,12 @@
         'ref-mod-' + i,
         'ref-dt-' + i,
         'ref-mod-count-' + i,
-        'ref-dt-count-' + i
+        'ref-dt-count-' + i,
       );
       wireAddSection(i);
+      wireCodeTypeChange(i);
 
-      if (root && window.initSapPidTcodePair) {
+      if (root && window.initSapPidTcodePair && getKindFromRoot(root) === 'abap') {
         window.initSapPidTcodePair({
           programEl: root.querySelector('.js-ref-pid'),
           transactionEl: root.querySelector('.js-ref-tcode'),
@@ -371,6 +449,13 @@
         });
         var titleEl = root.querySelector('.js-ref-title');
         if (titleEl) titleEl.addEventListener('input', scheduleSave);
+      } else if (root) {
+        var titleEl2 = root.querySelector('.js-ref-title');
+        if (titleEl2) titleEl2.addEventListener('input', scheduleSave);
+        ['.js-ref-pid', '.js-ref-tcode'].forEach(function (sel) {
+          var el = root.querySelector(sel);
+          if (el) el.addEventListener('input', scheduleSave);
+        });
       }
     }
 
@@ -397,7 +482,7 @@
     var delAll = document.getElementById('ref-delete-all-btn');
     if (delAll) {
       delAll.addEventListener('click', function () {
-        if (!confirm('입력한 ABAP 코드를 모두 삭제할까요? 이 요청 분석·제안서에 더 이상 반영되지 않습니다.')) return;
+        if (!confirm('입력한 참고 코드를 모두 삭제할까요? 이 요청 분석·제안에 더 이상 반영되지 않습니다.')) return;
         var id = requestId();
         function wipeLocal() {
           visibleSlotCount = 1;
@@ -446,7 +531,6 @@
     } catch (e) {}
   }
 
-  /** 관리자: 코드 갤러리 API에서 받은 payload로 참고 코드 영역을 덮어씁니다. */
   function applyGalleryRefPayload(payload, collapseSelector) {
     if (!payload || !Array.isArray(payload.slots)) return false;
     var host = document.getElementById('ref-code-slots-host');
@@ -457,7 +541,7 @@
     ) {
       if (
         !confirm(
-          '이미 입력된 참고 코드가 있습니다. 갤러리 항목으로 바꿀까요? (저장된 내용은 덮어씌워집니다)'
+          '이미 입력된 참고 코드가 있습니다. 갤러리 항목으로 바꿀까요? (저장된 내용은 덮어씌워집니다)',
         )
       ) {
         return false;
@@ -474,6 +558,8 @@
       var slotData = payload.slots[i] || {};
       var root = document.querySelector('[data-ref-slot="' + i + '"]');
       if (root) {
+        var ctSel = root.querySelector('.js-ref-code-type');
+        if (ctSel) ctSel.value = 'abap';
         var pid = root.querySelector('.js-ref-pid');
         var tc = root.querySelector('.js-ref-tcode');
         var tit = root.querySelector('.js-ref-title');
@@ -482,9 +568,10 @@
         if (tit) tit.value = slotData.title || '';
       }
 
+      toggleAbapMeta(i);
       rebuildSections(
         i,
-        slotData.sections && slotData.sections.length ? slotData.sections : defaultSections()
+        slotData.sections && slotData.sections.length ? slotData.sections : defaultSections('abap'),
       );
 
       if (root) {
@@ -521,8 +608,9 @@
       root.querySelectorAll('.section-code').forEach(function (ta) {
         if (ta.value.trim()) hasCode = true;
       });
-      var mods = root.querySelectorAll('.ref-mod-' + i + ':checked').length;
-      var dts = root.querySelectorAll('.ref-dt-' + i + ':checked').length;
+      var kind = getKindFromRoot(root);
+      var mods = kind === 'abap' ? root.querySelectorAll('.ref-mod-' + i + ':checked').length : 0;
+      var dts = kind === 'abap' ? root.querySelectorAll('.ref-dt-' + i + ':checked').length : 0;
       if (pid || tit || hasCode || mods || dts) n++;
     }
     return n;
