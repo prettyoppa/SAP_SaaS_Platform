@@ -164,7 +164,7 @@ class IntegrationRequest(Base):
 
 
 class IntegrationFollowupMessage(Base):
-    """연동 개발 상세 — 후속 질문·응답(분석&개선 인터뷰와 동일 역할)."""
+    """연동 개발 상세 — 후속 질문·응답(분석·개선 인터뷰와 동일 역할)."""
 
     __tablename__ = "integration_followup_messages"
 

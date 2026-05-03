@@ -823,8 +823,6 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
                 "sections": [{"tab_label": "소스", "code": eff_src}],
             }
         ]
-    ref_section_count = sum(len(g["sections"]) for g in program_groups)
-
     return templates.TemplateResponse(
         request,
         "abap_analysis_detail.html",
@@ -841,8 +839,6 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
             "chat_error": chat_error,
             "wf_err": wf_err,
             "source_program_groups": program_groups,
-            "reference_section_count": ref_section_count,
-            "abap_source_line_count": len(eff_src.splitlines()) if eff_src else 0,
             "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
         },
     )

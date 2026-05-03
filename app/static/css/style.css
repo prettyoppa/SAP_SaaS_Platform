@@ -804,7 +804,7 @@ html[data-theme="light"] .rfp-field-ai-wrap .rfp-ai-inline-btn--pid:hover {
   font-size: 0;
 }
 .file-drop-content { pointer-events: none; position: relative; z-index: 0; color: inherit; }
-/* 네비: 분석&개선 — 홈 타일과 동일 (라이트 solid / 다크 regular) */
+/* 네비: 분석·개선 — 홈 타일과 동일 (라이트 solid / 다크 regular) */
 .nav-icon-analysis {
   display: inline-flex;
   align-items: center;

@@ -85,7 +85,7 @@ def build_workflow_seed_answer_abap(
     improvement_text: str,
 ) -> str:
     lines: list[str] = []
-    lines.append("## [SAP ABAP 분석&개선] 제안서 작성용 통합 요약")
+    lines.append("## [SAP ABAP 분석·개선] 제안서 작성용 통합 요약")
     lines.append("")
     lines.append("### 원본 요구사항")
     lines.append((requirement_text or "").strip() or "—")
@@ -150,7 +150,7 @@ def build_workflow_seed_answer_integration(
 
 
 def build_workflow_description_abap(row: models.AbapAnalysisRequest, improvement_text: str) -> str:
-    header = "[워크플로: 분석&개선 → 신규 개발 제안서]"
+    header = "[워크플로: 분석·개선 → 신규 개발 제안서]"
     parts = [header, "", "**개선 제안 요청**", improvement_text.strip(), "", "**원본 요구사항**", (row.requirement_text or "").strip()]
     return "\n".join(parts)
 

@@ -214,8 +214,8 @@
           </a>
         </div>
         <h3 class="home-feature-title">
-          <span class="nav-ko">{{ settings.get('home_tile_analysis_title_ko', '분석&개선') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_title_en', 'Analyze & improve') }}</span>
+          <span class="nav-ko">{{ settings.get('home_tile_analysis_title_ko', '분석·개선') }}</span>
+          <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_title_en', 'Analyze · improve') }}</span>
           {% if user and home_counts %}
           <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.abap_analysis_total }}</span>
           <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.abap_analysis_total }}</span>
@@ -314,10 +314,10 @@
           <div class="col-md-6"><label class="form-label">신규 개발 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-aken" value="{{ settings.get('home_tile_abap_title_en', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">신규 개발 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-adko" rows="3">{{ settings.get('home_tile_abap_desc_ko', '') }}</textarea></div>
           <div class="col-md-6"><label class="form-label">신규 개발 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-aden" rows="3">{{ settings.get('home_tile_abap_desc_en', '') }}</textarea></div>
-          <div class="col-md-6"><label class="form-label">분석&amp;개선 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-ysko" value="{{ settings.get('home_tile_analysis_title_ko', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">분석&amp;개선 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-ysen" value="{{ settings.get('home_tile_analysis_title_en', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">분석&amp;개선 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-ydko" rows="3">{{ settings.get('home_tile_analysis_desc_ko', '') }}</textarea></div>
-          <div class="col-md-6"><label class="form-label">분석&amp;개선 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-yden" rows="3">{{ settings.get('home_tile_analysis_desc_en', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">분석·개선 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-ysko" value="{{ settings.get('home_tile_analysis_title_ko', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">분석·개선 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-ysen" value="{{ settings.get('home_tile_analysis_title_en', '') }}"/></div>
+          <div class="col-md-6"><label class="form-label">분석·개선 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-ydko" rows="3">{{ settings.get('home_tile_analysis_desc_ko', '') }}</textarea></div>
+          <div class="col-md-6"><label class="form-label">분석·개선 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-yden" rows="3">{{ settings.get('home_tile_analysis_desc_en', '') }}</textarea></div>
           <div class="col-md-6"><label class="form-label">연동 개발 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-ikko" value="{{ settings.get('home_tile_integration_title_ko', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">연동 개발 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-iken" value="{{ settings.get('home_tile_integration_title_en', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">연동 개발 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-idko" rows="3">{{ settings.get('home_tile_integration_desc_ko', '') }}</textarea></div>
