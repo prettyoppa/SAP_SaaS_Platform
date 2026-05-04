@@ -7,6 +7,10 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
+
+import markdown
+from markdownify import markdownify as html_to_markdown
 from sqlalchemy.orm import Session
 
 from . import models
@@ -217,26 +221,71 @@ LOGICAL_KEYS: frozenset[str] = frozenset(WRITING_GUIDE_DEFAULTS_KO.keys())
 assert LOGICAL_KEYS == frozenset(WRITING_GUIDE_DEFAULTS_EN.keys())
 
 
+@lru_cache(maxsize=1)
+def _defaults_markdown_ko() -> dict[str, str]:
+    return {
+        k: html_to_markdown(html, heading_style="ATX").strip()
+        for k, html in WRITING_GUIDE_DEFAULTS_KO.items()
+    }
+
+
+@lru_cache(maxsize=1)
+def _defaults_markdown_en() -> dict[str, str]:
+    return {
+        k: html_to_markdown(html, heading_style="ATX").strip()
+        for k, html in WRITING_GUIDE_DEFAULTS_EN.items()
+    }
+
+
 def site_key_for(lang: str, logical_key: str) -> str:
     return f"{SITE_PREFIX}{lang}.{logical_key}"
 
 
-def _defaults_for(lang: str) -> dict[str, str]:
+def _looks_like_legacy_html(s: str) -> bool:
+    t = (s or "").strip()
+    if not t.startswith("<"):
+        return False
+    head = t[:1200].lower()
+    return any(
+        tag in head
+        for tag in ("<p", "<div", "<ul", "<ol", "<h1", "<h2", "<h3", "<section", "<table", "<blockquote")
+    )
+
+
+def normalize_guide_value_to_markdown(raw: str | None) -> str:
+    """DB에 HTML로 남아 있던 값은 Markdown으로 정규화."""
+    s = (raw or "").strip()
+    if not s:
+        return ""
+    if _looks_like_legacy_html(s):
+        return html_to_markdown(s, heading_style="ATX").strip()
+    return s
+
+
+def render_markdown_to_display_html(md: str | None) -> str:
+    if not (md or "").strip():
+        return ""
+    return markdown.markdown(
+        (md or "").strip(),
+        extensions=["fenced_code", "tables", "nl2br"],
+    )
+
+
+def _defaults_md_for(lang: str) -> dict[str, str]:
     if lang == "en":
-        return dict(WRITING_GUIDE_DEFAULTS_EN)
-    return dict(WRITING_GUIDE_DEFAULTS_KO)
+        return dict(_defaults_markdown_en())
+    return dict(_defaults_markdown_ko())
 
 
-def _apply_row(out: dict[str, str], site_key: str, value: str | None, target_lang: str) -> None:
+def _apply_row_md(out: dict[str, str], site_key: str, value: str | None, target_lang: str) -> None:
     m = _LANG_KEY_RE.match(site_key or "")
     if m:
         lang, logical = m.group(1), m.group(2)
         if lang != target_lang:
             return
         if logical in out and (value or "").strip():
-            out[logical] = (value or "").strip()
+            out[logical] = normalize_guide_value_to_markdown(value)
         return
-    # Legacy: writing_guide.<logical> — 한국어 오버레이로만 적용
     if target_lang != "ko":
         return
     if (site_key or "").startswith(SITE_PREFIX):
@@ -246,22 +295,32 @@ def _apply_row(out: dict[str, str], site_key: str, value: str | None, target_lan
         if legacy.startswith("ko.") or legacy.startswith("en."):
             return
         if legacy in out and (value or "").strip():
-            out[legacy] = (value or "").strip()
+            out[legacy] = normalize_guide_value_to_markdown(value)
 
 
-def get_writing_guides_for_lang(db: Session, lang: str) -> dict[str, str]:
+def get_writing_guides_md_for_lang(db: Session, lang: str) -> dict[str, str]:
+    """논리 키 → Markdown 원문(관리자 편집·저장 기준)."""
     lang = "en" if (lang or "").lower().startswith("en") else "ko"
-    out = _defaults_for(lang)
+    out = _defaults_md_for(lang)
     rows = db.query(models.SiteSettings).filter(models.SiteSettings.key.startswith(SITE_PREFIX)).all()
     for r in rows:
-        _apply_row(out, r.key or "", r.value, lang)
+        _apply_row_md(out, r.key or "", r.value, lang)
     return out
 
 
-def get_writing_guides_by_lang_bundle(db: Session) -> dict[str, dict[str, str]]:
+def get_writing_guides_by_lang_bundle(db: Session) -> dict[str, dict[str, dict[str, str]]]:
+    """ko/en 각각 { md: 논리키→Markdown, display: 논리키→HTML(회원용) }."""
+    ko = get_writing_guides_md_for_lang(db, "ko")
+    en = get_writing_guides_md_for_lang(db, "en")
     return {
-        "ko": get_writing_guides_for_lang(db, "ko"),
-        "en": get_writing_guides_for_lang(db, "en"),
+        "ko": {
+            "md": ko,
+            "display": {k: render_markdown_to_display_html(v) for k, v in ko.items()},
+        },
+        "en": {
+            "md": en,
+            "display": {k: render_markdown_to_display_html(v) for k, v in en.items()},
+        },
     }
 
 
@@ -269,16 +328,16 @@ def save_writing_guide_bilingual(
     db: Session,
     *,
     logical_key: str,
-    html_ko: str | None,
-    html_en: str | None,
+    md_ko: str | None,
+    md_en: str | None,
 ) -> None:
     if logical_key not in LOGICAL_KEYS:
         raise ValueError("unknown_writing_guide_key")
 
-    def _upsert(lang: str, html: str | None):
+    def _upsert(lang: str, body: str | None):
         sk = site_key_for(lang, logical_key)
         row = db.query(models.SiteSettings).filter(models.SiteSettings.key == sk).first()
-        val = (html or "").strip()
+        val = (body or "").strip()
         if not val:
             if row:
                 db.delete(row)
@@ -288,6 +347,6 @@ def save_writing_guide_bilingual(
         else:
             db.add(models.SiteSettings(key=sk, value=val))
 
-    _upsert("ko", html_ko)
-    _upsert("en", html_en)
+    _upsert("ko", md_ko)
+    _upsert("en", md_en)
     db.commit()

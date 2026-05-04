@@ -17,3 +17,5 @@ crewai[google-genai]>=1.14.0
 openpyxl>=3.1.0
 pypdf>=5.0.0
 stripe>=11.1.0,<13
+markdown>=3.7
+markdownify>=0.13.1

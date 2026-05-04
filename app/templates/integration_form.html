@@ -23,6 +23,12 @@
           <p class="text-muted mb-0">{% if edit_ir %}복사·수정한 내용을 확인한 뒤 제출하면 새 요청으로 등록됩니다.{% else %}구현 형태·SAP 접점·환경을 입력하고 필요 시 파일과 ABAP 코드를 첨부합니다.{% endif %}</p>
         </div>
 
+        {% if error == 'need_title' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>요청 제목을 입력해 주세요.</span>
+        </div>
+        {% endif %}
         {% if error == 'need_impl_types' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
@@ -41,7 +47,7 @@
           <span>코드 정보가 허용 용량을 초과했습니다. (대략 JSON 6MB·UTF-8 기준)</span>
         </div>
         {% endif %}
-        {% if error and error not in ['need_impl_types', 'too_many_attachments', 'reference_code_too_large'] %}
+        {% if error and error not in ['need_title', 'need_impl_types', 'too_many_attachments', 'reference_code_too_large'] %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           <span>첨부 처리 중 오류가 났습니다. 파일을 확인한 뒤 다시 시도해 주세요.</span>
@@ -68,8 +74,8 @@
                 {{ wg.wg_btn('int-title') }}
               </div>
               {{ wg.wg_panel(writing_guides_by_lang, 'shared.field_title', 'int-title', user) }}
-              <input type="text" name="title" id="int-title" class="form-control form-control-lg" required
-                     value="{{ form.title if form else '' }}"/>
+              <input type="text" name="title" id="int-title" class="form-control form-control-lg"
+                     value="{{ form.title if form else '' }}" maxlength="512" placeholder="제출 시 필수 · 임시저장 시 비워 두면 임시 제목이 붙습니다"/>
             </div>
             <div class="mb-2">
               <label class="form-label fw-semibold">구현 형태 <span class="text-danger">*</span></label>
@@ -286,18 +292,18 @@
               <div class="free-badge-card">
                 <i class="fa-solid fa-cat text-primary me-2" aria-hidden="true"></i>
                 <span>
-                  <strong>구체적인 요구사항</strong>을 작성할수록 연동 방안·제안이 더 정확해집니다. 제출 후 상세 화면에서 내용을 다시 확인할 수 있습니다.
+                  <strong>구체적인 요구사항</strong>을 작성할수록 연동 방안·제안이 더 정확해집니다.
+                  임시저장 후 이어서 작성하거나, 제출 후 상세 화면에서 내용을 다시 확인할 수 있습니다.
                 </span>
               </div>
             </div>
             <div class="d-flex gap-3 justify-content-end flex-wrap">
               <a href="/integration" class="btn btn-outline-secondary px-4">취소</a>
-              <button type="submit" class="btn btn-primary btn-lg px-5" id="int-submit-btn">
-                {% if edit_ir %}
-                <i class="fa-solid fa-check me-2"></i>수정 완료 및 제출
-                {% else %}
-                <i class="fa-solid fa-paper-plane me-2"></i>요청 제출
-                {% endif %}
+              <button type="submit" name="save_action" value="draft" class="btn btn-outline-warning px-4" id="draft-btn">
+                <i class="fa-solid fa-floppy-disk me-2"></i>임시저장
+              </button>
+              <button type="submit" name="save_action" value="submit" class="btn btn-primary btn-lg px-5" id="submit-btn">
+                <i class="fa-solid fa-paper-plane me-2"></i>제출 및 분석
               </button>
             </div>
           </div>
@@ -315,8 +321,8 @@
 <script src="/static/js/sap_field_input.js?v=20260415c"></script>
 <script src="/static/js/integration_ref_code.js?v=20260504a"></script>
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
-<script src="/static/js/integration_form.js?v=20260504a"></script>
+<script src="/static/js/integration_form.js?v=20260422intfooter"></script>
 {% if user and user.is_admin %}
-<script src="/static/js/writing_guides_admin.js?v=202604141"></script>
+<script src="/static/js/writing_guides_admin.js?v=20260422wgmd"></script>
 {% endif %}
 {% endblock %}

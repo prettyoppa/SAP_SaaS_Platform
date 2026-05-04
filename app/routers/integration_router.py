@@ -267,7 +267,7 @@ def integration_new_form(request: Request, db: Session = Depends(get_db)):
 @router.post("/integration/new")
 async def integration_new_submit(
     request: Request,
-    title: str = Form(...),
+    title: str = Form(""),
     impl_types: List[str] = Form(default=[]),
     sap_touchpoints: str = Form(""),
     environment_notes: str = Form(""),
@@ -279,6 +279,7 @@ async def integration_new_submit(
     note_3: str = Form(""),
     note_4: str = Form(""),
     reference_code_json: str = Form(""),
+    save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -287,6 +288,7 @@ async def integration_new_submit(
 
     modules, devtypes = _get_modules_devtypes(db)
     notes_in = [note_0, note_1, note_2, note_3, note_4]
+    is_draft_save = (save_action or "").strip().lower() == "draft"
 
     def _form_dict():
         return {
@@ -356,7 +358,7 @@ async def integration_new_submit(
 
     allowed_impl = integration_impl_allowed_codes(db)
     impl_clean = [x for x in impl_types if x in allowed_impl]
-    if not impl_clean:
+    if not is_draft_save and not impl_clean:
         return templates.TemplateResponse(
             request,
             "integration_form.html",
@@ -371,22 +373,41 @@ async def integration_new_submit(
             },
             status_code=400,
         )
+    title_clean = (title or "").strip()
+    if not is_draft_save and not title_clean:
+        return templates.TemplateResponse(
+            request,
+            "integration_form.html",
+            {
+                "request": request,
+                "user": user,
+                "modules": modules,
+                "devtypes": devtypes,
+                **_integration_impl_ui_ctx(db),
+                "error": "need_title",
+                "form": _form_dict(),
+            },
+            status_code=400,
+        )
+    display_title = title_clean or "SAP 연동 개발 요청 (임시)"
     ir = models.IntegrationRequest(
         user_id=user.id,
-        title=title.strip(),
+        title=display_title,
         impl_types=",".join(impl_clean) if impl_clean else "",
         sap_touchpoints=sap_touchpoints.strip() or None,
         environment_notes=environment_notes.strip() or None,
         security_notes=None,
         description=description.strip() or None,
         reference_code_payload=norm_ref,
-        status="submitted",
+        status="draft" if is_draft_save else "submitted",
         interview_status="pending",
     )
     _set_attachments(ir, att_entries)
     db.add(ir)
     db.commit()
     db.refresh(ir)
+    if is_draft_save:
+        return RedirectResponse(url=f"/integration/{ir.id}/edit", status_code=302)
     return RedirectResponse(url=f"/integration/{ir.id}", status_code=302)
 
 
@@ -526,7 +547,7 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
 async def integration_edit_submit(
     req_id: int,
     request: Request,
-    title: str = Form(...),
+    title: str = Form(""),
     impl_types: List[str] = Form(default=[]),
     sap_touchpoints: str = Form(""),
     environment_notes: str = Form(""),
@@ -538,6 +559,7 @@ async def integration_edit_submit(
     note_3: str = Form(""),
     note_4: str = Form(""),
     reference_code_json: str = Form(""),
+    save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -553,6 +575,7 @@ async def integration_edit_submit(
 
     modules, devtypes = _get_modules_devtypes(db)
     notes_in = [note_0, note_1, note_2, note_3, note_4]
+    is_draft_save = (save_action or "").strip().lower() == "draft"
 
     def _form_dict():
         return {
@@ -654,7 +677,7 @@ async def integration_edit_submit(
 
     allowed_impl = integration_impl_allowed_codes(db)
     impl_clean = [x for x in impl_types if x in allowed_impl]
-    if not impl_clean:
+    if not is_draft_save and not impl_clean:
         return templates.TemplateResponse(
             request,
             "integration_form.html",
@@ -672,19 +695,43 @@ async def integration_edit_submit(
             },
             status_code=400,
         )
+    title_clean = (title or "").strip()
+    if not is_draft_save and not title_clean:
+        return templates.TemplateResponse(
+            request,
+            "integration_form.html",
+            {
+                "request": request,
+                "user": user,
+                "modules": modules,
+                "devtypes": devtypes,
+                **_integration_impl_ui_ctx(db),
+                "error": "need_title",
+                "form": _form_dict(),
+                "edit_ir": ir,
+                "integration_ref_code_initial": None,
+                "attachment_entries": merged_att,
+            },
+            status_code=400,
+        )
 
-    ir.title = title.strip()
+    ir.title = title_clean or ir.title or "SAP 연동 개발 요청 (임시)"
     ir.impl_types = ",".join(impl_clean) if impl_clean else ""
     ir.sap_touchpoints = sap_touchpoints.strip() or None
     ir.environment_notes = environment_notes.strip() or None
     ir.security_notes = None
     ir.description = description.strip() or None
     ir.reference_code_payload = norm_ref
-    ir.status = "submitted"
-    ir.interview_status = "pending"
+    if is_draft_save:
+        ir.status = "draft"
+    else:
+        ir.status = "submitted"
+        ir.interview_status = "pending"
     _set_attachments(ir, merged_att)
     db.add(ir)
     db.commit()
+    if is_draft_save:
+        return RedirectResponse(url=f"/integration/{ir.id}/edit", status_code=302)
     return RedirectResponse(url=f"/integration/{ir.id}", status_code=302)
 
 

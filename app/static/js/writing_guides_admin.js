@@ -35,8 +35,8 @@
     if (!wrap3) return;
     var key = wrap3.getAttribute('data-wg-key');
     if (!key) return;
-    var koTa = wrap3.querySelector('textarea.wg-html-src[data-wg-lang="ko"]');
-    var enTa = wrap3.querySelector('textarea.wg-html-src[data-wg-lang="en"]');
+    var koTa = wrap3.querySelector('textarea.wg-md-src[data-wg-lang="ko"]');
+    var enTa = wrap3.querySelector('textarea.wg-md-src[data-wg-lang="en"]');
     if (!koTa || !enTa) return;
 
     save.disabled = true;
@@ -46,8 +46,8 @@
       credentials: 'same-origin',
       body: JSON.stringify({
         key: key,
-        html_ko: koTa.value,
-        html_en: enTa.value,
+        md_ko: koTa.value,
+        md_en: enTa.value,
       }),
     })
       .then(function (r) {

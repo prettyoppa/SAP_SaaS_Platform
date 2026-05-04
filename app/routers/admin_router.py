@@ -469,7 +469,7 @@ async def admin_api_writing_guide_save(
     db: Session = Depends(get_db),
     payload: dict = Body(...),
 ):
-    """요청 폼에서 관리자가 작성 가이드(한/영 HTML)를 저장할 때 사용."""
+    """요청 폼에서 관리자가 작성 가이드(한/영 Markdown)를 저장할 때 사용."""
     user = _require_admin(request, db)
     if not user:
         return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
@@ -480,8 +480,8 @@ async def admin_api_writing_guide_save(
         save_writing_guide_bilingual(
             db,
             logical_key=key,
-            html_ko=payload.get("html_ko"),
-            html_en=payload.get("html_en"),
+            md_ko=payload.get("md_ko") if payload.get("md_ko") is not None else payload.get("html_ko"),
+            md_en=payload.get("md_en") if payload.get("md_en") is not None else payload.get("html_en"),
         )
     except ValueError:
         return JSONResponse({"ok": False, "error": "invalid_key"}, status_code=400)

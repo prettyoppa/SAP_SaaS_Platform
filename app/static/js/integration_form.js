@@ -270,9 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   }
 
-  const submitBtn = document.getElementById('int-submit-btn');
+  const submitBtn = document.getElementById('submit-btn');
   if (form && submitBtn) {
-    form.addEventListener('submit', () => {
+    form.addEventListener('submit', ev => {
+      const sub = ev.submitter;
+      if (sub && sub.getAttribute('name') === 'save_action' && sub.value === 'draft') {
+        return;
+      }
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>제출 중...';
     });
