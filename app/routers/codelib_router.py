@@ -8,10 +8,16 @@ import json
 import re
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Request, Form, HTTPException, status, Query
+from fastapi import APIRouter, Depends, Request, Form, HTTPException, status, Query, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session, joinedload
 from .. import models, auth, sap_fields
+from ..codelib_bulk_upload import (
+    MAX_BULK_ZIP_BYTES,
+    MAX_SINGLE_FILE_BYTES,
+    collect_from_multipart_files,
+    collect_from_zip,
+)
 from ..database import get_db
 from ..templates_config import templates
 
@@ -226,6 +232,24 @@ def _get_modules_devtypes(db: Session):
     return modules, devtypes
 
 
+async def _read_uploadfile_capped(upload: UploadFile, max_bytes: int) -> bytes:
+    try:
+        await upload.seek(0)
+    except Exception:
+        pass
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await upload.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise ValueError("too_large")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 # ── 코드 라이브러리 2차 확인 (일반 회원) ─────────────────────────
 @router.get("/codelib/unlock", response_class=HTMLResponse)
 def codelib_unlock_page(request: Request, next: str = "/codelib", db: Session = Depends(get_db)):
@@ -408,6 +432,172 @@ def codelib_upload(
     db.commit()
     db.refresh(code)
     return RedirectResponse(url=f"/codelib/{code.id}", status_code=302)
+
+
+# ── 일괄 업로드 (ZIP 또는 다중 .txt/.abap, 파일명=프로그램 ID) ───
+@router.get("/codelib/bulk-upload", response_class=HTMLResponse)
+def codelib_bulk_upload_form(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+):
+    modules, devtypes = _get_modules_devtypes(db)
+    return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
+        "request": request,
+        "user": user,
+        "modules": modules,
+        "devtypes": devtypes,
+        "error": None,
+        "bulk_report": None,
+        "max_bulk_mb": MAX_BULK_ZIP_BYTES // (1024 * 1024),
+    })
+
+
+@router.post("/codelib/bulk-upload", response_class=HTMLResponse)
+async def codelib_bulk_upload_post(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_code_library_access),
+    archive: UploadFile | None = File(None),
+    sources: list[UploadFile] = File(default=[]),
+    sap_modules: list[str] = Form(default=[]),
+    dev_types: list[str] = Form(default=[]),
+    transaction_code: str = Form(""),
+    is_draft: str = Form(""),
+):
+    modules, devtypes = _get_modules_devtypes(db)
+    base_ctx = {
+        "request": request,
+        "user": user,
+        "modules": modules,
+        "devtypes": devtypes,
+        "selected_modules": list(sap_modules),
+        "selected_devtypes": list(dev_types),
+        "form_transaction_code": transaction_code,
+        "max_bulk_mb": MAX_BULK_ZIP_BYTES // (1024 * 1024),
+    }
+
+    if not sap_modules or not dev_types:
+        return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
+            **base_ctx,
+            "error": "SAP 모듈과 개발 유형을 하나 이상 선택해 주세요.",
+            "bulk_report": None,
+        })
+
+    tc_norm, terr = sap_fields.validate_transaction_code(transaction_code)
+    if terr:
+        return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
+            **base_ctx,
+            "error": _codelib_tcode_error_msg(terr),
+            "bulk_report": None,
+        })
+
+    arc = archive if archive and (archive.filename or "").strip() else None
+    src_list = [u for u in (sources or []) if u and (u.filename or "").strip()]
+    has_zip = bool(arc and (arc.filename or "").lower().endswith(".zip"))
+    has_files = len(src_list) > 0
+
+    if has_zip and has_files:
+        return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
+            **base_ctx,
+            "error": "ZIP 파일과 여러 파일 선택을 동시에 사용할 수 없습니다. 한 가지만 선택해 주세요.",
+            "bulk_report": None,
+        })
+    if not has_zip and not has_files:
+        return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
+            **base_ctx,
+            "error": "ZIP 파일을 선택하거나, 텍스트·ABAP 파일을 여러 개 선택해 주세요.",
+            "bulk_report": None,
+        })
+
+    items: list[dict] = []
+    skips: list[str] = []
+
+    try:
+        if has_zip:
+            assert arc is not None
+            zraw = await _read_uploadfile_capped(arc, MAX_BULK_ZIP_BYTES)
+            items, skips = collect_from_zip(zraw)
+        else:
+            named: list[tuple[str, bytes]] = []
+            total_payload = 0
+            for up in src_list:
+                try:
+                    raw = await _read_uploadfile_capped(up, MAX_SINGLE_FILE_BYTES)
+                except ValueError:
+                    skips.append(f"{up.filename}: 파일당 용량 초과")
+                    continue
+                total_payload += len(raw)
+                if total_payload > MAX_BULK_ZIP_BYTES:
+                    skips.append(f"전체 업로드 용량이 {MAX_BULK_ZIP_BYTES // (1024 * 1024)}MB를 초과하여 이후 파일은 생략합니다.")
+                    break
+                named.append((up.filename or "unknown", raw))
+            items, more_skips = collect_from_multipart_files(named)
+            skips.extend(more_skips)
+    except ValueError:
+        return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
+            **base_ctx,
+            "error": "업로드 파일이 허용 용량을 초과했습니다.",
+            "bulk_report": None,
+        })
+
+    if not items:
+        return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
+            **base_ctx,
+            "error": "등록할 수 있는 유효한 소스가 없습니다. 파일명·확장자·최소 글자 수를 확인해 주세요.",
+            "bulk_report": {"created": [], "failures": [], "skips": skips},
+        })
+
+    save_as_draft = (is_draft == "1")
+    created: list[dict] = []
+    failures: list[str] = []
+
+    for it in items:
+        pid = it["program_id"]
+        src = it["source_code"]
+        title = pid[:200] if len(pid) > 200 else pid
+        analysis: dict = {}
+        analyzed = False
+        if not save_as_draft:
+            try:
+                from ..agents.free_crew import analyze_code_for_library
+
+                analysis = analyze_code_for_library(
+                    source_code=src,
+                    title=title,
+                    modules=sap_modules,
+                    dev_types=dev_types,
+                )
+                analyzed = not bool(analysis.get("error"))
+            except Exception as e:
+                analysis = {"error": str(e)}
+                analyzed = False
+        try:
+            code = models.ABAPCode(
+                uploaded_by=user.id,
+                program_id=pid,
+                transaction_code=tc_norm,
+                title=title,
+                sap_modules=",".join(sap_modules),
+                dev_types=",".join(dev_types),
+                source_code=src,
+                analysis_json=json.dumps(analysis, ensure_ascii=False) if analysis else None,
+                is_analyzed=analyzed,
+                is_draft=save_as_draft,
+            )
+            db.add(code)
+            db.commit()
+            db.refresh(code)
+            created.append({"id": code.id, "program_id": pid, "file": it.get("display_name", "")})
+        except Exception as e:
+            db.rollback()
+            failures.append(f"{pid} ({it.get('display_name', '')}): 저장 오류 — {e}")
+
+    return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
+        **base_ctx,
+        "error": None,
+        "bulk_report": {"created": created, "failures": failures, "skips": skips},
+    })
 
 
 # ── 임시저장 항목 수정 ───────────────────────────────────────────

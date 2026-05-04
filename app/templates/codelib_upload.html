@@ -9,6 +9,9 @@
 
         <div class="mb-4">
           {% include 'partials/nav_prev_screen.html' %}
+          {% if not edit_code %}
+          <p class="small mb-2"><a href="/codelib/bulk-upload" class="text-decoration-none"><i class="fa-solid fa-file-zipper me-1"></i>ZIP·다중 파일로 일괄 등록</a></p>
+          {% endif %}
           <h2 class="rfp-title">{% if edit_code %}ABAP 코드 수정 <span class="badge bg-warning text-dark ms-2 small">임시저장</span>{% else %}ABAP 코드 등록{% endif %}</h2>
           <p class="text-muted">
             {% if edit_code %}

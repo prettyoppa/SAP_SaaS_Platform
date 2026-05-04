@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}코드 갤러리 일괄 등록 – Catchy Lab SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="rfp-page py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-10">
+
+        <div class="mb-4">
+          {% include 'partials/nav_prev_screen.html' %}
+          <h2 class="rfp-title">코드 갤러리 일괄 등록</h2>
+          <p class="text-muted mb-0">
+            PC에 있는 <strong>.txt</strong> 또는 <strong>.abap</strong> 파일을 ZIP으로 묶거나, 여러 파일을 한 번에 선택해 올립니다.
+            <strong>파일명(확장자 제외)</strong>이 SAP <strong>프로그램 ID</strong>로 저장되며, 단건 등록과 동일한 <code>abap_codes</code> 행이 생성됩니다.
+          </p>
+          <ul class="small text-muted mt-2 mb-0">
+            <li>소스 본문은 파일당 UTF-8(또는 CP949) 텍스트로 읽습니다.</li>
+            <li>ZIP 안의 <code>__MACOSX</code>·숨김 파일은 무시합니다.</li>
+            <li>건당 최소 <strong>50자</strong> 이상(단건 등록과 동일), 파일당 최대 약 2MB, 전체·ZIP 최대 약 {{ max_bulk_mb }}MB, 최대 약 150프로그램까지 처리합니다.</li>
+            <li>동일 프로그램 ID가 ZIP·목록에 여러 번 나오면 <strong>마지막 파일</strong>만 반영합니다.</li>
+          </ul>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger mb-4">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        {% if bulk_report %}
+        <div class="alert alert-success border mb-4">
+          <h5 class="alert-heading">처리 결과</h5>
+          {% if bulk_report.created and bulk_report.created|length %}
+          <p class="mb-2"><strong>등록 완료 {{ bulk_report.created|length }}건</strong></p>
+          <ul class="small mb-3">
+            {% for row in bulk_report.created %}
+            <li>
+              <a href="/codelib/{{ row.id }}">{{ row.program_id }}</a>
+              {% if row.file %}<span class="text-muted">({{ row.file }})</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="mb-2">새로 저장된 항목이 없습니다.</p>
+          {% endif %}
+          {% if bulk_report.failures and bulk_report.failures|length %}
+          <p class="mb-1 text-danger"><strong>저장 실패</strong></p>
+          <ul class="small mb-3">
+            {% for line in bulk_report.failures %}<li>{{ line }}</li>{% endfor %}
+          </ul>
+          {% endif %}
+          {% if bulk_report.skips and bulk_report.skips|length %}
+          <p class="mb-1 text-muted"><strong>건너뜀 / 안내</strong></p>
+          <ul class="small mb-0">
+            {% for line in bulk_report.skips %}<li>{{ line }}</li>{% endfor %}
+          </ul>
+          {% endif %}
+          <hr class="my-3"/>
+          <a href="/codelib" class="btn btn-outline-secondary btn-sm">갤러리 목록</a>
+          <a href="/codelib/bulk-upload" class="btn btn-primary btn-sm">다시 일괄 등록</a>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/codelib/bulk-upload" enctype="multipart/form-data" class="mb-5" id="bulk-upload-form">
+
+          <div class="rfp-section mb-4">
+            <div class="rfp-section-header">
+              <span class="rfp-section-num">01</span>
+              <div>
+                <h4 class="mb-0">공통 분류</h4>
+                <small class="text-muted">모든 파일에 동일하게 적용됩니다.</small>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">트랜잭션 코드 <small class="text-muted fw-normal">(선택, 공통)</small></label>
+                <input type="text" name="transaction_code" class="form-control" maxlength="20"
+                       value="{{ form_transaction_code or '' }}"/>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-semibold">SAP 모듈 <span class="text-danger">*</span></label>
+              <div class="chip-group">
+                {% for mod in modules %}
+                <label class="chip-label">
+                  <input type="checkbox" name="sap_modules" value="{{ mod.code }}" class="chip-input"
+                    {% if mod.code in (selected_modules or []) %}checked{% endif %}/>
+                  <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="mb-0">
+              <label class="form-label fw-semibold">개발 유형 <span class="text-danger">*</span></label>
+              <div class="chip-group">
+                {% for dt in devtypes %}
+                <label class="chip-label">
+                  <input type="checkbox" name="dev_types" value="{{ dt.code }}" class="chip-input"
+                    {% if dt.code in (selected_devtypes or []) %}checked{% endif %}/>
+                  <span class="chip">{{ dt.label_ko }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="rfp-section mb-4">
+            <div class="rfp-section-header">
+              <span class="rfp-section-num">02</span>
+              <div>
+                <h4 class="mb-0">파일 선택</h4>
+                <small class="text-muted">ZIP과 다중 파일 중 <strong>한 가지</strong>만 사용하세요.</small>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">ZIP 한 개</label>
+              <input type="file" name="archive" class="form-control" accept=".zip,application/zip"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">또는 텍스트·ABAP 여러 개</label>
+              <input type="file" name="sources" class="form-control" multiple accept=".txt,.abap,text/plain"/>
+            </div>
+          </div>
+
+          <div class="rfp-section mb-4">
+            <div class="rfp-section-header">
+              <span class="rfp-section-num">03</span>
+              <div>
+                <h4 class="mb-0">저장 방식</h4>
+              </div>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_draft" value="1" id="bulk-is-draft" checked/>
+              <label class="form-check-label" for="bulk-is-draft">
+                <strong>임시저장으로만 등록</strong> (에이전트 분석 생략 — 대량 등록에 권장)
+              </label>
+            </div>
+            <p class="small text-muted mt-2 mb-0">체크를 해제하면 건마다 분석이 실행되어 시간이 오래 걸릴 수 있습니다.</p>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="fa-solid fa-cloud-arrow-up me-2"></i>일괄 등록 실행
+            </button>
+            <a href="/codelib/upload" class="btn btn-outline-secondary">단건 등록으로</a>
+            <a href="/codelib" class="btn btn-outline-secondary">목록</a>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
