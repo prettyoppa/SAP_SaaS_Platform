@@ -1439,6 +1439,41 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   padding: 1.25rem 0;
 }
 .admin-table .badge { font-size: .75rem; }
+.admin-users-table {
+  --bs-table-bg: var(--surface2);
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border);
+}
+.admin-users-table > :not(caption) > * > * {
+  border-color: var(--border);
+}
+.admin-users-table thead th {
+  color: var(--muted);
+}
+.admin-users-table tbody tr:hover > * {
+  background: rgba(99, 102, 241, .08) !important;
+  color: var(--text);
+}
+.admin-users-table .admin-current-user-row > * {
+  background: rgba(245, 158, 11, .16) !important;
+  color: var(--text);
+}
+.admin-current-user-badge {
+  background: rgba(59, 130, 246, .18);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, .35);
+}
+html[data-theme="light"] .admin-current-user-badge {
+  background: rgba(37, 99, 235, .12);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, .35);
+}
+html[data-theme="light"] .admin-users-table tbody tr:hover > * {
+  background: rgba(79, 70, 229, .06) !important;
+}
+html[data-theme="light"] .admin-users-table .admin-current-user-row > * {
+  background: rgba(245, 158, 11, .12) !important;
+}
 
 /* Admin 사용자 목록: 가로 스크롤 시에도 삭제·유예 열이 보이도록 */
 .admin-users-table-responsive {
