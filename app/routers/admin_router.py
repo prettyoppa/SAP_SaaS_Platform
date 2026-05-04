@@ -78,8 +78,10 @@ def admin_users(
 
     if user_kind == "admin":
         q_users = q_users.filter(models.User.is_admin.is_(True))
+    elif user_kind == "consultant":
+        q_users = q_users.filter(models.User.is_admin.is_(False), models.User.is_consultant.is_(True))
     elif user_kind == "member":
-        q_users = q_users.filter(models.User.is_admin.is_(False))
+        q_users = q_users.filter(models.User.is_admin.is_(False), models.User.is_consultant.is_(False))
 
     users = q_users.order_by(models.User.id.desc()).all()
     user_ids = [u.id for u in users]
@@ -222,6 +224,21 @@ def admin_users(
             "user_kind": user_kind,
         },
     )
+
+
+@router.post("/users/{user_id}/consultant-toggle")
+def admin_user_toggle_consultant(user_id: int, request: Request, db: Session = Depends(get_db)):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    if target.is_admin:
+        return RedirectResponse(url="/admin/users?err=admin_consultant", status_code=302)
+    target.is_consultant = not bool(getattr(target, "is_consultant", False))
+    db.commit()
+    return RedirectResponse(url="/admin/users", status_code=302)
 
 
 @router.post("/users/{user_id}/purge-now")

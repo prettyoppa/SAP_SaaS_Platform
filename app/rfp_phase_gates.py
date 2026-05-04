@@ -49,8 +49,10 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
     fs_s = (getattr(rfp, "fs_status", None) or "none").strip()
     dc_s = (getattr(rfp, "delivered_code_status", None) or "none").strip()
     pipeline = fs_s != "none" or dc_s != "none"
-    is_admin = bool(user and getattr(user, "is_admin", False))
-    has_fs = paid_on or pipeline or is_admin
+    is_operator = bool(
+        user and (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
+    )
+    has_fs = paid_on or pipeline or is_operator
     fs_href = rfp_hub_url(rid, "fs") if has_fs else None
 
     st = (rfp.status or "").strip()
@@ -130,7 +132,7 @@ def rfp_for_owner_or_admin(
         preload.append(joinedload(models.RFP.followup_messages))
     if preload:
         q = q.options(*preload)
-    if not user.is_admin:
+    if not (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False)):
         q = q.filter(models.RFP.user_id == user.id)
     return q.first()
 

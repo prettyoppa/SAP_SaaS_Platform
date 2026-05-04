@@ -23,6 +23,7 @@ from ..paid_tier import (
     paid_engagement_is_active,
     rfp_eligible_for_stripe_checkout,
     user_can_access_fs_hub,
+    user_can_operate_delivery,
 )
 from ..rfp_download_names import (
     content_disposition_attachment,
@@ -604,7 +605,7 @@ def rfp_download_attachment(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     q = db.query(models.RFP).filter(models.RFP.id == rfp_id)
-    if not user.is_admin:
+    if not user_can_operate_delivery(user):
         q = q.filter(models.RFP.user_id == user.id)
     rfp = q.first()
     if not rfp:
@@ -700,7 +701,8 @@ def rfp_unified_hub(
     gen_busy = fs_busy or dc_busy
 
     can_start_delivered_code = False
-    if getattr(user, "is_admin", False):
+    can_operate_delivery = user_can_operate_delivery(user)
+    if can_operate_delivery:
         fs_body, _ = resolved_fs_markdown_for_codegen(db, rfp)
         can_start_delivered_code = bool(fs_body and fs_body.strip()) and (
             (rfp.delivered_code_status or "").strip() != "generating"
@@ -726,7 +728,7 @@ def rfp_unified_hub(
     tabs_base_id = f"rfp-ref-src-{rfp.id}"
 
     owner = None
-    if getattr(user, "is_admin", False):
+    if can_operate_delivery:
         owner = db.query(models.User).filter(models.User.id == rfp.user_id).first()
 
     delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
@@ -755,6 +757,7 @@ def rfp_unified_hub(
         "dc_busy": dc_busy,
         "gen_busy": gen_busy,
         "can_start_delivered_code": can_start_delivered_code,
+        "can_operate_delivery": can_operate_delivery,
         "source_program_groups": groups,
         "reference_section_count": ref_section_count,
         "tabs_base_id": tabs_base_id,

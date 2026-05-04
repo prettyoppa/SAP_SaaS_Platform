@@ -40,6 +40,7 @@ from ..devtype_catalog import (
 )
 from ..templates_config import templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
+from ..paid_tier import user_can_operate_delivery
 from ..integration_followup_chat import (
     generate_integration_followup_reply,
     integration_request_llm_summary,
@@ -108,7 +109,7 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
     date_from_dt = parse_slashed_date(date_from_raw)
     date_to_dt = parse_slashed_date(date_to_raw)
 
-    is_admin = bool(user and user.is_admin)
+    privileged = bool(user and user_can_operate_delivery(user))
 
     rfp_total_rows = 0
     rfp_landing_counts = {k: 0 for k in ("delivery", "proposal", "analysis", "in_progress", "draft")}
@@ -117,7 +118,7 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
 
     show_rfp_owner = False
     if user:
-        admin_view = is_admin
+        admin_view = privileged
         show_rfp_owner = admin_view
 
         cnt, _buckets = rfp_landing_aggregate(db, admin=admin_view, user_id=user.id)
@@ -185,15 +186,15 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
     date_from_dt = parse_slashed_date(date_from_raw)
     date_to_dt = parse_slashed_date(date_to_raw)
 
-    is_admin = bool(user and user.is_admin)
+    privileged = bool(user and user_can_operate_delivery(user))
     menu_counts = {k: 0 for k in ("delivery", "proposal", "analysis", "in_progress", "draft")}
     menu_total_rows = 0
     menu_tile_links: dict[str, str] = {}
     filtered_rows: list[models.IntegrationRequest] = []
-    show_request_owner = bool(user and is_admin)
+    show_request_owner = bool(user and privileged)
 
     if user:
-        admin_view = is_admin
+        admin_view = privileged
         cnt, _b = integration_menu_aggregate(db, admin=admin_view, user_id=user.id)
         menu_counts = cnt
         menu_total_rows = sum(menu_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft"))
@@ -744,8 +745,9 @@ def integration_generation_status(req_id: int, request: Request, db: Session = D
     user = auth.get_current_user(request, db)
     if not user:
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    privileged = user_can_operate_delivery(user)
     q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
-    if not user.is_admin:
+    if not privileged:
         q = q.filter(models.IntegrationRequest.user_id == user.id)
     ir = q.first()
     if not ir:
@@ -778,9 +780,10 @@ def integration_detail(
         return RedirectResponse(url="/login", status_code=302)
     requested_phase = normalize_integration_hub_phase(phase)
     view_summary = (view or "").strip().lower() == "summary" and requested_phase == "interview"
+    privileged = user_can_operate_delivery(user)
 
     q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
-    if not user.is_admin:
+    if not privileged:
         q = q.filter(models.IntegrationRequest.user_id == user.id)
     ir = (
         q.options(
@@ -818,7 +821,7 @@ def integration_detail(
     program_groups = reference_code_program_groups_for_tabs(ir.reference_code_payload)
     ref_section_count = sum(len(g["sections"]) for g in program_groups)
     owner = None
-    if user.is_admin:
+    if privileged:
         owner = db.query(models.User).filter(models.User.id == ir.user_id).first()
 
     imsgs = sorted(list(ir.interview_messages or []), key=lambda m: (m.round_number, m.id))
@@ -848,7 +851,8 @@ def integration_detail(
     gen_busy = fs_busy or dc_busy
 
     fs_body = (getattr(ir, "fs_text", None) or "").strip()
-    can_start_delivered_code = bool(user.is_admin) and bool(fs_body) and (dc_stat != "generating")
+    can_operate_delivery = user_can_operate_delivery(user)
+    can_start_delivered_code = bool(can_operate_delivery) and bool(fs_body) and (dc_stat != "generating")
 
     follow_msgs = sorted(
         list(ir.followup_messages or []),
@@ -887,6 +891,7 @@ def integration_detail(
         "dc_busy": dc_busy,
         "gen_busy": gen_busy,
         "can_start_delivered_code": can_start_delivered_code,
+        "can_operate_delivery": can_operate_delivery,
         "followup_turns": followup_turns,
         "chat_limit_reached": chat_limit_reached,
         "chat_error": chat_error,

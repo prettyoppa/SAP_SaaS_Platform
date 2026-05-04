@@ -16,6 +16,7 @@ from ..paid_generation import (
     run_fs_generation_job,
 )
 from ..integration_generation import run_integration_deliverable_job, run_integration_fs_job
+from ..paid_tier import user_can_operate_delivery
 from ..templates_config import templates
 from ..rfp_phase_gates import rfp_phase_gates
 from ..routers.rfp_router import _read_upload_limited, _store_rfp_file
@@ -23,9 +24,9 @@ from ..routers.rfp_router import _read_upload_limited, _store_rfp_file
 router = APIRouter(prefix="/admin", tags=["admin-delivery"])
 
 
-def _require_admin(request: Request, db: Session):
+def _require_delivery_operator(request: Request, db: Session):
     user = auth.get_current_user(request, db)
-    if not user or not user.is_admin:
+    if not user or not user_can_operate_delivery(user):
         return None
     return user
 
@@ -37,7 +38,7 @@ def admin_rfp_delivery_page(
     db: Session = Depends(get_db),
     err: str | None = None,
 ):
-    actor = _require_admin(request, db)
+    actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
 
@@ -97,7 +98,7 @@ def admin_delivery_generation_log_json(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    actor = _require_admin(request, db)
+    actor = _require_delivery_operator(request, db)
     if not actor:
         return JSONResponse({"detail": "forbidden"}, status_code=403)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
@@ -123,7 +124,7 @@ def admin_start_fs_generation(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    actor = _require_admin(request, db)
+    actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
@@ -146,7 +147,7 @@ def admin_start_delivered_code(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    actor = _require_admin(request, db)
+    actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
@@ -175,7 +176,7 @@ async def admin_upload_fs_supplement(
     db: Session = Depends(get_db),
     files: list[UploadFile] = File(...),
 ):
-    actor = _require_admin(request, db)
+    actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
@@ -243,7 +244,7 @@ def admin_delete_fs_supplement(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    actor = _require_admin(request, db)
+    actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
@@ -272,7 +273,7 @@ def admin_integration_fs_start(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    actor = _require_admin(request, db)
+    actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
@@ -295,7 +296,7 @@ def admin_integration_code_start(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    actor = _require_admin(request, db)
+    actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()

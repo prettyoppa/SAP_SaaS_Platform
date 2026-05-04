@@ -4,7 +4,7 @@
     {% include 'partials/nav_prev_screen.html' %}
     {% endif %}
 
-    {% if user.is_admin %}
+    {% if can_operate_delivery|default(false) %}
     <div class="alert alert-warning border mb-4">
       <button type="button" class="btn btn-sm btn-outline-dark mb-2" data-bs-toggle="collapse" data-bs-target="#adminDevCodeRegen" aria-expanded="false" aria-controls="adminDevCodeRegen">수정</button>
       <div class="collapse" id="adminDevCodeRegen">
@@ -31,14 +31,14 @@
           <h2 class="mb-2">제출 개발 코드(ABAP)</h2>
           <p class="text-muted small mb-0">{{ rfp.title }}</p>
         </div>
-        {% if not user.is_admin %}
+        {% if not can_operate_delivery|default(false) %}
         <button type="button" class="btn btn-outline-secondary" id="devCodeEditReveal">
           <i class="fa-solid fa-pen me-1"></i>수정
         </button>
         {% endif %}
       </div>
     </div>
-    {% if not user.is_admin %}
+    {% if not can_operate_delivery|default(false) %}
     <div id="devCodeEditDock" class="d-none mb-3">
       <a href="/rfp/{{ rfp.id }}/edit#section-ref-code" class="btn btn-outline-primary btn-sm mb-3">
         <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>요청 수정에서 코드 편집

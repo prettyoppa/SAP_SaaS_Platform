@@ -9,6 +9,7 @@ from . import models
 
 class _UserLike(Protocol):
     is_admin: bool
+    is_consultant: bool
 
 
 PAID_ACTIVE = "active"
@@ -37,9 +38,16 @@ def user_can_access_fs_hub(user: _UserLike | None, rfp: models.RFP) -> bool:
         return False
     if paid_engagement_is_active(rfp):
         return True
-    if getattr(user, "is_admin", False):
+    if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
         return True
     return paid_delivery_pipeline_started(rfp)
+
+
+def user_can_operate_delivery(user: _UserLike | None) -> bool:
+    """FS·납품 코드 생성/관리 권한: admin 또는 consultant."""
+    if not user:
+        return False
+    return bool(getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
 
 
 def rfp_eligible_for_stripe_checkout(rfp: models.RFP) -> bool:

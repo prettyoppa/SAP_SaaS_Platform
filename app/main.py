@@ -39,6 +39,7 @@ def _run_migrations():
         ("rfps", "transaction_code", "VARCHAR", "VARCHAR"),
         ("rfps", "proposal_generated_at", "DATETIME", "TIMESTAMP"),
         ("users", "is_admin", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("users", "is_consultant", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("rfp_messages", "source_label", "VARCHAR", "VARCHAR"),
         ("rfp_messages", "updated_at", "DATETIME", "TIMESTAMP"),
         ("abap_codes", "program_id", "VARCHAR", "VARCHAR"),

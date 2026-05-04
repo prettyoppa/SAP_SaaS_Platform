@@ -14,6 +14,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    is_consultant = Column(Boolean, default=False)
     email_verified = Column(Boolean, default=True)  # 기존 행은 마이그레이션에서 true
     created_at = Column(DateTime, default=datetime.utcnow)
     # 회원 탈퇴: 유예 기간 후 영구 삭제 (소프트 단계에서는 로그인 불가, 이메일로 취소 가능)
