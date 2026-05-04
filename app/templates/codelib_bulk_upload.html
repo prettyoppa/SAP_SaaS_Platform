@@ -11,14 +11,16 @@
           {% include 'partials/nav_prev_screen.html' %}
           <h2 class="rfp-title">코드 갤러리 일괄 등록</h2>
           <p class="text-muted mb-0">
-            PC에 있는 <strong>.txt</strong> 또는 <strong>.abap</strong> 파일을 ZIP으로 묶거나, 여러 파일을 한 번에 선택해 올립니다.
-            <strong>파일명(확장자 제외)</strong>이 SAP <strong>프로그램 ID</strong>로 저장되며, 단건 등록과 동일한 <code>abap_codes</code> 행이 생성됩니다.
+            PC에 있는 <strong>.txt</strong>, <strong>.abap</strong>, <strong>.docx</strong>(Word 본문만 추출) 파일을 ZIP으로 묶거나, 여러 파일을 한 번에 선택해 올립니다.
+            <strong>파일명(확장자 제외)의 첫 번째 <code>_</code> 앞</strong>을 SAP 프로그램 ID로 보고 같은 ID끼리 한 건으로 묶어,
+            단건 등록과 같은 <strong>멀티 섹션 소스</strong> 형식으로 저장합니다. (예: <code>ZLSDF64170.txt</code> + <code>ZLSDF64170_CLS.txt</code> → 프로그램 <code>ZLSDF64170</code> 1건)
           </p>
           <ul class="small text-muted mt-2 mb-0">
-            <li>소스 본문은 파일당 UTF-8(또는 CP949) 텍스트로 읽습니다.</li>
+            <li><code>_</code>가 없으면 파일명 전체가 프로그램 ID입니다. 프로그램 ID에 <code>_</code>가 들어가는 예외적인 이름은 묶임 규칙과 맞지 않을 수 있습니다.</li>
+            <li>텍스트·ABAP은 UTF-8(또는 CP949)로 읽고, DOCX는 OOXML에서 텍스트만 뽑습니다(서식·이미지는 무시).</li>
             <li>ZIP 안의 <code>__MACOSX</code>·숨김 파일은 무시합니다.</li>
-            <li>건당 최소 <strong>50자</strong> 이상(단건 등록과 동일), 파일당 최대 약 2MB, 전체·ZIP 최대 약 {{ max_bulk_mb }}MB, 최대 약 150프로그램까지 처리합니다.</li>
-            <li>동일 프로그램 ID가 ZIP·목록에 여러 번 나오면 <strong>마지막 파일</strong>만 반영합니다.</li>
+            <li>한 프로그램으로 합친 전체 소스가 최소 <strong>50자</strong> 이상이어야 저장됩니다. 파일당 최대 약 2MB, ZIP·전체 업로드 최대 약 {{ max_bulk_mb }}MB, 입력 파일 최대 약 {{ max_input_files }}개, 생성 프로그램 최대 약 {{ max_output_programs }}건, 프로그램당 최대 64개 파일(섹션)입니다.</li>
+            <li>동일 파일명 stem이 반복되면 <strong>마지막 파일</strong>만 반영합니다.</li>
           </ul>
         </div>
 
@@ -38,6 +40,10 @@
             <li>
               <a href="/codelib/{{ row.id }}">{{ row.program_id }}</a>
               {% if row.file %}<span class="text-muted">({{ row.file }})</span>{% endif %}
+              {% if row.sections %}<span class="text-muted small"> — 섹션 {{ row.sections }}개</span>{% endif %}
+              {% if row.leaves and row.leaves|length %}
+              <span class="text-muted small d-block mt-1 font-monospace">{{ row.leaves[:8]|join(', ') }}{% if row.leaves|length > 8 %} … (+{{ row.leaves|length - 8 }}){% endif %}</span>
+              {% endif %}
             </li>
             {% endfor %}
           </ul>
@@ -122,8 +128,8 @@
               <input type="file" name="archive" class="form-control" accept=".zip,application/zip"/>
             </div>
             <div class="mb-3">
-              <label class="form-label fw-semibold">또는 텍스트·ABAP 여러 개</label>
-              <input type="file" name="sources" class="form-control" multiple accept=".txt,.abap,text/plain"/>
+              <label class="form-label fw-semibold">또는 .txt·.abap·.docx 여러 개</label>
+              <input type="file" name="sources" class="form-control" multiple accept=".txt,.abap,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
             </div>
           </div>
 

@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, auth, sap_fields
 from ..codelib_bulk_upload import (
     MAX_BULK_ZIP_BYTES,
+    MAX_INPUT_FILES,
+    MAX_OUTPUT_PROGRAMS,
     MAX_SINGLE_FILE_BYTES,
     collect_from_multipart_files,
     collect_from_zip,
@@ -450,6 +452,8 @@ def codelib_bulk_upload_form(
         "error": None,
         "bulk_report": None,
         "max_bulk_mb": MAX_BULK_ZIP_BYTES // (1024 * 1024),
+        "max_input_files": MAX_INPUT_FILES,
+        "max_output_programs": MAX_OUTPUT_PROGRAMS,
     })
 
 
@@ -475,6 +479,8 @@ async def codelib_bulk_upload_post(
         "selected_devtypes": list(dev_types),
         "form_transaction_code": transaction_code,
         "max_bulk_mb": MAX_BULK_ZIP_BYTES // (1024 * 1024),
+        "max_input_files": MAX_INPUT_FILES,
+        "max_output_programs": MAX_OUTPUT_PROGRAMS,
     }
 
     if not sap_modules or not dev_types:
@@ -506,7 +512,7 @@ async def codelib_bulk_upload_post(
     if not has_zip and not has_files:
         return templates.TemplateResponse(request, "codelib_bulk_upload.html", {
             **base_ctx,
-            "error": "ZIP 파일을 선택하거나, 텍스트·ABAP 파일을 여러 개 선택해 주세요.",
+            "error": "ZIP 파일을 선택하거나, .txt·.abap·.docx 파일을 여러 개 선택해 주세요.",
             "bulk_report": None,
         })
 
@@ -588,7 +594,13 @@ async def codelib_bulk_upload_post(
             db.add(code)
             db.commit()
             db.refresh(code)
-            created.append({"id": code.id, "program_id": pid, "file": it.get("display_name", "")})
+            created.append({
+                "id": code.id,
+                "program_id": pid,
+                "file": it.get("display_name", ""),
+                "sections": it.get("section_count", 0),
+                "leaves": it.get("source_leaves") or [],
+            })
         except Exception as e:
             db.rollback()
             failures.append(f"{pid} ({it.get('display_name', '')}): 저장 오류 — {e}")
