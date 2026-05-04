@@ -168,6 +168,17 @@ class IntegrationRequest(Base):
     interview_status = Column(String, default="pending")
     proposal_text = Column(Text, nullable=True)
     proposal_generated_at = Column(DateTime, nullable=True)
+    # 연동 전용: 기능명세(FS)·구현 산출(비-ABAP, 마크다운)
+    fs_status = Column(String, default="none")  # none | generating | ready | failed
+    fs_text = Column(Text, nullable=True)
+    fs_generated_at = Column(DateTime, nullable=True)
+    fs_error = Column(Text, nullable=True)
+    fs_job_log = Column(Text, nullable=True)
+    delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
+    delivered_code_text = Column(Text, nullable=True)
+    delivered_code_generated_at = Column(DateTime, nullable=True)
+    delivered_code_error = Column(Text, nullable=True)
+    delivered_job_log = Column(Text, nullable=True)
     # 분석·연동 → 신규 개발(RFP) 제안·FS·납품 파이프라인 연결
     workflow_rfp_id = Column(Integer, ForeignKey("rfps.id"), nullable=True)
     improvement_request_text = Column(Text, nullable=True)
@@ -177,12 +188,42 @@ class IntegrationRequest(Base):
 
     owner = relationship("User", back_populates="integration_requests")
     workflow_rfp = relationship("RFP", foreign_keys=[workflow_rfp_id])
+    interview_messages = relationship(
+        "IntegrationInterviewMessage",
+        back_populates="request",
+        order_by="IntegrationInterviewMessage.round_number, IntegrationInterviewMessage.id",
+        cascade="all, delete-orphan",
+    )
     followup_messages = relationship(
         "IntegrationFollowupMessage",
         back_populates="request",
         order_by="IntegrationFollowupMessage.created_at",
         cascade="all, delete-orphan",
     )
+
+
+class IntegrationInterviewMessage(Base):
+    """연동 개발 — AI 인터뷰 라운드(RFPMessage와 동일 스키마)."""
+
+    __tablename__ = "integration_interview_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    integration_request_id = Column(
+        Integer,
+        ForeignKey("integration_requests.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    round_number = Column(Integer, nullable=False)
+    questions_json = Column(Text, nullable=False)
+    answers_text = Column(Text, nullable=True)
+    intra_state_json = Column(Text, nullable=True)
+    source_label = Column(String, nullable=True)
+    is_answered = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+
+    request = relationship("IntegrationRequest", back_populates="interview_messages")
 
 
 class IntegrationFollowupMessage(Base):

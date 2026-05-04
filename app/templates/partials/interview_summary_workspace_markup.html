@@ -1,3 +1,4 @@
+{% set ivb = iv_submit_base if iv_submit_base is defined else ('/rfp/' ~ (rfp.id|string)) %}
 <div class="proposal-page py-5">
   <div class="container">
     <div class="row justify-content-center">
@@ -8,14 +9,14 @@
 
         {% if rfp.interview_status == 'generating_proposal' %}
         <div class="alert alert-info small mb-3">
-          개발 제안서를 생성하는 중입니다. <a href="/rfp/{{ rfp.id }}?phase=proposal">진행 상태</a>
+          개발 제안서를 생성하는 중입니다. <a href="{{ ivb }}?phase=proposal">진행 상태</a>
         </div>
         {% endif %}
 
         {% if rfp.interview_status == 'in_progress' %}
         <div class="alert alert-secondary border-0 small mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
           <span>인터뷰 진행 중입니다.</span>
-          <a href="/rfp/{{ rfp.id }}?phase=interview" class="btn btn-sm btn-primary mb-0">인터뷰 계속</a>
+          <a href="{{ ivb }}?phase=interview" class="btn btn-sm btn-primary mb-0">인터뷰 계속</a>
         </div>
         {% endif %}
 
@@ -32,7 +33,7 @@
               </button>
               {% endif %}
               {% if rfp.interview_status in ['in_progress', 'completed'] %}
-              <form method="post" action="/rfp/{{ rfp.id }}/interview/reset"
+              <form method="post" action="{{ ivb }}/interview/reset"
                     onsubmit="return confirm('인터뷰를 처음부터 다시 시작할까요?')" class="d-inline mb-0">
                 <button type="submit" class="btn btn-outline-danger">
                   <i class="fa-solid fa-rotate-left me-1"></i>인터뷰 재시작
@@ -68,7 +69,7 @@
                 <i class="fa-solid fa-user text-success small mt-1"></i>
                 <div class="flex-grow-1 interview-qa-content" style="white-space:pre-wrap;">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
               </div>
-              <form method="post" action="/rfp/{{ rfp.id }}/interview/edit-answer"
+              <form method="post" action="{{ ivb }}/interview/edit-answer"
                     class="summary-edit-form d-none mt-2" id="sum-edit-{{ loop.index }}"
                     data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
                     data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">

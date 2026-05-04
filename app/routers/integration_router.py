@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import List
+from types import SimpleNamespace
+from typing import Any, List
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
@@ -39,13 +40,15 @@ from ..devtype_catalog import (
 )
 from ..templates_config import templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
-from ..workflow_rfp_bridge import create_workflow_rfp_from_integration
 from ..integration_followup_chat import (
     generate_integration_followup_reply,
     integration_request_llm_summary,
     validate_integration_user_message,
 )
-from ..routers.interview_router import _markdown_to_html, _run_proposal_background
+from ..agent_display import wrap_unbracketed_agent_names
+from ..integration_hub import integration_hub_url, normalize_integration_hub_phase
+from ..integration_interview_service import serve_integration_interview_workspace
+from ..routers.interview_router import _markdown_to_html, _messages_to_list
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
@@ -56,8 +59,6 @@ from .rfp_router import (
 )
 
 router = APIRouter()
-
-MIN_IMPROVEMENT_PROPOSAL_LEN = 20
 
 
 def _integration_impl_ui_ctx(db: Session) -> dict:
@@ -460,6 +461,9 @@ def integration_delete(req_id: int, request: Request, db: Session = Depends(get_
     ir = q.first()
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
+    fs_s = (getattr(ir, "fs_status", None) or "none").strip().lower() or "none"
+    if fs_s == "ready" and (getattr(ir, "fs_text", None) or "").strip():
+        return RedirectResponse(url=f"/integration/{req_id}?delete_blocked=fs", status_code=302)
     for ent in _attachment_entries(ir):
         _remove_stored_file(ent.get("path"))
     db.delete(ir)
@@ -735,32 +739,116 @@ async def integration_edit_submit(
     return RedirectResponse(url=f"/integration/{ir.id}", status_code=302)
 
 
+@router.get("/integration/{req_id}/generation-status")
+def integration_generation_status(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
+    if not user.is_admin:
+        q = q.filter(models.IntegrationRequest.user_id == user.id)
+    ir = q.first()
+    if not ir:
+        return JSONResponse({"detail": "not_found"}, status_code=404)
+    return JSONResponse(
+        {
+            "fs_status": getattr(ir, "fs_status", None) or "none",
+            "delivered_code_status": getattr(ir, "delivered_code_status", None) or "none",
+            "fs_job_log": getattr(ir, "fs_job_log", None) or "",
+            "delivered_job_log": getattr(ir, "delivered_job_log", None) or "",
+            "fs_error": getattr(ir, "fs_error", None) or "",
+            "delivered_code_error": getattr(ir, "delivered_code_error", None) or "",
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @router.get("/integration/{req_id}", response_class=HTMLResponse)
 def integration_detail(
     req_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
+    phase: str | None = None,
+    view: str | None = None,
     db: Session = Depends(get_db),
 ):
+    """연동 개발 통합 상세 — 요청·인터뷰·제안서·FS·구현 가이드."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
+    requested_phase = normalize_integration_hub_phase(phase)
+    view_summary = (view or "").strip().lower() == "summary" and requested_phase == "interview"
+
     q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
     if not user.is_admin:
         q = q.filter(models.IntegrationRequest.user_id == user.id)
     ir = (
         q.options(
             joinedload(models.IntegrationRequest.followup_messages),
-            joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
+            joinedload(models.IntegrationRequest.workflow_rfp),
+            joinedload(models.IntegrationRequest.interview_messages),
         ).first()
     )
     if not ir:
         return RedirectResponse(url="/", status_code=302)
+
+    st = (ir.status or "").strip().lower()
+    if st == "draft" and requested_phase != "request":
+        return RedirectResponse(url=f"/integration/{req_id}/edit", status_code=302)
+
+    display_phase = requested_phase
+    hub_embedded = False
+    hub_proposal_generating_override = False
+    ws_out = None
+
+    if requested_phase == "interview" and not view_summary:
+        ws_out = serve_integration_interview_workspace(request, db, user, ir, background_tasks)
+        db.refresh(ir)
+        if ws_out.kind == "redirect":
+            return RedirectResponse(url=ws_out.redirect_url or "/", status_code=302)
+        if ws_out.kind == "generating":
+            display_phase = "proposal"
+            hub_proposal_generating_override = True
+        elif ws_out.kind == "wizard" and ws_out.wizard_ctx:
+            hub_embedded = True
+            display_phase = "interview"
+            ws_out.wizard_ctx["iv_submit_base"] = f"/integration/{req_id}"
+
     types_list = [t for t in (ir.impl_types or "").split(",") if t.strip()]
     program_groups = reference_code_program_groups_for_tabs(ir.reference_code_payload)
     ref_section_count = sum(len(g["sections"]) for g in program_groups)
     owner = None
     if user.is_admin:
         owner = db.query(models.User).filter(models.User.id == ir.user_id).first()
+
+    imsgs = sorted(list(ir.interview_messages or []), key=lambda m: (m.round_number, m.id))
+    answered_sorted = [m for m in imsgs if m.is_answered]
+    interview_summary_messages = _messages_to_list(answered_sorted)
+    proposal_round_messages = interview_summary_messages
+
+    hub_proposal_generating = hub_proposal_generating_override or (
+        (ir.interview_status or "") == "generating_proposal"
+    )
+
+    proposal_html = ""
+    if (ir.interview_status or "") == "completed" and (ir.proposal_text or "").strip():
+        proposal_html = _markdown_to_html(wrap_unbracketed_agent_names(ir.proposal_text or ""))
+
+    fs_stat = (getattr(ir, "fs_status", None) or "none").strip() or "none"
+    dc_stat = (getattr(ir, "delivered_code_status", None) or "none").strip() or "none"
+    fs_html = ""
+    if fs_stat == "ready" and (getattr(ir, "fs_text", None) or "").strip():
+        fs_html = _markdown_to_html(ir.fs_text)
+    delivered_code_html = ""
+    if dc_stat == "ready" and (getattr(ir, "delivered_code_text", None) or "").strip():
+        delivered_code_html = _markdown_to_html(ir.delivered_code_text)
+
+    fs_busy = fs_stat == "generating"
+    dc_busy = dc_stat == "generating"
+    gen_busy = fs_busy or dc_busy
+
+    fs_body = (getattr(ir, "fs_text", None) or "").strip()
+    can_start_delivered_code = bool(user.is_admin) and bool(fs_body) and (dc_stat != "generating")
 
     follow_msgs = sorted(
         list(ir.followup_messages or []),
@@ -770,27 +858,51 @@ def integration_detail(
     n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
     chat_limit_reached = n_followup_user >= INT_CHAT_MAX_USER
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
-    wf_err = (request.query_params.get("wf_err") or "").strip() or None
-    return templates.TemplateResponse(
-        request,
-        "integration_detail.html",
-        {
-            "request": request,
-            "user": user,
-            "ir": ir,
-            "owner": owner,
-            "attachment_entries": _attachment_entries(ir),
-            **_integration_impl_ui_ctx(db),
-            "types_list": types_list,
-            "source_program_groups": program_groups,
-            "reference_section_count": ref_section_count,
-            "followup_turns": followup_turns,
-            "chat_limit_reached": chat_limit_reached,
-            "chat_error": chat_error,
-            "wf_err": wf_err,
-            "max_followup_user_turns": INT_CHAT_MAX_USER,
-        },
-    )
+    delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
+
+    ctx: dict[str, Any] = {
+        "request": request,
+        "user": user,
+        "ir": ir,
+        "rfp": ir,
+        "iv_submit_base": f"/integration/{req_id}",
+        "owner": owner,
+        "delete_blocked_reason": delete_blocked,
+        "hub_phase_open": display_phase,
+        "hub_embedded": hub_embedded,
+        "attachment_entries": _attachment_entries(ir),
+        **_integration_impl_ui_ctx(db),
+        "types_list": types_list,
+        "source_program_groups": program_groups,
+        "reference_section_count": ref_section_count,
+        "interview_summary_messages": interview_summary_messages,
+        "proposal_round_messages": proposal_round_messages,
+        "hub_proposal_generating": hub_proposal_generating,
+        "proposal_html": proposal_html,
+        "fs_html": fs_html,
+        "delivered_code_html": delivered_code_html,
+        "fs_stat": fs_stat,
+        "dc_stat": dc_stat,
+        "fs_busy": fs_busy,
+        "dc_busy": dc_busy,
+        "gen_busy": gen_busy,
+        "can_start_delivered_code": can_start_delivered_code,
+        "followup_turns": followup_turns,
+        "chat_limit_reached": chat_limit_reached,
+        "chat_error": chat_error,
+        "max_followup_user_turns": INT_CHAT_MAX_USER,
+        "hub_include_proposal_scripts": bool(proposal_html) and not hub_proposal_generating,
+    }
+
+    if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
+        ctx.update(ws_out.wizard_ctx)
+
+    if hub_proposal_generating:
+        ctx["rfp"] = SimpleNamespace(id=ir.id, title=ir.title or "")
+        ctx["proposal_status_url"] = f"/integration/{ir.id}/proposal/status"
+        ctx["proposal_done_redirect_url"] = integration_hub_url(ir.id, "proposal")
+
+    return templates.TemplateResponse(request, "integration_unified_hub.html", ctx)
 
 
 @router.post("/integration/{req_id}/chat")
@@ -817,7 +929,11 @@ def integration_chat_post(
         return RedirectResponse(url="/integration", status_code=302)
 
     st = (ir.status or "").strip().lower()
-    chat_base = f"/integration/{req_id}/edit" if st == "draft" else f"/integration/{req_id}"
+    chat_base = (
+        f"/integration/{req_id}/edit"
+        if st == "draft"
+        else f"/integration/{req_id}?phase=request"
+    )
 
     msg, verr = validate_integration_user_message(message)
     if verr:
@@ -880,16 +996,14 @@ def integration_chat_post(
 def integration_improvement_proposal_post(
     req_id: int,
     request: Request,
-    background_tasks: BackgroundTasks,
-    improvement_request_text: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    """레거시 폼 호환: 이제 이 화면의 2. 인터뷰 이후 단계에서 제안서를 생성합니다."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     ir = (
         db.query(models.IntegrationRequest)
-        .options(joinedload(models.IntegrationRequest.followup_messages))
         .filter(
             models.IntegrationRequest.id == req_id,
             models.IntegrationRequest.user_id == user.id,
@@ -898,25 +1012,7 @@ def integration_improvement_proposal_post(
     )
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
-    if getattr(ir, "workflow_rfp_id", None):
-        return RedirectResponse(url=f"/integration/{req_id}?wf_err=already", status_code=302)
-    txt = (improvement_request_text or "").strip()
-    if len(txt) < MIN_IMPROVEMENT_PROPOSAL_LEN:
-        return RedirectResponse(url=f"/integration/{req_id}?wf_err=short", status_code=302)
-
-    fmsgs = sorted(
-        list(ir.followup_messages or []),
-        key=lambda m: (m.created_at or ir.created_at),
-    )
-    rfp = create_workflow_rfp_from_integration(
-        db,
-        ir=ir,
-        improvement_text=txt,
-        owner_user_id=user.id,
-        followup_messages=fmsgs,
-    )
-    background_tasks.add_task(_run_proposal_background, rfp.id)
-    return RedirectResponse(url=f"/rfp/{rfp.id}/proposal/generating", status_code=302)
+    return RedirectResponse(url=integration_hub_url(req_id, "interview"), status_code=302)
 
 
 @router.get("/integration/{req_id}/attachment")

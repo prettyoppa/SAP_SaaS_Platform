@@ -1,0 +1,63 @@
+<div id="integration-request-block" class="mb-0">
+  <div class="mb-4">
+    <h5 class="small text-uppercase text-muted" data-i18n="detail.implTypes">구현 형태</h5>
+    <div>
+      {% for t in types_list %}
+      <span class="badge-devtype me-1">{{ impl_labels.get(t, t) }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if ir.sap_touchpoints %}
+  <div class="mb-4">
+    <h5 class="small text-uppercase text-muted" data-i18n="detail.sapTouch">SAP 터치포인트</h5>
+    <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.sap_touchpoints }}</div>
+  </div>
+  {% endif %}
+
+  {% if ir.environment_notes %}
+  <div class="mb-4">
+    <h5 class="small text-uppercase text-muted" data-i18n="detail.env">실행 환경</h5>
+    <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.environment_notes }}</div>
+  </div>
+  {% endif %}
+
+  {% if ir.description %}
+  <div class="mb-4">
+    <h5 class="small text-uppercase text-muted" data-i18n="detail.description">상세 설명</h5>
+    <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.description }}</div>
+  </div>
+  {% endif %}
+
+  {% if attachment_entries %}
+  <div class="mb-4">
+    <h5 class="small text-uppercase text-muted" data-i18n="detail.attachments">첨부</h5>
+    <ul class="list-unstyled mb-0">
+      {% for att in attachment_entries %}
+      <li class="mb-1">
+        <a href="/integration/{{ ir.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">
+          <i class="fa-solid fa-paperclip me-1"></i>{{ att.filename or '파일' }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if source_program_groups and source_program_groups|length %}
+  <div class="mb-4">
+    <details class="interview-summary-toggle codelib-source-details mb-0" open>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <i class="fa-solid fa-code me-1"></i>
+        <span data-i18n="chat.refAbapHeading">첨부 ABAP 코드</span>
+        <span class="small text-muted nav-ko">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
+        <span class="small text-muted nav-en" style="display:none">({{ reference_section_count }} sections{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }} programs{% endif %})</span>
+      </summary>
+      <div class="interview-summary-body p-0 px-0 pt-2">
+        {% set tabs_base_id = 'integration-ref-src-' ~ ir.id %}
+        {% include "partials/reference_code_program_boxes.html" %}
+      </div>
+    </details>
+  </div>
+  {% endif %}
+</div>

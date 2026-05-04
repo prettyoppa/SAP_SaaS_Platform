@@ -14,6 +14,7 @@ from ..paid_generation import (
     run_delivered_code_job,
     run_fs_generation_job,
 )
+from ..integration_generation import run_integration_deliverable_job, run_integration_fs_job
 from ..templates_config import templates
 from ..rfp_phase_gates import rfp_phase_gates
 from ..routers.rfp_router import _read_upload_limited, _store_rfp_file
@@ -263,3 +264,52 @@ def admin_delete_fs_supplement(
     db.commit()
     _delete_supplement_blob(p or "")
     return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
+
+
+@router.post("/integration/{req_id}/delivery/fs-start")
+def admin_integration_fs_start(
+    req_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
+    if not ir:
+        return RedirectResponse(url="/admin", status_code=302)
+    if (ir.fs_status or "").strip() == "generating":
+        return RedirectResponse(url=f"/integration/{req_id}?phase=fs", status_code=302)
+    ir.fs_status = "generating"
+    ir.fs_error = None
+    ir.fs_job_log = None
+    db.commit()
+    background_tasks.add_task(run_integration_fs_job, req_id)
+    return RedirectResponse(url=f"/integration/{req_id}?phase=fs", status_code=302)
+
+
+@router.post("/integration/{req_id}/delivery/code-start")
+def admin_integration_code_start(
+    req_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
+    if not ir:
+        return RedirectResponse(url="/admin", status_code=302)
+    fs_body = (ir.fs_text or "").strip()
+    if not fs_body or (ir.fs_status or "").strip() != "ready":
+        return RedirectResponse(url=f"/integration/{req_id}?phase=fs&err=fs_not_ready", status_code=302)
+    if (ir.delivered_code_status or "").strip() == "generating":
+        return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)
+    ir.delivered_code_status = "generating"
+    ir.delivered_code_error = None
+    ir.delivered_job_log = None
+    db.commit()
+    background_tasks.add_task(run_integration_deliverable_job, req_id)
+    return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)

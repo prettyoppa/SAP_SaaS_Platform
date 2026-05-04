@@ -1,3 +1,4 @@
+{% set ivb = iv_submit_base if iv_submit_base is defined else ('/rfp/' ~ (rfp.id|string)) %}
 <style>
   .interview-page .interview-em { font-weight: 600; }
   .interview-page .interview-answer-block { white-space: pre-wrap; }
@@ -44,13 +45,13 @@
             </div>
             <div>
               <h2 class="mb-0">AI 인터뷰</h2>
-              <p class="text-muted mb-0 small">SAP 컨설턴트 AI가 요구사항을 분석하고 있습니다</p>
+              <p class="text-muted mb-0 small">{% if iv_submit_base is defined %}연동·비 ABAP 범위를 중심으로{% else %}SAP 컨설턴트 AI가{% endif %} 요구사항을 분석하고 있습니다</p>
             </div>
             </div>
             {% if (current_message is defined and current_message and interview_sequential|default(true)) or (can_request_proposal is defined and can_request_proposal) %}
             <div class="d-flex align-items-center gap-2 flex-shrink-0">
             {% if current_message is defined and current_message and interview_sequential|default(true) %}
-            <form method="post" action="/rfp/{{ rfp.id }}/interview/answer-step" class="d-inline" id="save-exit-form"
+            <form method="post" action="{{ ivb }}/interview/answer-step" class="d-inline" id="save-exit-form"
                   data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
                   data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">
               <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
@@ -63,7 +64,7 @@
             </form>
             {% endif %}
             {% if can_request_proposal is defined and can_request_proposal %}
-            <form method="post" action="/rfp/{{ rfp.id }}/interview/request-proposal-now" class="d-inline"
+            <form method="post" action="{{ ivb }}/interview/request-proposal-now" class="d-inline"
                   data-busy-agents='[{"agentKo":"「요구분석」","doingKo":"지금까지의 인터뷰 답변을 구조화해 반영하고 있습니다","agentEn":"「Requirements」","doingEn":"structuring your interview answers for downstream use"},{"agentKo":"「제안서」","doingKo":"Development Proposal 초안을 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"drafting the Development Proposal"},{"agentKo":"「제안검수」","doingKo":"제안서 품질을 검토하고 있습니다","agentEn":"「Review」","doingEn":"reviewing proposal quality"}]'>
               <button type="submit" class="btn btn-outline-primary btn-sm" title="지금까지 제출·저장한 답을 반영한 제안서를 만듭니다(인터뷰를 끝내지 않아도 시도할 수 있음)">
                 <i class="fa-solid fa-file-contract me-1"></i> 지금까지로 제안서 생성
@@ -229,7 +230,7 @@
           </div>
           {% endif %}
 
-          <form method="post" action="/rfp/{{ rfp.id }}/interview/answer-step" id="iv-seq-form">
+          <form method="post" action="{{ ivb }}/interview/answer-step" id="iv-seq-form">
             <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
             <input type="hidden" name="action" value="next"/>
             <div class="question-item mb-2">
@@ -262,7 +263,7 @@
               질문이 하나씩 표시됩니다(이전에 시작한 인터뷰). 답을 입력한 뒤 <strong>다음 질문</strong>을 눌러 주세요.
             </p>
           </div>
-          <form method="post" action="/rfp/{{ rfp.id }}/interview/answer" id="iv-answer-form">
+          <form method="post" action="{{ ivb }}/interview/answer" id="iv-answer-form">
             <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
             <input type="hidden" name="answers_text" id="answers-combined" value=""/>
             <div id="seq-question-stack">

@@ -20,7 +20,7 @@ from .rfp_landing import DEFAULT_SERVICE_ABAP_INTRO_MD_KO
 from .menu_landing import DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO, DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO
 from .home_counts import home_tile_counts
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
-from .routers import admin_router, review_router, integration_router
+from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import payments_router, paid_admin_router
 from .templates_config import templates
 
@@ -84,6 +84,16 @@ def _run_migrations():
         ("dev_types", "usage", "VARCHAR(16) DEFAULT 'abap'", "VARCHAR(16) DEFAULT 'abap'"),
         ("integration_requests", "workflow_rfp_id", "INTEGER", "INTEGER"),
         ("integration_requests", "improvement_request_text", "TEXT", "TEXT"),
+        ("integration_requests", "fs_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
+        ("integration_requests", "fs_text", "TEXT", "TEXT"),
+        ("integration_requests", "fs_generated_at", "DATETIME", "TIMESTAMP"),
+        ("integration_requests", "fs_error", "TEXT", "TEXT"),
+        ("integration_requests", "fs_job_log", "TEXT", "TEXT"),
+        ("integration_requests", "delivered_code_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
+        ("integration_requests", "delivered_code_text", "TEXT", "TEXT"),
+        ("integration_requests", "delivered_code_generated_at", "DATETIME", "TIMESTAMP"),
+        ("integration_requests", "delivered_code_error", "TEXT", "TEXT"),
+        ("integration_requests", "delivered_job_log", "TEXT", "TEXT"),
         ("users", "pending_account_deletion", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("users", "deletion_requested_at", "DATETIME", "TIMESTAMP"),
         ("users", "deletion_hard_scheduled_at", "DATETIME", "TIMESTAMP"),
@@ -442,6 +452,7 @@ app.include_router(codelib_router.router)
 app.include_router(abap_analysis_router.router)
 app.include_router(admin_router.router)
 app.include_router(review_router.router)
+app.include_router(integration_interview_router.router)
 app.include_router(integration_router.router)
 app.include_router(payments_router.router)
 app.include_router(paid_admin_router.router)

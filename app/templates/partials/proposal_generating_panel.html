@@ -1,3 +1,5 @@
+{% set gen_status_url = proposal_status_url if proposal_status_url is defined else ('/rfp/' ~ (rfp.id|string) ~ '/proposal/status') %}
+{% set gen_done_url = proposal_done_redirect_url if proposal_done_redirect_url is defined else ('/rfp/' ~ (rfp.id|string) ~ '?phase=proposal') %}
 <div class="container py-5" style="max-width:640px">
   <div class="text-center py-5">
 
@@ -57,7 +59,8 @@
 </style>
 
 <script>
-const rfpId = {{ rfp.id }};
+const statusUrl = {{ gen_status_url|tojson }};
+const doneUrl = {{ gen_done_url|tojson }};
 let elapsed = 0;
 const steps = ['step-hannah', 'step-jun', 'step-sara'];
 let stepIdx = 0;
@@ -75,12 +78,12 @@ const stepTimer = setInterval(() => {
 // 5초마다 완료 여부 폴링
 const pollTimer = setInterval(async () => {
   try {
-    const res = await fetch(`/rfp/${rfpId}/proposal/status`);
+    const res = await fetch(statusUrl);
     const data = await res.json();
     if (data.status === 'completed') {
       clearInterval(pollTimer);
       clearInterval(stepTimer);
-      window.location.href = `/rfp/${rfpId}?phase=proposal`;
+      window.location.href = doneUrl;
     }
   } catch (e) { /* 네트워크 오류 무시 */ }
 }, 5000);
