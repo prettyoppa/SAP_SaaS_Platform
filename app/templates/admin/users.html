@@ -6,10 +6,9 @@
   <div class="admin-page-header mb-4">
     <div class="container">
       {% include 'partials/nav_prev_screen.html' %}
-      <h3 class="mb-1"><i class="fa-solid fa-users me-2 text-warning"></i>회원·사용자 목록</h3>
+      <h3 class="mb-1"><i class="fa-solid fa-users me-2 text-warning"></i>회원 현황 모니터링</h3>
       <p class="text-muted mb-0">
-        <span class="nav-ko">일반 삭제는 테스트용 즉시 영구 삭제입니다.</span>
-        회원이 탈퇴 요청한 계정은 <strong>유예 즉시</strong> 열에서 영구 삭제를 바로 처리할 수 있습니다.
+        그래프 없이 운영에 필요한 회원 상태·활동 현황을 한 화면에서 점검합니다.
       </p>
     </div>
   </div>
@@ -31,10 +30,93 @@
     </div>
     {% endif %}
 
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="rfp-section h-100 p-3">
+          <div class="small text-muted mb-1">총 회원</div>
+          <div class="h4 mb-0">{{ summary.total_users }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="rfp-section h-100 p-3">
+          <div class="small text-muted mb-1">인증 완료</div>
+          <div class="h4 mb-0">{{ summary.verified_users }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="rfp-section h-100 p-3">
+          <div class="small text-muted mb-1">유예 중 계정</div>
+          <div class="h4 mb-0">{{ summary.pending_users }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="rfp-section h-100 p-3">
+          <div class="small text-muted mb-1">유료 활성 회원</div>
+          <div class="h4 mb-0">{{ summary.active_paid_members }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="rfp-section h-100 p-3">
+          <div class="small text-muted mb-1">RFP 보유 회원</div>
+          <div class="h4 mb-0">{{ summary.members_with_rfp }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="rfp-section h-100 p-3">
+          <div class="small text-muted mb-1">활동 기록 보유</div>
+          <div class="h4 mb-0">{{ summary.members_with_any_activity }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="rfp-section h-100 p-3">
+          <div class="small text-muted mb-1">현재 필터 결과</div>
+          <div class="h4 mb-0">{{ summary.visible_users }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rfp-section mb-3">
+      <form method="get" action="/admin/users" class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-muted mb-1">검색</label>
+          <input type="text" class="form-control" name="q" value="{{ q or '' }}"
+                 placeholder="이메일/이름/회사명">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-muted mb-1">인증</label>
+          <select class="form-select" name="verified">
+            <option value="all" {% if verified == 'all' %}selected{% endif %}>전체</option>
+            <option value="y" {% if verified == 'y' %}selected{% endif %}>인증 Y</option>
+            <option value="n" {% if verified == 'n' %}selected{% endif %}>인증 N</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-muted mb-1">탈퇴 유예</label>
+          <select class="form-select" name="pending">
+            <option value="all" {% if pending == 'all' %}selected{% endif %}>전체</option>
+            <option value="y" {% if pending == 'y' %}selected{% endif %}>유예 중</option>
+            <option value="n" {% if pending == 'n' %}selected{% endif %}>정상</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-muted mb-1">유형</label>
+          <select class="form-select" name="user_kind">
+            <option value="all" {% if user_kind == 'all' %}selected{% endif %}>전체</option>
+            <option value="member" {% if user_kind == 'member' %}selected{% endif %}>일반 회원</option>
+            <option value="admin" {% if user_kind == 'admin' %}selected{% endif %}>관리자</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2 d-flex gap-2">
+          <button type="submit" class="btn btn-warning w-100">적용</button>
+          <a href="/admin/users" class="btn btn-outline-secondary">초기화</a>
+        </div>
+      </form>
+    </div>
+
     <div class="rfp-section admin-users-table-wrap">
       <p class="text-muted small mb-2">
         <i class="fa-solid fa-arrows-left-right me-1"></i>
-        표가 넓으면 아래를 <strong>좌우로 스크롤</strong>하면 <strong>삭제</strong>·<strong>유예 즉시</strong> 열이 보입니다.
+        표가 넓으면 아래를 <strong>좌우로 스크롤</strong>하면 활동/관리 열이 보입니다.
       </p>
       <div class="table-responsive admin-users-table-responsive">
         <table class="table table-dark table-hover align-middle admin-table admin-users-table">
@@ -47,13 +129,21 @@
               <th style="width:90px">관리자</th>
               <th style="width:90px">인증</th>
               <th style="width:120px">가입일</th>
+              <th style="width:110px">RFP</th>
+              <th style="width:110px">RFP 제출</th>
+              <th style="width:110px">RFP 납품</th>
+              <th style="width:110px">유료 활성</th>
+              <th style="width:110px">연동</th>
+              <th style="width:110px">ABAP 분석</th>
+              <th style="width:110px">총 활동</th>
               <th class="admin-users-actions-col">탈퇴</th>
               <th class="admin-users-actions-col">삭제</th>
               <th class="admin-users-actions-col">유예 즉시</th>
             </tr>
           </thead>
           <tbody>
-            {% for u in users %}
+            {% for row in rows %}
+            {% set u = row.user %}
             <tr class="{% if u.id == user.id %}table-active{% endif %}">
               <td class="text-muted small">{{ u.id }}</td>
               <td class="font-monospace small">{{ u.email }}</td>
@@ -62,6 +152,13 @@
               <td>{% if u.is_admin %}<span class="badge text-bg-warning">Y</span>{% else %}—{% endif %}</td>
               <td>{% if u.email_verified %}<span class="badge" style="background:rgba(34,197,94,.2);color:#4ade80">Y</span>{% else %}<span class="badge bg-secondary">N</span>{% endif %}</td>
               <td class="small text-muted">{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '—' }}</td>
+              <td><span class="badge bg-secondary">{{ row.rfp_count }}</span></td>
+              <td><span class="badge bg-secondary">{{ row.rfp_submitted_count }}</span></td>
+              <td><span class="badge {% if row.rfp_delivery_count > 0 %}bg-success{% else %}bg-secondary{% endif %}">{{ row.rfp_delivery_count }}</span></td>
+              <td><span class="badge {% if row.rfp_paid_active_count > 0 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ row.rfp_paid_active_count }}</span></td>
+              <td><span class="badge bg-secondary">{{ row.integration_count }}</span></td>
+              <td><span class="badge bg-secondary">{{ row.abap_analysis_count }}</span></td>
+              <td><span class="badge {% if row.total_activity_count > 0 %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ row.total_activity_count }}</span></td>
               <td class="admin-users-actions-col">
                 {% if u.pending_account_deletion %}
                 <span class="badge bg-warning text-dark">유예</span>
@@ -92,7 +189,7 @@
           </tbody>
         </table>
       </div>
-      {% if not users %}
+      {% if not rows %}
       <p class="text-muted mb-0">등록된 사용자가 없습니다.</p>
       {% endif %}
     </div>

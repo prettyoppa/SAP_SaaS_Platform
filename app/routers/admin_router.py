@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Body, Depends, Request, Form, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from .. import models, auth
@@ -46,20 +46,180 @@ def admin_users(
     db: Session = Depends(get_db),
     deleted: str | None = None,
     err: str | None = None,
+    q: str | None = Query(default=None),
+    verified: str = Query(default="all"),
+    pending: str = Query(default="all"),
+    user_kind: str = Query(default="all"),
 ):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    users = db.query(models.User).order_by(models.User.id.desc()).all()
+
+    qq = (q or "").strip()
+    q_users = db.query(models.User)
+    if qq:
+        like = f"%{qq}%"
+        q_users = q_users.filter(
+            or_(
+                models.User.email.ilike(like),
+                models.User.full_name.ilike(like),
+                models.User.company.ilike(like),
+            )
+        )
+    if verified == "y":
+        q_users = q_users.filter(models.User.email_verified.is_(True))
+    elif verified == "n":
+        q_users = q_users.filter(models.User.email_verified.is_(False))
+
+    if pending == "y":
+        q_users = q_users.filter(models.User.pending_account_deletion.is_(True))
+    elif pending == "n":
+        q_users = q_users.filter(models.User.pending_account_deletion.is_(False))
+
+    if user_kind == "admin":
+        q_users = q_users.filter(models.User.is_admin.is_(True))
+    elif user_kind == "member":
+        q_users = q_users.filter(models.User.is_admin.is_(False))
+
+    users = q_users.order_by(models.User.id.desc()).all()
+    user_ids = [u.id for u in users]
+
+    rfp_counts: dict[int, int] = {}
+    rfp_submitted_counts: dict[int, int] = {}
+    rfp_delivery_counts: dict[int, int] = {}
+    rfp_paid_active_counts: dict[int, int] = {}
+    integration_counts: dict[int, int] = {}
+    abap_analysis_counts: dict[int, int] = {}
+
+    if user_ids:
+        for uid, n in (
+            db.query(models.RFP.user_id, func.count(models.RFP.id))
+            .filter(models.RFP.user_id.in_(user_ids))
+            .group_by(models.RFP.user_id)
+            .all()
+        ):
+            rfp_counts[int(uid)] = int(n or 0)
+        for uid, n in (
+            db.query(models.RFP.user_id, func.count(models.RFP.id))
+            .filter(
+                models.RFP.user_id.in_(user_ids),
+                models.RFP.status != "draft",
+            )
+            .group_by(models.RFP.user_id)
+            .all()
+        ):
+            rfp_submitted_counts[int(uid)] = int(n or 0)
+        for uid, n in (
+            db.query(models.RFP.user_id, func.count(models.RFP.id))
+            .filter(
+                models.RFP.user_id.in_(user_ids),
+                or_(
+                    models.RFP.fs_status.in_(("generating", "ready")),
+                    models.RFP.delivered_code_status.in_(("generating", "ready")),
+                ),
+            )
+            .group_by(models.RFP.user_id)
+            .all()
+        ):
+            rfp_delivery_counts[int(uid)] = int(n or 0)
+        for uid, n in (
+            db.query(models.RFP.user_id, func.count(models.RFP.id))
+            .filter(
+                models.RFP.user_id.in_(user_ids),
+                models.RFP.paid_engagement_status == "active",
+            )
+            .group_by(models.RFP.user_id)
+            .all()
+        ):
+            rfp_paid_active_counts[int(uid)] = int(n or 0)
+        for uid, n in (
+            db.query(models.IntegrationRequest.user_id, func.count(models.IntegrationRequest.id))
+            .filter(models.IntegrationRequest.user_id.in_(user_ids))
+            .group_by(models.IntegrationRequest.user_id)
+            .all()
+        ):
+            integration_counts[int(uid)] = int(n or 0)
+        for uid, n in (
+            db.query(models.AbapAnalysisRequest.user_id, func.count(models.AbapAnalysisRequest.id))
+            .filter(models.AbapAnalysisRequest.user_id.in_(user_ids))
+            .group_by(models.AbapAnalysisRequest.user_id)
+            .all()
+        ):
+            abap_analysis_counts[int(uid)] = int(n or 0)
+
+    rows: list[dict] = []
+    for u in users:
+        uid = int(u.id)
+        row = {
+            "user": u,
+            "rfp_count": rfp_counts.get(uid, 0),
+            "rfp_submitted_count": rfp_submitted_counts.get(uid, 0),
+            "rfp_delivery_count": rfp_delivery_counts.get(uid, 0),
+            "rfp_paid_active_count": rfp_paid_active_counts.get(uid, 0),
+            "integration_count": integration_counts.get(uid, 0),
+            "abap_analysis_count": abap_analysis_counts.get(uid, 0),
+        }
+        row["total_activity_count"] = (
+            row["rfp_count"] + row["integration_count"] + row["abap_analysis_count"]
+        )
+        rows.append(row)
+
+    total_users = db.query(func.count(models.User.id)).scalar() or 0
+    verified_users = db.query(func.count(models.User.id)).filter(models.User.email_verified.is_(True)).scalar() or 0
+    pending_users = (
+        db.query(func.count(models.User.id))
+        .filter(models.User.pending_account_deletion.is_(True))
+        .scalar()
+        or 0
+    )
+    active_paid_members = (
+        db.query(func.count(func.distinct(models.RFP.user_id)))
+        .filter(models.RFP.paid_engagement_status == "active")
+        .scalar()
+        or 0
+    )
+    members_with_rfp = (
+        db.query(func.count(func.distinct(models.RFP.user_id))).scalar() or 0
+    )
+    members_with_any_activity = (
+        db.query(func.count(func.distinct(models.User.id)))
+        .outerjoin(models.RFP, models.RFP.user_id == models.User.id)
+        .outerjoin(models.IntegrationRequest, models.IntegrationRequest.user_id == models.User.id)
+        .outerjoin(models.AbapAnalysisRequest, models.AbapAnalysisRequest.user_id == models.User.id)
+        .filter(
+            or_(
+                models.RFP.id.isnot(None),
+                models.IntegrationRequest.id.isnot(None),
+                models.AbapAnalysisRequest.id.isnot(None),
+            )
+        )
+        .scalar()
+        or 0
+    )
+    summary = {
+        "total_users": int(total_users),
+        "verified_users": int(verified_users),
+        "pending_users": int(pending_users),
+        "active_paid_members": int(active_paid_members),
+        "members_with_rfp": int(members_with_rfp),
+        "members_with_any_activity": int(members_with_any_activity),
+        "visible_users": len(users),
+    }
+
     return templates.TemplateResponse(
         request,
         "admin/users.html",
         {
             "request": request,
             "user": user,
-            "users": users,
+            "rows": rows,
             "deleted": deleted == "1",
             "err": err,
+            "summary": summary,
+            "q": qq,
+            "verified": verified,
+            "pending": pending,
+            "user_kind": user_kind,
         },
     )
 
