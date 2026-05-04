@@ -1,6 +1,8 @@
+import io
 import json
 import mimetypes
 import os
+import zipfile
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
@@ -11,6 +13,11 @@ from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
 from ..agent_display import wrap_unbracketed_agent_names
+from ..delivered_code_package import (
+    delivered_package_has_body,
+    parse_delivered_code_payload,
+    rfp_delivered_body_ready,
+)
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..paid_tier import (
     paid_engagement_is_active,
@@ -20,6 +27,7 @@ from ..paid_tier import (
 from ..rfp_download_names import (
     content_disposition_attachment,
     delivered_abap_download_basename,
+    delivered_code_zip_basename,
     fs_md_download_basename,
 )
 from ..rfp_form_suggest import (
@@ -46,6 +54,35 @@ from ..templates_config import templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 
 router = APIRouter()
+
+
+def _hub_delivered_fields(rfp: models.RFP) -> dict[str, Any]:
+    """통합 허브: 납품 패키지(JSON) 또는 레거시 단일 마크다운 미리보기용 컨텍스트."""
+    raw_pkg = parse_delivered_code_payload(getattr(rfp, "delivered_code_payload", None))
+    has_pkg = bool(raw_pkg and delivered_package_has_body(raw_pkg))
+    dc_ready = (getattr(rfp, "delivered_code_status", None) or "").strip() == "ready"
+    txt = (getattr(rfp, "delivered_code_text", None) or "").strip()
+    delivered_package = raw_pkg if has_pkg else None
+    delivered_code_html = ""
+    if dc_ready and txt and not has_pkg:
+        delivered_code_html = _interview_views._markdown_to_html(rfp.delivered_code_text or "")
+    impl_html = ""
+    test_html = ""
+    if delivered_package:
+        impl_html = _interview_views._markdown_to_html(
+            delivered_package.get("implementation_guide_md") or ""
+        )
+        test_html = _interview_views._markdown_to_html(
+            delivered_package.get("test_scenarios_md") or ""
+        )
+    has_delivered_preview = bool(dc_ready and (has_pkg or bool(txt)))
+    return {
+        "delivered_package": delivered_package,
+        "delivered_code_html": delivered_code_html,
+        "delivered_impl_guide_html": impl_html,
+        "delivered_test_scenarios_html": test_html,
+        "has_delivered_preview": has_delivered_preview,
+    }
 
 
 def _rfp_missing_core_field_labels(
@@ -654,12 +691,7 @@ def rfp_unified_hub(
     if (rfp.fs_status or "") == "ready" and (rfp.fs_text or "").strip():
         fs_html = _interview_views._markdown_to_html(rfp.fs_text)
 
-    delivered_code_html = ""
-    if (
-        (rfp.delivered_code_status or "") == "ready"
-        and (rfp.delivered_code_text or "").strip()
-    ):
-        delivered_code_html = _interview_views._markdown_to_html(rfp.delivered_code_text)
+    delivered_fields = _hub_delivered_fields(rfp)
 
     fs_stat = (rfp.fs_status or "none").strip() or "none"
     dc_stat = dc_s
@@ -717,7 +749,6 @@ def rfp_unified_hub(
         "rfp_eligible_for_checkout": rfp_eligible_for_stripe_checkout(rfp),
         "stripe_checkout_ready": stripe_keys_configured(),
         "fs_html": fs_html,
-        "delivered_code_html": delivered_code_html,
         "fs_stat": fs_stat,
         "dc_stat": dc_stat,
         "fs_busy": fs_busy,
@@ -729,6 +760,7 @@ def rfp_unified_hub(
         "tabs_base_id": tabs_base_id,
         "hub_include_proposal_scripts": bool(proposal_html) and not hub_proposal_generating,
     }
+    ctx.update(delivered_fields)
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
         ctx.update(ws_out.wizard_ctx)
@@ -917,11 +949,39 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp or not user_can_access_fs_hub(user, rfp):
         return RedirectResponse(url="/", status_code=302)
-    if (
-        (rfp.delivered_code_status or "") != "ready"
-        or not (rfp.delivered_code_text or "").strip()
-    ):
+    if not rfp_delivered_body_ready(rfp):
         return RedirectResponse(url=rfp_hub_url(rfp_id, "fs"), status_code=302)
+    pkg = parse_delivered_code_payload(getattr(rfp, "delivered_code_payload", None))
+    if pkg and delivered_package_has_body(pkg):
+        buf = io.BytesIO()
+        used_names: set[str] = set()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(
+                "IMPLEMENTATION_GUIDE.md",
+                (pkg.get("implementation_guide_md") or "").encode("utf-8"),
+            )
+            zf.writestr(
+                "TEST_SCENARIOS.md",
+                (pkg.get("test_scenarios_md") or "").encode("utf-8"),
+            )
+            for idx, sl in enumerate(pkg.get("slots") or []):
+                if not isinstance(sl, dict):
+                    continue
+                base_fn = (str(sl.get("filename") or f"slot_{idx + 1}.abap")).strip() or f"slot_{idx + 1}.abap"
+                fn = base_fn
+                if fn in used_names:
+                    stem = base_fn.rsplit(".", 1)[0] if "." in base_fn else base_fn
+                    ext = base_fn.rsplit(".", 1)[-1] if "." in base_fn else "abap"
+                    fn = f"{idx + 1:02d}_{stem}.{ext}"
+                used_names.add(fn)
+                zf.writestr(fn, (sl.get("source") or "").encode("utf-8"))
+        body = buf.getvalue()
+        fname = delivered_code_zip_basename(getattr(rfp, "program_id", None), getattr(rfp, "title", None))
+        return Response(
+            content=body,
+            media_type="application/zip",
+            headers={"Content-Disposition": content_disposition_attachment(fname)},
+        )
     body = (rfp.delivered_code_text or "").encode("utf-8")
     fname = delivered_abap_download_basename(getattr(rfp, "program_id", None), getattr(rfp, "title", None))
     return Response(

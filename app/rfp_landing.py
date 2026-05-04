@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
+from .delivered_code_package import rfp_delivered_body_ready
 
 DEFAULT_SERVICE_ABAP_INTRO_MD_KO = """표준 RFP(개발제안요청)를 제출하면 AI 에이전트가 심층 인터뷰를 진행하고, 무료 개발 제안서를 생성합니다.
 프로그램 ID·SAP 모듈·개발 유형을 중심으로 한 전형적인 ABAP 과제에 적합합니다.
@@ -96,7 +97,7 @@ def rfp_landing_bucket(rfp: models.RFP) -> str:
     """
     fs_s = ((rfp.fs_status or "none").strip().lower() or "none")
     dc_s = ((rfp.delivered_code_status or "none").strip().lower() or "none")
-    dc_ok = dc_s == "ready" and (rfp.delivered_code_text or "").strip()
+    dc_ok = rfp_delivered_body_ready(rfp)
     fs_ok = fs_s == "ready" and (rfp.fs_text or "").strip()
     if dc_ok or fs_ok:
         return "delivery"

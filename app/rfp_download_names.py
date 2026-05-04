@@ -40,6 +40,15 @@ def delivered_abap_download_basename(program_id: str | None, title: str | None) 
     return f"DELIVERED_{pid}_{tit}.abap"
 
 
+def delivered_code_zip_basename(program_id: str | None, title: str | None) -> str:
+    """DELIVERED_{프로그램ID}_{요청제목}.zip — 슬롯 패키지(ZIP) 다운로드용."""
+    pid = sanitize_path_component(program_id or "NO_PID", 40)
+    reserve = len("DELIVERED_") + len("_") + len(".zip") + len(pid)
+    tit_max = max(8, FILENAME_BASENAME_MAX_LEN - reserve)
+    tit = sanitize_path_component(title or "untitled", tit_max)
+    return f"DELIVERED_{pid}_{tit}.zip"
+
+
 def content_disposition_attachment(filename_utf8: str) -> str:
     """ASCII fallback filename + UTF-8 filename*."""
     fn = filename_utf8 or "download.md"

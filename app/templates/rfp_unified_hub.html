@@ -236,7 +236,7 @@
         <span class="fw-semibold" data-i18n="hub.phaseDevCode">5. 개발코드</span>
         {% if dc_busy %}
         <span class="badge bg-info text-dark ms-1" data-i18n="hub.dcGen">납품 코드 생성 중</span>
-        {% elif delivered_code_html %}
+        {% elif has_delivered_preview|default(false) %}
         <span class="badge bg-success ms-1" data-i18n="hub.dcReady">납품 코드 준비됨</span>
         {% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import threading
 from datetime import datetime
 
@@ -10,7 +11,7 @@ from sqlalchemy.orm import joinedload
 from . import models, r2_storage
 from .agent_display import agent_label_ko
 from .agents.agent_tools import get_code_library_context
-from .agents.paid_crew import generate_delivered_abap_markdown, generate_fs_markdown
+from .agents.paid_crew import generate_delivered_abap_artifact, generate_fs_markdown
 from .database import SessionLocal
 
 _MAX_JOB_LOG_CHARS = 48_000
@@ -247,7 +248,7 @@ def run_delivered_code_job(rfp_id: int) -> None:
             member_safe_output=ms,
         )
         try:
-            rfp.delivered_code_text = generate_delivered_abap_markdown(
+            pkg, legacy_md = generate_delivered_abap_artifact(
                 rfp_dict,
                 fs_body or "",
                 rfp.proposal_text or "",
@@ -256,6 +257,8 @@ def run_delivered_code_job(rfp_id: int) -> None:
                 member_safe_output=ms,
                 phase_log=_phase_log_delivery,
             )
+            rfp.delivered_code_text = legacy_md
+            rfp.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None
             rfp.delivered_code_status = "ready"
             rfp.delivered_code_generated_at = datetime.utcnow()
             rfp.delivered_code_error = None

@@ -2,11 +2,13 @@
 Paid Tier — FS·납품 ABAP
 
 - FS: CrewAI / Gemini (대외명 「FS설계」 에이전트, 내부 role p_architect). 키 없으면 예외만(가짜 문서 없음).
-- 납품 ABAP: 「ABAP」→「코드검수」→「테스트」 순 CrewAI·Gemini 호출. 키 필수.
+- 납품 ABAP(권장): JSON 슬롯(코더→검수) + 구현·운영 가이드 마크다운 + 테스트 시나리오 마크다운.
+  JSON 실패 시 레거시 단일 마크다운(ABAP 펜스 + 말미 테스트)으로 폴백한다. 키 필수.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, Callable
 
@@ -22,6 +24,13 @@ from .free_crew import (
     _parse_code_library_context,
 )
 from ..agent_display import agent_label_ko
+from ..delivered_code_package import (
+    extract_json_object_from_llm_text,
+    legacy_markdown_from_package,
+    merge_slots_json_with_extras,
+    sanitize_test_scenarios_markdown,
+    delivered_package_has_body,
+)
 from ..gemini_model import get_gemini_model_id
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
@@ -148,7 +157,7 @@ def generate_fs_markdown(
     return str(crew.kickoff()).strip()
 
 
-def generate_delivered_abap_markdown(
+def _monolithic_delivered_abap_markdown(
     rfp_data: dict[str, Any],
     fs_text: str,
     proposal_text: str,
@@ -159,8 +168,8 @@ def generate_delivered_abap_markdown(
     phase_log: Callable[[str], None] | None = None,
 ) -> str:
     """
-    「ABAP」→「코드검수」→「테스트」 순으로 Gemini 호출(단계별 Crew).
-    키 없으면 _get_llm()에서 RuntimeError — placeholder 소스 없음.
+    레거시: 단일 마크다운(ABAP 펜스 + 말미 테스트 시나리오).
+    JSON 패키지 파싱 실패 시 폴백으로만 사용한다.
     """
     llm = _get_llm()
 
@@ -327,3 +336,288 @@ ABAP 작성 규칙:
     out_b = str(crew_b.kickoff()).strip()
     _ph(f"{agent_label_ko('p_tester')} 단계 완료 · 최종 길이 약 {len(out_b)}자")
     return out_b
+
+
+def generate_delivered_abap_artifact(
+    rfp_data: dict[str, Any],
+    fs_text: str,
+    proposal_text: str,
+    conversation: list[dict],
+    *,
+    code_library_context: str = "",
+    member_safe_output: bool = False,
+    phase_log: Callable[[str], None] | None = None,
+) -> tuple[dict[str, Any] | None, str]:
+    """
+    권장: JSON 슬롯 패키지 + 별도 구현 가이드 + 테스트 시나리오 마크다운.
+    JSON 단계가 실패하면 레거시 단일 마크다운으로 폴백하고 (None, markdown)을 반환한다.
+    """
+    llm = _get_llm()
+
+    def _ph(msg: str) -> None:
+        if phase_log:
+            phase_log(msg)
+
+    rfp_ctx = _fmt_rfp(rfp_data)
+    fs_block = _truncate(fs_text or "", 96000)
+    prop_snip = _truncate(proposal_text or "", 16000)
+    conv_snip = _truncate(_fmt_conv(conversation), 24000)
+    analysis_summary, _ = _parse_code_library_context(code_library_context)
+    lib_for = ""
+    if analysis_summary:
+        lib_for = f"\n\n{_lib_block_heading(member_safe_output)}\n{_truncate(analysis_summary, 8000)}"
+    member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
+    ref_for_prompt = member_ref if member_ref else "(고객 참고 ABAP 미첨부)"
+    _ms = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
+    cust_pid = (rfp_data.get("program_id") or "").strip()
+    tcode = (rfp_data.get("transaction_code") or "").strip()
+
+    json_coder = Agent(
+        role="SAP ABAP 시니어 개발자",
+        goal="FS에 맞춰 INCLUDE 슬롯 구조의 ABAP를 JSON으로보낸다",
+        backstory="""15년차 ABAP 개발자. Report/INCLUDE/화면 PBO·PAI를 분리해 납품한다.
+출력은 **유효한 JSON 한 덩어리**만 허용된다. 테스트 시나리오는 JSON에 넣지 않는다.""",
+        verbose=False,
+        llm=llm,
+        allow_delegation=False,
+    )
+    json_reviewer = Agent(
+        role="SAP ABAP 코드 검수자",
+        goal="JSON 패키지의 구문·스키마·ABAP 내용을 검수한다",
+        backstory="""정적 분석·네이밍·7.40+ 호환을 점검하고, JSON 문자열 이스케이프가 깨지지 않게 수정한다.""",
+        verbose=False,
+        llm=llm,
+        allow_delegation=False,
+    )
+    guide_agent = Agent(
+        role="SAP 구현·운영 컨설턴트",
+        goal="납품 코드 패키지에 대한 구현·운영 가이드를 한국어 마크다운으로 쓴다",
+        backstory="""전환·권한·배포·운영 점검·의존성을 실무 관점에서 정리한다. 소스 전체를 반복 붙여넣지 않는다.""",
+        verbose=False,
+        llm=llm,
+        allow_delegation=False,
+    )
+    test_agent = Agent(
+        role="SAP ABAP 테스트 설계자",
+        goal="실행·회귀 테스트 시나리오를 한국어 마크다운으로 작성한다",
+        backstory="""경계·오류 경로를 표로 정리한다. 과도한 표 구분선(---) 남발은 피한다.""",
+        verbose=False,
+        llm=llm,
+        allow_delegation=False,
+    )
+
+    pid_rule = (
+        (f"고객 지정 프로그램 ID **`{cust_pid}`** — JSON `program_id`에 동일하게 넣고, main_report 슬롯의 REPORT/PROGRAM이 이 이름을 따른다.")
+        if cust_pid
+        else "RFP에 프로그램 ID가 없다. 합리적인 Z/Y 이름을 정해 `program_id`와 슬롯 소스에 일관되게 쓴다."
+    )
+    tcode_rule = f"T-Code 고객 지정: `{tcode or '(없음)'}` — 없으면 임의 T-Code를 만들지 말 것."
+
+    slot_task = Task(
+        description=f"""기능명세서(FS)를 구현 근거로 삼아 **납품 ABAP 패키지**를 JSON으로만 출력하라.
+RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
+
+**역할 구분:**
+- 고객 참고 ABAP: 요청 시 첨부한 **원본**이며 납품물이 아니다. 패턴 힌트로만 사용.
+- FS 내 예시 코드는 설명용일 수 있다.
+
+### RFP
+{rfp_ctx}
+{lib_for}
+
+### 고객 참고 ABAP
+{ref_for_prompt}
+
+### 인터뷰 발췌
+{conv_snip}
+
+### 제안서 발췌
+{prop_snip}
+
+### 기능명세서(FS)
+{fs_block}
+
+{_ms}
+
+**식별자:** {pid_rule}
+**{tcode_rule}**
+
+출력: **JSON 한 개만** (앞뒤 설명 문장 금지). 선택적으로 ```json 펜스 허용.
+
+스키마:
+{{
+  "program_id": "Z...",
+  "slots": [
+    {{
+      "role": "main_report",
+      "filename": "zxxx_main.prog.abap",
+      "title_ko": "메인 리포트",
+      "source": "REPORT zxxx.\\n..."
+    }}
+  ],
+  "coder_notes": "미결 DDIC·RFC 등"
+}}
+
+`slots` 규칙:
+- `role`은 반드시 다음 중 하나: main_report, include, top, pbo, pai, forms, screen, other
+- **반드시** `role`이 `main_report`인 슬롯을 1개 이상 포함하고, 그 `source`에 실행 가능한 REPORT/프로그램 골격을 둔다.
+- INCLUDE·TOP·PBO/PAI·서브루틴은 **별도 슬롯**으로 나누는 것을 우선한다(단일 거대 파일 지양).
+- `filename`: 영문·숫자·언더스코어·점만, 확장자 `.abap` 권장.
+- ABAP 문자열 내 따옴표는 JSON 이스케이프를 반드시 지킨다.
+- **테스트 시나리오·구현 가이드는 JSON에 넣지 않는다.**
+""",
+        agent=json_coder,
+        expected_output="유효한 JSON 한 덩어리",
+    )
+
+    _ph(f"{agent_label_ko('p_coder')} — JSON 슬롯 패키지 Gemini({get_gemini_model_id()}) 호출 시작")
+    crew_slots = Crew(
+        agents=[json_coder],
+        tasks=[slot_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+    out_slots = str(crew_slots.kickoff()).strip()
+    _ph(f"{agent_label_ko('p_coder')} JSON 초안 완료 · 약 {len(out_slots)}자")
+
+    review_task = Task(
+        description=(
+            "### 입력 JSON/텍스트 (ABAP 패키지 초안)\n\n"
+            + _tail_for_followup_prompt(out_slots, max_chars=118_000)
+            + """
+
+### 검수
+1. `json.loads`로 파싱 가능한 **순수 JSON 객체 하나**만 출력한다 (설명 문장 없음).
+2. 스키마: program_id, slots[], coder_notes(선택).
+3. 각 slot: role, filename, title_ko, source (문자열).
+4. main_report 슬롯이 있고 source에 REPORT/프로그램 본문이 있어야 한다.
+5. ABAP 내 줄바꿈은 JSON 문자열 안에서 \\n 이스케이프로 표현한다.
+"""
+        ),
+        agent=json_reviewer,
+        expected_output="파싱 가능한 JSON 한 덩어리",
+    )
+    _ph(f"{agent_label_ko('p_inspector')} — JSON 검수 Gemini 호출 시작")
+    crew_rev = Crew(
+        agents=[json_reviewer],
+        tasks=[review_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+    out_rev = str(crew_rev.kickoff()).strip()
+    _ph(f"{agent_label_ko('p_inspector')} JSON 검수 완료 · 약 {len(out_rev)}자")
+
+    data = extract_json_object_from_llm_text(out_rev)
+    if not data:
+        _ph("JSON 파싱 실패 — 레거시 단일 마크다운 파이프라인으로 폴백")
+        return None, _monolithic_delivered_abap_markdown(
+            rfp_data,
+            fs_text,
+            proposal_text,
+            conversation,
+            code_library_context=code_library_context,
+            member_safe_output=member_safe_output,
+            phase_log=phase_log,
+        )
+
+    if cust_pid and not (str(data.get("program_id") or "").strip()):
+        data["program_id"] = cust_pid
+
+    slots_summary = _tail_for_followup_prompt(json.dumps(data, ensure_ascii=False), max_chars=96_000)
+
+    guide_task = Task(
+        description=f"""아래 FS 발췌와 **납품 ABAP 패키지 JSON**(slots 소스 포함)을 읽고,
+운영·이행 담당자를 위한 **구현·운영 가이드**만 작성하라.
+
+### FS (발췌)
+{_truncate(fs_block, 72_000)}
+
+### 패키지 JSON
+{slots_summary}
+
+출력: **마크다운 본문만**. 첫 제목은 `# 구현·운영 가이드` 로 시작.
+내용: 배포/트랜스포트, 권한·역할, 데이터 이관, 운영 모니터링, 알려진 제한, 고객 확인 사항.
+각 슬롯 파일명을 참조할 수 있으나 ABAP 소스 전체를 반복하지 마라.
+{_ms}
+""",
+        agent=guide_agent,
+        expected_output="구현·운영 가이드 마크다운",
+    )
+    _ph("구현·운영 가이드 생성 — Gemini 호출")
+    crew_g = Crew(
+        agents=[guide_agent],
+        tasks=[guide_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+    guide_md = str(crew_g.kickoff()).strip()
+    _ph("구현·운영 가이드 완료")
+
+    test_task = Task(
+        description=f"""아래 FS 발췌와 납품 패키지 JSON(slots)을 바탕으로 **테스트 시나리오**만 작성하라.
+
+### FS (발췌)
+{_truncate(fs_block, 56_000)}
+
+### 패키지 JSON
+{slots_summary}
+
+출력: **마크다운 본문만**. 첫 제목은 `# 테스트 시나리오` 로 시작.
+케이스 ID, 목적, 사전 조건, 단계, 기대 결과를 **하나의 마크다운 표**로 정리한다 (최대 18행).
+표 위아래로 `---` 구분선을 연속 나열하지 마라.
+{_ms}
+""",
+        agent=test_agent,
+        expected_output="테스트 시나리오 마크다운",
+    )
+    _ph(f"{agent_label_ko('p_tester')} — 테스트 시나리오 Gemini 호출 시작")
+    crew_t = Crew(
+        agents=[test_agent],
+        tasks=[test_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+    test_md = sanitize_test_scenarios_markdown(str(crew_t.kickoff()).strip())
+    _ph(f"{agent_label_ko('p_tester')} 테스트 시나리오 완료")
+
+    pkg = merge_slots_json_with_extras(
+        data,
+        implementation_guide_md=guide_md,
+        test_scenarios_md=test_md,
+    )
+    if not pkg or not delivered_package_has_body(pkg):
+        _ph("패키지 정규화 후 ABAP 본문 없음 — 레거시 파이프라인으로 폴백")
+        return None, _monolithic_delivered_abap_markdown(
+            rfp_data,
+            fs_text,
+            proposal_text,
+            conversation,
+            code_library_context=code_library_context,
+            member_safe_output=member_safe_output,
+            phase_log=phase_log,
+        )
+
+    return pkg, legacy_markdown_from_package(pkg)
+
+
+def generate_delivered_abap_markdown(
+    rfp_data: dict[str, Any],
+    fs_text: str,
+    proposal_text: str,
+    conversation: list[dict],
+    *,
+    code_library_context: str = "",
+    member_safe_output: bool = False,
+    phase_log: Callable[[str], None] | None = None,
+) -> str:
+    """하위 호환: 최종 레거시 마크다운 문자열만 필요할 때."""
+    _pkg, md = generate_delivered_abap_artifact(
+        rfp_data,
+        fs_text,
+        proposal_text,
+        conversation,
+        code_library_context=code_library_context,
+        member_safe_output=member_safe_output,
+        phase_log=phase_log,
+    )
+    return md

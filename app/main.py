@@ -70,6 +70,7 @@ def _run_migrations():
         ("rfps", "fs_error", "TEXT", "TEXT"),
         ("rfps", "delivered_code_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
         ("rfps", "delivered_code_text", "TEXT", "TEXT"),
+        ("rfps", "delivered_code_payload", "TEXT", "TEXT"),
         ("rfps", "delivered_code_generated_at", "DATETIME", "TIMESTAMP"),
         ("rfps", "delivered_code_error", "TEXT", "TEXT"),
         ("rfps", "fs_codegen_supplement_id", "INTEGER", "INTEGER"),

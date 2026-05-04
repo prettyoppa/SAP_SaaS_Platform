@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 import os
 
 from .. import auth, models, r2_storage
+from ..delivered_code_package import rfp_delivered_body_ready
 from ..database import get_db
 from ..paid_generation import (
     resolved_fs_markdown_for_codegen,
@@ -62,9 +63,7 @@ def admin_rfp_delivery_page(
     has_fs_material = bool(
         ((rfp.fs_status or "").strip() == "ready" and (rfp.fs_text or "").strip()) or len(sups) > 0
     )
-    has_code_material = bool(
-        (rfp.delivered_code_status or "").strip() == "ready" and (rfp.delivered_code_text or "").strip()
-    )
+    has_code_material = rfp_delivered_body_ready(rfp)
 
     ph = rfp_phase_gates(rfp, actor)
     dev_code_view_href = ph.get("dev_code_href")
