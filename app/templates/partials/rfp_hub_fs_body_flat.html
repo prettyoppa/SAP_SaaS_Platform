@@ -15,7 +15,7 @@
     <p class="small text-muted mb-2">코드 생성 시 아래 파일이 모두 반영됩니다.</p>
     <ul class="mb-0 ps-3 small">
       {% for s in rfp.fs_supplements %}
-      <li>{{ s.filename }} <span class="text-muted">({{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span></li>
+      <li>{{ s.filename }} <span class="text-muted">({% if s.uploaded_at %}{{ s.uploaded_at|local_dt_span }}{% else %}—{% endif %})</span></li>
       {% endfor %}
     </ul>
   </div>

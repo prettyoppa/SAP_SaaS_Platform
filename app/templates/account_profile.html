@@ -80,6 +80,15 @@
           </dd>
 
           <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+            <span class="nav-ko">표시 타임존</span><span class="nav-en" style="display:none">Display time zone</span>
+          </dt>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+            {% if user.timezone %}{{ user.timezone }}{% else %}
+            <span class="nav-ko">브라우저 기본(자동)</span><span class="nav-en" style="display:none">Browser default</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">휴대폰</span><span class="nav-en" style="display:none">Phone</span>
           </dt>
           <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
@@ -104,7 +113,7 @@
           <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">가입일</span><span class="nav-en" style="display:none">Joined</span>
           </dt>
-          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</dd>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">{{ user.created_at|local_dt_span }} <span class="text-muted small">(UTC 저장)</span></dd>
 
           <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">계정 상태</span><span class="nav-en" style="display:none">Account status</span>

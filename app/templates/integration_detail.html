@@ -13,7 +13,7 @@
         </div>
         <div>
           <h2 class="mb-1">{{ ir.title }}</h2>
-          <div class="small text-muted">#{{ ir.id }} · {{ ir.created_at.strftime('%Y-%m-%d %H:%M') }} · <span data-i18n="detail.integrationTag">연동 개발</span></div>
+          <div class="small text-muted">#{{ ir.id }} · {{ ir.created_at|local_dt_span }} · <span data-i18n="detail.integrationTag">연동 개발</span></div>
           {% if user.is_admin and owner %}
           <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
             <i class="fa-solid fa-user-shield me-1 text-warning"></i>
@@ -201,7 +201,7 @@
           <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2 w-100">
             <span class="fw-semibold text-nowrap"><span data-i18n="chat.thread">대화</span> {{ loop.index }}</span>
             {% if turn.question %}
-            <span class="small text-muted text-nowrap">{{ turn.question.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            <span class="small text-muted text-nowrap">{{ turn.question.created_at|local_dt_span }}</span>
             <span class="small text-muted flex-grow-1 text-truncate" style="min-width:100px;" title="{{ turn.question.content }}">
               {{ turn.question.content[:80] }}{% if turn.question.content|length > 80 %}…{% endif %}
             </span>

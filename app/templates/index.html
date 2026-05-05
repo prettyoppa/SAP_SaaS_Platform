@@ -59,7 +59,7 @@
                 <div class="notice-item">
                   <span class="notice-badge" data-i18n="home.noticeBadge">공지</span>
                   <span class="notice-title">{{ n.title }}</span>
-                  <span class="notice-date text-muted small">{{ n.created_at.strftime('%Y.%m.%d') }}</span>
+                  <span class="notice-date text-muted small">{{ n.created_at|local_dt_span('date_dots') }}</span>
                 </div>
                 {% endfor %}
               {% else %}
@@ -119,7 +119,7 @@
                     </div>
                   </div>
                   <p class="small text-muted mb-0">{{ r.content }}</p>
-                  <small class="text-muted" style="font-size:.7rem">{{ r.created_at.strftime('%Y.%m.%d') }}</small>
+                  <small class="text-muted" style="font-size:.7rem">{{ r.created_at|local_dt_span('date_dots') }}</small>
                 </div>
                 {% endfor %}
               </div>

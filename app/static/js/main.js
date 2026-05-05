@@ -175,11 +175,66 @@ function toggleTheme() {
   _syncFaviconForTheme(next);
 }
 
+/** 프로필(쿠키 viewer_tz) 또는 브라우저 타임존으로 UTC(data-utc) 시각 표시 */
+function formatLocalDateTimes() {
+  const rawTz = (document.documentElement.getAttribute('data-user-timezone') || '').trim();
+  let browserTz = 'UTC';
+  try {
+    browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch (_) {
+    /* ignore */
+  }
+  const tz = rawTz || browserTz;
+  const lang = document.documentElement.getAttribute('lang') || 'ko';
+  const locale = lang === 'en' ? 'en-US' : 'ko-KR';
+
+  document.querySelectorAll('.local-dt[data-utc]').forEach((el) => {
+    const raw = el.getAttribute('data-utc');
+    if (!raw) return;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return;
+    const fmt = (el.getAttribute('data-fmt') || 'datetime').trim();
+    let text = '';
+    try {
+      if (fmt === 'date') {
+        text = new Intl.DateTimeFormat(locale, {
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(d);
+      } else if (fmt === 'date_dots') {
+        const ca = new Intl.DateTimeFormat('en-CA', {
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(d);
+        text = ca.replace(/-/g, '.');
+      } else {
+        text = new Intl.DateTimeFormat(locale, {
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }).format(d);
+      }
+    } catch (_) {
+      text = d.toLocaleString(locale);
+    }
+    el.textContent = text;
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
   _syncThemeSwitchAria(savedTheme);
   _syncFaviconForTheme(savedTheme);
+  formatLocalDateTimes();
 
   document.addEventListener(
     'submit',

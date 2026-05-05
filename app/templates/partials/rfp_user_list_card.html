@@ -48,12 +48,12 @@
       <div class="rfp-list-dates">
         <span class="text-muted small">
           <i class="fa-solid fa-calendar-plus me-1"></i>
-          <span data-i18n="list.created">제출일</span>: {{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }}
+          <span data-i18n="list.created">제출일</span>: {{ rfp.created_at|local_dt_span }}
         </span>
         {% if rfp.proposal_generated_at %}
         <span class="text-muted small ms-3">
           <i class="fa-solid fa-file-circle-check me-1 text-success"></i>
-          <span data-i18n="list.proposalAt">제안서</span>: {{ rfp.proposal_generated_at.strftime('%Y-%m-%d %H:%M') }}
+          <span data-i18n="list.proposalAt">제안서</span>: {{ rfp.proposal_generated_at|local_dt_span }}
         </span>
         {% endif %}
       </div>

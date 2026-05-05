@@ -56,7 +56,7 @@
             <td>{{ loop.index }}</td>
             <td><strong>{{ n.title }}</strong></td>
             <td class="small text-muted">{{ n.content[:60] + '...' if n.content and n.content|length > 60 else (n.content or '-') }}</td>
-            <td class="small">{{ n.created_at.strftime('%Y-%m-%d') }}</td>
+            <td class="small">{{ n.created_at|local_dt_span('date') }}</td>
             <td>
               {% if n.is_active %}
               <span class="badge bg-success">활성</span>

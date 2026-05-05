@@ -26,6 +26,8 @@ class User(Base):
     marketing_email_opt_in = Column(Boolean, default=False)
     marketing_sms_opt_in = Column(Boolean, default=False)
     consent_updated_at = Column(DateTime, nullable=True)
+    # IANA tz database 이름(예: Asia/Seoul). Null이면 화면 시각은 브라우저 로컬 타임존 사용.
+    timezone = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     # 회원 탈퇴: 유예 기간 후 영구 삭제 (소프트 단계에서는 로그인 불가, 이메일로 취소 가능)
     pending_account_deletion = Column(Boolean, default=False)

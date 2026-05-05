@@ -108,6 +108,7 @@ def _run_migrations():
         ("users", "pending_account_deletion", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("users", "deletion_requested_at", "DATETIME", "TIMESTAMP"),
         ("users", "deletion_hard_scheduled_at", "DATETIME", "TIMESTAMP"),
+        ("users", "timezone", "VARCHAR(64)", "VARCHAR(64)"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

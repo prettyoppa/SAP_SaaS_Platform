@@ -71,7 +71,7 @@
           <div class="d-flex flex-wrap align-items-start gap-2 mb-2 pb-2 border-bottom" style="border-color:var(--border)!important;">
             <div class="flex-grow-1 small">
               <span class="fw-medium">{{ s.filename }}</span>
-              <span class="text-muted">({{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') if s.uploaded_at else '—' }})</span>
+              <span class="text-muted">({% if s.uploaded_at %}{{ s.uploaded_at|local_dt_span }}{% else %}—{% endif %})</span>
             </div>
             <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement/{{ s.id }}/delete"
               class="d-inline flex-shrink-0" onsubmit="return confirm('이 첨부를 삭제할까요?');">

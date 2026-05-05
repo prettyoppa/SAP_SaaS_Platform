@@ -44,8 +44,9 @@
     {% if pending_ec %}
     <div class="alert alert-info small mb-3">
       <span class="nav-ko">대기 중인 변경: <strong>{{ pending_ec.new_email }}</strong>
-      (만료 UTC 기준 {{ pending_ec.expires_at.strftime('%Y-%m-%d %H:%M') }})</span>
-      <span class="nav-en" style="display:none">Pending: <strong>{{ pending_ec.new_email }}</strong></span>
+      (만료 {{ pending_ec.expires_at|local_dt_span }} <span class="text-muted small">UTC</span>)</span>
+      <span class="nav-en" style="display:none">Pending: <strong>{{ pending_ec.new_email }}</strong>
+      (expires {{ pending_ec.expires_at|local_dt_span }} <span class="text-muted small">UTC</span>)</span>
     </div>
     {% endif %}
 

@@ -4,6 +4,7 @@ import re
 import threading
 from datetime import datetime, timedelta
 from urllib.parse import quote
+from zoneinfo import available_timezones
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Form
@@ -121,6 +122,41 @@ def _access_token_cookie_args(request: Request, token: str) -> dict:
     }
 
 
+_VIEWER_TZ_COOKIE = "viewer_tz"
+_MAX_VIEWER_TZ_LEN = 64
+
+
+def _viewer_tz_cookie_args(request: Request, tz: str | None) -> dict:
+    v = (tz or "").strip()
+    if len(v) > _MAX_VIEWER_TZ_LEN:
+        v = v[:_MAX_VIEWER_TZ_LEN]
+    return {
+        "key": _VIEWER_TZ_COOKIE,
+        "value": v,
+        "httponly": True,
+        "max_age": 86400 * 400,
+        "path": "/",
+        "samesite": "lax",
+        "secure": request.url.scheme == "https",
+    }
+
+
+def _delete_viewer_tz_cookie(response: RedirectResponse, request: Request) -> None:
+    response.delete_cookie(
+        _VIEWER_TZ_COOKIE,
+        path="/",
+        samesite="lax",
+        secure=request.url.scheme == "https",
+    )
+
+
+def _sync_viewer_tz_cookie(response: RedirectResponse, request: Request, user: models.User | None) -> None:
+    if user is None:
+        return
+    tz = (getattr(user, "timezone", None) or "").strip()
+    response.set_cookie(**_viewer_tz_cookie_args(request, tz))
+
+
 _MAX_PROFILE_FULL_NAME = 120
 _MAX_PROFILE_COMPANY = 255
 _MIN_PASSWORD_LEN = 8
@@ -141,6 +177,16 @@ def _parse_profile_company(raw: str | None) -> str | None:
     if not s:
         return None
     return s[:_MAX_PROFILE_COMPANY]
+
+
+def _parse_profile_timezone(raw: str | None) -> tuple[str | None, str | None]:
+    """반환: (저장값 None=비움, 오류코드)."""
+    s = (raw or "").strip()
+    if not s:
+        return None, None
+    if len(s) > _MAX_VIEWER_TZ_LEN or s not in available_timezones():
+        return None, "timezone_invalid"
+    return s, None
 
 
 def _parse_new_password(raw: str | None) -> tuple[str | None, str | None]:
@@ -235,6 +281,7 @@ def login(
     redirect_url = _safe_login_redirect_next((next_path or "").strip()) or "/"
     response = RedirectResponse(url=redirect_url, status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
+    _sync_viewer_tz_cookie(response, request, user)
     return response
 
 
@@ -561,6 +608,7 @@ def register(
     token = auth.create_access_token({"sub": new_user.email})
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
+    _sync_viewer_tz_cookie(response, request, new_user)
     return response
 
 
@@ -728,6 +776,8 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "full_name_value": user.full_name,
             "company_value": user.company or "",
+            "timezone_value": getattr(user, "timezone", None) or "",
+            "time_zones": sorted(available_timezones()),
             "error": None,
         },
     )
@@ -738,14 +788,17 @@ def account_profile_edit_post(
     request: Request,
     full_name: str = Form(...),
     company: str = Form(""),
+    timezone: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login?next=/account/edit", status_code=302)
 
+    tz_list = sorted(available_timezones())
     name_ok, err = _parse_profile_full_name(full_name)
     company_ok = _parse_profile_company(company)
+    tz_ok, tz_err = _parse_profile_timezone(timezone)
 
     if err:
         return templates.TemplateResponse(
@@ -753,18 +806,38 @@ def account_profile_edit_post(
             "account_profile_edit.html",
             {
                 "user": user,
+                "time_zones": tz_list,
                 "full_name_value": (full_name or "").strip()[:_MAX_PROFILE_FULL_NAME],
                 "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
                 "error": err,
+            },
+            status_code=400,
+        )
+
+    if tz_err:
+        return templates.TemplateResponse(
+            request,
+            "account_profile_edit.html",
+            {
+                "user": user,
+                "time_zones": tz_list,
+                "full_name_value": name_ok or "",
+                "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                "error": tz_err,
             },
             status_code=400,
         )
 
     user.full_name = name_ok
     user.company = company_ok
+    user.timezone = tz_ok
     db.add(user)
     db.commit()
-    return RedirectResponse(url="/account?profile_saved=1", status_code=302)
+    response = RedirectResponse(url="/account?profile_saved=1", status_code=302)
+    _sync_viewer_tz_cookie(response, request, user)
+    return response
 
 
 @router.get("/account/password", response_class=HTMLResponse)
@@ -945,6 +1018,7 @@ def account_email_confirm(request: Request, token: str = "", db: Session = Depen
 
     resp = RedirectResponse(url="/account?email_changed=1", status_code=302)
     resp.set_cookie(**_access_token_cookie_args(request, auth.create_access_token({"sub": new_norm})))
+    _sync_viewer_tz_cookie(resp, request, user)
     return resp
 
 
@@ -1048,4 +1122,5 @@ def logout(request: Request):
         pass
     response = RedirectResponse(url="/", status_code=302)
     _delete_auth_cookie(response, request)
+    _delete_viewer_tz_cookie(response, request)
     return response

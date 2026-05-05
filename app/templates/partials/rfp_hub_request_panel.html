@@ -15,7 +15,7 @@
       <dt class="col-sm-3 text-muted" data-i18n="reqPanel.devTypes">개발 유형</dt>
       <dd class="col-sm-9">{% if rfp.dev_types %}{% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype me-1">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}{% else %}—{% endif %}</dd>
       <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
-      <dd class="col-sm-9">{{ rfp.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+      <dd class="col-sm-9">{{ rfp.created_at|local_dt_span }}</dd>
     </dl>
     {% if rfp.description %}
     <h6 class="text-muted mt-3 small text-uppercase">

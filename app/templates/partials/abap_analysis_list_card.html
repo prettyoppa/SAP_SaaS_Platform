@@ -31,7 +31,7 @@
       </div>
       {% endif %}
       <div class="rfp-list-meta small text-muted d-flex flex-wrap align-items-center gap-2">
-        <span>{{ row.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        <span>{{ row.created_at|local_dt_span }}</span>
         {% set abap_att = (row.attachments_json or '')|trim %}
         {% if abap_att and abap_att != '[]' %}
         <a href="/abap-analysis/{{ row.id }}/attachment?idx=0" class="text-muted text-decoration-none" data-i18n-title="list.attachmentsTitle" title="첨부" data-no-busy="true" aria-label="첨부">

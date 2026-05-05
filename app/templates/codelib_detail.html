@@ -30,7 +30,7 @@
                   {% for d in code.dev_types.split(',') %}
                   <span class="badge-devtype">{{ d.replace('_',' ') }}</span>
                   {% endfor %}
-                  <span class="ms-2 small text-muted">{{ code.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                  <span class="ms-2 small text-muted">{{ code.created_at|local_dt_span }}</span>
                 </div>
                 {% if user.is_admin and code.uploader %}
                 <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">

@@ -28,7 +28,7 @@
         {% endif %}
       </div>
       <div class="rfp-list-dates mt-1">
-        <span class="text-muted small">{{ code.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        <span class="text-muted small">{{ code.created_at|local_dt_span }}</span>
       </div>
     </div>
   </div>

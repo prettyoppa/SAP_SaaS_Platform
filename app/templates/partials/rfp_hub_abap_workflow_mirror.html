@@ -45,7 +45,7 @@
             {% else %}—{% endif %}
           </dd>
           <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
-          <dd class="col-sm-9">{{ wf_row.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+          <dd class="col-sm-9">{{ wf_row.created_at|local_dt_span }}</dd>
         </dl>
         <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.requirements">요구사항</h6>
         <div class="border rounded p-3 small" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ wf_row.requirement_text or '' }}</div>
