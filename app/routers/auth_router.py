@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import threading
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -22,6 +23,7 @@ from ..email_smtp import (
     send_verification_email,
 )
 from ..templates_config import templates
+from ..sms_sender import send_registration_otp_sms
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -77,6 +79,26 @@ def _normalize_email_strict(raw: str) -> str | None:
         return validated.normalized
     except EmailNotValidError:
         return None
+
+
+def _normalize_phone_e164(raw: str) -> str | None:
+    """국제번호(E.164): +[국가번호][가입자번호], 총 8~15자리."""
+    s = (raw or "").strip()
+    if not s:
+        return None
+    s = re.sub(r"[\s\-\(\)]", "", s)
+    if not s.startswith("+"):
+        return None
+    digits = s[1:]
+    if not digits.isdigit():
+        return None
+    if len(digits) < 8 or len(digits) > 15:
+        return None
+    return f"+{digits}"
+
+
+def _form_bool(raw: str | None) -> bool:
+    return (raw or "").strip().lower() in ("1", "true", "on", "yes", "y")
 
 
 def _public_base_url(request: Request) -> str:
@@ -277,6 +299,7 @@ def register_send_verification_code(
         row.code_hash = code_hash
         row.expires_at = expires
         row.last_sent_at = now
+        row.verified_at = None
     else:
         db.add(
             models.EmailRegistrationCode(
@@ -290,6 +313,35 @@ def register_send_verification_code(
     return JSONResponse({"ok": True})
 
 
+@router.post("/register/verify-email-code")
+def register_verify_email_code(
+    email: str = Form(...),
+    code: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    if not email_verification_enabled():
+        return JSONResponse({"ok": False, "error": "disabled"}, status_code=400)
+    email_norm = _normalize_email_strict(email)
+    if not email_norm:
+        return JSONResponse({"ok": False, "error": "invalid_email"}, status_code=400)
+    code_in = "".join(c for c in (code or "") if c.isdigit())
+    if len(code_in) != 6:
+        return JSONResponse({"ok": False, "error": "invalid_code"}, status_code=400)
+    row = db.query(models.EmailRegistrationCode).filter(
+        models.EmailRegistrationCode.email == email_norm
+    ).first()
+    if not row:
+        return JSONResponse({"ok": False, "error": "no_code_sent"}, status_code=400)
+    if datetime.utcnow() > row.expires_at:
+        return JSONResponse({"ok": False, "error": "expired_code"}, status_code=400)
+    if not auth.registration_codes_equal(email_norm, code_in, row.code_hash):
+        return JSONResponse({"ok": False, "error": "bad_code"}, status_code=400)
+    row.verified_at = datetime.utcnow()
+    db.add(row)
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
 @router.post("/register")
 def register(
     request: Request,
@@ -298,6 +350,12 @@ def register(
     company: str = Form(""),
     password: str = Form(...),
     verification_code: str = Form(""),
+    phone_number: str = Form(""),
+    phone_verification_code: str = Form(""),
+    ops_email_opt_in: str = Form(""),
+    ops_sms_opt_in: str = Form(""),
+    marketing_email_opt_in: str = Form(""),
+    marketing_sms_opt_in: str = Form(""),
     db: Session = Depends(get_db),
 ):
     email_norm = _normalize_email_strict(email)
@@ -382,14 +440,119 @@ def register(
             )
         db.delete(row)
 
+    phone_e164 = _normalize_phone_e164(phone_number)
+    if (phone_number or "").strip() and not phone_e164:
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {
+                "error": "invalid_phone",
+                "settings": settings,
+                "email_verification": ev,
+            },
+            status_code=400,
+        )
+
+    phone_verified = False
+    if phone_e164:
+        code_in = "".join(c for c in (phone_verification_code or "") if c.isdigit())
+        if len(code_in) != 6:
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "no_phone_code",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        prow = db.query(models.PhoneRegistrationCode).filter(
+            models.PhoneRegistrationCode.phone_number == phone_e164
+        ).first()
+        if not prow:
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "no_phone_code_sent",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        if datetime.utcnow() > prow.expires_at:
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "expired_phone_code",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        if prow.attempt_count >= 5:
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "phone_code_locked",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        if not auth.registration_codes_equal(phone_e164, code_in, prow.code_hash):
+            prow.attempt_count = int(prow.attempt_count or 0) + 1
+            db.add(prow)
+            db.commit()
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "bad_phone_code",
+                    "settings": settings,
+                    "email_verification": ev,
+                },
+                status_code=400,
+            )
+        prow.verified_at = datetime.utcnow()
+        phone_verified = True
+
+    email_verified = True
+    if want_verify:
+        email_verified = True
+
+    # 동의는 "인증 완료 채널"만 저장
+    consent_at = datetime.utcnow()
+    ops_email = email_verified and _form_bool(ops_email_opt_in)
+    marketing_email = email_verified and _form_bool(marketing_email_opt_in)
+    ops_sms = phone_verified and _form_bool(ops_sms_opt_in)
+    marketing_sms = phone_verified and _form_bool(marketing_sms_opt_in)
+
     new_user = models.User(
         email=email_norm,
         full_name=full_name,
         company=company or None,
+        phone_number=phone_e164,
+        phone_verified=phone_verified,
+        phone_verified_at=(datetime.utcnow() if phone_verified else None),
+        ops_email_opt_in=ops_email,
+        ops_sms_opt_in=ops_sms,
+        marketing_email_opt_in=marketing_email,
+        marketing_sms_opt_in=marketing_sms,
+        consent_updated_at=consent_at,
         hashed_password=auth.hash_password(password),
-        email_verified=True,
+        email_verified=email_verified,
     )
     db.add(new_user)
+    if phone_e164:
+        prow = db.query(models.PhoneRegistrationCode).filter(
+            models.PhoneRegistrationCode.phone_number == phone_e164
+        ).first()
+        if prow:
+            db.delete(prow)
     db.commit()
 
     if want_verify:
@@ -399,6 +562,85 @@ def register(
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
     return response
+
+
+@router.post("/register/send-phone-code")
+def register_send_phone_code(
+    phone_number: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    phone_e164 = _normalize_phone_e164(phone_number)
+    if not phone_e164:
+        return JSONResponse({"ok": False, "error": "invalid_phone"}, status_code=400)
+
+    now = datetime.utcnow()
+    row = db.query(models.PhoneRegistrationCode).filter(
+        models.PhoneRegistrationCode.phone_number == phone_e164
+    ).first()
+    if row and row.last_sent_at and (now - row.last_sent_at).total_seconds() < 60:
+        return JSONResponse({"ok": False, "error": "cooldown"}, status_code=429)
+
+    code = auth.generate_registration_otp()
+    code_hash = auth.registration_code_hash(phone_e164, code)
+    expires = now + timedelta(minutes=auth.registration_otp_ttl_minutes())
+    try:
+        send_registration_otp_sms(phone_e164, code)
+    except Exception:
+        logger.exception("send_registration_otp_sms failed")
+        return JSONResponse({"ok": False, "error": "send_failed"}, status_code=500)
+
+    if row:
+        row.code_hash = code_hash
+        row.expires_at = expires
+        row.last_sent_at = now
+        row.attempt_count = 0
+        row.verified_at = None
+    else:
+        db.add(
+            models.PhoneRegistrationCode(
+                phone_number=phone_e164,
+                code_hash=code_hash,
+                expires_at=expires,
+                last_sent_at=now,
+                attempt_count=0,
+            )
+        )
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post("/register/verify-phone-code")
+def register_verify_phone_code(
+    phone_number: str = Form(...),
+    code: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    phone_e164 = _normalize_phone_e164(phone_number)
+    if not phone_e164:
+        return JSONResponse({"ok": False, "error": "invalid_phone"}, status_code=400)
+    code_in = "".join(c for c in (code or "") if c.isdigit())
+    if len(code_in) != 6:
+        return JSONResponse({"ok": False, "error": "invalid_code"}, status_code=400)
+
+    row = db.query(models.PhoneRegistrationCode).filter(
+        models.PhoneRegistrationCode.phone_number == phone_e164
+    ).first()
+    if not row:
+        return JSONResponse({"ok": False, "error": "no_code_sent"}, status_code=400)
+    if datetime.utcnow() > row.expires_at:
+        return JSONResponse({"ok": False, "error": "expired_code"}, status_code=400)
+    if int(row.attempt_count or 0) >= 5:
+        return JSONResponse({"ok": False, "error": "locked"}, status_code=429)
+    if not auth.registration_codes_equal(phone_e164, code_in, row.code_hash):
+        row.attempt_count = int(row.attempt_count or 0) + 1
+        db.add(row)
+        db.commit()
+        return JSONResponse({"ok": False, "error": "bad_code"}, status_code=400)
+    row.verified_at = datetime.utcnow()
+    row.attempt_count = 0
+    db.add(row)
+    db.commit()
+    return JSONResponse({"ok": True})
 
 
 @router.get("/verify-email")

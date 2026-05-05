@@ -80,6 +80,28 @@
           </dd>
 
           <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+            <span class="nav-ko">휴대폰</span><span class="nav-en" style="display:none">Phone</span>
+          </dt>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+            {% if user.phone_number %}{{ user.phone_number }}{% else %}—{% endif %}
+            {% if user.phone_number %}
+              {% if user.phone_verified %}
+                · <span class="account-profile-meta-note"><span class="nav-ko">인증 완료</span><span class="nav-en" style="display:none">Verified</span></span>
+              {% else %}
+                · <span class="account-profile-meta-warn"><span class="nav-ko">미인증</span><span class="nav-en" style="display:none">Not verified</span></span>
+              {% endif %}
+            {% endif %}
+          </dd>
+
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+            <span class="nav-ko">수신 동의</span><span class="nav-en" style="display:none">Consent</span>
+          </dt>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+            <div>업무 이메일: {{ "동의" if user.ops_email_opt_in else "미동의" }} / 마케팅 이메일: {{ "동의" if user.marketing_email_opt_in else "미동의" }}</div>
+            <div>업무 SMS: {{ "동의" if user.ops_sms_opt_in else "미동의" }} / 마케팅 SMS: {{ "동의" if user.marketing_sms_opt_in else "미동의" }}</div>
+          </dd>
+
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">가입일</span><span class="nav-en" style="display:none">Joined</span>
           </dt>
           <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</dd>
