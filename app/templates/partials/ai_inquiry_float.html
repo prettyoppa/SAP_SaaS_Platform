@@ -3,7 +3,7 @@
 <div id="{{ ai_inquiry.float_id }}" class="abap-float-chat" aria-live="polite">
   <div id="{{ ai_inquiry.float_id }}Panel" class="abap-float-chat-panel" hidden>
     <div class="abap-float-chat-header">
-      <span class="abap-float-chat-header-title" data-i18n="chat.continueAsk">AI에게 문의하세요</span>
+      <span class="abap-float-chat-header-title" data-i18n="chat.continueAsk">AI 에게 문의</span>
       <button type="button" class="abap-float-chat-close" data-ai-teaser-close aria-label="닫기"><i class="fa-solid fa-xmark fa-lg"></i></button>
     </div>
     <div class="abap-float-chat-body">
@@ -12,7 +12,7 @@
   </div>
   <button type="button" class="abap-float-chat-launcher" data-ai-teaser-launcher aria-expanded="false" aria-controls="{{ ai_inquiry.float_id }}Panel">
     <i class="fa-solid fa-comments fa-lg abap-float-chat-launcher-icon" aria-hidden="true"></i>
-    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">AI에게 문의하세요</span>
+    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">AI 에게 문의</span>
   </button>
 </div>
 <script>
@@ -127,7 +127,7 @@
   </div>
   <button type="button" class="abap-float-chat-launcher" id="{{ ai_inquiry.float_id }}Launcher" aria-expanded="false" aria-controls="{{ ai_inquiry.float_id }}Panel">
     <i class="fa-solid fa-comments fa-lg abap-float-chat-launcher-icon" aria-hidden="true"></i>
-    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">AI에게 문의하세요</span>
+    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">AI 에게 문의</span>
     {% if ai_inquiry.followup_turns and ai_inquiry.followup_turns|length > 0 %}
     <span class="abap-float-chat-count" aria-hidden="true">{{ ai_inquiry.followup_turns|length }}</span>
     {% endif %}

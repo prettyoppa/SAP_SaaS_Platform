@@ -1871,8 +1871,15 @@ html[data-theme="light"] .codelib-source-tabs .nav-link.active {
   pointer-events: none;
   color: var(--primary-light, #6ea8fe);
 }
+/* 제안서 생성 화면과 동일: 스피너 중앙 🤖 */
+.busy-spinner-ring span.busy-spinner-icon {
+  font-size: 1.35rem;
+}
 .busy-spinner-ring--sm .busy-spinner-icon {
   font-size: 0.9rem;
+}
+.busy-spinner-ring--sm span.busy-spinner-icon {
+  font-size: 1.15rem;
 }
 html[data-theme="light"] .busy-spinner-ring .busy-spinner-icon {
   color: var(--primary, #0d6efd);
