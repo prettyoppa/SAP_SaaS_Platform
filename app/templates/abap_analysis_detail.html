@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if row.title and row.title.strip() %}{{ row.title.strip() }} – SAP ABAP 분석·개선{% else %}SAP ABAP 분석·개선 #{{ row.id }}{% endif %} – SAP 개발 파트너{% endblock %}
+{% block title %}{% if row.title and row.title.strip() %}{{ row.title.strip() }} – SAP ABAP 분석·개선{% else %}SAP ABAP 분석·개선 {{ row.id|request_no('ANA') }}{% endif %} – SAP 개발 파트너{% endblock %}
 
 {% block content %}
 <div class="proposal-page py-5">
@@ -17,7 +17,7 @@
               </div>
               <div>
                 <h2 class="mb-1">{% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}SAP ABAP 분석·개선{% endif %}</h2>
-                <div class="small text-muted">#{{ row.id }} · {{ row.created_at|local_dt_span }} · <span data-i18n="detail.analysisTag">분석·개선</span></div>
+                <div class="small text-muted">{{ row.id|request_no('ANA') }} · {{ row.created_at|local_dt_span }} · <span data-i18n="detail.analysisTag">분석·개선</span></div>
                 {% if user.is_admin and owner %}
                 <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
                   <i class="fa-solid fa-user-shield me-1 text-warning"></i>

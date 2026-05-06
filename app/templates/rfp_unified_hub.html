@@ -88,7 +88,7 @@
         </div>
         <div>
           <h2 class="mb-1">{{ rfp.title }}</h2>
-          <div class="small text-muted">#{{ rfp.id }} · {{ rfp.created_at|local_dt_span }} · <span data-i18n="detail.newDevTag">신규 개발</span></div>
+          <div class="small text-muted">{{ rfp.id|request_no('RFP') }} · {{ rfp.created_at|local_dt_span }} · <span data-i18n="detail.newDevTag">신규 개발</span></div>
           {% set wo = (rfp.workflow_origin or 'direct') %}
           {% if wo == 'abap_analysis' or wo == 'integration' %}
           <div class="d-flex flex-wrap gap-2 align-items-center mt-2">

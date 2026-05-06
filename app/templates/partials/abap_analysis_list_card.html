@@ -9,6 +9,7 @@
     <div class="rfp-list-info flex-grow-1 min-w-0">
       <div class="rfp-list-title">
         <span class="badge bg-secondary me-2 small" data-i18n="badge.analysis">분석</span>
+        <span class="badge bg-dark-subtle text-dark border me-2 small font-monospace">{{ row.id|request_no('ANA') }}</span>
         <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-reset fw-semibold text-decoration-none">
           {% if row.title and row.title.strip() %}
           {{ row.title.strip() }}
@@ -57,7 +58,7 @@
 <div class="rfp-list-surface-list">
 <div class="rfp-list-card rfp-list-card-v2 rfp-list-card--compact-row">
   <div class="rfp-list-compact-main">
-    <span class="rfp-list-compact-pid font-monospace small text-muted">#{{ row.id }}</span>
+    <span class="rfp-list-compact-pid font-monospace small text-muted">{{ row.id|request_no('ANA') }}</span>
     <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-truncate fw-semibold text-reset text-decoration-none">
       {% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}<span data-i18n="list.requestNum">요청</span> #{{ row.id }}{% endif %}
     </a>

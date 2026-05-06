@@ -22,6 +22,7 @@
     <div class="rfp-list-info">
       <div class="rfp-list-title">
         <span class="badge bg-secondary me-2 small">RFP</span>
+        <span class="badge bg-dark-subtle text-dark border me-2 small font-monospace">{{ rfp.id|request_no('RFP') }}</span>
         {{ rfp.title }}
         {% if rfp.program_id %}
         <span class="text-muted small ms-2 font-monospace">{{ rfp.program_id }}</span>
@@ -83,7 +84,7 @@
 <div class="rfp-list-surface-list">
 <div class="rfp-list-card rfp-list-card-v2 rfp-list-card--compact-row">
   <div class="rfp-list-compact-main">
-    <span class="rfp-list-compact-pid font-monospace small text-muted">{{ rfp.program_id or '—' }}</span>
+    <span class="rfp-list-compact-pid font-monospace small text-muted">{{ rfp.id|request_no('RFP') }}</span>
     <a href="{% if rfp.status == 'draft' %}/rfp/{{ rfp.id }}/edit{% else %}/rfp/{{ rfp.id }}{% endif %}" class="text-truncate fw-semibold text-reset text-decoration-none">{{ rfp.title }}</a>
   </div>
   <div class="rfp-list-compact-actions d-flex flex-wrap align-items-center gap-1 justify-content-end">

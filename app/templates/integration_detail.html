@@ -13,7 +13,7 @@
         </div>
         <div>
           <h2 class="mb-1">{{ ir.title }}</h2>
-          <div class="small text-muted">#{{ ir.id }} · {{ ir.created_at|local_dt_span }} · <span data-i18n="detail.integrationTag">연동 개발</span></div>
+          <div class="small text-muted">{{ ir.id|request_no('INT') }} · {{ ir.created_at|local_dt_span }} · <span data-i18n="detail.integrationTag">연동 개발</span></div>
           {% if user.is_admin and owner %}
           <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
             <i class="fa-solid fa-user-shield me-1 text-warning"></i>
