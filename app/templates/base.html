@@ -129,6 +129,12 @@
               <i class="fa-solid fa-house me-2"></i>
               <span class="nav-ko">홈</span><span class="nav-en" style="display:none">Home</span>
             </a></li>
+            {% if user.is_admin or user.is_consultant %}
+            <li><a class="dropdown-item" href="/request-console">
+              <i class="fa-solid fa-inbox me-2"></i>
+              <span class="nav-ko">요청 Console</span><span class="nav-en" style="display:none">Request Console</span>
+            </a></li>
+            {% endif %}
             <li><a class="dropdown-item" href="/account">
               <i class="fa-solid fa-id-card me-2"></i>
               <span class="nav-ko">회원 정보</span><span class="nav-en" style="display:none">Profile</span>

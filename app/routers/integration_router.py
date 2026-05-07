@@ -21,7 +21,11 @@ from ..menu_landing import (
     DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO,
     TILE_ORDER_WITH_ALL,
     VALID_URL_BUCKETS,
+    abap_analysis_menu_aggregate,
+    abap_analysis_menu_bucket,
+    filtered_abap_analysis_menu_rows,
     filtered_integration_menu_rows,
+    integration_menu_bucket,
     integration_menu_aggregate,
     menu_landing_preset_params,
     menu_landing_url,
@@ -32,6 +36,7 @@ from ..rfp_landing import (
     DEFAULT_SERVICE_ABAP_INTRO_MD_KO,
     filtered_rfp_list_for_landing,
     rfp_landing_aggregate,
+    rfp_landing_bucket,
 )
 from ..devtype_catalog import (
     active_integration_impl_devtypes,
@@ -90,6 +95,168 @@ def _set_attachments(ir: models.IntegrationRequest, entries: list[dict]) -> None
     ir.attachments_json = json.dumps(entries, ensure_ascii=False)
 
 
+_REQ_CONSOLE_KINDS = ("all", "abap", "analysis", "integration")
+_REQ_CONSOLE_BUCKETS = ("all", "delivery", "proposal", "analysis", "in_progress", "draft")
+
+
+def _request_no(prefix: str, v: int) -> str:
+    return f"{prefix}-{int(v)}"
+
+
+def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
+    return {
+        "sel_key": f"rfp:{r.id}",
+        "kind": "abap",
+        "kind_ko": "신규개발",
+        "request_no": _request_no("RFP", r.id),
+        "title": (r.title or "").strip() or f"요청 {_request_no('RFP', r.id)}",
+        "bucket": rfp_landing_bucket(r),
+        "created_at": r.created_at,
+        "owner_name": getattr(getattr(r, "owner", None), "full_name", "") or "",
+        "owner_company": getattr(getattr(r, "owner", None), "company", "") or "",
+        "detail_href": f"/rfp/{r.id}",
+        "summary": (r.description or "").strip(),
+    }
+
+
+def _console_row_from_analysis(row: models.AbapAnalysisRequest) -> dict[str, Any]:
+    return {
+        "sel_key": f"ana:{row.id}",
+        "kind": "analysis",
+        "kind_ko": "분석개선",
+        "request_no": _request_no("ANA", row.id),
+        "title": (row.title or "").strip() or f"요청 {_request_no('ANA', row.id)}",
+        "bucket": abap_analysis_menu_bucket(row),
+        "created_at": row.created_at,
+        "owner_name": getattr(getattr(row, "owner", None), "full_name", "") or "",
+        "owner_company": getattr(getattr(row, "owner", None), "company", "") or "",
+        "detail_href": f"/abap-analysis/{row.id}",
+        "summary": (row.requirement_text or "").strip(),
+    }
+
+
+def _console_row_from_integration(ir: models.IntegrationRequest) -> dict[str, Any]:
+    return {
+        "sel_key": f"int:{ir.id}",
+        "kind": "integration",
+        "kind_ko": "연동개발",
+        "request_no": _request_no("INT", ir.id),
+        "title": (ir.title or "").strip() or f"요청 {_request_no('INT', ir.id)}",
+        "bucket": integration_menu_bucket(ir),
+        "created_at": ir.created_at,
+        "owner_name": getattr(getattr(ir, "owner", None), "full_name", "") or "",
+        "owner_company": getattr(getattr(ir, "owner", None), "company", "") or "",
+        "detail_href": f"/integration/{ir.id}",
+        "summary": (ir.description or "").strip(),
+    }
+
+
+@router.get("/request-console", response_class=HTMLResponse)
+def request_console_page(request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/request-console", status_code=302)
+    if not (user.is_admin or user.is_consultant):
+        return RedirectResponse(url="/", status_code=302)
+
+    kind = (request.query_params.get("kind") or "all").strip().lower()
+    if kind not in _REQ_CONSOLE_KINDS:
+        kind = "all"
+    bucket = (request.query_params.get("bucket") or "all").strip().lower()
+    if bucket not in _REQ_CONSOLE_BUCKETS:
+        bucket = "all"
+
+    title_search = (request.query_params.get("title") or "").strip() or None
+    date_from_raw = (request.query_params.get("date_from") or "").strip() or None
+    date_to_raw = (request.query_params.get("date_to") or "").strip() or None
+    date_from_dt = parse_slashed_date(date_from_raw)
+    date_to_dt = parse_slashed_date(date_to_raw)
+
+    rfp_counts, _ = rfp_landing_aggregate(db, admin=True, user_id=user.id)
+    ana_counts, _ = abap_analysis_menu_aggregate(db, admin=True, user_id=user.id)
+    int_counts, _ = integration_menu_aggregate(db, admin=True, user_id=user.id)
+
+    def _count_pack(d: dict[str, int]) -> dict[str, int]:
+        return {"all": int(sum(d.values())), **{k: int(d.get(k, 0)) for k in _REQ_CONSOLE_BUCKETS if k != "all"}}
+
+    counts_by_kind = {
+        "abap": _count_pack(rfp_counts),
+        "analysis": _count_pack(ana_counts),
+        "integration": _count_pack(int_counts),
+    }
+    counts_by_kind["all"] = {
+        k: counts_by_kind["abap"].get(k, 0) + counts_by_kind["analysis"].get(k, 0) + counts_by_kind["integration"].get(k, 0)
+        for k in _REQ_CONSOLE_BUCKETS
+    }
+
+    rows: list[dict[str, Any]] = []
+    if kind in ("all", "abap"):
+        rfps = filtered_rfp_list_for_landing(
+            db,
+            admin=True,
+            user_id=user.id,
+            bucket=bucket,
+            title_q=title_search,
+            date_from=date_from_dt,
+            date_to=date_to_dt,
+        )
+        rows.extend(_console_row_from_rfp(r) for r in rfps)
+    if kind in ("all", "analysis"):
+        analyses = filtered_abap_analysis_menu_rows(
+            db,
+            admin=True,
+            user_id=user.id,
+            bucket=bucket,
+            title_q=title_search,
+            date_from=date_from_dt,
+            date_to=date_to_dt,
+        )
+        rows.extend(_console_row_from_analysis(r) for r in analyses)
+    if kind in ("all", "integration"):
+        irs = filtered_integration_menu_rows(
+            db,
+            admin=True,
+            user_id=user.id,
+            bucket=bucket,
+            title_q=title_search,
+            date_from=date_from_dt,
+            date_to=date_to_dt,
+        )
+        rows.extend(_console_row_from_integration(r) for r in irs)
+
+    rows.sort(key=lambda x: x.get("created_at") or 0, reverse=True)
+    selected_key = (request.query_params.get("sel") or "").strip()
+    selected_row = next((r for r in rows if r["sel_key"] == selected_key), None) if selected_key else None
+    if selected_row is None and rows:
+        selected_row = rows[0]
+
+    bucket_meta = standard_menu_bucket_meta()
+    kind_labels = {
+        "all": "전체",
+        "abap": "신규개발",
+        "analysis": "분석개선",
+        "integration": "연동개발",
+    }
+    return templates.TemplateResponse(
+        request,
+        "request_console.html",
+        {
+            "request": request,
+            "user": user,
+            "kind": kind,
+            "bucket": bucket,
+            "rows": rows,
+            "selected_row": selected_row,
+            "counts_by_kind": counts_by_kind,
+            "kind_labels": kind_labels,
+            "bucket_meta": bucket_meta,
+            "menu_search_title": title_search or "",
+            "menu_date_from_raw": date_from_raw or "",
+            "menu_date_to_raw": date_to_raw or "",
+        },
+    )
+
+
 @router.get("/services/abap", response_class=HTMLResponse)
 def services_abap_page(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
@@ -109,8 +276,6 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
     date_from_dt = parse_slashed_date(date_from_raw)
     date_to_dt = parse_slashed_date(date_to_raw)
 
-    privileged = bool(user and user_can_operate_delivery(user))
-
     rfp_total_rows = 0
     rfp_landing_counts = {k: 0 for k in ("delivery", "proposal", "analysis", "in_progress", "draft")}
     svc_abap_tile_links: dict[str, str] = {}
@@ -118,8 +283,9 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
 
     show_rfp_owner = False
     if user:
-        admin_view = privileged
-        show_rfp_owner = admin_view
+        # 메뉴 첫 화면은 권한자도 본인 요청만 표시
+        admin_view = False
+        show_rfp_owner = False
 
         cnt, _buckets = rfp_landing_aggregate(db, admin=admin_view, user_id=user.id)
         rfp_landing_counts = cnt
@@ -186,15 +352,15 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
     date_from_dt = parse_slashed_date(date_from_raw)
     date_to_dt = parse_slashed_date(date_to_raw)
 
-    privileged = bool(user and user_can_operate_delivery(user))
     menu_counts = {k: 0 for k in ("delivery", "proposal", "analysis", "in_progress", "draft")}
     menu_total_rows = 0
     menu_tile_links: dict[str, str] = {}
     filtered_rows: list[models.IntegrationRequest] = []
-    show_request_owner = bool(user and privileged)
+    show_request_owner = False
 
     if user:
-        admin_view = privileged
+        # 메뉴 첫 화면은 권한자도 본인 요청만 표시
+        admin_view = False
         cnt, _b = integration_menu_aggregate(db, admin=admin_view, user_id=user.id)
         menu_counts = cnt
         menu_total_rows = sum(menu_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft"))

@@ -346,15 +346,15 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
     date_from_dt = parse_slashed_date(date_from_raw)
     date_to_dt = parse_slashed_date(date_to_raw)
 
-    is_admin = bool(user and user.is_admin)
     menu_counts = {k: 0 for k in ("delivery", "proposal", "analysis", "in_progress", "draft")}
     menu_total_rows = 0
     menu_tile_links: dict[str, str] = {}
     filtered_rows: list[models.AbapAnalysisRequest] = []
-    show_request_owner = bool(user and is_admin)
+    show_request_owner = False
 
     if user:
-        admin_view = is_admin
+        # 메뉴 첫 화면은 권한자도 본인 요청만 표시
+        admin_view = False
         cnt, _b = abap_analysis_menu_aggregate(db, admin=admin_view, user_id=user.id)
         menu_counts = cnt
         menu_total_rows = sum(menu_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft"))

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}요청 Console · SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<style>
+.request-console-wrap {
+  height: calc(100vh - 150px);
+  min-height: 560px;
+}
+.request-console-shell {
+  display: flex;
+  height: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.console-pane { min-width: 220px; overflow: auto; }
+.console-pane-left { flex: 0 0 260px; background: var(--surface2); }
+.console-pane-center { flex: 0 0 420px; border-left: 1px solid var(--border); }
+.console-pane-right { flex: 1 1 auto; border-left: 1px solid var(--border); }
+.console-resizer {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.console-resizer:hover { background: rgba(99,102,241,.15); }
+.console-tree .lvl1 { padding: .65rem .8rem; border-bottom: 1px solid var(--border); }
+.console-tree .lvl1 summary { cursor: pointer; list-style: none; font-weight: 600; }
+.console-tree .lvl1 summary::-webkit-details-marker { display: none; }
+.console-tree .lvl2 a {
+  display: flex; justify-content: space-between; align-items: center;
+  text-decoration: none; color: inherit; padding: .35rem .35rem; border-radius: 8px;
+}
+.console-tree .lvl2 a.active { background: rgba(99,102,241,.2); }
+.mail-row { cursor: pointer; border-bottom: 1px solid var(--border); padding: .55rem .75rem; }
+.mail-row.active { background: rgba(99,102,241,.15); }
+.mail-row:hover { background: rgba(99,102,241,.1); }
+.mail-sub { font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+
+<div class="container-fluid py-3 request-console-wrap">
+  <div class="d-flex align-items-center justify-content-between mb-2 px-1">
+    <h5 class="mb-0"><i class="fa-solid fa-inbox me-2 text-primary"></i><span class="nav-ko">요청 Console</span><span class="nav-en" style="display:none">Request Console</span></h5>
+    <form method="get" class="d-flex gap-2">
+      <input type="hidden" name="kind" value="{{ kind }}" />
+      <input type="hidden" name="bucket" value="{{ bucket }}" />
+      <input type="search" name="title" value="{{ menu_search_title }}" placeholder="제목 검색" class="form-control form-control-sm" />
+      <button type="submit" class="btn btn-sm btn-outline-secondary">검색</button>
+    </form>
+  </div>
+
+  <div class="request-console-shell" id="request-console-shell">
+    <aside class="console-pane console-pane-left" id="pane-left">
+      <div class="console-tree">
+        {% for k in ('all','abap','analysis','integration') %}
+        <details class="lvl1" {% if kind == k %}open{% endif %}>
+          <summary>{{ kind_labels[k] }} <span class="text-muted">({{ counts_by_kind[k]['all'] }})</span></summary>
+          <div class="lvl2 mt-2">
+            {% for b in ('all','delivery','proposal','analysis','in_progress','draft') %}
+            <a href="/request-console?kind={{ k }}&bucket={{ b }}" class="{% if kind == k and bucket == b %}active{% endif %}">
+              <span>{{ bucket_meta[b].label if b != 'all' else '전체' }}</span>
+              <span class="text-muted small">{{ counts_by_kind[k][b] }}</span>
+            </a>
+            {% endfor %}
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+    </aside>
+
+    <div class="console-resizer" data-left="pane-left" data-right="pane-center"></div>
+
+    <section class="console-pane console-pane-center" id="pane-center">
+      {% if rows %}
+        {% for r in rows %}
+        <div class="mail-row {% if selected_row and selected_row.sel_key == r.sel_key %}active{% endif %}"
+             data-sel="{{ r.sel_key }}" data-href="{{ r.detail_href }}">
+          <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="fw-semibold text-truncate">{{ r.title }}</div>
+            <div class="small text-muted text-nowrap">{{ r.created_at|local_dt_span }}</div>
+          </div>
+          <div class="mail-sub">{{ r.request_no }} · {{ r.kind_ko }} · {{ bucket_meta[r.bucket].label }}</div>
+          <div class="mail-sub">{{ r.owner_name }}{% if r.owner_company %} · {{ r.owner_company }}{% endif %}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="p-3 text-muted small">조회 결과가 없습니다.</div>
+      {% endif %}
+    </section>
+
+    <div class="console-resizer" data-left="pane-center" data-right="pane-right"></div>
+
+    <aside class="console-pane console-pane-right p-3" id="pane-right">
+      {% if selected_row %}
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        <div>
+          <div class="small text-muted">{{ selected_row.request_no }} · {{ selected_row.kind_ko }}</div>
+          <h5 class="mb-1">{{ selected_row.title }}</h5>
+          <div class="small text-muted">{{ bucket_meta[selected_row.bucket].label }} · {{ selected_row.created_at|local_dt_span }}</div>
+        </div>
+        <a class="btn btn-sm btn-primary" href="{{ selected_row.detail_href }}">상세 열기</a>
+      </div>
+      <hr />
+      <div class="small"><strong>요청자</strong>: {{ selected_row.owner_name }}{% if selected_row.owner_company %} · {{ selected_row.owner_company }}{% endif %}</div>
+      <div class="mt-2 small" style="white-space: pre-wrap;">{{ selected_row.summary or '요약 정보가 없습니다.' }}</div>
+      {% else %}
+      <div class="text-muted small">리스트에서 요청을 선택해 주세요.</div>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const rows = document.querySelectorAll('.mail-row[data-sel]');
+  rows.forEach((row) => {
+    row.addEventListener('click', () => {
+      params.set('sel', row.dataset.sel);
+      window.location.search = params.toString();
+    });
+    row.addEventListener('dblclick', () => {
+      if (row.dataset.href) window.location.href = row.dataset.href;
+    });
+  });
+
+  const shell = document.getElementById('request-console-shell');
+  if (!shell) return;
+  let dragging = null;
+  function onMove(e) {
+    if (!dragging) return;
+    const rect = shell.getBoundingClientRect();
+    const leftPane = document.getElementById(dragging.left);
+    const rightPane = document.getElementById(dragging.right);
+    if (!leftPane || !rightPane) return;
+    const current = e.clientX - rect.left;
+    const leftRect = leftPane.getBoundingClientRect();
+    const width = Math.max(220, Math.min(rect.width - 260, current - (leftRect.left - rect.left)));
+    leftPane.style.flexBasis = width + 'px';
+  }
+  function stopDrag() {
+    dragging = null;
+    document.body.style.userSelect = '';
+  }
+  document.querySelectorAll('.console-resizer').forEach((r) => {
+    r.addEventListener('mousedown', () => {
+      dragging = { left: r.dataset.left, right: r.dataset.right };
+      document.body.style.userSelect = 'none';
+    });
+  });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', stopDrag);
+})();
+</script>
+{% endblock %}
