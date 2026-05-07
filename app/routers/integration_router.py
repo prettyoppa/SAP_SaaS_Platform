@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import os
 from types import SimpleNamespace
-from typing import Any, List
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
@@ -116,6 +115,7 @@ def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
         "owner_name": getattr(getattr(r, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(r, "owner", None), "company", "") or "",
         "detail_href": f"/rfp/{r.id}",
+        "preview_href": f"/rfp/{r.id}/console-readonly",
         "summary": (r.description or "").strip(),
     }
 
@@ -133,6 +133,7 @@ def _console_row_from_analysis(row: models.AbapAnalysisRequest) -> dict[str, Any
         "owner_name": getattr(getattr(row, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(row, "owner", None), "company", "") or "",
         "detail_href": f"/abap-analysis/{row.id}",
+        "preview_href": f"/abap-analysis/{row.id}/console-readonly",
         "summary": (row.requirement_text or "").strip(),
     }
 
@@ -150,6 +151,7 @@ def _console_row_from_integration(ir: models.IntegrationRequest) -> dict[str, An
         "owner_name": getattr(getattr(ir, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(ir, "owner", None), "company", "") or "",
         "detail_href": f"/integration/{ir.id}",
+        "preview_href": f"/integration/{ir.id}/console-readonly",
         "summary": (ir.description or "").strip(),
     }
 
@@ -909,44 +911,21 @@ async def integration_edit_submit(
     return RedirectResponse(url=f"/integration/{ir.id}", status_code=302)
 
 
-@router.get("/integration/{req_id}/generation-status")
-def integration_generation_status(req_id: int, request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return JSONResponse({"detail": "unauthorized"}, status_code=401)
-    privileged = user_can_operate_delivery(user)
-    q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
-    if not privileged:
-        q = q.filter(models.IntegrationRequest.user_id == user.id)
-    ir = q.first()
-    if not ir:
-        return JSONResponse({"detail": "not_found"}, status_code=404)
-    return JSONResponse(
-        {
-            "fs_status": getattr(ir, "fs_status", None) or "none",
-            "delivered_code_status": getattr(ir, "delivered_code_status", None) or "none",
-            "fs_job_log": getattr(ir, "fs_job_log", None) or "",
-            "delivered_job_log": getattr(ir, "delivered_job_log", None) or "",
-            "fs_error": getattr(ir, "fs_error", None) or "",
-            "delivered_code_error": getattr(ir, "delivered_code_error", None) or "",
-        },
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-@router.get("/integration/{req_id}", response_class=HTMLResponse)
-def integration_detail(
+def _collect_integration_unified_hub_ctx(
     req_id: int,
     request: Request,
     background_tasks: BackgroundTasks,
-    phase: str | None = None,
-    view: str | None = None,
-    db: Session = Depends(get_db),
-):
-    """연동 개발 통합 상세 — 요청·인터뷰·제안서·FS·구현 가이드."""
+    *,
+    phase: str | None,
+    view: str | None,
+    db: Session,
+    readonly_console: bool,
+) -> RedirectResponse | dict[str, Any]:
+    """연동 개발 통합 상세와 요청 Console 조회 전용 뷰의 공통 컨텍스트."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
+
     requested_phase = normalize_integration_hub_phase(phase)
     view_summary = (view or "").strip().lower() == "summary" and requested_phase == "interview"
     privileged = user_can_operate_delivery(user)
@@ -965,7 +944,10 @@ def integration_detail(
         return RedirectResponse(url="/", status_code=302)
 
     st = (ir.status or "").strip().lower()
-    if st == "draft" and requested_phase != "request":
+    if readonly_console and st == "draft":
+        requested_phase = normalize_integration_hub_phase("request")
+
+    if (not readonly_console) and st == "draft" and requested_phase != "request":
         return RedirectResponse(url=f"/integration/{req_id}/edit", status_code=302)
 
     display_phase = requested_phase
@@ -973,7 +955,7 @@ def integration_detail(
     hub_proposal_generating_override = False
     ws_out = None
 
-    if requested_phase == "interview" and not view_summary:
+    if (not readonly_console) and requested_phase == "interview" and not view_summary:
         ws_out = serve_integration_interview_workspace(request, db, user, ir, background_tasks)
         db.refresh(ir)
         if ws_out.kind == "redirect":
@@ -1020,17 +1002,29 @@ def integration_detail(
     gen_busy = fs_busy or dc_busy
 
     fs_body = (getattr(ir, "fs_text", None) or "").strip()
-    can_operate_delivery = user_can_operate_delivery(user)
-    can_start_delivered_code = bool(can_operate_delivery) and bool(fs_body) and (dc_stat != "generating")
-
-    follow_msgs = sorted(
-        list(ir.followup_messages or []),
-        key=lambda m: (m.created_at or ir.created_at),
+    can_operate_delivery_flag = user_can_operate_delivery(user)
+    can_start_delivered_code = (
+        False
+        if readonly_console
+        else (bool(can_operate_delivery_flag) and bool(fs_body) and (dc_stat != "generating"))
     )
-    followup_turns = _pair_integration_followup_turns(follow_msgs)
-    n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
-    chat_limit_reached = n_followup_user >= INT_CHAT_MAX_USER
-    chat_error = (request.query_params.get("chat_err") or "").strip() or None
+
+    if readonly_console:
+        followup_turns = []
+        chat_limit_reached = False
+        chat_error = None
+        hub_scripts = False
+    else:
+        follow_msgs = sorted(
+            list(ir.followup_messages or []),
+            key=lambda m: (m.created_at or ir.created_at),
+        )
+        followup_turns = _pair_integration_followup_turns(follow_msgs)
+        n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
+        chat_limit_reached = n_followup_user >= INT_CHAT_MAX_USER
+        chat_error = (request.query_params.get("chat_err") or "").strip() or None
+        hub_scripts = bool(proposal_html) and not hub_proposal_generating
+
     delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
 
     ctx: dict[str, Any] = {
@@ -1060,22 +1054,95 @@ def integration_detail(
         "dc_busy": dc_busy,
         "gen_busy": gen_busy,
         "can_start_delivered_code": can_start_delivered_code,
-        "can_operate_delivery": can_operate_delivery,
+        "can_operate_delivery": can_operate_delivery_flag,
         "followup_turns": followup_turns,
         "chat_limit_reached": chat_limit_reached,
         "chat_error": chat_error,
         "max_followup_user_turns": INT_CHAT_MAX_USER,
-        "hub_include_proposal_scripts": bool(proposal_html) and not hub_proposal_generating,
+        "hub_include_proposal_scripts": hub_scripts,
     }
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
         ctx.update(ws_out.wizard_ctx)
 
-    if hub_proposal_generating:
+    if (not readonly_console) and hub_proposal_generating:
         ctx["rfp"] = SimpleNamespace(id=ir.id, title=ir.title or "")
         ctx["proposal_status_url"] = f"/integration/{ir.id}/proposal/status"
         ctx["proposal_done_redirect_url"] = integration_hub_url(ir.id, "proposal")
 
+    return ctx
+
+
+@router.get("/integration/{req_id}/generation-status")
+def integration_generation_status(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    privileged = user_can_operate_delivery(user)
+    q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
+    if not privileged:
+        q = q.filter(models.IntegrationRequest.user_id == user.id)
+    ir = q.first()
+    if not ir:
+        return JSONResponse({"detail": "not_found"}, status_code=404)
+    return JSONResponse(
+        {
+            "fs_status": getattr(ir, "fs_status", None) or "none",
+            "delivered_code_status": getattr(ir, "delivered_code_status", None) or "none",
+            "fs_job_log": getattr(ir, "fs_job_log", None) or "",
+            "delivered_job_log": getattr(ir, "delivered_job_log", None) or "",
+            "fs_error": getattr(ir, "fs_error", None) or "",
+            "delivered_code_error": getattr(ir, "delivered_code_error", None) or "",
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/integration/{req_id}/console-readonly", response_class=HTMLResponse)
+def integration_detail_console_readonly(
+    req_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    phase: str | None = None,
+    view: str | None = None,
+    db: Session = Depends(get_db),
+):
+    out = _collect_integration_unified_hub_ctx(
+        req_id,
+        request,
+        background_tasks,
+        phase=phase,
+        view=view,
+        db=db,
+        readonly_console=True,
+    )
+    if isinstance(out, RedirectResponse):
+        return out
+    out["full_detail_url"] = f"/integration/{req_id}"
+    return templates.TemplateResponse(request, "integration_unified_hub_readonly.html", out)
+
+
+@router.get("/integration/{req_id}", response_class=HTMLResponse)
+def integration_detail(
+    req_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    phase: str | None = None,
+    view: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """연동 개발 통합 상세 — 요청·인터뷰·제안서·FS·구현 가이드."""
+    ctx = _collect_integration_unified_hub_ctx(
+        req_id,
+        request,
+        background_tasks,
+        phase=phase,
+        view=view,
+        db=db,
+        readonly_console=False,
+    )
+    if isinstance(ctx, RedirectResponse):
+        return ctx
     return templates.TemplateResponse(request, "integration_unified_hub.html", ctx)
 
 

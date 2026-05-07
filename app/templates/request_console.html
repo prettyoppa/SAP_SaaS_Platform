@@ -142,24 +142,6 @@ html[data-theme="dark"] .console-resizer:hover::after {
   border: 0;
   background: var(--surface2);
 }
-.console-interaction-notice {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  z-index: 8;
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  padding: .4rem .65rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface2) 90%, transparent);
-  color: #b42318;
-  font-size: .78rem;
-  font-weight: 700;
-}
-.console-interaction-notice[hidden] { display: none !important; }
 </style>
 
 <div class="container-fluid py-3 request-console-wrap">
@@ -250,11 +232,7 @@ html[data-theme="dark"] .console-resizer:hover::after {
       </div>
       <hr class="my-2" />
       <div class="console-detail-frame-wrap">
-        <iframe id="console-detail-iframe" class="console-detail-iframe" src="{{ selected_row.detail_href }}" loading="lazy" referrerpolicy="same-origin"></iframe>
-        <div id="console-interaction-notice" class="console-interaction-notice" hidden>
-          <i class="fa-solid fa-circle-info"></i>
-          <span>수정/삭제 등 작업은 상세 페이지에서만 가능합니다.</span>
-        </div>
+        <iframe id="console-detail-iframe" class="console-detail-iframe" src="{{ selected_row.preview_href|default(selected_row.detail_href, true) }}" loading="lazy" referrerpolicy="same-origin"></iframe>
       </div>
       {% else %}
       <div class="text-muted small">리스트에서 요청을 선택해 주세요.</div>
@@ -283,78 +261,6 @@ html[data-theme="dark"] .console-resizer:hover::after {
     }
   };
   const params = new URLSearchParams(window.location.search);
-  const detailFrame = document.getElementById('console-detail-iframe');
-  const interactionNotice = document.getElementById('console-interaction-notice');
-  let noticeTimer = null;
-  const showInteractionNotice = () => {
-    if (!interactionNotice) return;
-    interactionNotice.hidden = false;
-    if (noticeTimer) window.clearTimeout(noticeTimer);
-    noticeTimer = window.setTimeout(() => {
-      interactionNotice.hidden = true;
-    }, 1800);
-  };
-
-  const wireFrameReadOnlyGuards = () => {
-    if (!detailFrame) return;
-    let doc;
-    try {
-      doc = detailFrame.contentDocument || detailFrame.contentWindow?.document;
-    } catch (_) {
-      return;
-    }
-    if (!doc) return;
-    if (doc.documentElement?.dataset?.consoleReadonlyBound === '1') return;
-    if (doc.documentElement) doc.documentElement.dataset.consoleReadonlyBound = '1';
-
-    const STYLE_ID = 'request-console-readonly-guard-style';
-    if (!doc.getElementById(STYLE_ID)) {
-      const style = doc.createElement('style');
-      style.id = STYLE_ID;
-      style.textContent = `
-        a[href], area[href], button, .btn, [role="button"], [role="link"], [onclick], [download], [data-bs-toggle], [data-bs-target] {
-          cursor: not-allowed !important;
-        }
-      `;
-      (doc.head || doc.documentElement).appendChild(style);
-    }
-
-    const mustBlock = (target) => {
-      if (!target) return false;
-      if (target.closest('summary')) return false; // 접기/펼치기 허용
-      if (target.closest('a[href], area[href], button, input, textarea, select, [role=\"button\"], [role=\"link\"], [onclick], [download], [data-bs-toggle], [data-bs-target], .btn')) return true;
-      return false;
-    };
-
-    const blockEvent = (ev, showNotice = false) => {
-      const t = ev.target instanceof Element ? ev.target : null;
-      if (mustBlock(t)) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
-        if (showNotice) showInteractionNotice();
-        return true;
-      }
-      return false;
-    };
-
-    doc.addEventListener('pointerdown', (ev) => blockEvent(ev, false), true);
-    doc.addEventListener('mousedown', (ev) => blockEvent(ev, false), true);
-    doc.addEventListener('mouseup', (ev) => blockEvent(ev, false), true);
-    doc.addEventListener('touchstart', (ev) => blockEvent(ev, false), true);
-    doc.addEventListener('touchend', (ev) => blockEvent(ev, false), true);
-    doc.addEventListener('auxclick', (ev) => blockEvent(ev, true), true);
-    doc.addEventListener('click', (ev) => blockEvent(ev, true), true);
-    doc.addEventListener('submit', (ev) => blockEvent(ev, true), true);
-    doc.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter' || ev.key === ' ') {
-        blockEvent(ev, true);
-      }
-    }, true);
-  };
-  if (detailFrame) {
-    detailFrame.addEventListener('load', wireFrameReadOnlyGuards);
-  }
   const rows = document.querySelectorAll('.mail-row[data-sel]');
   rows.forEach((row) => {
     row.addEventListener('click', (ev) => {

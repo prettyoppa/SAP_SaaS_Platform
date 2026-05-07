@@ -629,23 +629,21 @@ def rfp_download_attachment(
     return FileResponse(ref, filename=fname)
 
 
-@router.get("/rfp/{rfp_id}", response_class=HTMLResponse)
-def rfp_unified_hub(
+def _collect_rfp_unified_hub_ctx(
     rfp_id: int,
     request: Request,
-    background_tasks: BackgroundTasks,
-    phase: str | None = None,
-    view: str | None = None,
-    checkout: str | None = None,
-    db: Session = Depends(get_db),
-):
-    """신규 개발 통합 상세 — 요청·인터뷰·제안서·FS·개발코드 (단계별 details)."""
+    background_tasks: BackgroundTasks | None,
+    *,
+    phase: str | None,
+    view: str | None,
+    checkout: str | None,
+    db: Session,
+    readonly_console: bool,
+) -> RedirectResponse | dict[str, Any]:
+    """Shared context for 신규 개발 통합 허브 페이지와 요청 Console 조회 전용 뷰."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-
-    requested_phase = normalize_rfp_hub_phase(phase)
-    view_summary = (view or "").strip().lower() == "summary" and requested_phase == "interview"
 
     rfp = rfp_for_owner_or_admin(
         db,
@@ -653,12 +651,18 @@ def rfp_unified_hub(
         rfp_id=rfp_id,
         load_messages=True,
         load_fs_supplements=True,
-        load_followup_messages=True,
+        load_followup_messages=not readonly_console,
     )
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
 
-    if (rfp.status or "").strip() == "draft" and requested_phase != "request":
+    requested_phase = normalize_rfp_hub_phase(phase)
+    if readonly_console and (rfp.status or "").strip() == "draft":
+        requested_phase = normalize_rfp_hub_phase("request")
+
+    view_summary = (view or "").strip().lower() == "summary" and requested_phase == "interview"
+
+    if not readonly_console and (rfp.status or "").strip() == "draft" and requested_phase != "request":
         return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
 
     display_phase = requested_phase
@@ -666,7 +670,7 @@ def rfp_unified_hub(
     hub_proposal_generating_override = False
     ws_out = None
 
-    if requested_phase == "interview" and not view_summary:
+    if (not readonly_console) and requested_phase == "interview" and not view_summary:
         ws_out = _interview_views.serve_interview_workspace(
             request, db, user, rfp, background_tasks
         )
@@ -733,6 +737,8 @@ def rfp_unified_hub(
 
     delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
 
+    proposal_scripts = (not readonly_console) and bool(proposal_html) and not hub_proposal_generating
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
@@ -761,35 +767,98 @@ def rfp_unified_hub(
         "source_program_groups": groups,
         "reference_section_count": ref_section_count,
         "tabs_base_id": tabs_base_id,
-        "hub_include_proposal_scripts": bool(proposal_html) and not hub_proposal_generating,
+        "hub_include_proposal_scripts": proposal_scripts,
     }
     ctx.update(delivered_fields)
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
         ctx.update(ws_out.wizard_ctx)
 
-    wf_ctx = load_workflow_abap_mirror_context(db, user, rfp)
-    if wf_ctx:
-        ctx.update(wf_ctx)
+    if not readonly_console:
+        wf_ctx = load_workflow_abap_mirror_context(db, user, rfp)
+        if wf_ctx:
+            ctx.update(wf_ctx)
 
-    follow_msgs = sorted(
-        list(rfp.followup_messages or []),
-        key=lambda m: (m.created_at or rfp.created_at),
-    )
-    followup_turns = pair_followup_turn_messages(follow_msgs)
-    n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
-    rfp_chat_limit_reached = n_followup_user >= RFP_FOLLOWUP_MAX_USER
-    rfp_chat_error = (request.query_params.get("chat_err") or "").strip() or None
-    ctx.update(
-        {
-            "rfp_followup_turns": followup_turns,
-            "rfp_chat_limit_reached": rfp_chat_limit_reached,
-            "rfp_chat_error": rfp_chat_error,
-            "rfp_followup_max_user": RFP_FOLLOWUP_MAX_USER,
-        }
-    )
+    if readonly_console:
+        ctx.update(
+            {
+                "rfp_followup_turns": [],
+                "rfp_chat_limit_reached": False,
+                "rfp_chat_error": None,
+                "rfp_followup_max_user": RFP_FOLLOWUP_MAX_USER,
+            }
+        )
+    else:
+        follow_msgs = sorted(
+            list(rfp.followup_messages or []),
+            key=lambda m: (m.created_at or rfp.created_at),
+        )
+        followup_turns = pair_followup_turn_messages(follow_msgs)
+        n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
+        rfp_chat_limit_reached = n_followup_user >= RFP_FOLLOWUP_MAX_USER
+        rfp_chat_error = (request.query_params.get("chat_err") or "").strip() or None
+        ctx.update(
+            {
+                "rfp_followup_turns": followup_turns,
+                "rfp_chat_limit_reached": rfp_chat_limit_reached,
+                "rfp_chat_error": rfp_chat_error,
+                "rfp_followup_max_user": RFP_FOLLOWUP_MAX_USER,
+            }
+        )
 
-    return templates.TemplateResponse(request, "rfp_unified_hub.html", ctx)
+    return ctx
+
+
+@router.get("/rfp/{rfp_id}/console-readonly", response_class=HTMLResponse)
+def rfp_unified_hub_console_readonly(
+    rfp_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    phase: str | None = None,
+    view: str | None = None,
+    checkout: str | None = None,
+    db: Session = Depends(get_db),
+):
+    out = _collect_rfp_unified_hub_ctx(
+        rfp_id,
+        request,
+        background_tasks,
+        phase=phase,
+        view=view,
+        checkout=checkout,
+        db=db,
+        readonly_console=True,
+    )
+    if isinstance(out, RedirectResponse):
+        return out
+    out["full_detail_url"] = f"/rfp/{rfp_id}"
+    return templates.TemplateResponse(request, "rfp_unified_hub_readonly.html", out)
+
+
+@router.get("/rfp/{rfp_id}", response_class=HTMLResponse)
+def rfp_unified_hub(
+    rfp_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    phase: str | None = None,
+    view: str | None = None,
+    checkout: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """신규 개발 통합 상세 — 요청·인터뷰·제안서·FS·개발코드 (단계별 details)."""
+    out = _collect_rfp_unified_hub_ctx(
+        rfp_id,
+        request,
+        background_tasks,
+        phase=phase,
+        view=view,
+        checkout=checkout,
+        db=db,
+        readonly_console=False,
+    )
+    if isinstance(out, RedirectResponse):
+        return out
+    return templates.TemplateResponse(request, "rfp_unified_hub.html", out)
 
 
 def _rfp_ai_chat_redirect(rfp_id: int, return_to: str | None, chat_err: str | None = None) -> str:

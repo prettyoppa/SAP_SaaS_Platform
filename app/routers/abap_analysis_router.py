@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import List, Optional
+from typing import Any, List, Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -134,11 +134,23 @@ def _require_user(request: Request, db: Session) -> models.User:
     return user
 
 
+def _query_abap_readable(db: Session, user: models.User):
+    """GET 상세 Console·조회 화면: 관리자·컨설턴트는 모든 건 조회 가능."""
+    q = db.query(models.AbapAnalysisRequest)
+    if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
+        return q
+    return q.filter(models.AbapAnalysisRequest.user_id == user.id)
+
+
 def _query_for_user(db: Session, user: models.User):
     q = db.query(models.AbapAnalysisRequest)
     if not user.is_admin:
         q = q.filter(models.AbapAnalysisRequest.user_id == user.id)
     return q
+
+
+def _get_abap_row_readable(db: Session, user: models.User, req_id: int) -> Optional[models.AbapAnalysisRequest]:
+    return _query_abap_readable(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
 
 
 def _get_request_for_user(
@@ -820,11 +832,16 @@ async def abap_analysis_edit_save(
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
 
 
-@router.get("/{req_id}", response_class=HTMLResponse)
-def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(get_db)):
-    user = _require_user(request, db)
+def _prepare_abap_analysis_detail_ctx(
+    *,
+    req_id: int,
+    request: Request,
+    db: Session,
+    user: models.User,
+    readonly_console: bool,
+) -> RedirectResponse | dict[str, Any]:
     row = (
-        _query_for_user(db, user)
+        _query_abap_readable(db, user)
         .options(
             joinedload(models.AbapAnalysisRequest.followup_messages),
             joinedload(models.AbapAnalysisRequest.workflow_rfp).joinedload(models.RFP.messages),
@@ -834,7 +851,7 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
     )
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
-    analysis = {}
+    analysis: dict = {}
     if row.analysis_json:
         try:
             analysis = json.loads(row.analysis_json)
@@ -844,17 +861,7 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
     if user.is_admin:
         owner = db.query(models.User).filter(models.User.id == row.user_id).first()
 
-    followup_messages = sorted(
-        list(row.followup_messages or []),
-        key=lambda m: (m.created_at or row.created_at),
-    )
-    n_followup_user = sum(1 for m in followup_messages if (m.role or "") == "user")
-    followup_turns = _pair_abap_followup_turns(followup_messages)
     eff_src = _effective_abap_source(row)
-    chat_enabled = (not row.is_draft) and bool(eff_src.strip())
-    chat_limit_reached = n_followup_user >= MAX_USER_TURNS_PER_REQUEST
-    chat_error = (request.query_params.get("chat_err") or "").strip() or None
-    wf_err = (request.query_params.get("wf_err") or "").strip() or None
     program_groups = reference_code_program_groups_for_tabs(getattr(row, "reference_code_payload", None))
     if not program_groups and eff_src.strip():
         program_groups = [
@@ -865,25 +872,74 @@ def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(ge
                 "sections": [{"tab_label": "소스", "code": eff_src}],
             }
         ]
-    return templates.TemplateResponse(
-        request,
-        "abap_analysis_detail.html",
-        {
+
+    if readonly_console:
+        return {
             "request": request,
             "user": user,
             "row": row,
             "analysis": analysis,
             "attachment_entries": _attachment_entries(row),
             "owner": owner,
-            "followup_turns": followup_turns,
-            "chat_enabled": chat_enabled,
-            "chat_limit_reached": chat_limit_reached,
-            "chat_error": chat_error,
-            "wf_err": wf_err,
             "source_program_groups": program_groups,
-            "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
-        },
+            "full_detail_url": f"/abap-analysis/{req_id}",
+        }
+
+    followup_messages = sorted(
+        list(row.followup_messages or []),
+        key=lambda m: (m.created_at or row.created_at),
     )
+    n_followup_user = sum(1 for m in followup_messages if (m.role or "") == "user")
+    followup_turns = _pair_abap_followup_turns(followup_messages)
+    chat_enabled = (not row.is_draft) and bool(eff_src.strip())
+    chat_limit_reached = n_followup_user >= MAX_USER_TURNS_PER_REQUEST
+    chat_error = (request.query_params.get("chat_err") or "").strip() or None
+    wf_err = (request.query_params.get("wf_err") or "").strip() or None
+    return {
+        "request": request,
+        "user": user,
+        "row": row,
+        "analysis": analysis,
+        "attachment_entries": _attachment_entries(row),
+        "owner": owner,
+        "followup_turns": followup_turns,
+        "chat_enabled": chat_enabled,
+        "chat_limit_reached": chat_limit_reached,
+        "chat_error": chat_error,
+        "wf_err": wf_err,
+        "source_program_groups": program_groups,
+        "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
+    }
+
+
+@router.get("/{req_id}/console-readonly", response_class=HTMLResponse)
+def abap_analysis_detail_console_readonly(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user(request, db)
+    ctx = _prepare_abap_analysis_detail_ctx(
+        req_id=req_id,
+        request=request,
+        db=db,
+        user=user,
+        readonly_console=True,
+    )
+    if isinstance(ctx, RedirectResponse):
+        return ctx
+    return templates.TemplateResponse(request, "abap_analysis_detail_readonly.html", ctx)
+
+
+@router.get("/{req_id}", response_class=HTMLResponse)
+def abap_analysis_detail(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user(request, db)
+    ctx = _prepare_abap_analysis_detail_ctx(
+        req_id=req_id,
+        request=request,
+        db=db,
+        user=user,
+        readonly_console=False,
+    )
+    if isinstance(ctx, RedirectResponse):
+        return ctx
+    return templates.TemplateResponse(request, "abap_analysis_detail.html", ctx)
 
 
 @router.post("/{req_id}/improvement-proposal")
@@ -1008,7 +1064,7 @@ def abap_analysis_download_attachment(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
-    row = _get_request_for_user(db, user, req_id)
+    row = _get_abap_row_readable(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
     entries = _attachment_entries(row)

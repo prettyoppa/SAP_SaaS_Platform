@@ -1,0 +1,36 @@
+<div class="mb-3">
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <h5 class="mb-0 me-auto small text-uppercase text-muted">Development Proposal</h5>
+    {% if proposal_html %}
+    {% set _pdl = proposal_download_url|default('/rfp/' ~ (rfp.id|string) ~ '/proposal/download') %}
+    <a href="{{ _pdl }}" class="btn btn-sm btn-outline-primary" download data-no-busy="true">
+      <i class="fa-solid fa-download me-1"></i>Markdown 다운로드
+    </a>
+    {% endif %}
+  </div>
+  {% if proposal_html %}
+  <div class="proposal-card">
+    <div class="proposal-body proposal-prose">{{ proposal_html | safe }}</div>
+  </div>
+  {% else %}
+  <p class="text-muted small mb-0">제안서가 없습니다.</p>
+  {% endif %}
+</div>
+{% if proposal_round_messages and proposal_round_messages|length > 0 %}
+<details class="interview-summary-toggle mt-4" open>
+  <summary class="interview-summary-header">
+    <i class="fa-solid fa-comments me-2"></i>인터뷰 내용 ({{ proposal_round_messages|length }}라운드)
+  </summary>
+  <div class="interview-summary-body mt-3">
+    {% for msg in proposal_round_messages %}
+    <div class="answered-round-card mb-3 border-bottom pb-3" style="border-color:var(--border)!important;">
+      <div class="round-badge small mb-2">{{ msg.round_number }}라운드</div>
+      <div class="d-flex align-items-start gap-2">
+        <i class="fa-solid fa-user text-success small mt-1"></i>
+        <div class="interview-qa-content flex-grow-1 small">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</details>
+{% endif %}

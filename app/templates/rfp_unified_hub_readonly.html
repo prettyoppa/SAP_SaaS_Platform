@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ rfp.title }} · 신규 개발 (조회){% endblock %}
+
+{% block content %}
+<style>
+.rfp-unified-hub .rfp-hub-phase-body { padding: 0.35rem 1rem 0.75rem; }
+.rfp-unified-hub .rfp-hub-phase > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.rfp-unified-hub .rfp-hub-phase > summary .rfp-hub-phase-chevron { margin-left: auto; transition: transform 0.15s ease; flex-shrink: 0; color: var(--muted); }
+.rfp-unified-hub .rfp-hub-phase:not([open]) > summary .rfp-hub-phase-chevron { transform: rotate(-90deg); }
+</style>
+
+<div class="proposal-page py-5 rfp-unified-hub">
+  <div class="container col-lg-10">
+    {% include 'partials/console_readonly_notice.html' %}
+
+    <div class="proposal-header mb-4">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="proposal-icon" style="background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.3);color:#22c55e"><i class="fa-solid fa-code"></i></div>
+        <div>
+          <h2 class="mb-1">{{ rfp.title }}</h2>
+          <div class="small text-muted">{{ rfp.id|request_no('RFP') }} · {{ rfp.created_at|local_dt_span }} · <span data-i18n="detail.newDevTag">신규 개발</span></div>
+          {% if user.is_admin and owner %}
+          <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
+            <i class="fa-solid fa-user-shield me-1 text-warning"></i>
+            <span data-i18n="hub.ownerLabel">요청자</span>: <strong>{{ owner.full_name }}</strong>
+            {% if owner.company %}<span class="text-muted"> · {{ owner.company }}</span>{% endif %}
+            <span class="text-muted font-monospace"> · {{ owner.email }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-request" {% if hub_phase_open == 'request' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold" data-i18n="hub.phaseRequest">1. 요청</span>
+        <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+      </summary>
+      <div class="rfp-hub-phase-body">
+        {% include 'partials/rfp_hub_request_panel.html' %}
+      </div>
+    </details>
+
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-interview" {% if hub_phase_open == 'interview' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold" data-i18n="hub.phaseInterview">2. 인터뷰</span>
+        {% if interview_summary_messages and interview_summary_messages|length > 0 %}
+        <span class="badge bg-info text-dark">{{ interview_summary_messages|length }} <span data-i18n="hub.badgeRounds">라운드</span></span>
+        {% endif %}
+        <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+      </summary>
+      <div class="rfp-hub-phase-body">
+        {% include 'partials/interview_workspace_readonly.html' %}
+      </div>
+    </details>
+
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-proposal" {% if hub_phase_open == 'proposal' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold" data-i18n="hub.phaseProposal">3. 제안서</span>
+        {% if hub_proposal_generating %}<span class="badge bg-info text-dark">생성 중</span>{% endif %}
+        <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+      </summary>
+      <div class="rfp-hub-phase-body">
+        {% if hub_proposal_generating %}
+        <p class="text-muted small mb-0">
+          <span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>
+          제안서를 생성하고 있습니다. 전체 상세에서는 진행 상태가 자동 갱신됩니다.
+        </p>
+        {% else %}
+          {% set proposal_download_url = '/rfp/' ~ (rfp.id|string) ~ '/proposal/download' %}
+          {% include 'partials/rfp_hub_proposal_readonly.html' %}
+        {% endif %}
+      </div>
+    </details>
+
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-fs" {% if hub_phase_open == 'fs' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold" data-i18n="hub.phaseFs">4. 기능명세 (FS)</span>
+        <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+      </summary>
+      <div class="rfp-hub-phase-body">
+        {% include 'partials/rfp_hub_fs_body_flat.html' %}
+      </div>
+    </details>
+
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-devcode" {% if hub_phase_open == 'devcode' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold" data-i18n="hub.phaseDevCode">5. 개발코드</span>
+        <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+      </summary>
+      <div class="rfp-hub-phase-body">
+        {% include 'partials/rfp_hub_dc_body_flat.html' %}
+      </div>
+    </details>
+  </div>
+</div>
+
+<script>
+(function () {
+  var ph = {{ hub_phase_open|tojson }};
+  var map = { request: 'rfp-phase-request', interview: 'rfp-phase-interview', proposal: 'rfp-phase-proposal', fs: 'rfp-phase-fs', devcode: 'rfp-phase-devcode' };
+  var id = map[ph];
+  if (!id) return;
+  document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+})();
+</script>
+{% endblock %}
+
+{% block extra_js %}{% endblock %}
