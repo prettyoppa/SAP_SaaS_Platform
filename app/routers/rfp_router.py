@@ -831,7 +831,6 @@ def rfp_unified_hub_console_readonly(
     )
     if isinstance(out, RedirectResponse):
         return out
-    out["full_detail_url"] = f"/rfp/{rfp_id}"
     out["layout_template"] = layout_template_from_embed_query(request)
     return templates.TemplateResponse(request, "rfp_unified_hub_readonly.html", out)
 

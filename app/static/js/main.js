@@ -148,8 +148,9 @@ function _readDatasetBusy(form, submitter) {
 }
 
 /* ── 테마 토글 (슬라이드 스위치 + role="switch") ──────────────────────────────── */
-function _syncThemeSwitchAria(theme) {
-  const btn = document.getElementById('themeToggleBtn');
+function _syncThemeSwitchAria(theme, doc) {
+  const d = doc || document;
+  const btn = d.getElementById('themeToggleBtn');
   if (!btn) return;
   btn.setAttribute('aria-checked', theme === 'light' ? 'true' : 'false');
 }
@@ -157,22 +158,69 @@ function _syncThemeSwitchAria(theme) {
 const _LOGO_LIGHT = '/static/img/catch_lab_sap_dev_hub_logo.png?v=20260428cat';
 const _LOGO_DARK = '/static/img/catch_lab_sap_dev_hub_logo_dark.png?v=20260428cat';
 
-function _syncFaviconForTheme(theme) {
+function _syncFaviconForThemeInDoc(doc, theme) {
+  if (!doc) return;
   const href = theme === 'dark' ? _LOGO_DARK : _LOGO_LIGHT;
-  const fi = document.getElementById('site-favicon');
-  const ai = document.getElementById('site-apple-icon');
+  const fi = doc.getElementById('site-favicon');
+  const ai = doc.getElementById('site-apple-icon');
   if (fi) fi.href = href;
   if (ai) ai.href = href;
 }
 
+function _syncFaviconForTheme(theme) {
+  _syncFaviconForThemeInDoc(document, theme);
+}
+
+/**
+ * 같은 문서 루트에 data-theme 과 파비 등을 적용합니다.
+ * @param {Document} doc
+ * @param {string} theme
+ */
+function applyThemeToDoc(doc, theme) {
+  if (!doc || !doc.documentElement) return;
+  const t = (theme == null ? '' : String(theme)).trim() || 'dark';
+  doc.documentElement.setAttribute('data-theme', t);
+  _syncFaviconForThemeInDoc(doc, t);
+  _syncThemeSwitchAria(t, doc);
+}
+
+/** 부모 페이지에 있는 같은 출처 iframe(요청 Console 미리보기 등)에 테마 반영 */
+function syncThemeToChildIframes(theme) {
+  document.querySelectorAll('iframe').forEach((ifr) => {
+    try {
+      const d = ifr.contentDocument;
+      if (d) applyThemeToDoc(d, theme);
+    } catch (_) {
+      /* cross-origin */
+    }
+  });
+}
+
+/** iframe 이 로드될 때마다 부모와 동일한 테마로 맞춤 */
+function wireIframeThemeSyncFromParent(ifr) {
+  if (!(ifr instanceof HTMLIFrameElement)) return;
+  if (ifr.dataset.sapThemeIframeSync === '1') return;
+  ifr.dataset.sapThemeIframeSync = '1';
+  ifr.addEventListener('load', () => {
+    try {
+      const d = ifr.contentDocument;
+      const t =
+        document.documentElement.getAttribute('data-theme') ||
+        localStorage.getItem('theme') ||
+        'dark';
+      if (d) applyThemeToDoc(d, t);
+    } catch (_) {
+      /* cross-origin */
+    }
+  });
+}
+
 function toggleTheme() {
-  const html = document.documentElement;
-  const current = html.getAttribute('data-theme') || 'dark';
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
   const next = current === 'dark' ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
+  applyThemeToDoc(document, next);
   localStorage.setItem('theme', next);
-  _syncThemeSwitchAria(next);
-  _syncFaviconForTheme(next);
+  syncThemeToChildIframes(next);
 }
 
 /** 프로필(쿠키 viewer_tz) 또는 브라우저 타임존으로 UTC(data-utc) 시각 표시 */
@@ -230,10 +278,19 @@ function formatLocalDateTimes() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== 'theme') return;
+    const next =
+      (e.newValue || localStorage.getItem('theme') || 'dark').trim() ||
+      'dark';
+    applyThemeToDoc(document, next);
+  });
+
   const savedTheme = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-  _syncThemeSwitchAria(savedTheme);
-  _syncFaviconForTheme(savedTheme);
+  applyThemeToDoc(document, savedTheme);
+  document.querySelectorAll('iframe').forEach((ifr) =>
+    wireIframeThemeSyncFromParent(ifr),
+  );
   formatLocalDateTimes();
 
   document.addEventListener(

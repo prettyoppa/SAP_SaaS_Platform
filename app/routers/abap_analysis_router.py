@@ -882,7 +882,6 @@ def _prepare_abap_analysis_detail_ctx(
             "attachment_entries": _attachment_entries(row),
             "owner": owner,
             "source_program_groups": program_groups,
-            "full_detail_url": f"/abap-analysis/{req_id}",
         }
 
     followup_messages = sorted(
