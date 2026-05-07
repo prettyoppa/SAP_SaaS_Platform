@@ -68,26 +68,42 @@
 .console-pane-left { flex: 0 0 260px; background: var(--surface2); }
 .console-pane-center { flex: 0 0 420px; border-left: 1px solid var(--border); }
 .console-pane-right { flex: 1 1 auto; border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+/* 얇은 드래그 히트존 + 가운데 1px 선(테두리 없음). 라이트: 어두운 선, 다크: 밝은 선 */
 .console-resizer {
-  flex: 0 0 6px;
-  cursor: col-resize;
-  background: #c7d2fe !important;
-  border-left: 1px solid #6366f1 !important;
-  border-right: 1px solid #6366f1 !important;
+  flex: 0 0 5px;
+  width: 5px;
+  max-width: 5px;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath stroke='%231f2937' stroke-width='1.75' stroke-linecap='round' d='M8 3v14M12 3v14'/%3E%3C/svg%3E") 10 10, col-resize;
   position: relative;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+html[data-theme="dark"] .console-resizer {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath stroke='%23f3f4f6' stroke-width='1.75' stroke-linecap='round' d='M8 3v14M12 3v14'/%3E%3C/svg%3E") 10 10, col-resize;
 }
 .console-resizer::after {
   content: "";
   position: absolute;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 2px;
-  height: 42px;
-  border-radius: 2px;
-  background: #3730a3 !important;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: #1f2937;
+  pointer-events: none;
 }
-.console-resizer:hover { background: #a5b4fc !important; }
+.console-resizer:hover::after {
+  background: #6b7280;
+}
+html[data-theme="dark"] .console-resizer::after {
+  background: #f3f4f6;
+}
+html[data-theme="dark"] .console-resizer:hover::after {
+  background: #9ca3af;
+}
 .console-tree .lvl1 { padding: .65rem .8rem; border-bottom: 1px solid var(--border); }
 .console-tree .lvl1 summary { cursor: pointer; list-style: none; font-weight: 600; }
 .console-tree .lvl1 summary::-webkit-details-marker { display: none; }
@@ -363,6 +379,89 @@
     a.addEventListener('click', (ev) => showInlineLoading(ev));
   });
   if (!shell) return;
+
+  const PANE_WIDTH_STORAGE_KEY = 'requestConsolePaneWidths:v1';
+  const RESIZER_GUTTER_ALLOWS = 24; /* 두 개의 얇은 리사이저 대략적인 가로 합 */
+  const clampPanePair = (shellW, leftPx, centerPx) => {
+    const minLeft = 220;
+    const minCenter = 220;
+    const minRight = 260;
+    const maxPair = Math.max(0, shellW - minRight - RESIZER_GUTTER_ALLOWS);
+    let l = Math.round(leftPx);
+    let c = Math.round(centerPx);
+    if (!Number.isFinite(l)) l = minLeft;
+    if (!Number.isFinite(c)) c = 420;
+    l = Math.max(minLeft, l);
+    c = Math.max(minCenter, c);
+    if (l + c > maxPair) {
+      const scale = maxPair / (l + c || 1);
+      l = Math.max(minLeft, Math.floor(l * scale));
+      c = Math.max(minCenter, Math.floor(c * scale));
+      if (l + c > maxPair) {
+        c = Math.max(minCenter, maxPair - l);
+      }
+    }
+    return { left: l, center: c };
+  };
+
+  const persistPaneWidths = () => {
+    const pl = document.getElementById('pane-left');
+    const pc = document.getElementById('pane-center');
+    if (!pl || !pc) return;
+    try {
+      const left = Math.round(pl.getBoundingClientRect().width);
+      const center = Math.round(pc.getBoundingClientRect().width);
+      sessionStorage.setItem(PANE_WIDTH_STORAGE_KEY, JSON.stringify({ left, center }));
+    } catch (_) {
+      /* ignore */
+    }
+  };
+
+  const restorePaneWidths = () => {
+    const pl = document.getElementById('pane-left');
+    const pc = document.getElementById('pane-center');
+    if (!pl || !pc) return;
+    let raw = '';
+    try {
+      raw = sessionStorage.getItem(PANE_WIDTH_STORAGE_KEY) || '';
+    } catch (_) {
+      return;
+    }
+    if (!raw) return;
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_) {
+      return;
+    }
+    const rect = shell.getBoundingClientRect();
+    const { left, center } = clampPanePair(rect.width, Number(parsed.left), Number(parsed.center));
+    pl.style.flexBasis = left + 'px';
+    pc.style.flexBasis = center + 'px';
+  };
+
+  requestAnimationFrame(() => restorePaneWidths());
+
+  let resizeClampTimer = null;
+  window.addEventListener('resize', () => {
+    window.clearTimeout(resizeClampTimer);
+    resizeClampTimer = window.setTimeout(() => {
+      const pl = document.getElementById('pane-left');
+      const pc = document.getElementById('pane-center');
+      if (!pl || !pc) return;
+      const rect = shell.getBoundingClientRect();
+      if (rect.width < 40) return;
+      const { left, center } = clampPanePair(
+        rect.width,
+        pl.getBoundingClientRect().width,
+        pc.getBoundingClientRect().width
+      );
+      pl.style.flexBasis = left + 'px';
+      pc.style.flexBasis = center + 'px';
+      persistPaneWidths();
+    }, 120);
+  });
+
   let dragging = null;
   function onMove(e) {
     if (!dragging) return;
@@ -380,6 +479,7 @@
     dragging = null;
     document.body.style.userSelect = '';
     if (detailFrame) detailFrame.style.pointerEvents = '';
+    persistPaneWidths();
   }
   document.querySelectorAll('.console-resizer').forEach((r) => {
     r.addEventListener('mousedown', (ev) => {
