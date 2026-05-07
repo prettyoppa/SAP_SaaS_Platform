@@ -7,6 +7,12 @@
   height: calc(100vh - 150px);
   min-height: 560px;
 }
+.navbar .container,
+.footer .container {
+  max-width: 100% !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
 .request-console-stage { height: 100%; display: flex; flex-direction: column; }
 .request-console-toolbar {
   display: flex;
@@ -33,16 +39,15 @@
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: .45rem;
-  padding: .35rem .55rem;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface2) 84%, transparent);
-  font-size: .76rem;
-  color: var(--muted);
 }
 .console-inline-loading[hidden] { display: none !important; }
-.console-inline-loading .spinner-border { width: .9rem; height: .9rem; border-width: 2px; }
+.console-inline-loading .spinner-border { width: .95rem; height: .95rem; border-width: 2px; }
 .console-pane { min-width: 220px; overflow: auto; }
 .console-pane-left { flex: 0 0 260px; background: var(--surface2); }
 .console-pane-center { flex: 0 0 420px; border-left: 1px solid var(--border); }
@@ -50,11 +55,23 @@
 .console-resizer {
   flex: 0 0 6px;
   cursor: col-resize;
-  background: transparent;
+  background: rgba(148,163,184,.22);
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
+  position: relative;
 }
-.console-resizer:hover { background: rgba(99,102,241,.15); }
+.console-resizer::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 42px;
+  border-radius: 2px;
+  background: rgba(71,85,105,.6);
+}
+.console-resizer:hover { background: rgba(99,102,241,.2); }
 .console-tree .lvl1 { padding: .65rem .8rem; border-bottom: 1px solid var(--border); }
 .console-tree .lvl1 summary { cursor: pointer; list-style: none; font-weight: 600; }
 .console-tree .lvl1 summary::-webkit-details-marker { display: none; }
@@ -80,7 +97,7 @@
 .console-detail-dl dd { margin-bottom: .45rem; }
 </style>
 
-<div class="container py-3 request-console-wrap">
+<div class="container-fluid py-3 request-console-wrap">
   <div class="request-console-stage">
     <div class="request-console-toolbar">
       <h5 class="mb-0"><i class="fa-solid fa-inbox me-2 text-primary"></i><span class="nav-ko">요청 Console</span><span class="nav-en" style="display:none">Request Console</span></h5>
@@ -95,7 +112,6 @@
     <div class="request-console-shell" id="request-console-shell">
       <div id="console-inline-loading" class="console-inline-loading" hidden>
         <span class="spinner-border text-primary" role="status" aria-hidden="true"></span>
-        <span>불러오는 중…</span>
       </div>
     <aside class="console-pane console-pane-left" id="pane-left">
       <div class="console-tree">
@@ -103,7 +119,7 @@
         {% for k in ('all','abap','analysis','integration') %}
         <details class="lvl1" {% if kind == k %}open{% endif %}>
           <summary>
-            <a class="lvl1-link" href="/request-console?kind={{ k }}&bucket=all">
+            <a class="lvl1-link console-nav-link" href="/request-console?kind={{ k }}&bucket=all" data-no-busy="true">
               <span class="lvl1-label">
                 <i class="fa-solid {{ kind_icons[k] }}"></i>
                 <span>{{ kind_labels[k] }}</span>
@@ -113,7 +129,7 @@
           </summary>
           <div class="lvl2 mt-2">
             {% for b in ('delivery','proposal','analysis','in_progress','draft') %}
-            <a href="/request-console?kind={{ k }}&bucket={{ b }}" class="{% if kind == k and bucket == b %}active{% endif %}">
+            <a href="/request-console?kind={{ k }}&bucket={{ b }}" class="{% if kind == k and bucket == b %}active{% endif %} console-nav-link" data-no-busy="true">
               <span class="lvl2-label">
                 <i class="fa-solid {{ bucket_meta[b].icon if b != 'all' else 'fa-layer-group' }}"></i>
                 <span>{{ bucket_meta[b].label if b != 'all' else '전체' }}</span>
@@ -165,7 +181,7 @@
           <h5 class="mb-1">{{ selected_row.title }}</h5>
           <div class="small text-muted">{{ bucket_meta[selected_row.bucket].label }} · {{ selected_row.created_at|local_dt_span }}</div>
         </div>
-        <a class="btn btn-sm btn-primary" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
+        <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
       </div>
       <hr />
       <dl class="row small console-detail-dl mb-0">
@@ -194,33 +210,44 @@
 {% block extra_js %}
 <script>
 (function () {
+  const shell = document.getElementById('request-console-shell');
   const inlineLoading = document.getElementById('console-inline-loading');
-  const showInlineLoading = () => {
-    if (inlineLoading) inlineLoading.hidden = false;
+  const showInlineLoading = (ev) => {
+    if (!inlineLoading || !shell) return;
+    inlineLoading.hidden = false;
+    if (ev && typeof ev.clientX === 'number') {
+      const rect = shell.getBoundingClientRect();
+      const x = Math.max(8, Math.min(rect.width - 32, ev.clientX - rect.left - 10));
+      const y = Math.max(8, Math.min(rect.height - 32, ev.clientY - rect.top - 10));
+      inlineLoading.style.left = x + 'px';
+      inlineLoading.style.top = y + 'px';
+      inlineLoading.style.right = 'auto';
+    }
   };
   const params = new URLSearchParams(window.location.search);
   const rows = document.querySelectorAll('.mail-row[data-sel]');
   rows.forEach((row) => {
-    row.addEventListener('click', () => {
-      showInlineLoading();
+    row.addEventListener('click', (ev) => {
+      showInlineLoading(ev);
       params.set('sel', row.dataset.sel);
       window.location.search = params.toString();
     });
-    row.addEventListener('dblclick', () => {
+    row.addEventListener('dblclick', (ev) => {
       if (row.dataset.href) {
-        showInlineLoading();
+        showInlineLoading(ev);
         window.location.href = row.dataset.href;
       }
     });
   });
   const openBtn = document.getElementById('console-open-detail');
   if (openBtn) {
-    openBtn.addEventListener('click', () => {
-      showInlineLoading();
+    openBtn.addEventListener('click', (ev) => {
+      showInlineLoading(ev);
     });
   }
-
-  const shell = document.getElementById('request-console-shell');
+  document.querySelectorAll('.console-nav-link').forEach((a) => {
+    a.addEventListener('click', (ev) => showInlineLoading(ev));
+  });
   if (!shell) return;
   let dragging = null;
   function onMove(e) {
