@@ -55,7 +55,7 @@
 .console-resizer {
   flex: 0 0 10px;
   cursor: col-resize;
-  background: #d1d9e6;
+  background: #cbd5e1 !important;
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   position: relative;
@@ -69,18 +69,18 @@
   width: 3px;
   height: 42px;
   border-radius: 2px;
-  background: #475569;
+  background: #334155 !important;
 }
-.console-resizer:hover { background: #b8c5db; }
+.console-resizer:hover { background: #94a3b8 !important; }
 html[data-theme="dark"] .console-resizer,
 body.theme-dark .console-resizer,
 [data-bs-theme="dark"] .console-resizer {
-  background: rgba(148,163,184,.24);
+  background: rgba(148,163,184,.24) !important;
 }
 html[data-theme="dark"] .console-resizer:hover,
 body.theme-dark .console-resizer:hover,
 [data-bs-theme="dark"] .console-resizer:hover {
-  background: rgba(99,102,241,.22);
+  background: rgba(99,102,241,.22) !important;
 }
 .console-tree .lvl1 { padding: .65rem .8rem; border-bottom: 1px solid var(--border); }
 .console-tree .lvl1 summary { cursor: pointer; list-style: none; font-weight: 600; }
@@ -282,6 +282,24 @@ body.theme-dark .console-resizer:hover,
       return;
     }
     if (!doc) return;
+
+    const STYLE_ID = 'request-console-readonly-guard-style';
+    if (!doc.getElementById(STYLE_ID)) {
+      const style = doc.createElement('style');
+      style.id = STYLE_ID;
+      style.textContent = `
+        a[href], area[href], button, input, textarea, select, option, label, form, .btn,
+        [role="button"], [role="link"], [onclick], [download], [data-bs-toggle], [data-bs-target] {
+          pointer-events: none !important;
+          cursor: not-allowed !important;
+        }
+        summary, details > summary * {
+          pointer-events: auto !important;
+          cursor: pointer !important;
+        }
+      `;
+      (doc.head || doc.documentElement).appendChild(style);
+    }
 
     const mustBlock = (target) => {
       if (!target) return false;
