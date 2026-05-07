@@ -69,9 +69,9 @@
 .console-pane-center { flex: 0 0 420px; border-left: 1px solid var(--border); }
 .console-pane-right { flex: 1 1 auto; border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .console-resizer {
-  flex: 0 0 10px;
+  flex: 0 0 6px;
   cursor: col-resize;
-  background: #cbd5e1 !important;
+  background: #e2e8f0 !important;
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   position: relative;
@@ -82,12 +82,12 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 3px;
+  width: 2px;
   height: 42px;
   border-radius: 2px;
-  background: #334155 !important;
+  background: #0f172a !important;
 }
-.console-resizer:hover { background: #94a3b8 !important; }
+.console-resizer:hover { background: #cbd5e1 !important; }
 .console-tree .lvl1 { padding: .65rem .8rem; border-bottom: 1px solid var(--border); }
 .console-tree .lvl1 summary { cursor: pointer; list-style: none; font-weight: 600; }
 .console-tree .lvl1 summary::-webkit-details-marker { display: none; }
@@ -288,6 +288,8 @@
       return;
     }
     if (!doc) return;
+    if (doc.documentElement?.dataset?.consoleReadonlyBound === '1') return;
+    if (doc.documentElement) doc.documentElement.dataset.consoleReadonlyBound = '1';
 
     const STYLE_ID = 'request-console-readonly-guard-style';
     if (!doc.getElementById(STYLE_ID)) {
@@ -308,38 +310,29 @@
       return false;
     };
 
-    doc.addEventListener('click', (ev) => {
+    const blockEvent = (ev, showNotice = false) => {
       const t = ev.target instanceof Element ? ev.target : null;
       if (mustBlock(t)) {
         ev.preventDefault();
         ev.stopPropagation();
         if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
-        showInteractionNotice();
+        if (showNotice) showInteractionNotice();
+        return true;
       }
-    }, true);
-    doc.addEventListener('mousedown', (ev) => {
-      const t = ev.target instanceof Element ? ev.target : null;
-      if (mustBlock(t)) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
-      }
-    }, true);
-    doc.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
-      showInteractionNotice();
-    }, true);
+      return false;
+    };
+
+    doc.addEventListener('pointerdown', (ev) => blockEvent(ev, false), true);
+    doc.addEventListener('mousedown', (ev) => blockEvent(ev, false), true);
+    doc.addEventListener('mouseup', (ev) => blockEvent(ev, false), true);
+    doc.addEventListener('touchstart', (ev) => blockEvent(ev, false), true);
+    doc.addEventListener('touchend', (ev) => blockEvent(ev, false), true);
+    doc.addEventListener('auxclick', (ev) => blockEvent(ev, true), true);
+    doc.addEventListener('click', (ev) => blockEvent(ev, true), true);
+    doc.addEventListener('submit', (ev) => blockEvent(ev, true), true);
     doc.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') {
-        const t = ev.target instanceof Element ? ev.target : null;
-        if (mustBlock(t)) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
-          showInteractionNotice();
-        }
+        blockEvent(ev, true);
       }
     }, true);
   };
