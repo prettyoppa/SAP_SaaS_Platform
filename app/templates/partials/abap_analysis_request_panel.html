@@ -1,0 +1,55 @@
+<div class="proposal-card mb-0" id="abap-request-block">
+  <div class="proposal-body">
+    <dl class="row mb-0 small">
+      {% if row.program_id %}
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.programId">프로그램 ID</dt>
+      <dd class="col-sm-9 font-monospace">{{ row.program_id }}</dd>
+      {% endif %}
+      {% if row.transaction_code %}
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.tcode">T-code</dt>
+      <dd class="col-sm-9 font-monospace">{{ row.transaction_code }}</dd>
+      {% endif %}
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.modules">SAP 모듈</dt>
+      <dd class="col-sm-9">
+        {% if row.sap_modules %}
+        {% for m in row.sap_modules.split(',') %}
+        {% set mm = m|trim %}
+        {% if mm %}<span class="badge-module me-1">{{ mm }}</span>{% endif %}
+        {% endfor %}
+        {% else %}—{% endif %}
+      </dd>
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.devTypes">개발 유형</dt>
+      <dd class="col-sm-9">
+        {% if row.dev_types %}
+        {% for d in row.dev_types.split(',') %}
+        {% set dd = d|trim %}
+        {% if dd %}<span class="badge-devtype me-1">{{ dd|replace('_',' ') }}</span>{% endif %}
+        {% endfor %}
+        {% else %}—{% endif %}
+      </dd>
+      <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
+      <dd class="col-sm-9">{{ row.created_at|local_dt_span }}</dd>
+    </dl>
+
+    <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.requirements">요구사항</h6>
+    <div class="border rounded p-3 small" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ row.requirement_text or '' }}</div>
+
+    {% if attachment_entries %}
+    <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.attachments">첨부</h6>
+    <ul class="mb-0">
+      {% for att in attachment_entries %}
+      <li class="mb-1">
+        <a href="/abap-analysis/{{ row.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener" data-no-busy="true">{{ att.filename or '파일' }}</a>
+        {% if att.note %}<span class="text-muted small">— {{ att.note }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if source_program_groups and source_program_groups|length %}
+    <h6 class="text-muted mt-3 small text-uppercase">참고 ABAP 코드</h6>
+    {% set tabs_base_id = 'abap-ref-src-console-' ~ row.id %}
+    {% include "partials/reference_code_program_boxes.html" %}
+    {% endif %}
+  </div>
+</div>

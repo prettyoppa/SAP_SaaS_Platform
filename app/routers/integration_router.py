@@ -106,6 +106,7 @@ def _request_no(prefix: str, v: int) -> str:
 def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
     return {
         "sel_key": f"rfp:{r.id}",
+        "entity_id": r.id,
         "kind": "abap",
         "kind_ko": "신규개발",
         "request_no": _request_no("RFP", r.id),
@@ -122,6 +123,7 @@ def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
 def _console_row_from_analysis(row: models.AbapAnalysisRequest) -> dict[str, Any]:
     return {
         "sel_key": f"ana:{row.id}",
+        "entity_id": row.id,
         "kind": "analysis",
         "kind_ko": "분석개선",
         "request_no": _request_no("ANA", row.id),
@@ -138,6 +140,7 @@ def _console_row_from_analysis(row: models.AbapAnalysisRequest) -> dict[str, Any
 def _console_row_from_integration(ir: models.IntegrationRequest) -> dict[str, Any]:
     return {
         "sel_key": f"int:{ir.id}",
+        "entity_id": ir.id,
         "kind": "integration",
         "kind_ko": "연동개발",
         "request_no": _request_no("INT", ir.id),
@@ -230,6 +233,69 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
     if selected_row is None and rows:
         selected_row = rows[0]
 
+    selected_rfp = None
+    selected_analysis = None
+    selected_integration = None
+    selected_attachment_entries: list[dict[str, Any]] = []
+    selected_source_program_groups: list[dict[str, Any]] = []
+    selected_types_list: list[str] = []
+    selected_reference_section_count = 0
+    if selected_row:
+        sk = selected_row.get("kind")
+        sid = int(selected_row.get("entity_id") or 0)
+        if sk == "abap":
+            selected_rfp = (
+                db.query(models.RFP)
+                .options(joinedload(models.RFP.owner))
+                .filter(models.RFP.id == sid)
+                .first()
+            )
+            if selected_rfp:
+                try:
+                    selected_attachment_entries = json.loads(selected_rfp.attachments_json or "[]")
+                except Exception:
+                    selected_attachment_entries = []
+                selected_source_program_groups = reference_code_program_groups_for_tabs(
+                    getattr(selected_rfp, "reference_code_payload", None)
+                )
+                selected_reference_section_count = sum(
+                    len(g.get("sections") or []) for g in (selected_source_program_groups or [])
+                )
+        elif sk == "analysis":
+            selected_analysis = (
+                db.query(models.AbapAnalysisRequest)
+                .options(joinedload(models.AbapAnalysisRequest.owner))
+                .filter(models.AbapAnalysisRequest.id == sid)
+                .first()
+            )
+            if selected_analysis:
+                try:
+                    selected_attachment_entries = json.loads(selected_analysis.attachments_json or "[]")
+                except Exception:
+                    selected_attachment_entries = []
+                selected_source_program_groups = reference_code_program_groups_for_tabs(
+                    getattr(selected_analysis, "reference_code_payload", None)
+                )
+                selected_reference_section_count = sum(
+                    len(g.get("sections") or []) for g in (selected_source_program_groups or [])
+                )
+        elif sk == "integration":
+            selected_integration = (
+                db.query(models.IntegrationRequest)
+                .options(joinedload(models.IntegrationRequest.owner))
+                .filter(models.IntegrationRequest.id == sid)
+                .first()
+            )
+            if selected_integration:
+                selected_types_list = [x.strip() for x in (selected_integration.impl_types or "").split(",") if x.strip()]
+                selected_attachment_entries = _attachment_entries(selected_integration)
+                selected_source_program_groups = reference_code_program_groups_for_tabs(
+                    getattr(selected_integration, "reference_code_payload", None)
+                )
+                selected_reference_section_count = sum(
+                    len(g.get("sections") or []) for g in (selected_source_program_groups or [])
+                )
+
     bucket_meta = standard_menu_bucket_meta()
     kind_labels = {
         "all": "전체",
@@ -253,6 +319,14 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "menu_search_title": title_search or "",
             "menu_date_from_raw": date_from_raw or "",
             "menu_date_to_raw": date_to_raw or "",
+            "selected_rfp": selected_rfp,
+            "selected_analysis": selected_analysis,
+            "selected_integration": selected_integration,
+            "selected_attachment_entries": selected_attachment_entries,
+            "selected_source_program_groups": selected_source_program_groups,
+            "selected_types_list": selected_types_list,
+            "selected_reference_section_count": selected_reference_section_count,
+            **_integration_impl_ui_ctx(db),
         },
     )
 

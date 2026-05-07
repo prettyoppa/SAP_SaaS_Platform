@@ -95,6 +95,11 @@
 }
 .console-detail-dl dt { color: var(--muted); font-size: .78rem; }
 .console-detail-dl dd { margin-bottom: .45rem; }
+.console-detail-body .proposal-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.console-detail-body .proposal-body { padding: .9rem; }
 </style>
 
 <div class="container-fluid py-3 request-console-wrap">
@@ -184,20 +189,39 @@
         <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
       </div>
       <hr />
-      <dl class="row small console-detail-dl mb-0">
-        <dt class="col-sm-3">요청번호</dt>
-        <dd class="col-sm-9 font-monospace">{{ selected_row.request_no }}</dd>
-        <dt class="col-sm-3">유형</dt>
-        <dd class="col-sm-9">{{ selected_row.kind_ko }}</dd>
-        <dt class="col-sm-3">상태</dt>
-        <dd class="col-sm-9">{{ bucket_meta[selected_row.bucket].label }}</dd>
-        <dt class="col-sm-3">요청일</dt>
-        <dd class="col-sm-9">{{ selected_row.created_at|local_dt_span }}</dd>
-        <dt class="col-sm-3">요청자</dt>
-        <dd class="col-sm-9">{{ selected_row.owner_name }}{% if selected_row.owner_company %} · {{ selected_row.owner_company }}{% endif %}</dd>
-        <dt class="col-sm-3">요약</dt>
-        <dd class="col-sm-9" style="white-space: pre-wrap;">{{ selected_row.summary or '요약 정보가 없습니다.' }}</dd>
-      </dl>
+      <div class="console-detail-body">
+        {% if selected_row.kind == 'abap' and selected_rfp %}
+          {% set rfp = selected_rfp %}
+          {% set attachment_entries = selected_attachment_entries %}
+          {% set source_program_groups = selected_source_program_groups %}
+          {% set reference_section_count = selected_reference_section_count %}
+          {% set wf_abap_mirror = false %}
+          {% include "partials/rfp_hub_request_panel.html" %}
+        {% elif selected_row.kind == 'analysis' and selected_analysis %}
+          {% set row = selected_analysis %}
+          {% set attachment_entries = selected_attachment_entries %}
+          {% set source_program_groups = selected_source_program_groups %}
+          {% include "partials/abap_analysis_request_panel.html" %}
+        {% elif selected_row.kind == 'integration' and selected_integration %}
+          {% set ir = selected_integration %}
+          {% set attachment_entries = selected_attachment_entries %}
+          {% set source_program_groups = selected_source_program_groups %}
+          {% set reference_section_count = selected_reference_section_count %}
+          {% set types_list = selected_types_list %}
+          {% include "partials/integration_hub_request_panel.html" %}
+        {% else %}
+          <dl class="row small console-detail-dl mb-0">
+            <dt class="col-sm-3">요청번호</dt>
+            <dd class="col-sm-9 font-monospace">{{ selected_row.request_no }}</dd>
+            <dt class="col-sm-3">유형</dt>
+            <dd class="col-sm-9">{{ selected_row.kind_ko }}</dd>
+            <dt class="col-sm-3">상태</dt>
+            <dd class="col-sm-9">{{ bucket_meta[selected_row.bucket].label }}</dd>
+            <dt class="col-sm-3">요약</dt>
+            <dd class="col-sm-9" style="white-space: pre-wrap;">{{ selected_row.summary or '요약 정보가 없습니다.' }}</dd>
+          </dl>
+        {% endif %}
+      </div>
       {% else %}
       <div class="text-muted small">리스트에서 요청을 선택해 주세요.</div>
       {% endif %}
