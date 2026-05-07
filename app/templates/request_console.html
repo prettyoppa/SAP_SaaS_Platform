@@ -51,7 +51,7 @@
 .console-pane { min-width: 220px; overflow: auto; }
 .console-pane-left { flex: 0 0 260px; background: var(--surface2); }
 .console-pane-center { flex: 0 0 420px; border-left: 1px solid var(--border); }
-.console-pane-right { flex: 1 1 auto; border-left: 1px solid var(--border); }
+.console-pane-right { flex: 1 1 auto; border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .console-resizer {
   flex: 0 0 6px;
   cursor: col-resize;
@@ -95,11 +95,20 @@
 }
 .console-detail-dl dt { color: var(--muted); font-size: .78rem; }
 .console-detail-dl dd { margin-bottom: .45rem; }
-.console-detail-body .proposal-card {
+.console-detail-frame-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface2);
 }
-.console-detail-body .proposal-body { padding: .9rem; }
+.console-detail-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--surface2);
+}
 </style>
 
 <div class="container-fluid py-3 request-console-wrap">
@@ -188,39 +197,9 @@
         </div>
         <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
       </div>
-      <hr />
-      <div class="console-detail-body">
-        {% if selected_row.kind == 'abap' and selected_rfp %}
-          {% set rfp = selected_rfp %}
-          {% set attachment_entries = selected_attachment_entries %}
-          {% set source_program_groups = selected_source_program_groups %}
-          {% set reference_section_count = selected_reference_section_count %}
-          {% set wf_abap_mirror = false %}
-          {% include "partials/rfp_hub_request_panel.html" %}
-        {% elif selected_row.kind == 'analysis' and selected_analysis %}
-          {% set row = selected_analysis %}
-          {% set attachment_entries = selected_attachment_entries %}
-          {% set source_program_groups = selected_source_program_groups %}
-          {% include "partials/abap_analysis_request_panel.html" %}
-        {% elif selected_row.kind == 'integration' and selected_integration %}
-          {% set ir = selected_integration %}
-          {% set attachment_entries = selected_attachment_entries %}
-          {% set source_program_groups = selected_source_program_groups %}
-          {% set reference_section_count = selected_reference_section_count %}
-          {% set types_list = selected_types_list %}
-          {% include "partials/integration_hub_request_panel.html" %}
-        {% else %}
-          <dl class="row small console-detail-dl mb-0">
-            <dt class="col-sm-3">요청번호</dt>
-            <dd class="col-sm-9 font-monospace">{{ selected_row.request_no }}</dd>
-            <dt class="col-sm-3">유형</dt>
-            <dd class="col-sm-9">{{ selected_row.kind_ko }}</dd>
-            <dt class="col-sm-3">상태</dt>
-            <dd class="col-sm-9">{{ bucket_meta[selected_row.bucket].label }}</dd>
-            <dt class="col-sm-3">요약</dt>
-            <dd class="col-sm-9" style="white-space: pre-wrap;">{{ selected_row.summary or '요약 정보가 없습니다.' }}</dd>
-          </dl>
-        {% endif %}
+      <hr class="my-2" />
+      <div class="console-detail-frame-wrap">
+        <iframe class="console-detail-iframe" src="{{ selected_row.detail_href }}" loading="lazy" referrerpolicy="same-origin"></iframe>
       </div>
       {% else %}
       <div class="text-muted small">리스트에서 요청을 선택해 주세요.</div>
