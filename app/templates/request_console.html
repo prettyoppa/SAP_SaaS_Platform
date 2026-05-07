@@ -53,9 +53,9 @@
 .console-pane-center { flex: 0 0 420px; border-left: 1px solid var(--border); }
 .console-pane-right { flex: 1 1 auto; border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .console-resizer {
-  flex: 0 0 6px;
+  flex: 0 0 10px;
   cursor: col-resize;
-  background: rgba(148,163,184,.22);
+  background: #d1d9e6;
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   position: relative;
@@ -66,12 +66,22 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 2px;
+  width: 3px;
   height: 42px;
   border-radius: 2px;
-  background: rgba(71,85,105,.6);
+  background: #475569;
 }
-.console-resizer:hover { background: rgba(99,102,241,.2); }
+.console-resizer:hover { background: #b8c5db; }
+html[data-theme="dark"] .console-resizer,
+body.theme-dark .console-resizer,
+[data-bs-theme="dark"] .console-resizer {
+  background: rgba(148,163,184,.24);
+}
+html[data-theme="dark"] .console-resizer:hover,
+body.theme-dark .console-resizer:hover,
+[data-bs-theme="dark"] .console-resizer:hover {
+  background: rgba(99,102,241,.22);
+}
 .console-tree .lvl1 { padding: .65rem .8rem; border-bottom: 1px solid var(--border); }
 .console-tree .lvl1 summary { cursor: pointer; list-style: none; font-weight: 600; }
 .console-tree .lvl1 summary::-webkit-details-marker { display: none; }
@@ -123,8 +133,9 @@
   border-radius: 999px;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface2) 90%, transparent);
-  color: var(--muted);
+  color: #b42318;
   font-size: .78rem;
+  font-weight: 700;
 }
 .console-interaction-notice[hidden] { display: none !important; }
 </style>
@@ -275,10 +286,7 @@
     const mustBlock = (target) => {
       if (!target) return false;
       if (target.closest('summary')) return false; // 접기/펼치기 허용
-      if (target.closest('details')) return false; // details body 스크롤/텍스트 선택 허용
-      if (target.closest('a.btn, button, form')) return true;
-      if (target.closest('a[href*="/edit"], a[href*="/delete"], a[href*="/duplicate"], a[href*="/new"], a[href*="/logout"], a[href*="/login"], a[href*="/register"]')) return true;
-      if (target.closest('input, textarea, select')) return true;
+      if (target.closest('a[href], area[href], button, form, input, textarea, select, option, label, [role=\"button\"], [role=\"link\"], [onclick], [download], [data-bs-toggle], [data-bs-target], .btn')) return true;
       return false;
     };
 
@@ -296,7 +304,7 @@
       showInteractionNotice();
     }, true);
     doc.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') {
+      if (ev.key === 'Enter' || ev.key === ' ') {
         const t = ev.target instanceof Element ? ev.target : null;
         if (mustBlock(t)) {
           ev.preventDefault();
