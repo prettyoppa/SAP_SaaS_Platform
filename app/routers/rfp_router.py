@@ -51,7 +51,7 @@ from ..rfp_phase_gates import rfp_for_owner_or_admin, rfp_owned_only
 from ..stripe_service import stripe_keys_configured
 from . import interview_router as _interview_views
 from ..database import get_db
-from ..templates_config import templates
+from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 
 router = APIRouter()
@@ -832,6 +832,7 @@ def rfp_unified_hub_console_readonly(
     if isinstance(out, RedirectResponse):
         return out
     out["full_detail_url"] = f"/rfp/{rfp_id}"
+    out["layout_template"] = layout_template_from_embed_query(request)
     return templates.TemplateResponse(request, "rfp_unified_hub_readonly.html", out)
 
 

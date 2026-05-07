@@ -92,3 +92,13 @@ def _request_no_filter(v, prefix: str = "REQ") -> str:
 
 
 templates.env.filters["request_no"] = _request_no_filter
+
+
+def layout_template_from_embed_query(request) -> str:
+    """?embed=1|true|yes 이면 iframe 등 임베드용 레이아웃(네비·푸터 없음)."""
+    raw = ""
+    try:
+        raw = (request.query_params.get("embed") or "").strip().lower()
+    except Exception:
+        raw = ""
+    return "base_embed.html" if raw in ("1", "true", "yes") else "base.html"

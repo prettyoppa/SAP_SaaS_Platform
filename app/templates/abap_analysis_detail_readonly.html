@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends layout_template %}
 {% block title %}{% if row.title and row.title.strip() %}{{ row.title.strip() }} – SAP ABAP 분석·개선{% else %}SAP ABAP 분석·개선 {{ row.id|request_no('ANA') }}{% endif %} (조회) – SAP 개발 파트너{% endblock %}
 
 {% block content %}

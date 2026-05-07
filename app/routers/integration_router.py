@@ -42,7 +42,7 @@ from ..devtype_catalog import (
     integration_impl_allowed_codes,
     integration_impl_labels_map,
 )
-from ..templates_config import templates
+from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from ..paid_tier import user_can_operate_delivery
 from ..integration_followup_chat import (
@@ -115,7 +115,7 @@ def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
         "owner_name": getattr(getattr(r, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(r, "owner", None), "company", "") or "",
         "detail_href": f"/rfp/{r.id}",
-        "preview_href": f"/rfp/{r.id}/console-readonly",
+        "preview_href": f"/rfp/{r.id}/console-readonly?embed=1",
         "summary": (r.description or "").strip(),
     }
 
@@ -133,7 +133,7 @@ def _console_row_from_analysis(row: models.AbapAnalysisRequest) -> dict[str, Any
         "owner_name": getattr(getattr(row, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(row, "owner", None), "company", "") or "",
         "detail_href": f"/abap-analysis/{row.id}",
-        "preview_href": f"/abap-analysis/{row.id}/console-readonly",
+        "preview_href": f"/abap-analysis/{row.id}/console-readonly?embed=1",
         "summary": (row.requirement_text or "").strip(),
     }
 
@@ -151,7 +151,7 @@ def _console_row_from_integration(ir: models.IntegrationRequest) -> dict[str, An
         "owner_name": getattr(getattr(ir, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(ir, "owner", None), "company", "") or "",
         "detail_href": f"/integration/{ir.id}",
-        "preview_href": f"/integration/{ir.id}/console-readonly",
+        "preview_href": f"/integration/{ir.id}/console-readonly?embed=1",
         "summary": (ir.description or "").strip(),
     }
 
@@ -1119,6 +1119,7 @@ def integration_detail_console_readonly(
     if isinstance(out, RedirectResponse):
         return out
     out["full_detail_url"] = f"/integration/{req_id}"
+    out["layout_template"] = layout_template_from_embed_query(request)
     return templates.TemplateResponse(request, "integration_unified_hub_readonly.html", out)
 
 

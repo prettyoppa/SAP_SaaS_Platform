@@ -38,7 +38,7 @@ from ..rfp_reference_code import (
     normalize_reference_code_payload,
     reference_code_program_groups_for_tabs,
 )
-from ..templates_config import templates
+from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from .interview_router import _markdown_to_html
 from .rfp_router import (
@@ -924,6 +924,7 @@ def abap_analysis_detail_console_readonly(req_id: int, request: Request, db: Ses
     )
     if isinstance(ctx, RedirectResponse):
         return ctx
+    ctx["layout_template"] = layout_template_from_embed_query(request)
     return templates.TemplateResponse(request, "abap_analysis_detail_readonly.html", ctx)
 
 
