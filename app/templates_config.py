@@ -82,13 +82,13 @@ templates.env.filters["local_dt_span"] = _local_dt_span_filter
 
 
 def _request_no_filter(v, prefix: str = "REQ") -> str:
-    """요청 식별번호를 화면 표기용으로 통일 (예: RFP-000123)."""
+    """요청 식별번호를 화면 표기용으로 통일 (예: RFP-123, 앞자리 0 없음)."""
     try:
         n = int(v)
     except (TypeError, ValueError):
         return ""
     p = (prefix or "REQ").strip().upper()
-    return f"{p}-{n:06d}"
+    return f"{p}-{n}"
 
 
 templates.env.filters["request_no"] = _request_no_filter
