@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from sqlalchemy import exists, or_
 from sqlalchemy.orm import Session, joinedload
 
 from .. import auth, models, r2_storage, sap_fields
@@ -35,6 +36,7 @@ from ..menu_landing import (
     user_proposal_pending_offer_badges,
 )
 from ..attachment_context import build_attachment_llm_digest
+from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_reference_code import (
     abap_source_only_from_reference_payload,
     normalize_reference_code_payload,
@@ -137,10 +139,18 @@ def _require_user(request: Request, db: Session) -> models.User:
 
 
 def _query_abap_readable(db: Session, user: models.User):
-    """GET 상세 Console·조회 화면: 관리자·컨설턴트는 모든 건 조회 가능."""
+    """GET 상세 Console·조회 화면: 관리자는 전체; 컨설턴트는 본인·오퍼 건만; 일반은 본인."""
     q = db.query(models.AbapAnalysisRequest)
-    if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
+    if getattr(user, "is_admin", False):
         return q
+    if getattr(user, "is_consultant", False):
+        ro = models.RequestOffer
+        offer_ok = exists().where(
+            ro.request_kind == "analysis",
+            ro.request_id == models.AbapAnalysisRequest.id,
+            ro.consultant_user_id == user.id,
+        )
+        return q.filter(or_(models.AbapAnalysisRequest.user_id == user.id, offer_ok))
     return q.filter(models.AbapAnalysisRequest.user_id == user.id)
 
 
@@ -925,7 +935,12 @@ def _prepare_abap_analysis_detail_ctx(
             "attachment_entries": _attachment_entries(row),
             "owner": owner,
             "source_program_groups": program_groups,
-            "request_offers": _analysis_offer_rows(db, row.id),
+            "request_offers": visible_request_offers_for_viewer(
+                _analysis_offer_rows(db, row.id),
+                viewer=user,
+                owner_user_id=row.user_id,
+                privileged_operator=bool(user.is_admin),
+            ),
             "request_offer_can_match": False,
             "request_offer_profile_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/profile",
             "request_offer_match_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/match",
@@ -955,7 +970,12 @@ def _prepare_abap_analysis_detail_ctx(
         "wf_err": wf_err,
         "source_program_groups": program_groups,
         "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
-        "request_offers": _analysis_offer_rows(db, row.id),
+        "request_offers": visible_request_offers_for_viewer(
+            _analysis_offer_rows(db, row.id),
+            viewer=user,
+            owner_user_id=row.user_id,
+            privileged_operator=bool(user.is_admin),
+        ),
         "request_offer_can_match": bool(user and row and user.id == row.user_id),
         "request_offer_profile_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/profile",
         "request_offer_match_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/match",

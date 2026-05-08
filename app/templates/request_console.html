@@ -256,9 +256,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
           <div class="d-flex justify-content-between align-items-center gap-2">
             <div class="fw-semibold text-truncate">
               <span class="mail-kind-icon">
-                {% if kind == 'offer' %}<i class="fa-solid fa-hand-holding" aria-hidden="true"></i>
-                {% elif kind == 'matching' %}<i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
-                {% elif r.kind == 'abap' %}<i class="fa-solid fa-code"></i>
+                {% if r.kind == 'abap' %}<i class="fa-solid fa-code"></i>
                 {% elif r.kind == 'analysis' %}<i class="fa-solid fa-hospital"></i>
                 {% elif r.kind == 'integration' %}<i class="fa-solid fa-link"></i>
                 {% else %}<i class="fa-solid fa-layer-group"></i>{% endif %}

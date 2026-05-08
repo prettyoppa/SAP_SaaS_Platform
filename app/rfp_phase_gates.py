@@ -8,6 +8,7 @@ from typing import Any, Optional
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
+from .request_hub_access import consultant_has_request_offer
 from .paid_tier import PAID_ACTIVE
 from .rfp_hub import rfp_hub_url
 from .rfp_reference_code import normalize_reference_code_payload
@@ -121,7 +122,7 @@ def rfp_for_owner_or_admin(
     load_fs_supplements: bool = False,
     load_followup_messages: bool = False,
 ) -> models.RFP | None:
-    """조회 페이지용: 본인 또는 관리자."""
+    """조회 페이지용: 본인, 관리자, 또는 해당 건에 오퍼/매칭이 있는 컨설턴트."""
     q = db.query(models.RFP).filter(models.RFP.id == rfp_id)
     preload = []
     if load_messages:
@@ -132,9 +133,18 @@ def rfp_for_owner_or_admin(
         preload.append(joinedload(models.RFP.followup_messages))
     if preload:
         q = q.options(*preload)
-    if not (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False)):
-        q = q.filter(models.RFP.user_id == user.id)
-    return q.first()
+    if getattr(user, "is_admin", False):
+        return q.first()
+    if getattr(user, "is_consultant", False):
+        owned = q.filter(models.RFP.user_id == user.id).first()
+        if owned:
+            return owned
+        if consultant_has_request_offer(
+            db, consultant_user_id=user.id, request_kind="rfp", request_id=rfp_id
+        ):
+            return q.first()
+        return None
+    return q.filter(models.RFP.user_id == user.id).first()
 
 
 def rfp_owned_only(db: Session, *, user_id: int, rfp_id: int) -> models.RFP | None:

@@ -44,6 +44,8 @@ from ..devtype_catalog import (
     integration_impl_allowed_codes,
     integration_impl_labels_map,
 )
+from ..request_hub_access import apply_integration_hub_read_access, consultant_has_request_offer
+from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from ..paid_tier import user_can_operate_delivery
@@ -1193,11 +1195,11 @@ def _collect_integration_unified_hub_ctx(
 
     requested_phase = normalize_integration_hub_phase(phase)
     view_summary = (view or "").strip().lower() == "summary" and requested_phase == "interview"
-    privileged = user_can_operate_delivery(user)
 
-    q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
-    if not privileged:
-        q = q.filter(models.IntegrationRequest.user_id == user.id)
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
+    )
     ir = (
         q.options(
             joinedload(models.IntegrationRequest.followup_messages),
@@ -1237,7 +1239,9 @@ def _collect_integration_unified_hub_ctx(
     program_groups = reference_code_program_groups_for_tabs(ir.reference_code_payload)
     ref_section_count = sum(len(g["sections"]) for g in program_groups)
     owner = None
-    if privileged:
+    if getattr(user, "is_admin", False) or consultant_has_request_offer(
+        db, consultant_user_id=user.id, request_kind="integration", request_id=ir.id
+    ):
         owner = db.query(models.User).filter(models.User.id == ir.user_id).first()
 
     imsgs = sorted(list(ir.interview_messages or []), key=lambda m: (m.round_number, m.id))
@@ -1325,7 +1329,12 @@ def _collect_integration_unified_hub_ctx(
         "chat_error": chat_error,
         "max_followup_user_turns": INT_CHAT_MAX_USER,
         "hub_include_proposal_scripts": hub_scripts,
-        "request_offers": _integration_offer_rows(db, ir.id),
+        "request_offers": visible_request_offers_for_viewer(
+            _integration_offer_rows(db, ir.id),
+            viewer=user,
+            owner_user_id=ir.user_id,
+            privileged_operator=bool(getattr(user, "is_admin", False)),
+        ),
         "request_offer_can_match": bool(user and ir and user.id == ir.user_id and not readonly_console),
         "request_offer_profile_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/profile",
         "request_offer_match_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/match",
@@ -1347,10 +1356,10 @@ def integration_generation_status(req_id: int, request: Request, db: Session = D
     user = auth.get_current_user(request, db)
     if not user:
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
-    privileged = user_can_operate_delivery(user)
-    q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
-    if not privileged:
-        q = q.filter(models.IntegrationRequest.user_id == user.id)
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
+    )
     ir = q.first()
     if not ir:
         return JSONResponse({"detail": "not_found"}, status_code=404)
@@ -1623,9 +1632,10 @@ def integration_download_attachment(
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    q = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id)
-    if not user.is_admin:
-        q = q.filter(models.IntegrationRequest.user_id == user.id)
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
+    )
     ir = q.first()
     if not ir:
         return RedirectResponse(url="/", status_code=302)

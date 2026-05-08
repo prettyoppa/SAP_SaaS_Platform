@@ -20,6 +20,8 @@ from ..delivered_code_package import (
     rfp_delivered_body_ready,
 )
 from ..paid_generation import resolved_fs_markdown_for_codegen
+from ..request_hub_access import consultant_has_request_offer
+from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..paid_tier import (
     paid_engagement_is_active,
     rfp_eligible_for_stripe_checkout,
@@ -618,10 +620,7 @@ def rfp_download_attachment(
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    q = db.query(models.RFP).filter(models.RFP.id == rfp_id)
-    if not user_can_operate_delivery(user):
-        q = q.filter(models.RFP.user_id == user.id)
-    rfp = q.first()
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
     entries = _rfp_attachment_entries(rfp)
@@ -746,7 +745,9 @@ def _collect_rfp_unified_hub_ctx(
     tabs_base_id = f"rfp-ref-src-{rfp.id}"
 
     owner = None
-    if can_operate_delivery:
+    if getattr(user, "is_admin", False) or consultant_has_request_offer(
+        db, consultant_user_id=user.id, request_kind="rfp", request_id=rfp.id
+    ):
         owner = db.query(models.User).filter(models.User.id == rfp.user_id).first()
 
     delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
@@ -782,7 +783,12 @@ def _collect_rfp_unified_hub_ctx(
         "reference_section_count": ref_section_count,
         "tabs_base_id": tabs_base_id,
         "hub_include_proposal_scripts": proposal_scripts,
-        "request_offers": _rfp_offer_rows(db, rfp.id),
+        "request_offers": visible_request_offers_for_viewer(
+            _rfp_offer_rows(db, rfp.id),
+            viewer=user,
+            owner_user_id=rfp.user_id,
+            privileged_operator=bool(getattr(user, "is_admin", False)),
+        ),
         "request_offer_can_match": bool(user and rfp and user.id == rfp.user_id and not readonly_console),
         "request_offer_profile_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/profile",
         "request_offer_match_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/match",
@@ -1167,7 +1173,7 @@ def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(g
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    rfp = rfp_owned_only(db, user_id=user.id, rfp_id=rfp_id)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
     entries = duplicate_attachment_entries(_rfp_attachment_entries(rfp), user_id=user.id)
