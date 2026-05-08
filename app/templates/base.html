@@ -10,8 +10,10 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link href="/static/css/style.css?v=20260509offer-wa-icons" rel="stylesheet"/>
-  <!-- Web Awesome: wa-icon (오퍼/매칭 등). head에서 먼저 로드해 업그레이드 타이밍을 맞춤 -->
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@awesome.me/webawesome@3.4.0/dist/webawesome.loader.min.js"></script>
+  <!-- wa-icon SVG는 Font Awesome CDN(ka-f)에서 로드됨 -->
+  <link rel="preconnect" href="https://ka-f.fontawesome.com" crossorigin />
+  <!-- Web Awesome: .min.js는 getBasePath() 스크립트 탐지에서 누락될 수 있어 .loader.js 사용 -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@awesome.me/webawesome@3.4.0/dist/webawesome.loader.js"></script>
   <!-- 테마 깜빡임 방지: CSS 로드 전에 테마·파비콘 적용 -->
   <script>
     (function() {
