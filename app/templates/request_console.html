@@ -142,6 +142,13 @@ html[data-theme="dark"] .console-resizer:hover::after {
   border: 0;
   background: var(--surface2);
 }
+/* 리사이즈 드래그 중 iframe 합성·히트테스트 비용 제거 (미리보기가 무거울 때 체갭 지연 방지) */
+.console-detail-iframe.is-console-resize-passive {
+  pointer-events: none !important;
+}
+.request-console-shell.is-resizing-panes * {
+  user-select: none !important;
+}
 </style>
 
 <div class="container-fluid py-3 request-console-wrap">
@@ -286,6 +293,8 @@ html[data-theme="dark"] .console-resizer:hover::after {
   });
   if (!shell) return;
 
+  const detailFrame = document.getElementById('console-detail-iframe');
+
   const PANE_WIDTH_STORAGE_KEY = 'requestConsolePaneWidths:v1';
   const RESIZER_GUTTER_ALLOWS = 24; /* 두 개의 얇은 리사이저 대략적인 가로 합 */
   const clampPanePair = (shellW, leftPx, centerPx) => {
@@ -369,33 +378,61 @@ html[data-theme="dark"] .console-resizer:hover::after {
   });
 
   let dragging = null;
+  let rafResizeId = null;
+  let lastResizeClientX = 0;
+
+  function applyPaneResize(clientX) {
+    if (!dragging) return;
+    const leftPane = document.getElementById(dragging.left);
+    if (!leftPane) return;
+    const sw = shell.getBoundingClientRect().width;
+    let w = dragging.startWidth + (clientX - dragging.startClientX);
+    w = Math.max(220, Math.min(sw - 260, w));
+    leftPane.style.flexBasis = Math.round(w) + 'px';
+  }
+
   function onMove(e) {
     if (!dragging) return;
-    const rect = shell.getBoundingClientRect();
-    const leftPane = document.getElementById(dragging.left);
-    const rightPane = document.getElementById(dragging.right);
-    if (!leftPane || !rightPane) return;
-    const current = e.clientX - rect.left;
-    const leftRect = leftPane.getBoundingClientRect();
-    const width = Math.max(220, Math.min(rect.width - 260, current - (leftRect.left - rect.left)));
-    leftPane.style.flexBasis = width + 'px';
+    lastResizeClientX = e.clientX;
+    if (rafResizeId != null) return;
+    rafResizeId = requestAnimationFrame(() => {
+      rafResizeId = null;
+      if (!dragging) return;
+      applyPaneResize(lastResizeClientX);
+    });
   }
+
   function stopDrag() {
+    if (rafResizeId != null) {
+      cancelAnimationFrame(rafResizeId);
+      rafResizeId = null;
+    }
     if (!dragging) return;
     dragging = null;
+    shell.classList.remove('is-resizing-panes');
     document.body.style.userSelect = '';
-    if (detailFrame) detailFrame.style.pointerEvents = '';
+    if (detailFrame) {
+      detailFrame.classList.remove('is-console-resize-passive');
+    }
     persistPaneWidths();
   }
   document.querySelectorAll('.console-resizer').forEach((r) => {
     r.addEventListener('mousedown', (ev) => {
       ev.preventDefault();
-      dragging = { left: r.dataset.left, right: r.dataset.right };
+      const leftPane = document.getElementById(r.dataset.left);
+      if (!leftPane) return;
+      dragging = {
+        left: r.dataset.left,
+        right: r.dataset.right,
+        startClientX: ev.clientX,
+        startWidth: leftPane.getBoundingClientRect().width,
+      };
+      shell.classList.add('is-resizing-panes');
       document.body.style.userSelect = 'none';
-      if (detailFrame) detailFrame.style.pointerEvents = 'none';
+      if (detailFrame) detailFrame.classList.add('is-console-resize-passive');
     });
   });
-  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mousemove', onMove, { passive: true });
   window.addEventListener('mouseup', stopDrag);
   window.addEventListener('blur', stopDrag);
   document.addEventListener('mouseleave', stopDrag);
