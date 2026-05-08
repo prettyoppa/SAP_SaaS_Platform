@@ -10,12 +10,12 @@
           {{ c.full_name if c else '컨설턴트' }}
           {% if c and c.company %}<span class="text-muted small"> · {{ c.company }}</span>{% endif %}
           {% if of.status == 'matched' %}
-          <span class="badge bg-success ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-wa">
-            <wa-icon name="hand-holding-hand" family="classic" variant="solid" aria-hidden="true"></wa-icon>매칭
+          <span class="badge bg-success ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
+            <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>매칭
           </span>
           {% else %}
-          <span class="badge bg-secondary ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-wa">
-            <wa-icon name="hand-holding" family="classic" variant="solid" aria-hidden="true"></wa-icon>오퍼
+          <span class="badge bg-secondary ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
+            <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>오퍼
           </span>
           {% endif %}
         </div>
@@ -28,7 +28,7 @@
         {% if request_offer_match_url_builder is defined and request_offer_can_match %}
         <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm="{% if of.status == 'matched' %}매칭을 해제하시겠습니까?{% else %}이 오퍼로 매칭하시겠습니까?{% endif %}">
           <button type="submit" class="btn btn-sm d-inline-flex align-items-center gap-1 {% if of.status == 'matched' %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
-            <wa-icon name="hand-holding-hand" family="classic" variant="solid" aria-hidden="true"></wa-icon>
+            <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
             {% if of.status == 'matched' %}매칭 해제{% else %}매칭{% endif %}
           </button>
         </form>

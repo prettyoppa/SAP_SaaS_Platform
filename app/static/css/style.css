@@ -2328,12 +2328,12 @@ html[data-theme="light"] .abap-float-chat-resize {
   color: var(--text);
 }
 
-/* Web Awesome: 오퍼/매칭 배지·버튼 안 wa-icon 정렬 */
-.offer-status-badge-wa wa-icon {
+/* 오퍼/매칭 배지·버튼 안 Font Awesome 아이콘 정렬 */
+.offer-status-badge-fa .fa-solid {
   font-size: 0.9em;
   vertical-align: -0.12em;
 }
-.list-group-item .btn wa-icon {
+.list-group-item .btn .fa-solid {
   font-size: 0.95em;
   vertical-align: -0.1em;
 }
