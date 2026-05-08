@@ -391,6 +391,7 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
     menu_tile_links: dict[str, str] = {}
     filtered_rows: list[models.AbapAnalysisRequest] = []
     show_request_owner = False
+    proposal_offer_notice_count = 0
 
     if user:
         # 메뉴 첫 화면은 권한자도 본인 요청만 표시
@@ -416,7 +417,11 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
                 db, [int(x.id) for x in filtered_rows], pending_only=True
             )
             for row in filtered_rows:
-                setattr(row, "has_offer", int(row.id) in offered_ids)
+                ho = int(row.id) in offered_ids
+                setattr(row, "has_offer", ho)
+                if selected_bucket == "proposal" and ho:
+                    proposal_offer_notice_count += 1
+                setattr(row, "pulse_offer_bg", selected_bucket == "proposal" and ho)
 
     bucket_meta = standard_menu_bucket_meta()
     proposal_offer_badges = (
@@ -444,6 +449,7 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
             "show_request_owner": show_request_owner,
             "menu_landing_form_action": "/abap-analysis",
             "proposal_offer_badges": proposal_offer_badges,
+            "proposal_offer_notice_count": proposal_offer_notice_count,
         },
     )
 
@@ -920,7 +926,7 @@ def _prepare_abap_analysis_detail_ctx(
             "owner": owner,
             "source_program_groups": program_groups,
             "request_offers": _analysis_offer_rows(db, row.id),
-            "request_offer_can_match": bool(user and row and user.id == row.user_id),
+            "request_offer_can_match": False,
             "request_offer_profile_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/profile",
             "request_offer_match_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/match",
         }
@@ -1122,7 +1128,13 @@ def abap_analysis_offer_match(
         .first()
     )
     if not offer:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=303)
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
+    if (offer.status or "") == "matched":
+        offer.status = "offered"
+        offer.matched_at = None
+        db.add(offer)
+        db.commit()
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
     db.query(models.RequestOffer).filter(
         models.RequestOffer.request_kind == "analysis",
         models.RequestOffer.request_id == req_id,
@@ -1131,7 +1143,7 @@ def abap_analysis_offer_match(
     offer.matched_at = datetime.utcnow()
     db.add(offer)
     db.commit()
-    return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=303)
+    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
 
 
 @router.get("/{req_id}/offers/{offer_id}/profile")

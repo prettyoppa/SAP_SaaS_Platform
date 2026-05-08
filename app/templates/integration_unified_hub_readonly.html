@@ -67,6 +67,9 @@
     <details class="interview-summary-toggle rfp-hub-phase mb-3" id="int-phase-proposal" {% if hub_phase_open == 'proposal' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <span class="fw-semibold" data-i18n="hub.phaseProposal">3. 제안서</span>
+        {% if request_offers is defined and request_offers|length > 0 %}
+        <span class="badge bg-secondary rounded-pill">오퍼 {{ request_offers|length }}건</span>
+        {% endif %}
         {% if hub_proposal_generating %}<span class="badge bg-info text-dark">생성 중</span>{% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
@@ -80,6 +83,7 @@
           {% set proposal_download_url = '/integration/' ~ (ir.id|string) ~ '/proposal/download' %}
           {% include 'partials/integration_hub_proposal_readonly.html' %}
         {% endif %}
+        {% include 'partials/request_offers_panel.html' %}
       </div>
     </details>
 

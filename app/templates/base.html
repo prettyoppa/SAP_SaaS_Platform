@@ -69,20 +69,24 @@
           </a>
         </li>
         {% if user %}
-        <li class="nav-item">
+        {% set nav_offer = request.state.nav_proposal_offer_badges %}
+        <li class="nav-item position-relative">
           <a class="nav-link {% if path.startswith('/services/abap') or path.startswith('/rfp') %}active{% endif %}" href="/services/abap">
             <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">New Development</span>
           </a>
+          {% if nav_offer.rfp %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
-        <li class="nav-item">
+        <li class="nav-item position-relative">
           <a class="nav-link {% if path.startswith('/abap-analysis') %}active{% endif %}" href="/abap-analysis">
             <span class="nav-ko">분석·개선</span><span class="nav-en" style="display:none">Analyze · Improve</span>
           </a>
+          {% if nav_offer.analysis %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
-        <li class="nav-item">
+        <li class="nav-item position-relative">
           <a class="nav-link {% if '/integration' in path %}active{% endif %}" href="/integration">
             <span class="nav-ko">연동 개발</span><span class="nav-en" style="display:none">Integration</span>
           </a>
+          {% if nav_offer.integration %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
         {% if user.is_admin %}
         <li class="nav-item">

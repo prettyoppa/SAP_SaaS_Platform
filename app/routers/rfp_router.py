@@ -909,7 +909,13 @@ def rfp_offer_match(
         .first()
     )
     if not offer:
-        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=request", status_code=303)
+        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
+    if (offer.status or "") == "matched":
+        offer.status = "offered"
+        offer.matched_at = None
+        db.add(offer)
+        db.commit()
+        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
     db.query(models.RequestOffer).filter(
         models.RequestOffer.request_kind == "rfp",
         models.RequestOffer.request_id == rfp_id,
@@ -918,7 +924,7 @@ def rfp_offer_match(
     offer.matched_at = datetime.utcnow()
     db.add(offer)
     db.commit()
-    return RedirectResponse(url=f"/rfp/{rfp_id}?phase=request", status_code=303)
+    return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
 
 
 @router.get("/rfp/{rfp_id}/offers/{offer_id}/profile")

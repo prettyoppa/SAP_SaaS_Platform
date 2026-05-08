@@ -17,7 +17,11 @@ from .email_smtp import email_verification_enabled, log_smtp_startup_checks
 from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
 from . import auth, models
 from .rfp_landing import DEFAULT_SERVICE_ABAP_INTRO_MD_KO
-from .menu_landing import DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO, DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO
+from .menu_landing import (
+    DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO,
+    DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO,
+    user_proposal_pending_offer_badges,
+)
 from .home_counts import home_tile_counts
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
@@ -443,6 +447,23 @@ app.add_middleware(
     max_age=86400 * 7,
     same_site="lax",
 )
+
+
+@app.middleware("http")
+async def nav_proposal_offer_badges_middleware(request: Request, call_next):
+    """상단 메뉴(신규·분석·연동) 오퍼 알림 점용 — 제안 버킷에 미매칭 오퍼가 있으면 True."""
+    badges = {"rfp": False, "analysis": False, "integration": False}
+    token = request.cookies.get("access_token")
+    if token:
+        db = SessionLocal()
+        try:
+            u = auth.get_user_from_token(token, db)
+            if u:
+                badges = user_proposal_pending_offer_badges(db, u.id)
+        finally:
+            db.close()
+    request.state.nav_proposal_offer_badges = badges
+    return await call_next(request)
 
 
 @app.middleware("http")

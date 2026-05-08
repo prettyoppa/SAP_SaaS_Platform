@@ -522,6 +522,7 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
     rfps_filtered: list = []
 
     show_rfp_owner = False
+    proposal_offer_notice_count = 0
     if user:
         # 메뉴 첫 화면은 권한자도 본인 요청만 표시
         admin_view = False
@@ -551,7 +552,11 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
                 db, "rfp", [int(x.id) for x in rfps_filtered], pending_only=True
             )
             for row in rfps_filtered:
-                setattr(row, "has_offer", int(row.id) in offered_ids)
+                ho = int(row.id) in offered_ids
+                setattr(row, "has_offer", ho)
+                if selected_bucket == "proposal" and ho:
+                    proposal_offer_notice_count += 1
+                setattr(row, "pulse_offer_bg", selected_bucket == "proposal" and ho)
 
     bucket_meta = standard_menu_bucket_meta()
     proposal_offer_badges = (
@@ -577,6 +582,7 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
             "show_rfp_owner": show_rfp_owner,
             "bucket_meta": bucket_meta,
             "proposal_offer_badges": proposal_offer_badges,
+            "proposal_offer_notice_count": proposal_offer_notice_count,
         },
     )
 
@@ -606,6 +612,7 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
     menu_tile_links: dict[str, str] = {}
     filtered_rows: list[models.IntegrationRequest] = []
     show_request_owner = False
+    proposal_offer_notice_count = 0
 
     if user:
         # 메뉴 첫 화면은 권한자도 본인 요청만 표시
@@ -629,7 +636,11 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
                 db, "integration", [int(x.id) for x in filtered_rows], pending_only=True
             )
             for row in filtered_rows:
-                setattr(row, "has_offer", int(row.id) in offered_ids)
+                ho = int(row.id) in offered_ids
+                setattr(row, "has_offer", ho)
+                if selected_bucket == "proposal" and ho:
+                    proposal_offer_notice_count += 1
+                setattr(row, "pulse_offer_bg", selected_bucket == "proposal" and ho)
 
     bucket_meta = standard_menu_bucket_meta()
     proposal_offer_badges = (
@@ -656,6 +667,7 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
             "show_request_owner": show_request_owner,
             "menu_landing_form_action": "/integration",
             "proposal_offer_badges": proposal_offer_badges,
+            "proposal_offer_notice_count": proposal_offer_notice_count,
             **_integration_impl_ui_ctx(db),
         },
     )
@@ -1517,7 +1529,13 @@ def integration_offer_match(
         .first()
     )
     if not offer:
-        return RedirectResponse(url=f"/integration/{req_id}?phase=request", status_code=303)
+        return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
+    if (offer.status or "") == "matched":
+        offer.status = "offered"
+        offer.matched_at = None
+        db.add(offer)
+        db.commit()
+        return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
     db.query(models.RequestOffer).filter(
         models.RequestOffer.request_kind == "integration",
         models.RequestOffer.request_id == req_id,
@@ -1526,7 +1544,7 @@ def integration_offer_match(
     offer.matched_at = datetime.utcnow()
     db.add(offer)
     db.commit()
-    return RedirectResponse(url=f"/integration/{req_id}?phase=request", status_code=303)
+    return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
 
 
 @router.get("/integration/{req_id}/offers/{offer_id}/profile")

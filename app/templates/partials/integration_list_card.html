@@ -1,13 +1,5 @@
 {# context: ir (IntegrationRequest), show_request_owner, user, impl_labels, integration_simple_actions (optional) #}
-<div class="menu-list-card{% if ir.has_offer %} menu-list-card--offer-attention{% endif %}">
-{% if ir.has_offer %}
-<div class="request-offer-marquee" aria-hidden="true">
-  <div class="request-offer-marquee__track">
-    <span>오퍼가 존재합니다. 확인하세요.</span>
-    <span aria-hidden="true">오퍼가 존재합니다. 확인하세요.</span>
-  </div>
-</div>
-{% endif %}
+<div class="menu-list-card{% if ir.pulse_offer_bg|default(false) %} menu-list-card--proposal-offer-pulse{% endif %}">
 <div class="rfp-list-surface-tile">
 <div class="rfp-list-card rfp-list-card-v2">
   <div class="rfp-list-left">

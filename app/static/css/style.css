@@ -2333,116 +2333,86 @@ html[data-theme="light"] .abap-float-chat-resize {
   overflow: hidden;
 }
 
-.menu-list-card--offer-attention {
-  animation: menu-list-card-offer-pulse 3.2s ease-in-out infinite;
+/* 제안 버킷 목록: 미매칭 오퍼가 있는 행 — 카드 배경만 부드럽게 깜빡임 */
+.menu-list-card--proposal-offer-pulse {
+  animation: menu-list-card-proposal-offer-pulse 2.2s ease-in-out infinite;
 }
 
-@keyframes menu-list-card-offer-pulse {
+@keyframes menu-list-card-proposal-offer-pulse {
   0%,
   100% {
     background-color: transparent;
   }
   50% {
-    background-color: color-mix(in srgb, var(--bs-warning) 14%, transparent);
+    background-color: color-mix(in srgb, var(--bs-warning) 18%, transparent);
   }
 }
 
-html[data-theme="dark"] .menu-list-card--offer-attention {
-  animation: menu-list-card-offer-pulse-dark 3.2s ease-in-out infinite;
+html[data-theme="dark"] .menu-list-card--proposal-offer-pulse {
+  animation: menu-list-card-proposal-offer-pulse-dark 2.2s ease-in-out infinite;
 }
 
-@keyframes menu-list-card-offer-pulse-dark {
+@keyframes menu-list-card-proposal-offer-pulse-dark {
   0%,
   100% {
     background-color: transparent;
   }
   50% {
-    background-color: color-mix(in srgb, #fbbf24 12%, transparent);
+    background-color: color-mix(in srgb, #fbbf24 14%, transparent);
   }
 }
 
-.request-offer-marquee {
+.menu-list-offer-banner {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--bs-warning) 11%, var(--surface2, var(--bs-body-bg)));
+  border: 1px solid color-mix(in srgb, var(--bs-warning) 28%, var(--border, rgba(0, 0, 0, 0.12)));
+}
+
+.menu-list-offer-banner__text {
+  color: var(--text, inherit);
+}
+
+/* 상단 메뉴: 제안 버킷 미매칭 오퍼 알림 (작은 점, 링/테두리 없음) */
+.navbar-custom .nav-item.position-relative {
+  padding-bottom: 0.3rem;
+}
+
+.navbar-custom .nav-proposal-offer-dot {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  bottom: 1px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: #ef4444;
   pointer-events: none;
-  z-index: 4;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    #000 10%,
-    #000 90%,
-    transparent 100%
-  );
-}
-
-.request-offer-marquee__track {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 3.5rem;
-  width: max-content;
-  animation: request-offer-marquee-scroll 22s linear infinite;
-  will-change: transform;
-}
-
-.request-offer-marquee__track > span {
-  flex-shrink: 0;
-  white-space: nowrap;
-  font-weight: 800;
-  font-size: 0.92rem;
-  letter-spacing: 0.06em;
-  opacity: 0.88;
-  color: #b45309;
-  text-shadow: 0 0 1px color-mix(in srgb, #fff 40%, transparent);
-}
-
-html[data-theme="dark"] .request-offer-marquee__track > span {
-  color: #fcd34d;
-  opacity: 0.92;
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.45);
-}
-
-@keyframes request-offer-marquee-scroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
 }
 
 .stat-card--proposal-offer-signal .stat-card-offer-dot {
   position: absolute;
   top: 0.55rem;
   right: 0.55rem;
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: radial-gradient(circle at 32% 30%, #fecaca, #ef4444 52%, #991b1b);
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, #ef4444 28%, transparent),
-    0 3px 10px color-mix(in srgb, #ef4444 45%, transparent);
-  animation: stat-card-offer-dot-glow 2.4s ease-in-out infinite;
+  background: radial-gradient(circle at 32% 30%, #fecaca, #ef4444 55%, #991b1b);
+  animation: stat-card-offer-dot-soft 2.4s ease-in-out infinite;
   pointer-events: none;
 }
 
-@keyframes stat-card-offer-dot-glow {
+@keyframes stat-card-offer-dot-soft {
   0%,
   100% {
+    opacity: 1;
     transform: scale(1);
-    filter: saturate(1);
-    box-shadow:
-      0 0 0 3px color-mix(in srgb, #ef4444 28%, transparent),
-      0 3px 10px color-mix(in srgb, #ef4444 45%, transparent);
   }
   50% {
+    opacity: 0.88;
     transform: scale(1.06);
-    filter: saturate(1.15);
-    box-shadow:
-      0 0 0 5px color-mix(in srgb, #ef4444 38%, transparent),
-      0 4px 14px color-mix(in srgb, #ef4444 55%, transparent);
   }
 }
 

@@ -125,7 +125,6 @@
                 {% set tabs_base_id = 'abap-ref-src' %}
                 {% include "partials/reference_code_program_boxes.html" %}
                 {% endif %}
-                {% include "partials/request_offers_panel.html" %}
               </div>
             </div>
 
@@ -248,10 +247,26 @@
         </details>
         {% endif %}
 
+        <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-offers"
+          {% if request_offers is defined and request_offers|length > 0 %}open{% endif %}>
+          <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+            <span class="fw-semibold">3. 제안 · 오퍼</span>
+            {% if request_offers is defined and request_offers|length > 0 %}
+            <span class="badge bg-secondary rounded-pill">오퍼 {{ request_offers|length }}건</span>
+            {% endif %}
+          </summary>
+          <div class="rfp-hub-phase-body pt-2">
+            {% include "partials/request_offers_panel.html" %}
+            {% if not request_offers or not request_offers|length %}
+            <p class="text-muted small mb-0">아직 오퍼가 없습니다.</p>
+            {% endif %}
+          </div>
+        </details>
+
         {% if not row.is_draft and analysis and (analysis.get('requirement_analysis_error') or analysis.get('requirement_analysis')) %}
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-requirement-analysis" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold" data-i18n="detail.phaseReqLink">3. 요구사항 연계 분석</span>
+            <span class="fw-semibold" data-i18n="detail.phaseReqLink">4. 요구사항 연계 분석</span>
             {% if analysis.get('requirement_analysis_error') %}
             <span class="badge bg-warning text-dark" data-i18n="detail.reqLinkErrBadge">오류</span>
             {% else %}
@@ -316,7 +331,7 @@
         {% if not row.is_draft and row.is_analyzed %}
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-improvement" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold" data-i18n="detail.phaseImprove">4. 개선 제안 요청</span>
+            <span class="fw-semibold" data-i18n="detail.phaseImprove">5. 개선 제안 요청</span>
             {% if row.workflow_rfp %}
             <span class="badge bg-primary" data-i18n="common.workflowLinked">워크플로 연결</span>
             {% else %}

@@ -18,9 +18,9 @@
         <a class="btn btn-sm btn-outline-secondary" href="{{ request_offer_profile_url_builder(of.id) }}" data-no-busy="true">프로필</a>
         {% endif %}
         {% if request_offer_match_url_builder is defined and request_offer_can_match %}
-        <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm="이 오퍼로 매칭하시겠습니까?">
-          <button type="submit" class="btn btn-sm {% if of.status == 'matched' %}btn-success{% else %}btn-outline-primary{% endif %}">
-            {% if of.status == 'matched' %}매칭됨{% else %}매칭{% endif %}
+        <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm="{% if of.status == 'matched' %}매칭을 해제하시겠습니까?{% else %}이 오퍼로 매칭하시겠습니까?{% endif %}">
+          <button type="submit" class="btn btn-sm {% if of.status == 'matched' %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
+            {% if of.status == 'matched' %}매칭 해제{% else %}매칭{% endif %}
           </button>
         </form>
         {% endif %}

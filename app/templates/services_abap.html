@@ -88,6 +88,11 @@
           </h5>
           {% include "partials/menu_list_view_toggle.html" %}
         </div>
+        {% if selected_svc_abap_bucket == 'proposal' and proposal_offer_notice_count > 0 %}
+        <div class="menu-list-offer-banner mb-3" role="status">
+          <span class="menu-list-offer-banner__text">오퍼가 존재합니다. 해당 요청 상세의 <strong>제안서</strong> 단계에서 확인하세요.</span>
+        </div>
+        {% endif %}
         <div class="row g-3">
           {% for rfp in svc_abap_filtered_rfps %}
           <div class="col-12">
