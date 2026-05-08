@@ -71,7 +71,7 @@
                 </button>
               </form>
               <form method="post" action="/admin/notices/{{ n.id }}/delete" class="d-inline"
-                    onsubmit="return confirm('이 공지를 삭제할까요?')">
+                    data-app-confirm="이 공지를 삭제할까요?">
                 <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
                   <i class="fa-solid fa-trash"></i>
                 </button>

@@ -34,7 +34,7 @@
               {% endif %}
               {% if rfp.interview_status in ['in_progress', 'completed'] %}
               <form method="post" action="{{ ivb }}/interview/reset"
-                    onsubmit="return confirm('인터뷰를 처음부터 다시 시작할까요?')" class="d-inline mb-0">
+                    data-app-confirm="인터뷰를 처음부터 다시 시작할까요?" class="d-inline mb-0">
                 <button type="submit" class="btn btn-outline-danger">
                   <i class="fa-solid fa-rotate-left me-1"></i>인터뷰 재시작
                 </button>

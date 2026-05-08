@@ -129,26 +129,28 @@
         var payload = res.body.payload;
         var scope = pendingScope;
         var collapse = pendingCollapse;
-        var ok;
+        var applyPromise;
         if (scope === 'integration') {
           if (typeof window.applyIntegrationGalleryRefPayload !== 'function') {
             throw new Error('참고 코드 스크립트가 로드되지 않았습니다. 페이지를 새로고침해 주세요.');
           }
-          ok = window.applyIntegrationGalleryRefPayload(payload, collapse);
+          applyPromise = window.applyIntegrationGalleryRefPayload(payload, collapse);
         } else if (scope === 'rfp' || scope === 'abap') {
           if (typeof window.applyRfpGalleryRefPayload !== 'function') {
             throw new Error('참고 코드 스크립트가 로드되지 않았습니다. 페이지를 새로고침해 주세요.');
           }
-          ok = window.applyRfpGalleryRefPayload(payload, collapse);
+          applyPromise = window.applyRfpGalleryRefPayload(payload, collapse);
         } else {
           throw new Error('알 수 없는 가져오기 범위입니다.');
         }
-        if (ok === false) return;
-        if (!ok) throw new Error('폼에 적용하지 못했습니다.');
-        if (window.bootstrap && modalEl) {
-          var inst = window.bootstrap.Modal.getInstance(modalEl);
-          if (inst) inst.hide();
-        }
+        return Promise.resolve(applyPromise).then(function (ok) {
+          if (ok === false) return;
+          if (!ok) throw new Error('폼에 적용하지 못했습니다.');
+          if (window.bootstrap && modalEl) {
+            var inst = window.bootstrap.Modal.getInstance(modalEl);
+            if (inst) inst.hide();
+          }
+        });
       })
       .catch(function (e) {
         showErr(e.message || '오류가 발생했습니다.');

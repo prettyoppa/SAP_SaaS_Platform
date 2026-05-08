@@ -56,7 +56,7 @@
                 </button>
               </form>
               <form method="post" action="/codelib/{{ code.id }}/delete" style="display:inline"
-                    onsubmit="return confirm('이 코드를 삭제할까요? 되돌릴 수 없습니다.')">
+                    data-app-confirm="이 코드를 삭제할까요? 되돌릴 수 없습니다.">
                 <button type="submit" class="btn btn-outline-danger btn-sm">
                   <i class="fa-solid fa-trash me-1"></i>삭제
                 </button>

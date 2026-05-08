@@ -55,7 +55,7 @@
                       </button>
                     </form>
                     <form method="post" action="/admin/modules/{{ mod.id }}/delete" style="display:inline"
-                          onsubmit="return confirm('{{ mod.code }} 모듈을 삭제할까요?')">
+                          data-app-confirm="{{ mod.code }} 모듈을 삭제할까요?">
                       <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
                         <i class="fa-solid fa-trash"></i>
                       </button>

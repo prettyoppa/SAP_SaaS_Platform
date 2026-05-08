@@ -68,7 +68,7 @@
               <span class="badge bg-secondary me-2">검토 중</span>
               {% endif %}
               <form method="post" action="/reviews/{{ r.id }}/delete" class="d-inline"
-                    onsubmit="return confirm('후기를 삭제할까요?')">
+                    data-app-confirm="후기를 삭제할까요?">
                 <button type="submit" class="btn btn-xs btn-outline-danger">
                   <i class="fa-solid fa-trash"></i>
                 </button>

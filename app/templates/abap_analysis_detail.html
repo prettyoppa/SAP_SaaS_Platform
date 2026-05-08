@@ -43,7 +43,7 @@
               </form>
               {% endif %}
               <form method="post" action="/abap-analysis/{{ row.id }}/delete" style="display:inline"
-                    onsubmit="return confirm('이 분석 요청을 삭제할까요? 첨부 파일과 분석 결과가 함께 삭제되며 되돌릴 수 없습니다.')">
+                    data-app-confirm="이 분석 요청을 삭제할까요? 첨부 파일과 분석 결과가 함께 삭제되며 되돌릴 수 없습니다.">
                 <button type="submit" class="btn btn-outline-danger btn-sm">
                   <i class="fa-solid fa-trash me-1"></i>삭제
                 </button>

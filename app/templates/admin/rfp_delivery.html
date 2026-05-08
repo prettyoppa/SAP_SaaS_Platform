@@ -74,7 +74,7 @@
               <span class="text-muted">({% if s.uploaded_at %}{{ s.uploaded_at|local_dt_span }}{% else %}—{% endif %})</span>
             </div>
             <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-supplement/{{ s.id }}/delete"
-              class="d-inline flex-shrink-0" onsubmit="return confirm('이 첨부를 삭제할까요?');">
+              class="d-inline flex-shrink-0" data-app-confirm="이 첨부를 삭제할까요?">
               <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
             </form>
           </div>

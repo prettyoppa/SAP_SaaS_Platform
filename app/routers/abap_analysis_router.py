@@ -32,6 +32,7 @@ from ..menu_landing import (
     menu_landing_url,
     parse_slashed_date,
     standard_menu_bucket_meta,
+    user_proposal_pending_offer_badges,
 )
 from ..attachment_context import build_attachment_llm_digest
 from ..rfp_reference_code import (
@@ -192,18 +193,16 @@ def _analysis_offer_rows(db: Session, req_id: int) -> list[models.RequestOffer]:
     )
 
 
-def _offered_analysis_id_set(db: Session, ids: list[int]) -> set[int]:
+def _offered_analysis_id_set(db: Session, ids: list[int], *, pending_only: bool = False) -> set[int]:
     if not ids:
         return set()
-    rows = (
-        db.query(models.RequestOffer.request_id)
-        .filter(
-            models.RequestOffer.request_kind == "analysis",
-            models.RequestOffer.request_id.in_(ids),
-        )
-        .distinct()
-        .all()
+    q = db.query(models.RequestOffer.request_id).filter(
+        models.RequestOffer.request_kind == "analysis",
+        models.RequestOffer.request_id.in_(ids),
     )
+    if pending_only:
+        q = q.filter(models.RequestOffer.status == "offered")
+    rows = q.distinct().all()
     return {int(r[0]) for r in rows if r and r[0] is not None}
 
 
@@ -413,11 +412,16 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
                 date_from=date_from_dt,
                 date_to=date_to_dt,
             )
-            offered_ids = _offered_analysis_id_set(db, [int(x.id) for x in filtered_rows])
+            offered_ids = _offered_analysis_id_set(
+                db, [int(x.id) for x in filtered_rows], pending_only=True
+            )
             for row in filtered_rows:
                 setattr(row, "has_offer", int(row.id) in offered_ids)
 
     bucket_meta = standard_menu_bucket_meta()
+    proposal_offer_badges = (
+        user_proposal_pending_offer_badges(db, user.id) if user else {"rfp": False, "analysis": False, "integration": False}
+    )
 
     return templates.TemplateResponse(
         request,
@@ -439,6 +443,7 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
             "filtered_menu_rows": filtered_rows if user else [],
             "show_request_owner": show_request_owner,
             "menu_landing_form_action": "/abap-analysis",
+            "proposal_offer_badges": proposal_offer_badges,
         },
     )
 

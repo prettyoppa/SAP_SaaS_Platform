@@ -482,7 +482,9 @@
     var delAll = document.getElementById('ref-delete-all-btn');
     if (delAll) {
       delAll.addEventListener('click', function () {
-        if (!confirm('입력한 참고 코드를 모두 삭제할까요? 이 요청 분석·제안에 더 이상 반영되지 않습니다.')) return;
+        var msg =
+          '입력한 참고 코드를 모두 삭제할까요? 이 요청 분석·제안에 더 이상 반영되지 않습니다.';
+        var runWipe = function () {
         var id = requestId();
         function wipeLocal() {
           visibleSlotCount = 1;
@@ -508,6 +510,14 @@
         } else {
           wipeLocal();
         }
+        };
+        if (typeof window.appConfirm === 'function') {
+          window.appConfirm(msg).then(function (ok) {
+            if (ok) runWipe();
+          });
+        } else if (window.confirm(msg)) {
+          runWipe();
+        }
       });
     }
 
@@ -532,66 +542,70 @@
   }
 
   function applyGalleryRefPayload(payload, collapseSelector) {
-    if (!payload || !Array.isArray(payload.slots)) return false;
+    if (!payload || !Array.isArray(payload.slots)) return Promise.resolve(false);
     var host = document.getElementById('ref-code-slots-host');
-    if (!host) return false;
-    if (
+    if (!host) return Promise.resolve(false);
+    var needConfirm =
       typeof window.countIntegrationRefCodeSlotsFilled === 'function' &&
-      window.countIntegrationRefCodeSlotsFilled() > 0
-    ) {
-      if (
-        !confirm(
-          '이미 입력된 참고 코드가 있습니다. 갤러리 항목으로 바꿀까요? (저장된 내용은 덮어씌워집니다)',
-        )
-      ) {
-        return false;
+      window.countIntegrationRefCodeSlotsFilled() > 0;
+    var confirmMsg =
+      '이미 입력된 참고 코드가 있습니다. 갤러리 항목으로 바꿀까요? (저장된 내용은 덮어씌워집니다)';
+    var doApply = function () {
+      expandRefCollapseMaybe(collapseSelector);
+      visibleSlotCount = 1;
+      var fromData = minSlotsFromPayload(payload.slots);
+      var saved =
+        typeof payload.visibleSlotCount === 'number' ? payload.visibleSlotCount : 1;
+      visibleSlotCount = Math.min(MAX_SLOTS, Math.max(1, saved, fromData));
+
+      for (var i = 0; i < MAX_SLOTS; i++) {
+        var slotData = payload.slots[i] || {};
+        var root = document.querySelector('[data-ref-slot="' + i + '"]');
+        if (root) {
+          var ctSel = root.querySelector('.js-ref-code-type');
+          if (ctSel) ctSel.value = 'abap';
+          var pid = root.querySelector('.js-ref-pid');
+          var tc = root.querySelector('.js-ref-tcode');
+          var tit = root.querySelector('.js-ref-title');
+          if (pid) pid.value = slotData.program_id || '';
+          if (tc) tc.value = slotData.transaction_code || '';
+          if (tit) tit.value = slotData.title || '';
+        }
+
+        toggleAbapMeta(i);
+        rebuildSections(
+          i,
+          slotData.sections && slotData.sections.length ? slotData.sections : defaultSections('abap'),
+        );
+
+        if (root) {
+          root.querySelectorAll('.ref-mod-' + i).forEach(function (cb) {
+            cb.checked = (slotData.sap_modules || []).indexOf(cb.value) >= 0;
+          });
+          root.querySelectorAll('.ref-dt-' + i).forEach(function (cb) {
+            cb.checked = (slotData.dev_types || []).indexOf(cb.value) >= 0;
+          });
+        }
       }
-    }
-    expandRefCollapseMaybe(collapseSelector);
-    visibleSlotCount = 1;
-    var fromData = minSlotsFromPayload(payload.slots);
-    var saved =
-      typeof payload.visibleSlotCount === 'number' ? payload.visibleSlotCount : 1;
-    visibleSlotCount = Math.min(MAX_SLOTS, Math.max(1, saved, fromData));
 
-    for (var i = 0; i < MAX_SLOTS; i++) {
-      var slotData = payload.slots[i] || {};
-      var root = document.querySelector('[data-ref-slot="' + i + '"]');
-      if (root) {
-        var ctSel = root.querySelector('.js-ref-code-type');
-        if (ctSel) ctSel.value = 'abap';
-        var pid = root.querySelector('.js-ref-pid');
-        var tc = root.querySelector('.js-ref-tcode');
-        var tit = root.querySelector('.js-ref-title');
-        if (pid) pid.value = slotData.program_id || '';
-        if (tc) tc.value = slotData.transaction_code || '';
-        if (tit) tit.value = slotData.title || '';
-      }
-
-      toggleAbapMeta(i);
-      rebuildSections(
-        i,
-        slotData.sections && slotData.sections.length ? slotData.sections : defaultSections('abap'),
-      );
-
-      if (root) {
-        root.querySelectorAll('.ref-mod-' + i).forEach(function (cb) {
-          cb.checked = (slotData.sap_modules || []).indexOf(cb.value) >= 0;
+      applySlotVisibility();
+      for (var k = 0; k < MAX_SLOTS; k++) refreshSlotCounts(k);
+      syncHiddenInput();
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = null;
+      pushServer();
+      if (typeof window.updateIntegrationReview === 'function') window.updateIntegrationReview();
+      return true;
+    };
+    if (needConfirm) {
+      if (typeof window.appConfirm === 'function') {
+        return window.appConfirm(confirmMsg).then(function (ok) {
+          return ok ? doApply() : false;
         });
-        root.querySelectorAll('.ref-dt-' + i).forEach(function (cb) {
-          cb.checked = (slotData.dev_types || []).indexOf(cb.value) >= 0;
-        });
       }
+      if (!window.confirm(confirmMsg)) return Promise.resolve(false);
     }
-
-    applySlotVisibility();
-    for (var k = 0; k < MAX_SLOTS; k++) refreshSlotCounts(k);
-    syncHiddenInput();
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = null;
-    pushServer();
-    if (typeof window.updateIntegrationReview === 'function') window.updateIntegrationReview();
-    return true;
+    return Promise.resolve(doApply());
   }
 
   window.initIntegrationRefCode = init;

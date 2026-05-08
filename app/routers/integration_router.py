@@ -5,7 +5,7 @@ import json
 import os
 from datetime import datetime
 from types import SimpleNamespace
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -31,6 +31,7 @@ from ..menu_landing import (
     menu_landing_url,
     parse_slashed_date,
     standard_menu_bucket_meta,
+    user_proposal_pending_offer_badges,
 )
 from ..rfp_landing import (
     DEFAULT_SERVICE_ABAP_INTRO_MD_KO,
@@ -173,19 +174,70 @@ def _console_rows_from_offers(db: Session, consultant_user_id: int, *, matched_o
     return out
 
 
-def _offered_request_id_set(db: Session, request_kind: str, ids: list[int]) -> set[int]:
+def _offered_request_id_set(
+    db: Session, request_kind: str, ids: list[int], *, pending_only: bool = False
+) -> set[int]:
     if not ids:
         return set()
-    rows = (
-        db.query(models.RequestOffer.request_id)
+    q = db.query(models.RequestOffer.request_id).filter(
+        models.RequestOffer.request_kind == request_kind,
+        models.RequestOffer.request_id.in_(ids),
+    )
+    if pending_only:
+        q = q.filter(models.RequestOffer.status == "offered")
+    rows = q.distinct().all()
+    return {int(r[0]) for r in rows if r and r[0] is not None}
+
+
+def _consultant_active_offer_sel_keys(db: Session, consultant_user_id: int) -> set[str]:
+    keys: set[str] = set()
+    offers = (
+        db.query(models.RequestOffer)
         .filter(
-            models.RequestOffer.request_kind == request_kind,
-            models.RequestOffer.request_id.in_(ids),
+            models.RequestOffer.consultant_user_id == consultant_user_id,
+            models.RequestOffer.status == "offered",
         )
-        .distinct()
         .all()
     )
-    return {int(r[0]) for r in rows if r and r[0] is not None}
+    for of in offers:
+        if of.request_kind == "rfp":
+            keys.add(f"rfp:{of.request_id}")
+        elif of.request_kind == "analysis":
+            keys.add(f"ana:{of.request_id}")
+        elif of.request_kind == "integration":
+            keys.add(f"int:{of.request_id}")
+    return keys
+
+
+def _request_console_return_location(
+    *,
+    return_kind: str,
+    return_bucket: str,
+    return_sel: str,
+    return_title: str,
+    return_date_from: str,
+    return_date_to: str,
+) -> str:
+    rk = (return_kind or "all").strip().lower()
+    if rk not in _REQ_CONSOLE_KINDS:
+        rk = "all"
+    rb = (return_bucket or "all").strip().lower()
+    if rb not in _REQ_CONSOLE_BUCKETS:
+        rb = "all"
+    params: dict[str, str] = {"kind": rk, "bucket": rb}
+    sel = (return_sel or "").strip()
+    if sel:
+        params["sel"] = sel
+    tt = (return_title or "").strip()
+    if tt:
+        params["title"] = tt
+    df = (return_date_from or "").strip()
+    if df:
+        params["date_from"] = df
+    dto = (return_date_to or "").strip()
+    if dto:
+        params["date_to"] = dto
+    return "/request-console?" + urlencode(params)
 
 
 def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
@@ -340,6 +392,9 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
         rows = matched_rows
 
     rows.sort(key=lambda x: x.get("created_at") or 0, reverse=True)
+    active_offer_keys = _consultant_active_offer_sel_keys(db, user.id)
+    for row in rows:
+        row["consultant_has_offered"] = row.get("sel_key") in active_offer_keys
     selected_key = (request.query_params.get("sel") or "").strip()
     selected_row = next((r for r in rows if r["sel_key"] == selected_key), None) if selected_key else None
     if selected_row is None and rows:
@@ -378,6 +433,12 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
 def request_console_offer_submit(
     request: Request,
     sel_key: str = Form(""),
+    return_kind: str = Form("all"),
+    return_bucket: str = Form("all"),
+    return_sel: str = Form(""),
+    return_title: str = Form(""),
+    return_date_from: str = Form(""),
+    return_date_to: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -425,7 +486,15 @@ def request_console_offer_submit(
         )
         db.commit()
 
-    return RedirectResponse(url=f"/request-console?kind=offer&sel={quote(raw)}", status_code=303)
+    loc = _request_console_return_location(
+        return_kind=return_kind,
+        return_bucket=return_bucket,
+        return_sel=(return_sel or "").strip() or raw,
+        return_title=return_title,
+        return_date_from=return_date_from,
+        return_date_to=return_date_to,
+    )
+    return RedirectResponse(url=loc, status_code=303)
 
 
 @router.get("/services/abap", response_class=HTMLResponse)
@@ -478,11 +547,16 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
                 date_from=date_from_dt,
                 date_to=date_to_dt,
             )
-            offered_ids = _offered_request_id_set(db, "rfp", [int(x.id) for x in rfps_filtered])
+            offered_ids = _offered_request_id_set(
+                db, "rfp", [int(x.id) for x in rfps_filtered], pending_only=True
+            )
             for row in rfps_filtered:
                 setattr(row, "has_offer", int(row.id) in offered_ids)
 
     bucket_meta = standard_menu_bucket_meta()
+    proposal_offer_badges = (
+        user_proposal_pending_offer_badges(db, user.id) if user else {"rfp": False, "analysis": False, "integration": False}
+    )
     return templates.TemplateResponse(
         request,
         "services_abap.html",
@@ -502,6 +576,7 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
             "svc_abap_date_to_raw": date_to_raw or "",
             "show_rfp_owner": show_rfp_owner,
             "bucket_meta": bucket_meta,
+            "proposal_offer_badges": proposal_offer_badges,
         },
     )
 
@@ -550,11 +625,16 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
                 date_from=date_from_dt,
                 date_to=date_to_dt,
             )
-            offered_ids = _offered_request_id_set(db, "integration", [int(x.id) for x in filtered_rows])
+            offered_ids = _offered_request_id_set(
+                db, "integration", [int(x.id) for x in filtered_rows], pending_only=True
+            )
             for row in filtered_rows:
                 setattr(row, "has_offer", int(row.id) in offered_ids)
 
     bucket_meta = standard_menu_bucket_meta()
+    proposal_offer_badges = (
+        user_proposal_pending_offer_badges(db, user.id) if user else {"rfp": False, "analysis": False, "integration": False}
+    )
     return templates.TemplateResponse(
         request,
         "integration_landing.html",
@@ -575,6 +655,7 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
             "filtered_menu_rows": filtered_rows if user else [],
             "show_request_owner": show_request_owner,
             "menu_landing_form_action": "/integration",
+            "proposal_offer_badges": proposal_offer_badges,
             **_integration_impl_ui_ctx(db),
         },
     )

@@ -61,7 +61,7 @@
                       </button>
                     </form>
                     <form method="post" action="/admin/devtypes/{{ dt.id }}/delete" style="display:inline"
-                          onsubmit="return confirm('{{ dt.code }} 개발유형을 삭제할까요?')">
+                          data-app-confirm="{{ dt.code }} 개발유형을 삭제할까요?">
                       <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
                         <i class="fa-solid fa-trash"></i>
                       </button>

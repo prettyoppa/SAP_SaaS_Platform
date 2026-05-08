@@ -25,7 +25,7 @@
       </div>
       <div class="d-flex gap-2 flex-wrap align-items-center">
         <form method="post" action="/integration/{{ ir.id }}/delete" class="d-inline"
-              onsubmit="return confirmI18n('detail.deleteConfirmInt')">
+              data-app-confirm-i18n="detail.deleteConfirmInt">
           <button type="submit" class="btn btn-outline-danger btn-sm">
             <i class="fa-solid fa-trash me-1"></i><span data-i18n="common.delete">삭제</span>
           </button>

@@ -52,7 +52,7 @@
         <i class="fa-solid fa-eye me-1"></i><span data-i18n="common.detail">상세</span>
       </a>
       <form method="post" action="/codelib/{{ code.id }}/delete" class="d-inline"
-            onsubmit="return confirm('이 코드를 삭제할까요? 되돌릴 수 없습니다.')">
+            data-app-confirm="이 코드를 삭제할까요? 되돌릴 수 없습니다.">
         <button type="submit" class="btn btn-sm btn-outline-danger" title="삭제">
           <i class="fa-solid fa-trash"></i>
         </button>
@@ -85,7 +85,7 @@
       <i class="fa-solid fa-eye me-1"></i><span data-i18n="common.detail">상세</span>
     </a>
     <form method="post" action="/codelib/{{ code.id }}/delete" class="d-inline"
-          onsubmit="return confirm('이 코드를 삭제할까요? 되돌릴 수 없습니다.')">
+          data-app-confirm="이 코드를 삭제할까요? 되돌릴 수 없습니다.">
       <button type="submit" class="btn btn-sm btn-outline-danger" title="삭제">
         <i class="fa-solid fa-trash"></i>
       </button>

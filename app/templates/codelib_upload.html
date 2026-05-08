@@ -259,7 +259,7 @@
         {% if edit_code %}
         <div class="mt-4 pt-3 border-top" style="border-color:var(--border)!important;">
           <form method="post" action="/codelib/{{ edit_code.id }}/delete"
-                onsubmit="return confirm('이 코드를 삭제할까요? 되돌릴 수 없습니다.')">
+                data-app-confirm="이 코드를 삭제할까요? 되돌릴 수 없습니다.">
             <button type="submit" class="btn btn-outline-danger">
               <i class="fa-solid fa-trash me-2"></i>이 항목 삭제
             </button>

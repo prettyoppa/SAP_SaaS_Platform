@@ -198,7 +198,7 @@
                 <span class="text-muted small">—</span>
                 {% else %}
                 <form method="post" action="/admin/users/{{ u.id }}/consultant-toggle" class="d-inline"
-                      onsubmit="return confirm('이 계정의 컨설턴트 권한을 변경할까요?');">
+                      data-app-confirm="이 계정의 컨설턴트 권한을 변경할까요?">
                   <button type="submit" class="btn btn-sm {% if u.is_consultant %}btn-outline-primary{% else %}btn-primary{% endif %}">
                     {% if u.is_consultant %}권한 해제{% else %}권한 부여{% endif %}
                   </button>
@@ -215,7 +215,7 @@
                 <span class="text-muted small">—</span>
                 {% else %}
                 <form method="post" action="/admin/users/{{ u.id }}/delete" class="d-inline"
-                      onsubmit="return confirm('이 계정과 연관 데이터(RFP, 코드, 이용후기 등)를 모두 삭제할까요? 되돌릴 수 없습니다.');">
+                      data-app-confirm="이 계정과 연관 데이터(RFP, 코드, 이용후기 등)를 모두 삭제할까요? 되돌릴 수 없습니다.">
                   <button type="submit" class="btn btn-sm btn-danger btn-admin-user-delete">삭제</button>
                 </form>
                 {% endif %}
@@ -225,7 +225,7 @@
                 <span class="text-muted small">—</span>
                 {% else %}
                 <form method="post" action="/admin/users/{{ u.id }}/purge-now" class="d-inline"
-                      onsubmit="return confirm('탈퇴 유예 중인 이 계정을 지금 영구 삭제할까요? 되돌릴 수 없습니다.');">
+                      data-app-confirm="탈퇴 유예 중인 이 계정을 지금 영구 삭제할까요? 되돌릴 수 없습니다.">
                   <button type="submit" class="btn btn-sm btn-warning text-dark">유예 즉시</button>
                 </form>
                 {% endif %}

@@ -44,6 +44,7 @@ __all__ = [
     "filtered_integration_menu_rows",
     "DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO",
     "DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO",
+    "user_proposal_pending_offer_badges",
 ]
 
 
@@ -233,3 +234,47 @@ def filtered_integration_menu_rows(
     if bucket == "all":
         return rows
     return [row for row in rows if integration_menu_bucket(row) == bucket]
+
+
+def user_proposal_pending_offer_badges(db: Session, user_id: int) -> dict[str, bool]:
+    """본인 소유 요청 중 '제안' 버킷에 대해 아직 매칭되지 않은 오퍼(status=offered)가 있으면 True."""
+
+    if not user_id:
+        return {"rfp": False, "analysis": False, "integration": False}
+
+    rfps = db.query(models.RFP).filter(models.RFP.user_id == user_id).all()
+    rfp_ids = [r.id for r in rfps if rfp_landing_bucket(r) == "proposal"]
+
+    analyses = (
+        db.query(models.AbapAnalysisRequest)
+        .filter(models.AbapAnalysisRequest.user_id == user_id)
+        .all()
+    )
+    ana_ids = [r.id for r in analyses if abap_analysis_menu_bucket(r) == "proposal"]
+
+    ints = (
+        db.query(models.IntegrationRequest)
+        .filter(models.IntegrationRequest.user_id == user_id)
+        .all()
+    )
+    int_ids = [r.id for r in ints if integration_menu_bucket(r) == "proposal"]
+
+    def _has(kind: str, ids: list[int]) -> bool:
+        if not ids:
+            return False
+        return (
+            db.query(models.RequestOffer.id)
+            .filter(
+                models.RequestOffer.request_kind == kind,
+                models.RequestOffer.request_id.in_(ids),
+                models.RequestOffer.status == "offered",
+            )
+            .first()
+            is not None
+        )
+
+    return {
+        "rfp": _has("rfp", rfp_ids),
+        "analysis": _has("analysis", ana_ids),
+        "integration": _has("integration", int_ids),
+    }

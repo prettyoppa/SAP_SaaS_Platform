@@ -1,13 +1,18 @@
 {# 대시보드 rfp-list-card-v2 와 동일 (RFP 전용) — context: rfp #}
 {% set rfp_wo = (rfp.workflow_origin or 'direct')|trim %}
-<div class="menu-list-card{% if rfp_wo == 'abap_analysis' %} menu-list-card--workflow-from-abap{% endif %}">
+<div class="menu-list-card{% if rfp_wo == 'abap_analysis' %} menu-list-card--workflow-from-abap{% endif %}{% if rfp.has_offer %} menu-list-card--offer-attention{% endif %}">
 {% if rfp_wo == 'abap_analysis' %}
 <div class="rfp-workflow-abap-ribbon" aria-hidden="true">
   <span class="rfp-workflow-abap-ribbon__text" data-i18n="detail.analysisTag">분석·개선</span>
 </div>
 {% endif %}
 {% if rfp.has_offer %}
-<div class="request-offer-marquee" aria-hidden="true"><span>오퍼가 존재합니다. 확인하세요.</span></div>
+<div class="request-offer-marquee" aria-hidden="true">
+  <div class="request-offer-marquee__track">
+    <span>오퍼가 존재합니다. 확인하세요.</span>
+    <span aria-hidden="true">오퍼가 존재합니다. 확인하세요.</span>
+  </div>
+</div>
 {% endif %}
 <div class="rfp-list-surface-tile">
 <div class="rfp-list-card rfp-list-card-v2">

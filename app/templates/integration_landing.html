@@ -29,9 +29,11 @@
     <div class="row g-3 mb-3 row-cols-2 row-cols-sm-3 row-cols-xl-6">
       {% for key in menu_tile_order %}
       {% set m = bucket_meta[key] %}
+      {% set proposal_offer_dot = key == 'proposal' and proposal_offer_badges.get('integration') %}
       <div class="col">
         <a href="{{ menu_tile_links[key] }}"
-           class="stat-card stat-card-sm stat-card-link text-decoration-none h-100 d-flex{% if selected_menu_bucket == key %} stat-card-tile-active{% endif %}">
+           class="stat-card stat-card-sm stat-card-link text-decoration-none h-100 d-flex{% if selected_menu_bucket == key %} stat-card-tile-active{% endif %}{% if proposal_offer_dot %} stat-card--proposal-offer-signal{% endif %}">
+          {% if proposal_offer_dot %}<span class="stat-card-offer-dot" aria-hidden="true"></span>{% endif %}
           <div class="stat-card-icon" style="background: {{ m.bg }}; color: {{ m.fg }}">
             <i class="fa-solid {{ m.icon }}"></i>
           </div>

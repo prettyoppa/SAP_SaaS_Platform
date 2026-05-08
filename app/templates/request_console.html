@@ -2,6 +2,7 @@
 {% block title %}요청 Console · SAP 개발 파트너{% endblock %}
 
 {% block content %}
+<script type="module" src="https://cdn.jsdelivr.net/npm/@awesome.me/webawesome@3.4.0/dist/webawesome.loader.min.js"></script>
 <style>
 .request-console-wrap {
   height: calc(100vh - 150px);
@@ -149,6 +150,33 @@ html[data-theme="dark"] .console-resizer:hover::after {
 .request-console-shell.is-resizing-panes * {
   user-select: none !important;
 }
+.console-tree wa-icon {
+  font-size: 1.1rem;
+  opacity: 0.92;
+  vertical-align: -0.2em;
+}
+.btn-console-offer {
+  font-weight: 600;
+  border-width: 2px;
+  color: #92400e;
+  border-color: #b45309;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+}
+.btn-console-offer:hover {
+  color: #78350f;
+  border-color: #92400e;
+  background: color-mix(in srgb, #f59e0b 22%, transparent);
+}
+html[data-theme="dark"] .btn-console-offer {
+  color: #fef3c7;
+  border-color: #fbbf24;
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+}
+html[data-theme="dark"] .btn-console-offer:hover {
+  color: #fffbeb;
+  border-color: #fde68a;
+  background: color-mix(in srgb, #f59e0b 28%, transparent);
+}
 </style>
 
 <div class="container-fluid py-3 request-console-wrap">
@@ -173,7 +201,7 @@ html[data-theme="dark"] .console-resizer:hover::after {
           <summary>
             <a class="lvl1-link console-nav-link" href="/request-console?kind=offer&bucket=all" data-no-busy="true">
               <span class="lvl1-label">
-                <i class="fa-solid fa-handshake-angle"></i>
+                <wa-icon name="hand-holding" label=""></wa-icon>
                 <span>오퍼</span>
                 <span class="text-muted">({{ counts_by_kind['offer']['all'] }})</span>
               </span>
@@ -184,7 +212,7 @@ html[data-theme="dark"] .console-resizer:hover::after {
           <summary>
             <a class="lvl1-link console-nav-link" href="/request-console?kind=matching&bucket=all" data-no-busy="true">
               <span class="lvl1-label">
-                <i class="fa-solid fa-link"></i>
+                <wa-icon name="hand-holding-hand" label=""></wa-icon>
                 <span>매칭</span>
                 <span class="text-muted">({{ counts_by_kind['matching']['all'] }})</span>
               </span>
@@ -251,18 +279,27 @@ html[data-theme="dark"] .console-resizer:hover::after {
 
     <aside class="console-pane console-pane-right p-3" id="pane-right">
       {% if selected_row %}
+      {% set can_console_offer = user.is_consultant and kind not in ('offer', 'matching') and selected_row.bucket == 'proposal' and not selected_row.consultant_has_offered %}
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div>
           <div class="small text-muted">{{ selected_row.request_no }} · {{ selected_row.kind_ko }}</div>
           <h5 class="mb-1">{{ selected_row.title }}</h5>
           <div class="small text-muted">{{ bucket_meta[selected_row.bucket].label }} · {{ selected_row.created_at|local_dt_span }}</div>
         </div>
-        <div class="d-flex gap-1">
+        <div class="d-flex gap-1 align-items-start">
           <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
-          <form method="post" action="/request-console/offer" id="console-offer-form">
+          {% if can_console_offer %}
+          <form method="post" action="/request-console/offer" id="console-offer-form" data-no-busy="true">
             <input type="hidden" name="sel_key" value="{{ selected_row.sel_key }}" />
-            <button type="submit" class="btn btn-sm btn-outline-warning" id="console-offer-btn">오퍼</button>
+            <input type="hidden" name="return_kind" value="{{ kind }}" />
+            <input type="hidden" name="return_bucket" value="{{ bucket }}" />
+            <input type="hidden" name="return_sel" value="{{ selected_row.sel_key }}" />
+            <input type="hidden" name="return_title" value="{{ menu_search_title }}" />
+            <input type="hidden" name="return_date_from" value="{{ menu_date_from_raw }}" />
+            <input type="hidden" name="return_date_to" value="{{ menu_date_to_raw }}" />
+            <button type="submit" class="btn btn-sm btn-console-offer" id="console-offer-btn">오퍼</button>
           </form>
+          {% endif %}
         </div>
       </div>
       <hr class="my-2" />
@@ -319,12 +356,28 @@ html[data-theme="dark"] .console-resizer:hover::after {
   const offerForm = document.getElementById('console-offer-form');
   if (offerForm) {
     offerForm.addEventListener('submit', (ev) => {
-      const ok = window.confirm('선택한 요청건에 대해 요청자에게 프로필과 알람이 전송됩니다.');
-      if (!ok) {
-        ev.preventDefault();
+      if (offerForm.dataset.consoleOfferSubmitting === '1') {
+        delete offerForm.dataset.consoleOfferSubmitting;
+        showInlineLoading(ev);
         return;
       }
-      showInlineLoading(ev);
+      ev.preventDefault();
+      const msg = '선택한 요청건에 대해 요청자에게 프로필과 알람이 전송됩니다.';
+      const proceed = () => {
+        offerForm.dataset.consoleOfferSubmitting = '1';
+        if (typeof offerForm.requestSubmit === 'function') offerForm.requestSubmit();
+        else offerForm.submit();
+      };
+      if (typeof window.appConfirm === 'function') {
+        window.appConfirm(msg).then((ok) => {
+          if (!ok) return;
+          showInlineLoading(ev);
+          proceed();
+        });
+      } else if (window.confirm(msg)) {
+        showInlineLoading(ev);
+        proceed();
+      }
     });
   }
   document.querySelectorAll('.console-nav-link').forEach((a) => {

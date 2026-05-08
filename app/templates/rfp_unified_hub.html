@@ -115,7 +115,7 @@
           <i class="fa-solid fa-pen me-1"></i><span data-i18n="common.edit">수정</span>
         </button>
         <form method="post" action="/rfp/{{ rfp.id }}/delete" class="d-inline"
-              onsubmit="return confirmI18n('hub.deleteRfpConfirm')">
+              data-app-confirm-i18n="hub.deleteRfpConfirm">
           <button type="submit" class="btn btn-outline-danger btn-sm"
                   {% if hub_delete_locked %}disabled title="기능명세(FS)가 있으면 삭제할 수 없습니다."{% endif %}>
             <i class="fa-solid fa-trash me-1"></i><span data-i18n="common.delete">삭제</span>

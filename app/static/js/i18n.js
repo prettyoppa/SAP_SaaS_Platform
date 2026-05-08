@@ -808,7 +808,7 @@ function applyTranslations() {
   });
 }
 
-/** Inline confirm(): use onsubmit="return confirmI18n('key')" */
+/** 레거시: 폼에는 data-app-confirm-i18n 사용 권장 (출처 표시 없음). */
 function confirmI18n(key) {
   const v = t(key);
   return window.confirm(v != null ? v : key);

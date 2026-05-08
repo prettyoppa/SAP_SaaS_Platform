@@ -147,6 +147,47 @@ function _readDatasetBusy(form, submitter) {
   return null;
 }
 
+/**
+ * 브라우저 기본 confirm(페이지 출처 표시) 대체 — Bootstrap 모달.
+ * @param {string} message
+ * @returns {Promise<boolean>}
+ */
+function appConfirm(message) {
+  const text = message != null && message !== '' ? String(message) : '';
+  return new Promise((resolve) => {
+    const modalEl = document.getElementById('appConfirmModal');
+    if (!modalEl || typeof bootstrap === 'undefined') {
+      resolve(window.confirm(text));
+      return;
+    }
+    const body = document.getElementById('appConfirmModalBody');
+    if (body) body.textContent = text;
+    const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
+    let resolved = false;
+    const finish = (v) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(v);
+    };
+    const okBtn = document.getElementById('appConfirmModalOk');
+    const onHidden = () => {
+      if (okBtn) okBtn.removeEventListener('click', onOkClick);
+      finish(false);
+    };
+    const onOkClick = (ev) => {
+      ev.preventDefault();
+      modalEl.removeEventListener('hidden.bs.modal', onHidden);
+      if (okBtn) okBtn.removeEventListener('click', onOkClick);
+      inst.hide();
+      finish(true);
+    };
+    modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+    if (okBtn) okBtn.addEventListener('click', onOkClick);
+    inst.show();
+  });
+}
+window.appConfirm = appConfirm;
+
 /* ── 테마 토글 (슬라이드 스위치 + role="switch") ──────────────────────────────── */
 function _syncThemeSwitchAria(theme, doc) {
   const d = doc || document;
@@ -278,6 +319,34 @@ function formatLocalDateTimes() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener(
+    'submit',
+    (e) => {
+      const form = e.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      if (form.dataset.appConfirmBypass === '1') {
+        delete form.dataset.appConfirmBypass;
+        return;
+      }
+      let msg = form.getAttribute('data-app-confirm');
+      const i18nKey = form.getAttribute('data-app-confirm-i18n');
+      if ((!msg || !String(msg).trim()) && i18nKey && typeof window.t === 'function') {
+        const tr = window.t(i18nKey);
+        if (tr != null && String(tr).trim()) msg = String(tr);
+      }
+      if (!msg || !String(msg).trim()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      appConfirm(String(msg)).then((ok) => {
+        if (!ok) return;
+        form.dataset.appConfirmBypass = '1';
+        if (typeof form.requestSubmit === 'function') form.requestSubmit();
+        else form.submit();
+      });
+    },
+    true,
+  );
+
   window.addEventListener('storage', (e) => {
     if (e.key !== 'theme') return;
     const next =
