@@ -2,7 +2,6 @@
 {% block title %}요청 Console · SAP 개발 파트너{% endblock %}
 
 {% block content %}
-<script type="module" src="https://cdn.jsdelivr.net/npm/@awesome.me/webawesome@3.4.0/dist/webawesome.loader.min.js"></script>
 <style>
 .request-console-wrap {
   height: calc(100vh - 150px);
@@ -201,7 +200,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
           <summary>
             <a class="lvl1-link console-nav-link" href="/request-console?kind=offer&bucket=all" data-no-busy="true">
               <span class="lvl1-label">
-                <wa-icon name="hand-holding" label=""></wa-icon>
+                <wa-icon name="hand-holding" aria-hidden="true"></wa-icon>
                 <span>오퍼</span>
                 <span class="text-muted">({{ counts_by_kind['offer']['all'] }})</span>
               </span>
@@ -212,7 +211,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
           <summary>
             <a class="lvl1-link console-nav-link" href="/request-console?kind=matching&bucket=all" data-no-busy="true">
               <span class="lvl1-label">
-                <wa-icon name="hand-holding-hand" label=""></wa-icon>
+                <wa-icon name="hand-holding-hand" aria-hidden="true"></wa-icon>
                 <span>매칭</span>
                 <span class="text-muted">({{ counts_by_kind['matching']['all'] }})</span>
               </span>
@@ -257,7 +256,9 @@ html[data-theme="dark"] .btn-console-offer:hover {
           <div class="d-flex justify-content-between align-items-center gap-2">
             <div class="fw-semibold text-truncate">
               <span class="mail-kind-icon">
-                {% if r.kind == 'abap' %}<i class="fa-solid fa-code"></i>
+                {% if kind == 'offer' %}<wa-icon name="hand-holding" aria-hidden="true"></wa-icon>
+                {% elif kind == 'matching' %}<wa-icon name="hand-holding-hand" aria-hidden="true"></wa-icon>
+                {% elif r.kind == 'abap' %}<i class="fa-solid fa-code"></i>
                 {% elif r.kind == 'analysis' %}<i class="fa-solid fa-hospital"></i>
                 {% elif r.kind == 'integration' %}<i class="fa-solid fa-link"></i>
                 {% else %}<i class="fa-solid fa-layer-group"></i>{% endif %}
@@ -297,7 +298,9 @@ html[data-theme="dark"] .btn-console-offer:hover {
             <input type="hidden" name="return_title" value="{{ menu_search_title }}" />
             <input type="hidden" name="return_date_from" value="{{ menu_date_from_raw }}" />
             <input type="hidden" name="return_date_to" value="{{ menu_date_to_raw }}" />
-            <button type="submit" class="btn btn-sm btn-console-offer" id="console-offer-btn">오퍼</button>
+            <button type="submit" class="btn btn-sm btn-console-offer d-inline-flex align-items-center" id="console-offer-btn">
+              <wa-icon name="hand-holding" aria-hidden="true"></wa-icon>오퍼
+            </button>
           </form>
           {% endif %}
         </div>

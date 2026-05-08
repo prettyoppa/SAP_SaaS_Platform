@@ -2328,6 +2328,16 @@ html[data-theme="light"] .abap-float-chat-resize {
   color: var(--text);
 }
 
+/* Web Awesome: 오퍼/매칭 배지·버튼 안 wa-icon 정렬 */
+.offer-status-badge-wa wa-icon {
+  font-size: 0.9em;
+  vertical-align: -0.12em;
+}
+.list-group-item .btn wa-icon {
+  font-size: 0.95em;
+  vertical-align: -0.1em;
+}
+
 .menu-list-card {
   position: relative;
   overflow: hidden;
