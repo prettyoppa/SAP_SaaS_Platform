@@ -456,3 +456,19 @@ class PhoneRegistrationCode(Base):
     attempt_count = Column(Integer, default=0, nullable=False)
     verified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RequestOffer(Base):
+    """컨설턴트가 요청건(RFP/ABAP 분석/연동)에 제출한 오퍼."""
+
+    __tablename__ = "request_offers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_kind = Column(String(16), nullable=False, index=True)  # rfp | analysis | integration
+    request_id = Column(Integer, nullable=False, index=True)
+    consultant_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status = Column(String(16), nullable=False, default="offered", index=True)  # offered | matched
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    matched_at = Column(DateTime, nullable=True)
+
+    consultant = relationship("User", foreign_keys=[consultant_user_id])

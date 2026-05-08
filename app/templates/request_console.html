@@ -169,6 +169,28 @@ html[data-theme="dark"] .console-resizer:hover::after {
       </div>
     <aside class="console-pane console-pane-left" id="pane-left">
       <div class="console-tree">
+        <details class="lvl1" {% if kind == 'offer' %}open{% endif %}>
+          <summary>
+            <a class="lvl1-link console-nav-link" href="/request-console?kind=offer&bucket=all" data-no-busy="true">
+              <span class="lvl1-label">
+                <i class="fa-solid fa-handshake-angle"></i>
+                <span>오퍼</span>
+                <span class="text-muted">({{ counts_by_kind['offer']['all'] }})</span>
+              </span>
+            </a>
+          </summary>
+        </details>
+        <details class="lvl1" {% if kind == 'matching' %}open{% endif %}>
+          <summary>
+            <a class="lvl1-link console-nav-link" href="/request-console?kind=matching&bucket=all" data-no-busy="true">
+              <span class="lvl1-label">
+                <i class="fa-solid fa-link"></i>
+                <span>매칭</span>
+                <span class="text-muted">({{ counts_by_kind['matching']['all'] }})</span>
+              </span>
+            </a>
+          </summary>
+        </details>
         {% set kind_icons = {'all':'fa-layer-group','abap':'fa-code','analysis':'fa-hospital','integration':'fa-link'} %}
         {% for k in ('all','abap','analysis','integration') %}
         <details class="lvl1" {% if kind == k %}open{% endif %}>
@@ -235,7 +257,13 @@ html[data-theme="dark"] .console-resizer:hover::after {
           <h5 class="mb-1">{{ selected_row.title }}</h5>
           <div class="small text-muted">{{ bucket_meta[selected_row.bucket].label }} · {{ selected_row.created_at|local_dt_span }}</div>
         </div>
-        <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
+        <div class="d-flex gap-1">
+          <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
+          <form method="post" action="/request-console/offer" id="console-offer-form">
+            <input type="hidden" name="sel_key" value="{{ selected_row.sel_key }}" />
+            <button type="submit" class="btn btn-sm btn-outline-warning" id="console-offer-btn">오퍼</button>
+          </form>
+        </div>
       </div>
       <hr class="my-2" />
       <div class="console-detail-frame-wrap">
@@ -285,6 +313,17 @@ html[data-theme="dark"] .console-resizer:hover::after {
   const openBtn = document.getElementById('console-open-detail');
   if (openBtn) {
     openBtn.addEventListener('click', (ev) => {
+      showInlineLoading(ev);
+    });
+  }
+  const offerForm = document.getElementById('console-offer-form');
+  if (offerForm) {
+    offerForm.addEventListener('submit', (ev) => {
+      const ok = window.confirm('선택한 요청건에 대해 요청자에게 프로필과 알람이 전송됩니다.');
+      if (!ok) {
+        ev.preventDefault();
+        return;
+      }
       showInlineLoading(ev);
     });
   }

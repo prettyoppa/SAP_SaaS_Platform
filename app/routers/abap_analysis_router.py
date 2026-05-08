@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime
 from typing import Any, List, Optional
 from urllib.parse import quote
 
@@ -176,6 +177,34 @@ def _set_attachments(row: models.AbapAnalysisRequest, entries: list[dict]) -> No
         row.attachments_json = None
         return
     row.attachments_json = json.dumps(entries, ensure_ascii=False)
+
+
+def _analysis_offer_rows(db: Session, req_id: int) -> list[models.RequestOffer]:
+    return (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.request_kind == "analysis",
+            models.RequestOffer.request_id == req_id,
+        )
+        .order_by(models.RequestOffer.created_at.desc())
+        .all()
+    )
+
+
+def _offered_analysis_id_set(db: Session, ids: list[int]) -> set[int]:
+    if not ids:
+        return set()
+    rows = (
+        db.query(models.RequestOffer.request_id)
+        .filter(
+            models.RequestOffer.request_kind == "analysis",
+            models.RequestOffer.request_id.in_(ids),
+        )
+        .distinct()
+        .all()
+    )
+    return {int(r[0]) for r in rows if r and r[0] is not None}
 
 
 def _effective_abap_source(row: models.AbapAnalysisRequest) -> str:
@@ -384,6 +413,9 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
                 date_from=date_from_dt,
                 date_to=date_to_dt,
             )
+            offered_ids = _offered_analysis_id_set(db, [int(x.id) for x in filtered_rows])
+            for row in filtered_rows:
+                setattr(row, "has_offer", int(row.id) in offered_ids)
 
     bucket_meta = standard_menu_bucket_meta()
 
@@ -882,6 +914,10 @@ def _prepare_abap_analysis_detail_ctx(
             "attachment_entries": _attachment_entries(row),
             "owner": owner,
             "source_program_groups": program_groups,
+            "request_offers": _analysis_offer_rows(db, row.id),
+            "request_offer_can_match": bool(user and row and user.id == row.user_id),
+            "request_offer_profile_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/profile",
+            "request_offer_match_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/match",
         }
 
     followup_messages = sorted(
@@ -908,6 +944,10 @@ def _prepare_abap_analysis_detail_ctx(
         "wf_err": wf_err,
         "source_program_groups": program_groups,
         "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
+        "request_offers": _analysis_offer_rows(db, row.id),
+        "request_offer_can_match": bool(user and row and user.id == row.user_id),
+        "request_offer_profile_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/profile",
+        "request_offer_match_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/match",
     }
 
 
@@ -1054,6 +1094,76 @@ def abap_analysis_chat_post(
     )
     db.commit()
     return RedirectResponse(url=f"{chat_base}#abap-followup-chat", status_code=303)
+
+
+@router.post("/{req_id}/offers/{offer_id}/match")
+def abap_analysis_offer_match(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row or row.user_id != user.id:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "analysis",
+            models.RequestOffer.request_id == req_id,
+        )
+        .first()
+    )
+    if not offer:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=303)
+    db.query(models.RequestOffer).filter(
+        models.RequestOffer.request_kind == "analysis",
+        models.RequestOffer.request_id == req_id,
+    ).update({"status": "offered", "matched_at": None}, synchronize_session=False)
+    offer.status = "matched"
+    offer.matched_at = datetime.utcnow()
+    db.add(offer)
+    db.commit()
+    return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=303)
+
+
+@router.get("/{req_id}/offers/{offer_id}/profile")
+def abap_analysis_offer_profile_download(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row or row.user_id != user.id:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "analysis",
+            models.RequestOffer.request_id == req_id,
+        )
+        .first()
+    )
+    if not offer or not offer.consultant:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    path = (getattr(offer.consultant, "consultant_profile_file_path", None) or "").strip()
+    fname = (getattr(offer.consultant, "consultant_profile_file_name", None) or "consultant_profile").strip() or "consultant_profile"
+    if not path:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    kind, ref = r2_storage.parse_storage_ref(path)
+    if kind == "r2":
+        if not r2_storage.is_configured():
+            return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+        return RedirectResponse(url=r2_storage.presigned_get_url(ref, fname), status_code=302)
+    if not os.path.isfile(ref):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    return FileResponse(ref, filename=fname)
 
 
 @router.get("/{req_id}/attachment")

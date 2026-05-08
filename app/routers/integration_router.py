@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime
 from types import SimpleNamespace
 from urllib.parse import quote
 
@@ -94,12 +95,97 @@ def _set_attachments(ir: models.IntegrationRequest, entries: list[dict]) -> None
     ir.attachments_json = json.dumps(entries, ensure_ascii=False)
 
 
-_REQ_CONSOLE_KINDS = ("all", "abap", "analysis", "integration")
+def _integration_offer_rows(db: Session, req_id: int) -> list[models.RequestOffer]:
+    return (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.request_kind == "integration",
+            models.RequestOffer.request_id == req_id,
+        )
+        .order_by(models.RequestOffer.created_at.desc())
+        .all()
+    )
+
+
+_REQ_CONSOLE_KINDS = ("all", "abap", "analysis", "integration", "offer", "matching")
 _REQ_CONSOLE_BUCKETS = ("all", "delivery", "proposal", "analysis", "in_progress", "draft")
 
 
 def _request_no(prefix: str, v: int) -> str:
     return f"{prefix}-{int(v)}"
+
+
+def _console_row_for_offer_target(db: Session, kind: str, req_id: int) -> dict[str, Any] | None:
+    k = (kind or "").strip().lower()
+    if k == "rfp":
+        row = (
+            db.query(models.RFP)
+            .options(joinedload(models.RFP.owner))
+            .filter(models.RFP.id == req_id)
+            .first()
+        )
+        if not row:
+            return None
+        return _console_row_from_rfp(row)
+    if k == "analysis":
+        row = (
+            db.query(models.AbapAnalysisRequest)
+            .options(joinedload(models.AbapAnalysisRequest.owner))
+            .filter(models.AbapAnalysisRequest.id == req_id)
+            .first()
+        )
+        if not row:
+            return None
+        return _console_row_from_analysis(row)
+    if k == "integration":
+        row = (
+            db.query(models.IntegrationRequest)
+            .options(joinedload(models.IntegrationRequest.owner))
+            .filter(models.IntegrationRequest.id == req_id)
+            .first()
+        )
+        if not row:
+            return None
+        return _console_row_from_integration(row)
+    return None
+
+
+def _console_rows_from_offers(db: Session, consultant_user_id: int, *, matched_only: bool) -> list[dict[str, Any]]:
+    st = "matched" if matched_only else "offered"
+    offers = (
+        db.query(models.RequestOffer)
+        .filter(
+            models.RequestOffer.consultant_user_id == consultant_user_id,
+            models.RequestOffer.status == st,
+        )
+        .order_by(models.RequestOffer.created_at.desc())
+        .all()
+    )
+    out: list[dict[str, Any]] = []
+    for of in offers:
+        row = _console_row_for_offer_target(db, of.request_kind, of.request_id)
+        if not row:
+            continue
+        row["offer_status"] = of.status
+        row["offer_id"] = of.id
+        out.append(row)
+    return out
+
+
+def _offered_request_id_set(db: Session, request_kind: str, ids: list[int]) -> set[int]:
+    if not ids:
+        return set()
+    rows = (
+        db.query(models.RequestOffer.request_id)
+        .filter(
+            models.RequestOffer.request_kind == request_kind,
+            models.RequestOffer.request_id.in_(ids),
+        )
+        .distinct()
+        .all()
+    )
+    return {int(r[0]) for r in rows if r and r[0] is not None}
 
 
 def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
@@ -193,6 +279,26 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
         k: counts_by_kind["abap"].get(k, 0) + counts_by_kind["analysis"].get(k, 0) + counts_by_kind["integration"].get(k, 0)
         for k in _REQ_CONSOLE_BUCKETS
     }
+    offered_rows = _console_rows_from_offers(db, user.id, matched_only=False)
+    matched_rows = _console_rows_from_offers(db, user.id, matched_only=True)
+    counts_by_kind["offer"] = _count_pack(
+        {
+            "delivery": sum(1 for r in offered_rows if r.get("bucket") == "delivery"),
+            "proposal": sum(1 for r in offered_rows if r.get("bucket") == "proposal"),
+            "analysis": sum(1 for r in offered_rows if r.get("bucket") == "analysis"),
+            "in_progress": sum(1 for r in offered_rows if r.get("bucket") == "in_progress"),
+            "draft": sum(1 for r in offered_rows if r.get("bucket") == "draft"),
+        }
+    )
+    counts_by_kind["matching"] = _count_pack(
+        {
+            "delivery": sum(1 for r in matched_rows if r.get("bucket") == "delivery"),
+            "proposal": sum(1 for r in matched_rows if r.get("bucket") == "proposal"),
+            "analysis": sum(1 for r in matched_rows if r.get("bucket") == "analysis"),
+            "in_progress": sum(1 for r in matched_rows if r.get("bucket") == "in_progress"),
+            "draft": sum(1 for r in matched_rows if r.get("bucket") == "draft"),
+        }
+    )
 
     rows: list[dict[str, Any]] = []
     if kind in ("all", "abap"):
@@ -228,6 +334,10 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             date_to=date_to_dt,
         )
         rows.extend(_console_row_from_integration(r) for r in irs)
+    if kind == "offer":
+        rows = offered_rows
+    if kind == "matching":
+        rows = matched_rows
 
     rows.sort(key=lambda x: x.get("created_at") or 0, reverse=True)
     selected_key = (request.query_params.get("sel") or "").strip()
@@ -241,6 +351,8 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
         "abap": "신규개발",
         "analysis": "분석개선",
         "integration": "연동개발",
+        "offer": "오퍼",
+        "matching": "매칭",
     }
     return templates.TemplateResponse(
         request,
@@ -260,6 +372,60 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "menu_date_to_raw": date_to_raw or "",
         },
     )
+
+
+@router.post("/request-console/offer")
+def request_console_offer_submit(
+    request: Request,
+    sel_key: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/request-console", status_code=302)
+    if not (user.is_admin or user.is_consultant):
+        return RedirectResponse(url="/", status_code=302)
+
+    raw = (sel_key or "").strip().lower()
+    if ":" not in raw:
+        return RedirectResponse(url="/request-console", status_code=303)
+    prefix, sid = raw.split(":", 1)
+    try:
+        req_id = int(sid)
+    except Exception:
+        return RedirectResponse(url="/request-console", status_code=303)
+
+    if prefix == "rfp":
+        req_kind = "rfp"
+    elif prefix == "ana":
+        req_kind = "analysis"
+    elif prefix == "int":
+        req_kind = "integration"
+    else:
+        return RedirectResponse(url="/request-console", status_code=303)
+
+    exists = (
+        db.query(models.RequestOffer)
+        .filter(
+            models.RequestOffer.request_kind == req_kind,
+            models.RequestOffer.request_id == req_id,
+            models.RequestOffer.consultant_user_id == user.id,
+        )
+        .first()
+    )
+    if not exists:
+        db.add(
+            models.RequestOffer(
+                request_kind=req_kind,
+                request_id=req_id,
+                consultant_user_id=user.id,
+                status="offered",
+                created_at=datetime.utcnow(),
+            )
+        )
+        db.commit()
+
+    return RedirectResponse(url=f"/request-console?kind=offer&sel={quote(raw)}", status_code=303)
 
 
 @router.get("/services/abap", response_class=HTMLResponse)
@@ -312,6 +478,9 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
                 date_from=date_from_dt,
                 date_to=date_to_dt,
             )
+            offered_ids = _offered_request_id_set(db, "rfp", [int(x.id) for x in rfps_filtered])
+            for row in rfps_filtered:
+                setattr(row, "has_offer", int(row.id) in offered_ids)
 
     bucket_meta = standard_menu_bucket_meta()
     return templates.TemplateResponse(
@@ -381,6 +550,9 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
                 date_from=date_from_dt,
                 date_to=date_to_dt,
             )
+            offered_ids = _offered_request_id_set(db, "integration", [int(x.id) for x in filtered_rows])
+            for row in filtered_rows:
+                setattr(row, "has_offer", int(row.id) in offered_ids)
 
     bucket_meta = standard_menu_bucket_meta()
     return templates.TemplateResponse(
@@ -1060,6 +1232,10 @@ def _collect_integration_unified_hub_ctx(
         "chat_error": chat_error,
         "max_followup_user_turns": INT_CHAT_MAX_USER,
         "hub_include_proposal_scripts": hub_scripts,
+        "request_offers": _integration_offer_rows(db, ir.id),
+        "request_offer_can_match": bool(user and ir and user.id == ir.user_id and not readonly_console),
+        "request_offer_profile_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/profile",
+        "request_offer_match_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/match",
     }
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
@@ -1231,6 +1407,88 @@ def integration_chat_post(
     )
     db.commit()
     return RedirectResponse(url=f"{chat_base}#integration-followup-chat", status_code=303)
+
+
+@router.post("/integration/{req_id}/offers/{offer_id}/match")
+def integration_offer_match(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
+        .first()
+    )
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "integration",
+            models.RequestOffer.request_id == req_id,
+        )
+        .first()
+    )
+    if not offer:
+        return RedirectResponse(url=f"/integration/{req_id}?phase=request", status_code=303)
+    db.query(models.RequestOffer).filter(
+        models.RequestOffer.request_kind == "integration",
+        models.RequestOffer.request_id == req_id,
+    ).update({"status": "offered", "matched_at": None}, synchronize_session=False)
+    offer.status = "matched"
+    offer.matched_at = datetime.utcnow()
+    db.add(offer)
+    db.commit()
+    return RedirectResponse(url=f"/integration/{req_id}?phase=request", status_code=303)
+
+
+@router.get("/integration/{req_id}/offers/{offer_id}/profile")
+def integration_offer_profile_download(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
+        .first()
+    )
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "integration",
+            models.RequestOffer.request_id == req_id,
+        )
+        .first()
+    )
+    if not offer or not offer.consultant:
+        return RedirectResponse(url=f"/integration/{req_id}?phase=request", status_code=302)
+    path = (getattr(offer.consultant, "consultant_profile_file_path", None) or "").strip()
+    fname = (getattr(offer.consultant, "consultant_profile_file_name", None) or "consultant_profile").strip() or "consultant_profile"
+    if not path:
+        return RedirectResponse(url=f"/integration/{req_id}?phase=request", status_code=302)
+    kind, ref = r2_storage.parse_storage_ref(path)
+    if kind == "r2":
+        if not r2_storage.is_configured():
+            return RedirectResponse(url=f"/integration/{req_id}?phase=request", status_code=302)
+        return RedirectResponse(url=r2_storage.presigned_get_url(ref, fname), status_code=302)
+    if not os.path.isfile(ref):
+        return RedirectResponse(url=f"/integration/{req_id}?phase=request", status_code=302)
+    return FileResponse(ref, filename=fname)
 
 
 @router.post("/integration/{req_id}/improvement-proposal")

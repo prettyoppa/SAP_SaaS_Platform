@@ -3,6 +3,7 @@ import json
 import mimetypes
 import os
 import zipfile
+from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
@@ -288,6 +289,19 @@ def _rfp_attachment_entries(rfp: models.RFP) -> list[dict]:
             "note": "",
         }]
     return []
+
+
+def _rfp_offer_rows(db: Session, rfp_id: int) -> list[models.RequestOffer]:
+    return (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.request_kind == "rfp",
+            models.RequestOffer.request_id == rfp_id,
+        )
+        .order_by(models.RequestOffer.created_at.desc())
+        .all()
+    )
 
 
 def _set_rfp_attachments(rfp: models.RFP, entries: list[dict]) -> None:
@@ -768,6 +782,10 @@ def _collect_rfp_unified_hub_ctx(
         "reference_section_count": ref_section_count,
         "tabs_base_id": tabs_base_id,
         "hub_include_proposal_scripts": proposal_scripts,
+        "request_offers": _rfp_offer_rows(db, rfp.id),
+        "request_offer_can_match": bool(user and rfp and user.id == rfp.user_id and not readonly_console),
+        "request_offer_profile_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/profile",
+        "request_offer_match_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/match",
     }
     ctx.update(delivered_fields)
 
@@ -866,6 +884,80 @@ def _rfp_ai_chat_redirect(rfp_id: int, return_to: str | None, chat_err: str | No
     base = f"/rfp/{rfp_id}/edit" if rt == "edit" else f"/rfp/{rfp_id}"
     suffix = f"?chat_err={quote(chat_err)}" if chat_err else ""
     return f"{base}{suffix}#rfp-followup-chat"
+
+
+@router.post("/rfp/{rfp_id}/offers/{offer_id}/match")
+def rfp_offer_match(
+    rfp_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
+    if not rfp:
+        return RedirectResponse(url="/rfp", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "rfp",
+            models.RequestOffer.request_id == rfp_id,
+        )
+        .first()
+    )
+    if not offer:
+        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=request", status_code=303)
+    db.query(models.RequestOffer).filter(
+        models.RequestOffer.request_kind == "rfp",
+        models.RequestOffer.request_id == rfp_id,
+    ).update({"status": "offered", "matched_at": None}, synchronize_session=False)
+    offer.status = "matched"
+    offer.matched_at = datetime.utcnow()
+    db.add(offer)
+    db.commit()
+    return RedirectResponse(url=f"/rfp/{rfp_id}?phase=request", status_code=303)
+
+
+@router.get("/rfp/{rfp_id}/offers/{offer_id}/profile")
+def rfp_offer_profile_download(
+    rfp_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
+    if not rfp:
+        return RedirectResponse(url="/rfp", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "rfp",
+            models.RequestOffer.request_id == rfp_id,
+        )
+        .first()
+    )
+    if not offer or not offer.consultant:
+        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=request", status_code=302)
+    path = (getattr(offer.consultant, "consultant_profile_file_path", None) or "").strip()
+    fname = (getattr(offer.consultant, "consultant_profile_file_name", None) or "consultant_profile").strip() or "consultant_profile"
+    if not path:
+        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=request", status_code=302)
+    kind, ref = r2_storage.parse_storage_ref(path)
+    if kind == "r2":
+        if not r2_storage.is_configured():
+            return RedirectResponse(url=f"/rfp/{rfp_id}?phase=request", status_code=302)
+        return RedirectResponse(url=r2_storage.presigned_get_url(ref, fname), status_code=302)
+    if not os.path.isfile(ref):
+        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=request", status_code=302)
+    return FileResponse(ref, filename=fname)
 
 
 @router.post("/rfp/{rfp_id}/chat")

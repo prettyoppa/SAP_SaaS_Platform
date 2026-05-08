@@ -2327,3 +2327,34 @@ html[data-theme="light"] .abap-float-chat-resize {
   color: var(--text);
 }
 
+.menu-list-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.request-offer-marquee {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.request-offer-marquee > span {
+  display: inline-block;
+  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.5;
+  color: var(--bs-warning);
+  transform: translateX(-110%);
+  animation: request-offer-marquee-x 8.5s linear infinite;
+}
+
+@keyframes request-offer-marquee-x {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(120%); }
+}
+

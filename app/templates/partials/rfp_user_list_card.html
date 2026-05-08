@@ -6,6 +6,9 @@
   <span class="rfp-workflow-abap-ribbon__text" data-i18n="detail.analysisTag">분석·개선</span>
 </div>
 {% endif %}
+{% if rfp.has_offer %}
+<div class="request-offer-marquee" aria-hidden="true"><span>오퍼가 존재합니다. 확인하세요.</span></div>
+{% endif %}
 <div class="rfp-list-surface-tile">
 <div class="rfp-list-card rfp-list-card-v2">
   <div class="rfp-list-left">
