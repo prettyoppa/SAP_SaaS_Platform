@@ -74,6 +74,9 @@
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
       <div class="rfp-hub-phase-body">
+        {% with request_offer_panel_wrap_class = 'mb-3' %}
+        {% include 'partials/request_offers_panel.html' %}
+        {% endwith %}
         {% if hub_proposal_generating %}
         <p class="text-muted small mb-0">
           <span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>
@@ -83,7 +86,6 @@
           {% set proposal_download_url = '/integration/' ~ (ir.id|string) ~ '/proposal/download' %}
           {% include 'partials/integration_hub_proposal_readonly.html' %}
         {% endif %}
-        {% include 'partials/request_offers_panel.html' %}
       </div>
     </details>
 

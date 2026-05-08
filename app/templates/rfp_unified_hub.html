@@ -198,6 +198,9 @@
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
       <div class="rfp-hub-phase-body">
+        {% with request_offer_panel_wrap_class = 'mb-3' %}
+        {% include 'partials/request_offers_panel.html' %}
+        {% endwith %}
         {% if hub_proposal_generating %}
           {% include 'partials/proposal_generating_panel.html' %}
         {% elif proposal_html %}
@@ -207,7 +210,6 @@
         {% else %}
           <p class="text-muted small mb-0" data-i18n="hub.proposalNone">제안서가 아직 없습니다. 인터뷰를 진행하면 생성할 수 있습니다.</p>
         {% endif %}
-        {% include 'partials/request_offers_panel.html' %}
       </div>
     </details>
 
