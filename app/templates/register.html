@@ -89,6 +89,21 @@
             <i class="fa-solid fa-circle-exclamation me-2"></i>
             <span>휴대폰 인증 시도 횟수를 초과했습니다. 인증번호를 다시 발송해 주세요.</span>
           </div>
+          {% elif error == 'consultant_profile_too_large' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>상세 프로필 첨부 파일은 최대 20MB까지 업로드할 수 있습니다.</span>
+          </div>
+          {% elif error == 'consultant_profile_upload_failed' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>상세 프로필 첨부 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.</span>
+          </div>
+          {% elif error == 'consultant_profile_required' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>컨설턴트 회원가입을 위해서는 프로필 첨부가 필요합니다. 일단 일반회원으로 가입 후 프로필 준비되시면 변경도 가능합니다.</span>
+          </div>
           {% endif %}
 
           {% if email_verification %}
@@ -98,7 +113,21 @@
           </div>
           {% endif %}
 
-          <form method="post" action="/register" id="registerForm" novalidate>
+          <form method="post" action="/register" id="registerForm" enctype="multipart/form-data" novalidate>
+            <div class="mb-3">
+              <label class="form-label d-block mb-2">가입 유형</label>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="account_type" id="accountTypeMember" value="member" {% if account_type != 'consultant' %}checked{% endif %}>
+                  <label class="form-check-label" for="accountTypeMember">일반회원</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="account_type" id="accountTypeConsultant" value="consultant" {% if account_type == 'consultant' %}checked{% endif %}>
+                  <label class="form-check-label" for="accountTypeConsultant">컨설턴트</label>
+                </div>
+              </div>
+            </div>
+
             {% if email_verification %}
             <!-- 이메일 + 인증메일 -->
             <div class="mb-3">
@@ -251,6 +280,24 @@
               </div>
               <div class="form-text">
                 이메일 동의는 이메일 인증 완료 후, SMS 동의는 휴대폰 인증 완료 후 활성화됩니다.
+              </div>
+            </div>
+
+            <div id="consultantProfileWrap" class="mb-4" {% if account_type != 'consultant' %}style="display:none"{% endif %}>
+              <label class="form-label d-flex justify-content-between align-items-center" for="consultantProfileFileInput">
+                <span>상세 프로필 첨부 (선택)</span>
+                <span class="text-muted small">최대 1건 · 20MB</span>
+              </label>
+              <div id="consultantProfileDropzone" class="consultant-dropzone">
+                <input type="file" name="consultant_profile_file" id="consultantProfileFileInput" class="consultant-dropzone-input"/>
+                <div class="consultant-dropzone-copy">
+                  <i class="fa-solid fa-file-arrow-up me-2"></i>
+                  파일을 드래그 앤 드롭하거나 클릭해서 첨부하세요.
+                </div>
+                <div class="small text-muted mt-2">
+                  지원 형식: 모든 파일 형식(*.*) / PDF, DOCX, PPTX, XLSX, 이미지, 압축파일 등
+                </div>
+                <div id="consultantProfileFileName" class="small mt-2 text-info" hidden></div>
               </div>
             </div>
 
@@ -413,6 +460,74 @@ document.addEventListener('click', function(e) {
     companyDropdown.style.display = 'none';
   }
 });
+
+// 가입 유형(일반/컨설턴트) + 컨설턴트 프로필 첨부 UI
+const accountTypeMember = document.getElementById('accountTypeMember');
+const accountTypeConsultant = document.getElementById('accountTypeConsultant');
+const consultantProfileWrap = document.getElementById('consultantProfileWrap');
+const consultantProfileDropzone = document.getElementById('consultantProfileDropzone');
+const consultantProfileInput = document.getElementById('consultantProfileFileInput');
+const consultantProfileFileName = document.getElementById('consultantProfileFileName');
+function updateAccountTypeUI() {
+  const isConsultant = !!(accountTypeConsultant && accountTypeConsultant.checked);
+  if (consultantProfileWrap) {
+    consultantProfileWrap.style.display = isConsultant ? '' : 'none';
+  }
+  if (!isConsultant && consultantProfileInput && consultantProfileInput.value) {
+    consultantProfileInput.value = '';
+    renderConsultantFileName();
+  }
+}
+if (accountTypeMember) accountTypeMember.addEventListener('change', updateAccountTypeUI);
+if (accountTypeConsultant) accountTypeConsultant.addEventListener('change', updateAccountTypeUI);
+updateAccountTypeUI();
+
+function renderConsultantFileName() {
+  if (!consultantProfileInput || !consultantProfileFileName) return;
+  const f = consultantProfileInput.files && consultantProfileInput.files[0];
+  if (!f) {
+    consultantProfileFileName.hidden = true;
+    consultantProfileFileName.textContent = '';
+    return;
+  }
+  consultantProfileFileName.hidden = false;
+  consultantProfileFileName.textContent = `첨부됨: ${f.name}`;
+}
+if (consultantProfileInput) {
+  consultantProfileInput.addEventListener('change', renderConsultantFileName);
+}
+if (consultantProfileDropzone && consultantProfileInput) {
+  const prevent = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+  };
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((name) => {
+    consultantProfileDropzone.addEventListener(name, prevent);
+  });
+  ['dragenter', 'dragover'].forEach((name) => {
+    consultantProfileDropzone.addEventListener(name, () => {
+      consultantProfileDropzone.classList.add('is-dragging');
+    });
+  });
+  ['dragleave', 'drop'].forEach((name) => {
+    consultantProfileDropzone.addEventListener(name, () => {
+      consultantProfileDropzone.classList.remove('is-dragging');
+    });
+  });
+  consultantProfileDropzone.addEventListener('drop', (ev) => {
+    const files = ev.dataTransfer && ev.dataTransfer.files ? ev.dataTransfer.files : null;
+    if (!files || files.length === 0) return;
+    if (window.DataTransfer) {
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      consultantProfileInput.files = dt.files;
+    } else {
+      consultantProfileInput.files = files;
+    }
+    renderConsultantFileName();
+  });
+  consultantProfileDropzone.addEventListener('click', () => consultantProfileInput.click());
+}
 
 // 인증메일/휴대폰 인증 상태
 let emailCodeVerified = false;
@@ -694,6 +809,21 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
       return;
     }
   }
+  if (consultantProfileInput && consultantProfileInput.files && consultantProfileInput.files.length > 1) {
+    e.preventDefault();
+    alert('상세 프로필 첨부는 1건만 가능합니다.');
+    consultantProfileInput.focus();
+    return;
+  }
+  if (accountTypeConsultant && accountTypeConsultant.checked) {
+    const f = consultantProfileInput && consultantProfileInput.files ? consultantProfileInput.files[0] : null;
+    if (!f) {
+      e.preventDefault();
+      alert('컨설턴트 회원가입을 위해서는 프로필 첨부가 필요합니다. 일단 일반회원으로 가입 후 프로필 준비되시면 변경도 가능합니다.');
+      if (consultantProfileInput) consultantProfileInput.focus();
+      return;
+    }
+  }
 });
 </script>
 <style>
@@ -717,6 +847,24 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
 .dashboard-search-bar .form-control,
 .dashboard-search-bar .form-select {
   background: #1e2a38; border-color: #3d5166; color: #e2e8f0;
+}
+.consultant-dropzone {
+  position: relative;
+  border: 1px dashed #64748b;
+  border-radius: 0.6rem;
+  padding: 1rem;
+  background: rgba(148, 163, 184, 0.08);
+  cursor: pointer;
+}
+.consultant-dropzone.is-dragging {
+  border-color: var(--bs-primary);
+  background: rgba(59, 130, 246, 0.12);
+}
+.consultant-dropzone-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 </style>
 {% endblock %}

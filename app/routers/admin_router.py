@@ -1,14 +1,17 @@
+import os
+
 from fastapi import APIRouter, Body, Depends, Request, Form, Query
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .. import models, auth
+from .. import models, auth, r2_storage
 from ..codelib_reference_import import build_reference_payload_dict_from_abap_code
 from ..account_lifecycle import purge_user_and_owned_data as lifecycle_purge_user
 from ..database import get_db
 from ..templates_config import templates
 from ..writing_guides_service import LOGICAL_KEYS, save_writing_guide_bilingual
+from ..email_smtp import send_consultant_approved_email
 
 router = APIRouter(prefix="/admin")
 
@@ -236,9 +239,43 @@ def admin_user_toggle_consultant(user_id: int, request: Request, db: Session = D
         return RedirectResponse(url="/admin/users", status_code=302)
     if target.is_admin:
         return RedirectResponse(url="/admin/users?err=admin_consultant", status_code=302)
-    target.is_consultant = not bool(getattr(target, "is_consultant", False))
+    was_consultant = bool(getattr(target, "is_consultant", False))
+    was_pending = bool(getattr(target, "consultant_application_pending", False))
+    target.is_consultant = not was_consultant
+    if target.is_consultant:
+        target.consultant_application_pending = False
+    else:
+        target.consultant_application_pending = False
     db.commit()
+    if (not was_consultant) and target.is_consultant and was_pending:
+        try:
+            send_consultant_approved_email(target.email)
+        except Exception:
+            pass
     return RedirectResponse(url="/admin/users", status_code=302)
+
+
+@router.get("/users/{user_id}/consultant-profile/download")
+def admin_user_consultant_profile_download(user_id: int, request: Request, db: Session = Depends(get_db)):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    path = (getattr(target, "consultant_profile_file_path", None) or "").strip()
+    fname = (getattr(target, "consultant_profile_file_name", None) or "consultant_profile").strip() or "consultant_profile"
+    if not path:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    kind, ref = r2_storage.parse_storage_ref(path)
+    if kind == "r2":
+        if not r2_storage.is_configured():
+            return RedirectResponse(url="/admin/users", status_code=302)
+        url = r2_storage.presigned_get_url(ref, fname)
+        return RedirectResponse(url=url, status_code=302)
+    if not os.path.isfile(ref):
+        return RedirectResponse(url="/admin/users", status_code=302)
+    return FileResponse(ref, filename=fname)
 
 
 @router.post("/users/{user_id}/purge-now")

@@ -40,6 +40,7 @@ def _run_migrations():
         ("rfps", "proposal_generated_at", "DATETIME", "TIMESTAMP"),
         ("users", "is_admin", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("users", "is_consultant", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("users", "consultant_application_pending", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("rfp_messages", "source_label", "VARCHAR", "VARCHAR"),
         ("rfp_messages", "updated_at", "DATETIME", "TIMESTAMP"),
         ("abap_codes", "program_id", "VARCHAR", "VARCHAR"),
@@ -109,6 +110,8 @@ def _run_migrations():
         ("users", "deletion_requested_at", "DATETIME", "TIMESTAMP"),
         ("users", "deletion_hard_scheduled_at", "DATETIME", "TIMESTAMP"),
         ("users", "timezone", "VARCHAR(64)", "VARCHAR(64)"),
+        ("users", "consultant_profile_file_path", "TEXT", "TEXT"),
+        ("users", "consultant_profile_file_name", "VARCHAR(512)", "VARCHAR(512)"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

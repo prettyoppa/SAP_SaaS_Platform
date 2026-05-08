@@ -143,6 +143,7 @@
               <th style="width:110px">연동</th>
               <th style="width:110px">ABAP 분석</th>
               <th style="width:110px">총 활동</th>
+              <th class="admin-users-actions-col">컨설턴트 프로필</th>
               <th class="admin-users-actions-col">컨설턴트 권한</th>
               <th class="admin-users-actions-col">탈퇴</th>
               <th class="admin-users-actions-col">삭제</th>
@@ -168,6 +169,8 @@
                 <span class="text-muted small">admin</span>
                 {% elif u.is_consultant %}
                 <span class="badge bg-primary">Y</span>
+                {% elif u.consultant_application_pending %}
+                <span class="badge bg-warning text-dark">신청</span>
                 {% else %}
                 <span class="badge bg-secondary">N</span>
                 {% endif %}
@@ -181,6 +184,15 @@
               <td><span class="badge bg-secondary">{{ row.integration_count }}</span></td>
               <td><span class="badge bg-secondary">{{ row.abap_analysis_count }}</span></td>
               <td><span class="badge {% if row.total_activity_count > 0 %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ row.total_activity_count }}</span></td>
+              <td class="admin-users-actions-col">
+                {% if u.consultant_profile_file_path %}
+                <a class="btn btn-sm btn-outline-info" href="/admin/users/{{ u.id }}/consultant-profile/download">
+                  다운로드
+                </a>
+                {% else %}
+                <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
               <td class="admin-users-actions-col">
                 {% if u.is_admin %}
                 <span class="text-muted small">—</span>

@@ -15,6 +15,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     is_consultant = Column(Boolean, default=False)
+    consultant_application_pending = Column(Boolean, default=False)
     email_verified = Column(Boolean, default=True)  # 기존 행은 마이그레이션에서 true
     phone_number = Column(String(32), nullable=True)
     phone_verified = Column(Boolean, default=False)
@@ -28,6 +29,9 @@ class User(Base):
     consent_updated_at = Column(DateTime, nullable=True)
     # IANA tz database 이름(예: Asia/Seoul). Null이면 화면 시각은 브라우저 로컬 타임존 사용.
     timezone = Column(String(64), nullable=True)
+    # 컨설턴트 가입 시 선택 첨부 프로필 파일 (R2 URI 또는 로컬 경로)
+    consultant_profile_file_path = Column(Text, nullable=True)
+    consultant_profile_file_name = Column(String(512), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     # 회원 탈퇴: 유예 기간 후 영구 삭제 (소프트 단계에서는 로그인 불가, 이메일로 취소 가능)
     pending_account_deletion = Column(Boolean, default=False)

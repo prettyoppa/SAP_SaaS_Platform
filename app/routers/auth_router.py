@@ -2,16 +2,18 @@ import logging
 import os
 import re
 import threading
+import time
 from datetime import datetime, timedelta
 from urllib.parse import quote
 from zoneinfo import available_timezones
 
 from email_validator import EmailNotValidError, validate_email
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-from .. import models, auth
+from .. import models, auth, r2_storage
 from ..account_lifecycle import deletion_grace_days, refresh_admin_flag_for_user
 from ..database import get_db
 from ..email_smtp import (
@@ -22,6 +24,7 @@ from ..email_smtp import (
     send_email_changed_completed_notice,
     send_registration_otp_email,
     send_verification_email,
+    send_consultant_application_received_email,
 )
 from ..templates_config import templates
 from ..sms_sender import send_registration_otp_sms
@@ -160,6 +163,66 @@ def _sync_viewer_tz_cookie(response: RedirectResponse, request: Request, user: m
 _MAX_PROFILE_FULL_NAME = 120
 _MAX_PROFILE_COMPANY = 255
 _MIN_PASSWORD_LEN = 8
+_CONSULTANT_PROFILE_MAX_BYTES = 20 * 1024 * 1024
+
+
+async def _read_upload_limited(upload: UploadFile, max_bytes: int) -> bytes:
+    async def _async_read_all() -> bytes:
+        try:
+            await upload.seek(0)
+        except Exception:
+            pass
+        return await upload.read()
+
+    raw = await _async_read_all()
+    if len(raw) > max_bytes:
+        raise ValueError("file_too_large")
+
+    if not raw and getattr(upload, "file", None) is not None:
+        def _sync_read_all() -> bytes:
+            uf = upload.file
+            try:
+                uf.seek(0)
+            except Exception:
+                pass
+            try:
+                return uf.read() or b""
+            except Exception:
+                return b""
+
+        raw = await run_in_threadpool(_sync_read_all)
+
+    if len(raw) > max_bytes:
+        raise ValueError("file_too_large")
+    return raw
+
+
+def _save_consultant_profile_local(original_filename: str, data: bytes) -> str:
+    upload_dir = (
+        "/tmp/sap_uploads"
+        if (os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+        else "uploads"
+    )
+    os.makedirs(upload_dir, exist_ok=True)
+    ext = os.path.splitext(original_filename or "")[1].lower()
+    safe_name = f"consultant_profile_{int(time.time())}{ext}"
+    dest = os.path.join(upload_dir, safe_name)
+    with open(dest, "wb") as f:
+        f.write(data)
+    return dest
+
+
+def _store_consultant_profile_file(original_filename: str, data: bytes) -> tuple[str, str]:
+    if r2_storage.is_configured():
+        ext = os.path.splitext(original_filename or "")[1].lower() or ".bin"
+        uri = r2_storage.upload_bytes(
+            0,
+            ext,
+            data,
+            "application/octet-stream",
+        )
+        return uri, original_filename or "consultant_profile"
+    return _save_consultant_profile_local(original_filename, data), (original_filename or "consultant_profile")
 
 
 def _parse_profile_full_name(raw: str) -> tuple[str | None, str | None]:
@@ -301,7 +364,11 @@ def register_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "register.html",
-        {"settings": settings, "email_verification": email_verification_enabled()},
+        {
+            "settings": settings,
+            "email_verification": email_verification_enabled(),
+            "account_type": "member",
+        },
     )
 
 
@@ -390,7 +457,7 @@ def register_verify_email_code(
 
 
 @router.post("/register")
-def register(
+async def register(
     request: Request,
     email: str = Form(...),
     full_name: str = Form(...),
@@ -403,8 +470,14 @@ def register(
     ops_sms_opt_in: str = Form(""),
     marketing_email_opt_in: str = Form(""),
     marketing_sms_opt_in: str = Form(""),
+    account_type: str = Form("member"),
+    consultant_profile_file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
+    account_type_norm = (account_type or "member").strip().lower()
+    if account_type_norm not in ("member", "consultant"):
+        account_type_norm = "member"
+
     email_norm = _normalize_email_strict(email)
     if not email_norm:
         settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
@@ -415,6 +488,7 @@ def register(
                 "error": "invalid_email",
                 "settings": settings,
                 "email_verification": email_verification_enabled(),
+                "account_type": account_type_norm,
             },
             status_code=400,
         )
@@ -429,6 +503,7 @@ def register(
                 "error": "duplicate",
                 "settings": settings,
                 "email_verification": email_verification_enabled(),
+                "account_type": account_type_norm,
             },
             status_code=400,
         )
@@ -446,6 +521,7 @@ def register(
                     "error": "no_code",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
@@ -460,6 +536,7 @@ def register(
                     "error": "no_code_sent",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
@@ -471,6 +548,7 @@ def register(
                     "error": "expired_code",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
@@ -482,6 +560,7 @@ def register(
                     "error": "bad_code",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
@@ -496,6 +575,7 @@ def register(
                 "error": "invalid_phone",
                 "settings": settings,
                 "email_verification": ev,
+                "account_type": account_type_norm,
             },
             status_code=400,
         )
@@ -511,6 +591,7 @@ def register(
                     "error": "no_phone_code",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
@@ -525,6 +606,7 @@ def register(
                     "error": "no_phone_code_sent",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
@@ -536,6 +618,7 @@ def register(
                     "error": "expired_phone_code",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
@@ -547,6 +630,7 @@ def register(
                     "error": "phone_code_locked",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
@@ -561,11 +645,76 @@ def register(
                     "error": "bad_phone_code",
                     "settings": settings,
                     "email_verification": ev,
+                    "account_type": account_type_norm,
                 },
                 status_code=400,
             )
         prow.verified_at = datetime.utcnow()
         phone_verified = True
+
+    consultant_profile_path = None
+    consultant_profile_name = None
+    if account_type_norm == "consultant":
+        if consultant_profile_file is None or not (consultant_profile_file.filename or "").strip():
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "consultant_profile_required",
+                    "settings": settings,
+                    "email_verification": ev,
+                    "account_type": account_type_norm,
+                },
+                status_code=400,
+            )
+    if account_type_norm == "consultant" and consultant_profile_file is not None:
+        has_name = bool((consultant_profile_file.filename or "").strip())
+        if has_name:
+            try:
+                raw = await _read_upload_limited(consultant_profile_file, _CONSULTANT_PROFILE_MAX_BYTES)
+            except ValueError:
+                return templates.TemplateResponse(
+                    request,
+                    "register.html",
+                    {
+                        "error": "consultant_profile_too_large",
+                        "settings": settings,
+                        "email_verification": ev,
+                        "account_type": account_type_norm,
+                    },
+                    status_code=400,
+                )
+            except Exception:
+                return templates.TemplateResponse(
+                    request,
+                    "register.html",
+                    {
+                        "error": "consultant_profile_upload_failed",
+                        "settings": settings,
+                        "email_verification": ev,
+                        "account_type": account_type_norm,
+                    },
+                    status_code=400,
+                )
+
+            if len(raw) > 0:
+                try:
+                    consultant_profile_path, consultant_profile_name = _store_consultant_profile_file(
+                        consultant_profile_file.filename or "consultant_profile",
+                        raw,
+                    )
+                except Exception:
+                    return templates.TemplateResponse(
+                        request,
+                        "register.html",
+                        {
+                            "error": "consultant_profile_upload_failed",
+                            "settings": settings,
+                            "email_verification": ev,
+                            "account_type": account_type_norm,
+                        },
+                        status_code=400,
+                    )
 
     email_verified = True
     if want_verify:
@@ -592,6 +741,10 @@ def register(
         consent_updated_at=consent_at,
         hashed_password=auth.hash_password(password),
         email_verified=email_verified,
+        is_consultant=False,
+        consultant_application_pending=(account_type_norm == "consultant"),
+        consultant_profile_file_path=consultant_profile_path,
+        consultant_profile_file_name=consultant_profile_name,
     )
     db.add(new_user)
     if phone_e164:
@@ -601,6 +754,9 @@ def register(
         if prow:
             db.delete(prow)
     db.commit()
+
+    if account_type_norm == "consultant":
+        _schedule_bg(send_consultant_application_received_email, new_user.email)
 
     if want_verify:
         return RedirectResponse(url="/login?registered=1", status_code=302)
@@ -777,6 +933,11 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
             "full_name_value": user.full_name,
             "company_value": user.company or "",
             "timezone_value": getattr(user, "timezone", None) or "",
+            "account_type_value": "consultant"
+            if (getattr(user, "is_consultant", False) or getattr(user, "consultant_application_pending", False))
+            else "member",
+            "consultant_profile_file_name": getattr(user, "consultant_profile_file_name", None) or "",
+            "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
             "time_zones": sorted(available_timezones()),
             "error": None,
         },
@@ -784,11 +945,14 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/account/edit")
-def account_profile_edit_post(
+async def account_profile_edit_post(
     request: Request,
     full_name: str = Form(...),
     company: str = Form(""),
     timezone: str = Form(""),
+    account_type: str = Form("member"),
+    consultant_profile_file: UploadFile | None = File(None),
+    remove_consultant_profile_file: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -796,6 +960,9 @@ def account_profile_edit_post(
         return RedirectResponse(url="/login?next=/account/edit", status_code=302)
 
     tz_list = sorted(available_timezones())
+    account_type_norm = (account_type or "member").strip().lower()
+    if account_type_norm not in ("member", "consultant"):
+        account_type_norm = "member"
     name_ok, err = _parse_profile_full_name(full_name)
     company_ok = _parse_profile_company(company)
     tz_ok, tz_err = _parse_profile_timezone(timezone)
@@ -810,6 +977,9 @@ def account_profile_edit_post(
                 "full_name_value": (full_name or "").strip()[:_MAX_PROFILE_FULL_NAME],
                 "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                 "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                "account_type_value": account_type_norm,
+                "consultant_profile_file_name": getattr(user, "consultant_profile_file_name", None) or "",
+                "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
                 "error": err,
             },
             status_code=400,
@@ -825,16 +995,137 @@ def account_profile_edit_post(
                 "full_name_value": name_ok or "",
                 "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                 "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                "account_type_value": account_type_norm,
+                "consultant_profile_file_name": getattr(user, "consultant_profile_file_name", None) or "",
+                "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
                 "error": tz_err,
             },
             status_code=400,
         )
 
+    remove_profile = _form_bool(remove_consultant_profile_file)
+    new_profile_path = getattr(user, "consultant_profile_file_path", None)
+    new_profile_name = getattr(user, "consultant_profile_file_name", None)
+    was_pending = bool(getattr(user, "consultant_application_pending", False))
+    should_send_consultant_apply_email = False
+    if account_type_norm == "member":
+        new_profile_path = None
+        new_profile_name = None
+        user.consultant_application_pending = False
+        user.is_consultant = False
+    else:
+        if not user.is_consultant and not new_profile_path and not (consultant_profile_file and (consultant_profile_file.filename or "").strip()):
+            return templates.TemplateResponse(
+                request,
+                "account_profile_edit.html",
+                {
+                    "user": user,
+                    "time_zones": tz_list,
+                    "full_name_value": name_ok or "",
+                    "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                    "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                    "account_type_value": account_type_norm,
+                    "consultant_profile_file_name": new_profile_name or "",
+                    "consultant_application_pending": was_pending,
+                    "error": "consultant_profile_required",
+                },
+                status_code=400,
+            )
+        if remove_profile:
+            new_profile_path = None
+            new_profile_name = None
+        if consultant_profile_file is not None and (consultant_profile_file.filename or "").strip():
+            try:
+                raw = await _read_upload_limited(consultant_profile_file, _CONSULTANT_PROFILE_MAX_BYTES)
+            except ValueError:
+                return templates.TemplateResponse(
+                    request,
+                    "account_profile_edit.html",
+                    {
+                        "user": user,
+                        "time_zones": tz_list,
+                        "full_name_value": name_ok or "",
+                        "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                        "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                        "account_type_value": account_type_norm,
+                        "consultant_profile_file_name": new_profile_name or "",
+                        "consultant_application_pending": was_pending,
+                        "error": "consultant_profile_too_large",
+                    },
+                    status_code=400,
+                )
+            except Exception:
+                return templates.TemplateResponse(
+                    request,
+                    "account_profile_edit.html",
+                    {
+                        "user": user,
+                        "time_zones": tz_list,
+                        "full_name_value": name_ok or "",
+                        "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                        "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                        "account_type_value": account_type_norm,
+                        "consultant_profile_file_name": new_profile_name or "",
+                        "consultant_application_pending": was_pending,
+                        "error": "consultant_profile_upload_failed",
+                    },
+                    status_code=400,
+                )
+            if len(raw) > 0:
+                try:
+                    new_profile_path, new_profile_name = _store_consultant_profile_file(
+                        consultant_profile_file.filename or "consultant_profile",
+                        raw,
+                    )
+                except Exception:
+                    return templates.TemplateResponse(
+                        request,
+                        "account_profile_edit.html",
+                        {
+                            "user": user,
+                            "time_zones": tz_list,
+                            "full_name_value": name_ok or "",
+                            "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                            "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                            "account_type_value": account_type_norm,
+                            "consultant_profile_file_name": new_profile_name or "",
+                            "consultant_application_pending": was_pending,
+                            "error": "consultant_profile_upload_failed",
+                        },
+                        status_code=400,
+                    )
+        if not user.is_consultant and not new_profile_path:
+            return templates.TemplateResponse(
+                request,
+                "account_profile_edit.html",
+                {
+                    "user": user,
+                    "time_zones": tz_list,
+                    "full_name_value": name_ok or "",
+                    "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                    "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                    "account_type_value": account_type_norm,
+                    "consultant_profile_file_name": new_profile_name or "",
+                    "consultant_application_pending": was_pending,
+                    "error": "consultant_profile_required",
+                },
+                status_code=400,
+            )
+        if user.is_consultant:
+            user.consultant_application_pending = False
+        else:
+            user.consultant_application_pending = True
+            should_send_consultant_apply_email = not was_pending
+
     user.full_name = name_ok
     user.company = company_ok
     user.timezone = tz_ok
+    user.consultant_profile_file_path = new_profile_path
+    user.consultant_profile_file_name = new_profile_name
     db.add(user)
     db.commit()
+    if should_send_consultant_apply_email:
+        _schedule_bg(send_consultant_application_received_email, user.email)
     response = RedirectResponse(url="/account?profile_saved=1", status_code=302)
     _sync_viewer_tz_cookie(response, request, user)
     return response

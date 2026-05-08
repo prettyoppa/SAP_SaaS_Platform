@@ -343,3 +343,30 @@ def send_account_deletion_started_email(
         "링크는 유예 기간 동안 유효합니다."
     )
     _deliver_plain_email(email, subject, body)
+
+
+def send_consultant_application_received_email(email: str) -> None:
+    subject = os.environ.get(
+        "MAIL_CONSULTANT_APPLY_RECEIVED_SUBJECT",
+        "[SAP Dev Hub] 컨설턴트 가입 신청이 접수되었습니다",
+    )
+    body = (
+        "컨설턴트 가입 신청이 정상 접수되었습니다.\n\n"
+        "관리자 검토가 완료되기 전까지는 일반회원 권한으로 서비스가 제공됩니다.\n"
+        "승인 완료 시 별도 이메일로 안내드리겠습니다.\n\n"
+        "프로필 정보 업데이트가 필요하면 로그인 후 회원정보 수정에서 다시 첨부하실 수 있습니다."
+    )
+    _deliver_plain_email(email, subject, body)
+
+
+def send_consultant_approved_email(email: str) -> None:
+    subject = os.environ.get(
+        "MAIL_CONSULTANT_APPROVED_SUBJECT",
+        "[SAP Dev Hub] 컨설턴트 가입이 승인되었습니다",
+    )
+    body = (
+        "컨설턴트 가입 신청이 승인되었습니다.\n\n"
+        "이제 컨설턴트 권한으로 요청 Console 및 관련 기능을 사용할 수 있습니다.\n"
+        "문제가 있거나 권한이 반영되지 않으면 관리자에게 문의해 주세요."
+    )
+    _deliver_plain_email(email, subject, body)
