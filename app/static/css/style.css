@@ -344,6 +344,7 @@ a:hover { color: var(--primary); }
   position: sticky;
   top: 0;
   z-index: 999;
+  overflow: visible;
 }
 .navbar-brand {
   font-weight: 700;
@@ -2675,12 +2676,28 @@ html[data-theme="dark"] .menu-list-card--proposal-offer-pulse .rfp-list-surface-
   }
 }
 
-/* 컨설턴트 전용 [요청 Console]: 메뉴는 일반 배치·선명한 색·구분 폰트, 말풍선은 아래 분리 + 통통(말풍선만) */
+/* 컨설턴트 전용 [요청 Console]: li 너비는 링크만(말풍선은 absolute로 배치해 옆 메뉴 간격이 벌어지지 않음) */
+.navbar-custom .nav-item-request-console {
+  align-self: center;
+}
+
 .navbar-custom .nav-item-request-console .nav-request-console-link-wrap {
-  /* 링크 너비만큼만 차지 — 말풍선과 묶이지 않음; 하단 점 여백 */
   width: max-content;
   max-width: 100%;
   padding-bottom: 0.35rem;
+}
+
+/* 말풍선은 문서 흐름에서 제외 → flex 행에서 이 항목 폭이 말풍선에 끌려가지 않음 */
+.navbar-custom .nav-item-request-console .nav-request-console-hint {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 0.12rem;
+  width: max-content;
+  max-width: min(14rem, calc(100vw - 2rem));
+  z-index: 1040;
+  line-height: 0;
+  pointer-events: none;
 }
 
 .navbar-custom .nav-item-request-console .nav-link-request-console {
@@ -2714,12 +2731,6 @@ html[data-theme="dark"] .navbar-custom .nav-item-request-console .nav-link-reque
 
 html[data-theme="dark"] .navbar-custom .nav-item-request-console .nav-link-request-console.active {
   color: #e0e7ff !important;
-}
-
-.navbar-custom .nav-request-console-hint {
-  margin-top: 0.15rem;
-  max-width: 14rem;
-  line-height: 0;
 }
 
 .navbar-custom .nav-request-console-bubble {
