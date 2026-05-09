@@ -998,18 +998,6 @@ async def register(
                 },
                 status_code=400,
             )
-        if not _form_bool(ops_sms_opt_in):
-            return templates.TemplateResponse(
-                request,
-                "register.html",
-                {
-                    "error": "consultant_ops_sms_required",
-                    "settings": settings,
-                    "email_verification": ev,
-                    "account_type": account_type_norm,
-                },
-                status_code=400,
-            )
 
     consultant_profile_path = None
     consultant_profile_name = None
@@ -1409,12 +1397,8 @@ async def account_profile_edit_post(
     if account_type_norm == "consultant":
         if not getattr(user, "email_verified", False):
             return _profile_edit_error("consultant_need_email_verify")
-        if not getattr(user, "phone_verified", False):
-            return _profile_edit_error("consultant_need_phone_verify")
         if not ops_email_opt_in_value:
             return _profile_edit_error("consultant_ops_email_required")
-        if not ops_sms_opt_in_value:
-            return _profile_edit_error("consultant_ops_sms_required")
 
     remove_profile = _form_bool(remove_consultant_profile_file)
     new_profile_path = getattr(user, "consultant_profile_file_path", None)

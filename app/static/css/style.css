@@ -1441,7 +1441,15 @@ html[data-theme="light"] .consent-opt-section .form-text {
   border-radius: 0.6rem;
   padding: 1rem;
   background: color-mix(in srgb, var(--surface2) 88%, transparent);
+  cursor: default;
+}
+a.consultant-profile-file-preview {
+  color: var(--primary);
+  text-decoration: underline;
   cursor: pointer;
+}
+a.consultant-profile-file-preview:hover {
+  color: color-mix(in srgb, var(--primary) 88%, var(--text));
 }
 .consultant-dropzone.is-dragging {
   border-color: var(--primary);

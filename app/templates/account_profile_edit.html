@@ -43,17 +43,9 @@
     <div class="alert alert-danger small" role="alert">
       <span class="nav-ko">컨설턴트 신청 전에 계정 이메일 인증을 완료해 주세요.</span>
     </div>
-    {% elif error == 'consultant_need_phone_verify' %}
-    <div class="alert alert-danger small" role="alert">
-      <span class="nav-ko">컨설턴트 신청 전에 휴대폰 인증을 완료해 주세요.</span>
-    </div>
     {% elif error == 'consultant_ops_email_required' %}
     <div class="alert alert-danger small" role="alert">
       <span class="nav-ko">컨설턴트는 이메일 업무 알림 수신 동의가 필수입니다.</span>
-    </div>
-    {% elif error == 'consultant_ops_sms_required' %}
-    <div class="alert alert-danger small" role="alert">
-      <span class="nav-ko">컨설턴트는 SMS 업무 알림 수신 동의가 필수입니다.</span>
     </div>
     {% endif %}
 
@@ -113,7 +105,7 @@
             </div>
           </div>
           <div class="mb-4 consent-opt-section">
-            <div class="small mb-2 consent-opt-heading">수신 동의 <span id="pf-consent-optional-hint" class="fw-normal">(선택)</span><span id="pf-consent-consultant-ops-hint" class="fw-normal text-danger" style="display:none"> — 컨설턴트는 업무 알림(이메일·SMS) 동의 필수</span></div>
+            <div class="small mb-2 consent-opt-heading">수신 동의 <span id="pf-consent-optional-hint" class="fw-normal">(선택)</span><span id="pf-consent-consultant-ops-hint" class="fw-normal text-danger" style="display:none"> — 컨설턴트는 업무 알림(이메일) 동의 필수</span></div>
             <div class="form-check mb-1">
               <input class="form-check-input" type="checkbox" id="pf-ops-email-opt-in" name="ops_email_opt_in" {% if ops_email_opt_in_value %}checked{% endif %}>
               <label class="form-check-label small" for="pf-ops-email-opt-in">이메일 업무 알림 수신 동의 (요청 진행/완료 등)</label>
@@ -135,10 +127,10 @@
             </div>
           </div>
           <div class="mb-4" id="pf-consultant-upload-wrap" {% if account_type_value != 'consultant' %}style="display:none"{% endif %}>
-            <label class="form-label d-flex justify-content-between align-items-center flex-wrap gap-2" for="pfConsultantProfileFileInput">
+            <div class="form-label d-flex justify-content-between align-items-center flex-wrap gap-2">
               <span>상세 프로필 첨부 <span class="text-danger">*</span></span>
               <span class="text-muted small">최대 1건 · 20MB</span>
-            </label>
+            </div>
             {% if consultant_profile_file_name %}
             <div class="small text-muted mb-2">
               현재 파일: <strong>{{ consultant_profile_file_name }}</strong>
@@ -147,14 +139,21 @@
             {% endif %}
             <div id="pfConsultantProfileDropzone" class="consultant-dropzone">
               <input type="file" name="consultant_profile_file" id="pfConsultantProfileFileInput" class="consultant-dropzone-input"/>
-              <div class="consultant-dropzone-copy">
-                <i class="fa-solid fa-file-arrow-up me-2"></i>
-                파일을 드래그 앤 드롭하거나 클릭해서 첨부하세요.
+              <div id="pfConsultantProfileDropzoneEmpty">
+                <div class="consultant-dropzone-copy">
+                  <i class="fa-solid fa-file-arrow-up me-2"></i>
+                  파일을 드래그 앤 드롭하거나 아래에서 파일을 선택하세요.
+                </div>
+                <div class="small text-muted mt-2">
+                  지원 형식: 모든 파일 형식(*.*) / PDF, DOCX, PPTX, XLSX, 이미지, 압축파일 등
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="pfConsultantProfilePickBtn">파일 선택</button>
               </div>
-              <div class="small text-muted mt-2">
-                지원 형식: 모든 파일 형식(*.*) / PDF, DOCX, PPTX, XLSX, 이미지, 압축파일 등
+              <div id="pfConsultantProfileFileRow" class="consultant-profile-selected-row mt-2 d-flex flex-wrap align-items-center gap-2" hidden>
+                <span class="small text-muted">첨부됨</span>
+                <a href="#" class="consultant-profile-file-preview small fw-medium" id="pfConsultantProfileFileLink"></a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="pfConsultantProfileChangeBtn">다른 파일 선택</button>
               </div>
-              <div id="pfConsultantProfileFileName" class="small mt-2 text-info" hidden></div>
             </div>
             <p class="form-text consultant-profile-hint mb-0 mt-2">
               프로필 준비가 아직 어렵다면 일반회원으로 두었다가, 준비되면 이 화면에서 컨설턴트로 변경할 수 있습니다.
@@ -176,6 +175,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/js/file_preview.js?v=1"></script>
 <script>
 (function () {
   const emailVerified = {{ 'true' if user.email_verified else 'false' }};
@@ -191,7 +191,11 @@
   const consultantOpsHint = document.getElementById('pf-consent-consultant-ops-hint');
   const dz = document.getElementById('pfConsultantProfileDropzone');
   const fileInput = document.getElementById('pfConsultantProfileFileInput');
-  const fileNameEl = document.getElementById('pfConsultantProfileFileName');
+  const pfEmpty = document.getElementById('pfConsultantProfileDropzoneEmpty');
+  const pfFileRow = document.getElementById('pfConsultantProfileFileRow');
+  const pfFileLink = document.getElementById('pfConsultantProfileFileLink');
+  const pfPickBtn = document.getElementById('pfConsultantProfilePickBtn');
+  const pfChangeBtn = document.getElementById('pfConsultantProfileChangeBtn');
   const form = document.querySelector('form.account-profile-form');
 
   function isConsultantSelected() {
@@ -199,15 +203,20 @@
   }
 
   function renderPfFileName() {
-    if (!fileInput || !fileNameEl) return;
+    if (!fileInput) return;
     const f = fileInput.files && fileInput.files[0];
     if (!f) {
-      fileNameEl.hidden = true;
-      fileNameEl.textContent = '';
+      if (pfEmpty) pfEmpty.hidden = false;
+      if (pfFileRow) pfFileRow.hidden = true;
+      if (pfFileLink) pfFileLink.textContent = '';
       return;
     }
-    fileNameEl.hidden = false;
-    fileNameEl.textContent = '첨부됨: ' + f.name;
+    if (pfEmpty) pfEmpty.hidden = true;
+    if (pfFileRow) pfFileRow.hidden = false;
+    if (pfFileLink) {
+      pfFileLink.textContent = f.name;
+      pfFileLink.title = f.name + ' (클릭하여 미리 보기)';
+    }
   }
 
   function syncConsultantOpsGuards() {
@@ -220,7 +229,6 @@
       if (!emailVerified) opsEmail.checked = false;
     }
     if (opsSms) {
-      if (c && phoneVerified) opsSms.checked = true;
       opsSms.disabled = !phoneVerified;
       if (!phoneVerified) opsSms.checked = false;
     }
@@ -237,10 +245,8 @@
   function guardConsultantOpsUncheck() {
     if (!isConsultantSelected()) return;
     if (emailVerified && opsEmail && !opsEmail.checked) opsEmail.checked = true;
-    if (phoneVerified && opsSms && !opsSms.checked) opsSms.checked = true;
   }
   if (opsEmail) opsEmail.addEventListener('change', guardConsultantOpsUncheck);
-  if (opsSms) opsSms.addEventListener('change', guardConsultantOpsUncheck);
 
   function sync() {
     if (wrap && consultant) wrap.style.display = consultant.checked ? '' : 'none';
@@ -252,6 +258,19 @@
   }
 
   if (fileInput) fileInput.addEventListener('change', renderPfFileName);
+  if (pfFileLink && fileInput) {
+    pfFileLink.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const f = fileInput.files && fileInput.files[0];
+      if (f && typeof window.openAttachmentPreview === 'function') window.openAttachmentPreview(f);
+    });
+  }
+  function pfTriggerPick() {
+    if (fileInput) fileInput.click();
+  }
+  if (pfPickBtn) pfPickBtn.addEventListener('click', (e) => { e.stopPropagation(); pfTriggerPick(); });
+  if (pfChangeBtn) pfChangeBtn.addEventListener('click', (e) => { e.stopPropagation(); pfTriggerPick(); });
   if (dz && fileInput) {
     const prevent = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((n) => dz.addEventListener(n, prevent));
@@ -269,12 +288,12 @@
       }
       renderPfFileName();
     });
-    dz.addEventListener('click', () => fileInput.click());
   }
 
   if (member) member.addEventListener('change', sync);
   if (consultant) consultant.addEventListener('change', sync);
   sync();
+  renderPfFileName();
 
   if (form) {
     form.addEventListener('submit', (e) => {
@@ -290,11 +309,6 @@
       if (!emailVerified || !opsEmail || !opsEmail.checked) {
         e.preventDefault();
         alert('컨설턴트는 이메일 인증 및 업무 알림(이메일) 동의가 필요합니다.');
-        return;
-      }
-      if (!phoneVerified || !opsSms || !opsSms.checked) {
-        e.preventDefault();
-        alert('컨설턴트는 휴대폰 인증 및 업무 알림(SMS) 동의가 필요합니다.');
         return;
       }
     });
