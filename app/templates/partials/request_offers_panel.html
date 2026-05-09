@@ -1,3 +1,4 @@
+{% from "partials/_consultant_profile_fa_icon.html" import consultant_profile_fa_icon %}
 {% if request_offers is defined and request_offers %}
 <div class="request-offers-panel {{ request_offer_panel_wrap_class|default('mt-3') }}">
   <h6 class="text-muted small text-uppercase mb-2">오퍼 현황</h6>
@@ -12,6 +13,9 @@
     {% set c = of.consultant %}
     {% set inq_map = request_offer_inquiries_by_offer_id if request_offer_inquiries_by_offer_id is defined else {} %}
     {% set inq_list = inq_map.get(of.id, []) %}
+    {% set is_offer_staff = user and (user.is_consultant or user.is_admin) %}
+    {% set can_send_inquiry = request_offer_can_inquire|default(false) and request_offer_inquiry_url_builder is defined %}
+    {% set can_see_inquiry_block = can_send_inquiry or (is_offer_staff and inq_list|length > 0) %}
     <div class="list-group-item px-3 py-2">
       <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
         <div class="flex-grow-1" style="min-width: 0;">
@@ -40,15 +44,21 @@
           <div class="small text-muted">{{ of.created_at|local_dt_span }}</div>
         </div>
         <div class="d-flex flex-wrap gap-1 justify-content-end align-items-start">
-          {% if request_offer_can_inquire|default(false) and request_offer_inquiry_url_builder is defined %}
+          {% if can_send_inquiry %}
           <button type="button" class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1"
                   data-bs-toggle="collapse" data-bs-target="#offer-inq-body-{{ of.id }}"
                   aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
             <i class="fa-solid fa-envelope" aria-hidden="true"></i>문의
           </button>
+          {% elif is_offer_staff and inq_list|length > 0 %}
+          <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                  data-bs-toggle="collapse" data-bs-target="#offer-inq-body-{{ of.id }}"
+                  aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
+            <i class="fa-solid fa-comments" aria-hidden="true"></i>문의 내역
+          </button>
           {% endif %}
           {% if request_offer_profile_url_builder is defined %}
-          <a class="btn btn-sm btn-outline-secondary" href="{{ request_offer_profile_url_builder(of.id) }}" data-no-busy="true">프로필</a>
+          <a class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" href="{{ request_offer_profile_url_builder(of.id) }}" data-no-busy="true">{{ consultant_profile_fa_icon(c) }}프로필</a>
           {% endif %}
           {% if request_offer_match_url_builder is defined and request_offer_can_match %}
           <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm="{% if of.status == 'matched' %}매칭을 해제하시겠습니까?{% else %}이 오퍼로 매칭하시겠습니까?{% endif %}">
@@ -60,7 +70,7 @@
           {% endif %}
         </div>
       </div>
-      {% if request_offer_can_inquire|default(false) and request_offer_inquiry_url_builder is defined %}
+      {% if can_see_inquiry_block %}
       <div class="collapse offer-inquiry-collapse w-100 mt-2" id="offer-inq-body-{{ of.id }}">
         <div class="border rounded p-3 small offer-inquiry-panel-inner">
           {% if inq_list|length > 0 %}
@@ -83,6 +93,7 @@
             </div>
           </div>
           {% endif %}
+          {% if can_send_inquiry %}
           <form method="post" action="{{ request_offer_inquiry_url_builder(of.id) }}" class="offer-inquiry-form" data-no-busy="true">
             <p class="small offer-inquiry-privacy-note mb-2">회원 개인정보 보호를 위해 문의 내용은 Catch Lab 이름으로 발신됩니다.</p>
             <label class="form-label small offer-inquiry-label mb-1">문의 작성</label>
@@ -91,6 +102,7 @@
               <button type="submit" class="btn btn-sm btn-primary">전송</button>
             </div>
           </form>
+          {% endif %}
         </div>
       </div>
       {% endif %}

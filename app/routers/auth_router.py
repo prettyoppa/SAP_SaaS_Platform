@@ -11,7 +11,7 @@ from zoneinfo import available_timezones
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
@@ -34,6 +34,30 @@ from ..sms_sender import send_email_hint_otp_sms, send_registration_otp_sms, sms
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _user_consultant_profile_file_labels(user: models.User) -> tuple[bool, str]:
+    """저장된 컨설턴트 프로필 첨부가 있으면 (True, 표시용 파일명). file_name이 비어 있으면 경로에서 유추."""
+    path = (getattr(user, "consultant_profile_file_path", None) or "").strip()
+    name = (getattr(user, "consultant_profile_file_name", None) or "").strip()
+    if not path:
+        return False, ""
+    if name:
+        return True, name
+    try:
+        _kind, ref = r2_storage.parse_storage_ref(path)
+        leaf = os.path.basename((ref or "").replace("\\", "/"))
+    except Exception:
+        leaf = ""
+    return True, leaf or "첨부 파일"
+
+
+def _consultant_profile_template_labels(user: models.User) -> dict:
+    has_file, display = _user_consultant_profile_file_labels(user)
+    return {
+        "consultant_profile_has_file": has_file,
+        "consultant_profile_display_name": display,
+    }
 
 
 def _delete_auth_cookie(response: RedirectResponse, request: Request) -> None:
@@ -1252,6 +1276,7 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
         .filter(models.EmailChangePending.user_id == user.id)
         .first()
     )
+    clabels = _consultant_profile_template_labels(user)
     return templates.TemplateResponse(
         request,
         "account_profile.html",
@@ -1263,8 +1288,30 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
             "pending_email_change": pending_ec,
             "mail_for_account_actions": email_verification_enabled(),
             "deletion_grace_days": deletion_grace_days(),
+            **clabels,
         },
     )
+
+
+@router.get("/account/consultant-profile")
+def account_consultant_profile_download(request: Request, db: Session = Depends(get_db)):
+    """로그인 사용자 본인의 컨설턴트 상세 프로필 첨부 다운로드(또는 R2 프리사인 리다이렉트)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account", status_code=302)
+    path = (getattr(user, "consultant_profile_file_path", None) or "").strip()
+    if not path:
+        return RedirectResponse(url="/account", status_code=302)
+    _has, display = _user_consultant_profile_file_labels(user)
+    fname = (getattr(user, "consultant_profile_file_name", None) or "").strip() or display or "consultant_profile"
+    kind, ref = r2_storage.parse_storage_ref(path)
+    if kind == "r2":
+        if not r2_storage.is_configured():
+            return RedirectResponse(url="/account", status_code=302)
+        return RedirectResponse(url=r2_storage.presigned_get_url(ref, fname), status_code=302)
+    if not os.path.isfile(ref):
+        return RedirectResponse(url="/account", status_code=302)
+    return FileResponse(ref, filename=fname)
 
 
 @router.get("/account/edit", response_class=HTMLResponse)
@@ -1287,10 +1334,10 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
             "account_type_value": "consultant"
             if (getattr(user, "is_consultant", False) or getattr(user, "consultant_application_pending", False))
             else "member",
-            "consultant_profile_file_name": getattr(user, "consultant_profile_file_name", None) or "",
             "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
             "time_zones": sorted(available_timezones()),
             "error": None,
+            **_consultant_profile_template_labels(user),
         },
     )
 
@@ -1341,9 +1388,9 @@ async def account_profile_edit_post(
                 "ops_sms_opt_in_value": ops_sms_opt_in_value,
                 "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                 "account_type_value": account_type_norm,
-                "consultant_profile_file_name": getattr(user, "consultant_profile_file_name", None) or "",
                 "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
                 "error": err,
+                **_consultant_profile_template_labels(user),
             },
             status_code=400,
         )
@@ -1363,15 +1410,14 @@ async def account_profile_edit_post(
                 "ops_sms_opt_in_value": ops_sms_opt_in_value,
                 "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                 "account_type_value": account_type_norm,
-                "consultant_profile_file_name": getattr(user, "consultant_profile_file_name", None) or "",
                 "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
                 "error": tz_err,
+                **_consultant_profile_template_labels(user),
             },
             status_code=400,
         )
 
-    def _profile_edit_error(err: str, profile_file_name: str | None = None):
-        display_name = profile_file_name if profile_file_name is not None else (getattr(user, "consultant_profile_file_name", None) or "")
+    def _profile_edit_error(err: str):
         was_p = bool(getattr(user, "consultant_application_pending", False))
         return templates.TemplateResponse(
             request,
@@ -1387,9 +1433,9 @@ async def account_profile_edit_post(
                 "ops_sms_opt_in_value": ops_sms_opt_in_value,
                 "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                 "account_type_value": account_type_norm,
-                "consultant_profile_file_name": display_name,
                 "consultant_application_pending": was_p,
                 "error": err,
+                **_consultant_profile_template_labels(user),
             },
             status_code=400,
         )
@@ -1426,9 +1472,9 @@ async def account_profile_edit_post(
                     "ops_sms_opt_in_value": ops_sms_opt_in_value,
                     "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                     "account_type_value": account_type_norm,
-                    "consultant_profile_file_name": new_profile_name or "",
                     "consultant_application_pending": was_pending,
                     "error": "consultant_profile_required",
+                    **_consultant_profile_template_labels(user),
                 },
                 status_code=400,
             )
@@ -1453,9 +1499,9 @@ async def account_profile_edit_post(
                         "ops_sms_opt_in_value": ops_sms_opt_in_value,
                         "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                         "account_type_value": account_type_norm,
-                        "consultant_profile_file_name": new_profile_name or "",
                         "consultant_application_pending": was_pending,
                         "error": "consultant_profile_too_large",
+                        **_consultant_profile_template_labels(user),
                     },
                     status_code=400,
                 )
@@ -1474,9 +1520,9 @@ async def account_profile_edit_post(
                         "ops_sms_opt_in_value": ops_sms_opt_in_value,
                         "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                         "account_type_value": account_type_norm,
-                        "consultant_profile_file_name": new_profile_name or "",
                         "consultant_application_pending": was_pending,
                         "error": "consultant_profile_upload_failed",
+                        **_consultant_profile_template_labels(user),
                     },
                     status_code=400,
                 )
@@ -1501,14 +1547,14 @@ async def account_profile_edit_post(
                             "ops_sms_opt_in_value": ops_sms_opt_in_value,
                             "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                             "account_type_value": account_type_norm,
-                            "consultant_profile_file_name": new_profile_name or "",
                             "consultant_application_pending": was_pending,
                             "error": "consultant_profile_upload_failed",
+                            **_consultant_profile_template_labels(user),
                         },
                         status_code=400,
                     )
         if account_type_norm == "consultant" and not new_profile_path:
-            return _profile_edit_error("consultant_profile_required", new_profile_name or "")
+            return _profile_edit_error("consultant_profile_required")
         if user.is_consultant:
             user.consultant_application_pending = False
         else:

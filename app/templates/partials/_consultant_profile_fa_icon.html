@@ -1,0 +1,26 @@
+{# 컨설턴트 상세 프로필 첨부 확장자에 맞는 Font Awesome 파일 아이콘 (오퍼 패널 등) #}
+{% macro consultant_profile_fa_icon(consultant) -%}
+{% if consultant and (consultant.consultant_profile_file_path or '').strip() %}
+  {% set pfn = (consultant.consultant_profile_file_name or '').strip() %}
+  {% set ppath = (consultant.consultant_profile_file_path or '').strip() %}
+  {% set leaf = pfn if pfn else (ppath.replace('\\', '/').split('/')[-1] if ppath else '') %}
+  {% set ext = (leaf.rsplit('.', 1)[-1].lower() if leaf and '.' in leaf else '') %}
+  {% if ext == 'pdf' %}
+  <i class="fa-solid fa-file-pdf text-danger" aria-hidden="true"></i>
+  {% elif ext in ['doc', 'docx'] %}
+  <i class="fa-solid fa-file-word text-primary" aria-hidden="true"></i>
+  {% elif ext in ['xls', 'xlsx', 'csv'] %}
+  <i class="fa-solid fa-file-excel text-success" aria-hidden="true"></i>
+  {% elif ext in ['ppt', 'pptx'] %}
+  <i class="fa-solid fa-file-powerpoint text-warning" aria-hidden="true"></i>
+  {% elif ext in ['zip', 'rar', '7z', 'gz', 'tgz'] %}
+  <i class="fa-solid fa-file-zipper text-secondary" aria-hidden="true"></i>
+  {% elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] %}
+  <i class="fa-solid fa-file-image text-info" aria-hidden="true"></i>
+  {% elif ext in ['txt', 'md', 'json', 'xml', 'csv', 'log'] %}
+  <i class="fa-solid fa-file-lines text-secondary" aria-hidden="true"></i>
+  {% else %}
+  <i class="fa-solid fa-file text-secondary" aria-hidden="true"></i>
+  {% endif %}
+{% endif %}
+{%- endmacro %}

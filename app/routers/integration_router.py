@@ -120,6 +120,23 @@ def _request_no(prefix: str, v: int) -> str:
     return f"{prefix}-{int(v)}"
 
 
+def _console_unified_hub_embed_phase(bucket: str) -> str:
+    """Console iframe 기본 단계: 목록 버킷과 맞춰 제안/오퍼·인터뷰 영역이 보이도록."""
+    b = (bucket or "").strip().lower()
+    if b in ("proposal", "delivery"):
+        return "proposal"
+    if b == "analysis":
+        return "interview"
+    return "request"
+
+
+def _console_abap_preview_suffix(bucket: str) -> str:
+    b = (bucket or "").strip().lower()
+    if b in ("proposal", "delivery"):
+        return "#abap-phase-offers"
+    return ""
+
+
 def _console_row_for_offer_target(db: Session, kind: str, req_id: int) -> dict[str, Any] | None:
     k = (kind or "").strip().lower()
     if k == "rfp":
@@ -256,7 +273,9 @@ def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
         "owner_name": getattr(getattr(r, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(r, "owner", None), "company", "") or "",
         "detail_href": f"/rfp/{r.id}",
-        "preview_href": f"/rfp/{r.id}/console-readonly?embed=1",
+        "preview_href": (
+            f"/rfp/{r.id}/console-readonly?embed=1&phase={_console_unified_hub_embed_phase(rfp_landing_bucket(r))}"
+        ),
         "summary": (r.description or "").strip(),
     }
 
@@ -274,7 +293,9 @@ def _console_row_from_analysis(row: models.AbapAnalysisRequest) -> dict[str, Any
         "owner_name": getattr(getattr(row, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(row, "owner", None), "company", "") or "",
         "detail_href": f"/abap-analysis/{row.id}",
-        "preview_href": f"/abap-analysis/{row.id}/console-readonly?embed=1",
+        "preview_href": (
+            f"/abap-analysis/{row.id}/console-readonly?embed=1{_console_abap_preview_suffix(abap_analysis_menu_bucket(row))}"
+        ),
         "summary": (row.requirement_text or "").strip(),
     }
 
@@ -292,7 +313,9 @@ def _console_row_from_integration(ir: models.IntegrationRequest) -> dict[str, An
         "owner_name": getattr(getattr(ir, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(ir, "owner", None), "company", "") or "",
         "detail_href": f"/integration/{ir.id}",
-        "preview_href": f"/integration/{ir.id}/console-readonly?embed=1",
+        "preview_href": (
+            f"/integration/{ir.id}/console-readonly?embed=1&phase={_console_unified_hub_embed_phase(integration_menu_bucket(ir))}"
+        ),
         "summary": (ir.description or "").strip(),
     }
 
@@ -1200,6 +1223,7 @@ def _collect_integration_unified_hub_ctx(
     q = apply_integration_hub_read_access(
         db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
         user,
+        console_embed=bool(readonly_console),
     )
     ir = (
         q.options(
@@ -1240,7 +1264,9 @@ def _collect_integration_unified_hub_ctx(
     program_groups = reference_code_program_groups_for_tabs(ir.reference_code_payload)
     ref_section_count = sum(len(g["sections"]) for g in program_groups)
     owner = None
-    if getattr(user, "is_admin", False) or consultant_has_request_offer(
+    if getattr(user, "is_admin", False) or (
+        readonly_console and getattr(user, "is_consultant", False)
+    ) or consultant_has_request_offer(
         db, consultant_user_id=user.id, request_kind="integration", request_id=ir.id
     ):
         owner = db.query(models.User).filter(models.User.id == ir.user_id).first()

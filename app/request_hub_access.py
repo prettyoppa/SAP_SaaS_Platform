@@ -23,9 +23,14 @@ def consultant_has_request_offer(
     )
 
 
-def apply_integration_hub_read_access(q: Query, user) -> Query:
-    """Narrows an IntegrationRequest query to rows the user may read (hub, embed, status, attachments)."""
+def apply_integration_hub_read_access(q: Query, user, *, console_embed: bool = False) -> Query:
+    """Narrows an IntegrationRequest query to rows the user may read (hub, embed, status, attachments).
+
+    console_embed: 요청 Console 읽기 전용 iframe — 컨설턴트·관리자는 목록과 동일하게 전체 연동 요청 미리보기.
+    """
     if getattr(user, "is_admin", False):
+        return q
+    if console_embed and getattr(user, "is_consultant", False):
         return q
     ro = models.RequestOffer
     offer_ok = exists().where(

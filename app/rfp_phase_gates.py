@@ -147,6 +147,36 @@ def rfp_for_owner_or_admin(
     return q.filter(models.RFP.user_id == user.id).first()
 
 
+def rfp_for_hub_readonly_embed(
+    db: Session,
+    *,
+    user,
+    rfp_id: int,
+    load_messages: bool = False,
+    load_fs_supplements: bool = False,
+    load_followup_messages: bool = False,
+) -> models.RFP | None:
+    """요청 Console iframe(읽기 전용): 관리자·컨설턴트는 콘솔 목록과 동일하게 전체 RFP 미리보기."""
+    if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
+        q = db.query(models.RFP).filter(models.RFP.id == rfp_id)
+        preload = [joinedload(models.RFP.owner)]
+        if load_messages:
+            preload.append(joinedload(models.RFP.messages))
+        if load_fs_supplements:
+            preload.append(joinedload(models.RFP.fs_supplements))
+        if load_followup_messages:
+            preload.append(joinedload(models.RFP.followup_messages))
+        return q.options(*preload).first()
+    return rfp_for_owner_or_admin(
+        db,
+        user=user,
+        rfp_id=rfp_id,
+        load_messages=load_messages,
+        load_fs_supplements=load_fs_supplements,
+        load_followup_messages=load_followup_messages,
+    )
+
+
 def rfp_owned_only(db: Session, *, user_id: int, rfp_id: int) -> models.RFP | None:
     """변경(POST) 처리용: 소유자만."""
     return db.query(models.RFP).filter(

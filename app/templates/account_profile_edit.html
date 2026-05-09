@@ -131,10 +131,15 @@
               <span>상세 프로필 첨부 <span class="text-danger">*</span></span>
               <span class="text-muted small">최대 1건 · 20MB</span>
             </div>
-            {% if consultant_profile_file_name %}
-            <div class="small text-muted mb-2">
-              현재 파일: <strong>{{ consultant_profile_file_name }}</strong>
-              <span class="d-block mt-1">교체하려면 아래에서 새 파일을 첨부하세요.</span>
+            {% if consultant_profile_has_file|default(false) %}
+            <div class="small text-muted mb-2 border rounded p-2 bg-body-secondary bg-opacity-25">
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <span>현재 파일: <strong class="text-break">{{ consultant_profile_display_name }}</strong></span>
+                <a class="btn btn-sm btn-outline-primary" href="/account/consultant-profile" data-no-busy="true">
+                  <i class="fa-solid fa-download me-1"></i>다운로드
+                </a>
+              </div>
+              <span class="d-block mt-1">교체하려면 아래에서 새 파일을 선택하세요.</span>
             </div>
             {% endif %}
             <div id="pfConsultantProfileDropzone" class="consultant-dropzone">
@@ -298,7 +303,7 @@
   if (form) {
     form.addEventListener('submit', (e) => {
       if (!isConsultantSelected()) return;
-      const hasExisting = {{ 'true' if consultant_profile_file_name else 'false' }};
+      const hasExisting = {{ 'true' if (consultant_profile_has_file|default(false)) else 'false' }};
       const f = fileInput && fileInput.files ? fileInput.files[0] : null;
       if (!hasExisting && !f) {
         e.preventDefault();

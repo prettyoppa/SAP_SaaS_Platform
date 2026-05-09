@@ -37,6 +37,7 @@ from ..menu_landing import (
 )
 from ..attachment_context import build_attachment_llm_digest
 from ..offer_inquiry_service import inquiries_by_offer_id, public_request_url, send_offer_inquiry_from_owner
+from ..request_hub_access import consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_reference_code import (
     abap_source_only_from_reference_payload,
@@ -153,6 +154,13 @@ def _query_abap_readable(db: Session, user: models.User):
         )
         return q.filter(or_(models.AbapAnalysisRequest.user_id == user.id, offer_ok))
     return q.filter(models.AbapAnalysisRequest.user_id == user.id)
+
+
+def _query_abap_console_embed(db: Session, user: models.User):
+    """요청 Console iframe(읽기 전용): 관리자·컨설턴트는 목록과 동일하게 전체 분석 요청 미리보기."""
+    if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
+        return db.query(models.AbapAnalysisRequest)
+    return _query_abap_readable(db, user)
 
 
 def _query_for_user(db: Session, user: models.User):
@@ -894,9 +902,9 @@ def _prepare_abap_analysis_detail_ctx(
     user: models.User,
     readonly_console: bool,
 ) -> RedirectResponse | dict[str, Any]:
+    base_q = _query_abap_console_embed(db, user) if readonly_console else _query_abap_readable(db, user)
     row = (
-        _query_abap_readable(db, user)
-        .options(
+        base_q.options(
             joinedload(models.AbapAnalysisRequest.followup_messages),
             joinedload(models.AbapAnalysisRequest.workflow_rfp).joinedload(models.RFP.messages),
         )
@@ -912,7 +920,11 @@ def _prepare_abap_analysis_detail_ctx(
         except Exception:
             analysis = {}
     owner = None
-    if user.is_admin:
+    if getattr(user, "is_admin", False) or (
+        readonly_console and getattr(user, "is_consultant", False)
+    ) or consultant_has_request_offer(
+        db, consultant_user_id=user.id, request_kind="analysis", request_id=row.id
+    ):
         owner = db.query(models.User).filter(models.User.id == row.user_id).first()
 
     eff_src = _effective_abap_source(row)

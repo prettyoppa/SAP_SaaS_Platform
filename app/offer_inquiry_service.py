@@ -15,6 +15,22 @@ from .sms_sender import send_offer_inquiry_sms
 MAX_INQUIRY_BODY_LEN = 2000
 
 
+def inquiry_request_label(offer: models.RequestOffer) -> str:
+    """요청 콘솔과 동일한 표기 (RFP-3, ANA-3, INT-3)."""
+    k = (getattr(offer, "request_kind", None) or "").strip().lower()
+    try:
+        rid = int(getattr(offer, "request_id", 0) or 0)
+    except (TypeError, ValueError):
+        rid = 0
+    if k == "rfp":
+        return f"RFP-{rid}"
+    if k == "analysis":
+        return f"ANA-{rid}"
+    if k == "integration":
+        return f"INT-{rid}"
+    return f"REQ-{rid}"
+
+
 def public_request_url(request: Any, path: str) -> str:
     """절대 URL (PUBLIC_BASE_URL 우선). path는 / 로 시작."""
     env = (os.environ.get("PUBLIC_BASE_URL") or "").strip().rstrip("/")
@@ -100,9 +116,11 @@ def send_offer_inquiry_from_owner(
         return "컨설턴트 이메일이 없어 이메일로 보낼 수 없습니다.", None
 
     subject = f"[SAP Dev Hub] 요청 문의 — {request_title[:80]}"
-    owner_line = f"요청자: {author.full_name} ({author.email})"
+    # 이메일은 Catch Lab 발신이나, 본문에 요청자 로그인 이메일은 포함하지 않음(개인정보 최소화).
+    owner_line = f"요청자: {author.full_name}"
     body_email = (
         f"{owner_line}\n"
+        f"요청 ID: {inquiry_request_label(offer)}\n"
         f"요청: {request_title}\n"
         f"링크: {request_detail_url}\n\n"
         f"문의 내용:\n{body}\n"

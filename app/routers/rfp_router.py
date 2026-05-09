@@ -51,7 +51,7 @@ from ..rfp_followup_chat import (
     rfp_followup_context_block,
     validate_rfp_user_message,
 )
-from ..rfp_phase_gates import rfp_for_owner_or_admin, rfp_owned_only
+from ..rfp_phase_gates import rfp_for_hub_readonly_embed, rfp_for_owner_or_admin, rfp_owned_only
 from ..stripe_service import stripe_keys_configured
 from . import interview_router as _interview_views
 from ..database import get_db
@@ -659,14 +659,24 @@ def _collect_rfp_unified_hub_ctx(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    rfp = rfp_for_owner_or_admin(
-        db,
-        user=user,
-        rfp_id=rfp_id,
-        load_messages=True,
-        load_fs_supplements=True,
-        load_followup_messages=not readonly_console,
-    )
+    if readonly_console:
+        rfp = rfp_for_hub_readonly_embed(
+            db,
+            user=user,
+            rfp_id=rfp_id,
+            load_messages=True,
+            load_fs_supplements=True,
+            load_followup_messages=False,
+        )
+    else:
+        rfp = rfp_for_owner_or_admin(
+            db,
+            user=user,
+            rfp_id=rfp_id,
+            load_messages=True,
+            load_fs_supplements=True,
+            load_followup_messages=True,
+        )
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
 
@@ -746,7 +756,9 @@ def _collect_rfp_unified_hub_ctx(
     tabs_base_id = f"rfp-ref-src-{rfp.id}"
 
     owner = None
-    if getattr(user, "is_admin", False) or consultant_has_request_offer(
+    if getattr(user, "is_admin", False) or (
+        readonly_console and getattr(user, "is_consultant", False)
+    ) or consultant_has_request_offer(
         db, consultant_user_id=user.id, request_kind="rfp", request_id=rfp.id
     ):
         owner = db.query(models.User).filter(models.User.id == rfp.user_id).first()

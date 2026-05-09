@@ -80,6 +80,31 @@
           </dd>
 
           <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+            <span class="nav-ko">가입 유형</span><span class="nav-en" style="display:none">Account type</span>
+          </dt>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+            {% if user.is_consultant %}
+              <span class="nav-ko">컨설턴트</span><span class="nav-en" style="display:none">Consultant</span>
+            {% elif user.consultant_application_pending %}
+              <span class="nav-ko">컨설턴트 승인 대기</span><span class="nav-en" style="display:none">Consultant (pending approval)</span>
+            {% else %}
+              <span class="nav-ko">일반회원</span><span class="nav-en" style="display:none">Member</span>
+            {% endif %}
+          </dd>
+
+          {% if consultant_profile_has_file|default(false) %}
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+            <span class="nav-ko">상세 프로필</span><span class="nav-en" style="display:none">Consultant profile</span>
+          </dt>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+            <span class="text-break">{{ consultant_profile_display_name }}</span>
+            <a class="btn btn-sm btn-outline-primary ms-2 align-baseline" href="/account/consultant-profile" data-no-busy="true">
+              <i class="fa-solid fa-download me-1"></i><span class="nav-ko">다운로드</span><span class="nav-en" style="display:none">Download</span>
+            </a>
+          </dd>
+          {% endif %}
+
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">표시 타임존</span><span class="nav-en" style="display:none">Display time zone</span>
           </dt>
           <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
