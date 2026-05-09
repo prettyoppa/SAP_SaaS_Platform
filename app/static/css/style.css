@@ -2438,7 +2438,34 @@ html[data-theme="light"] .abap-float-chat-resize {
   vertical-align: -0.1em;
 }
 
-/* 오퍼 문의 확장 패널 — 다크/라이트에서 표면·라벨·입력 대비 통일 */
+/* 오퍼 현황 전체 — 다크에서 허브 배경과 동일 톤(밝은 list-group 기본 제거) */
+.request-offers-panel > h6.text-muted {
+  color: var(--label) !important;
+}
+.request-offers-panel .list-group {
+  background: transparent;
+  border-radius: var(--radius-sm);
+}
+.request-offers-panel .list-group-item {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text);
+}
+.request-offers-panel .list-group-item + .list-group-item {
+  border-top-color: var(--border);
+}
+.request-offers-panel .fw-semibold {
+  color: var(--text);
+}
+.request-offers-panel .text-muted,
+.request-offers-panel .small.text-muted {
+  color: var(--muted) !important;
+}
+.request-offers-panel .offer-consent-inline .text-muted {
+  color: var(--label) !important;
+}
+
+/* 오퍼 문의 확장 패널 — 카드보다 한 단계 깊은 면 */
 .offer-inquiry-panel-inner {
   background: var(--surface2) !important;
   border-color: var(--border) !important;
@@ -2446,6 +2473,7 @@ html[data-theme="light"] .abap-float-chat-resize {
 }
 .offer-inquiry-panel-inner .offer-inquiry-label {
   color: var(--label);
+  font-weight: 600;
 }
 .offer-inquiry-panel-inner .form-control {
   background: var(--input-bg);
@@ -2453,7 +2481,14 @@ html[data-theme="light"] .abap-float-chat-resize {
   color: var(--text);
 }
 .offer-inquiry-panel-inner .form-control::placeholder {
-  color: color-mix(in srgb, var(--muted) 80%, transparent);
+  color: color-mix(in srgb, var(--muted) 70%, var(--text) 30%);
+  opacity: 1;
+}
+html[data-theme="dark"] .offer-inquiry-panel-inner .form-control::placeholder {
+  color: #a8b4c8;
+}
+html[data-theme="light"] .offer-inquiry-panel-inner .form-control::placeholder {
+  color: #64748b;
 }
 .offer-inquiry-panel-inner .form-control:focus {
   background: var(--input-bg);
@@ -2462,11 +2497,25 @@ html[data-theme="light"] .abap-float-chat-resize {
   box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary) 25%, transparent);
 }
 .offer-inquiry-privacy-note {
-  color: var(--label);
-  line-height: 1.45;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--info);
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--info);
+  background: color-mix(in srgb, var(--info) 14%, var(--surface2));
+}
+html[data-theme="dark"] .offer-inquiry-privacy-note {
+  color: #7dd3fc;
+  background: color-mix(in srgb, var(--info) 12%, var(--surface));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--info) 22%, transparent);
 }
 html[data-theme="light"] .offer-inquiry-privacy-note {
-  color: var(--muted);
+  color: #0369a1;
+  background: color-mix(in srgb, var(--info) 10%, var(--surface2));
+  border-left-color: #0284c7;
 }
 .offer-inquiry-history .text-uppercase {
   color: var(--label);

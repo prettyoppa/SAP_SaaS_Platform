@@ -1,5 +1,5 @@
 {% if request_offers is defined and request_offers %}
-<div class="{{ request_offer_panel_wrap_class|default('mt-3') }}">
+<div class="request-offers-panel {{ request_offer_panel_wrap_class|default('mt-3') }}">
   <h6 class="text-muted small text-uppercase mb-2">오퍼 현황</h6>
   {% if offer_inquiry_err is defined and offer_inquiry_err %}
   <div class="alert alert-danger small py-2 mb-2">{{ offer_inquiry_err }}</div>
