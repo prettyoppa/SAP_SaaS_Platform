@@ -458,6 +458,34 @@ class PhoneRegistrationCode(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PhoneEmailHintCode(Base):
+    """로그인 이메일 찾기 — 인증된 휴대폰으로 OTP 발송 후 마스킹된 이메일 표시."""
+
+    __tablename__ = "phone_email_hint_codes"
+
+    id = Column(Integer, primary_key=True)
+    phone_number = Column(String(32), unique=True, index=True, nullable=False)
+    code_hash = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    last_sent_at = Column(DateTime, nullable=True)
+    attempt_count = Column(Integer, default=0, nullable=False)
+    verified_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PasswordResetToken(Base):
+    """비밀번호 재설정 링크(일회용). 토큰 평문은 저장하지 않고 SHA-256 해시만 보관."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    used_at = Column(DateTime, nullable=True)
+
+
 class RequestOffer(Base):
     """컨설턴트가 요청건(RFP/ABAP 분석/연동)에 제출한 오퍼."""
 

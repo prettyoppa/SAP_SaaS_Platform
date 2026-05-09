@@ -87,6 +87,18 @@
             </div>
           </div>
           {% endif %}
+          {% if password_reset_sent %}
+          <div class="alert alert-info small d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-envelope me-2"></i>
+            <span>비밀번호 재설정 메일을 확인해 주세요. (메일함·스팸함)</span>
+          </div>
+          {% endif %}
+          {% if password_reset_done %}
+          <div class="alert alert-success small d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-check me-2"></i>
+            <span>비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.</span>
+          </div>
+          {% endif %}
 
           <form method="post" action="/login">
             {% if login_next %}
@@ -100,13 +112,18 @@
                        placeholder="you@company.com" autocomplete="email"/>
               </div>
             </div>
-            <div class="mb-4">
+            <div class="mb-2">
               <label class="form-label" data-i18n="login.password">Password</label>
               <div class="input-icon-wrap">
                 <i class="fa-solid fa-lock input-icon"></i>
                 <input type="password" name="password" class="form-control input-with-icon" required
                        placeholder="••••••••" autocomplete="current-password"/>
               </div>
+            </div>
+            <div class="mb-4 text-end small auth-recovery-links">
+              <a href="/forgot-password" class="auth-recovery-link">비밀번호 찾기</a>
+              <span class="text-muted mx-1">·</span>
+              <a href="/forgot-email" class="auth-recovery-link">이메일 찾기</a>
             </div>
             <button type="submit" class="btn btn-primary w-100 btn-lg">
               <span data-i18n="login.btn">Sign In</span>

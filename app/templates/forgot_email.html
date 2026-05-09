@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}로그인 이메일 찾기 – SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="auth-card">
+          <div class="auth-logo"><i class="fa-solid fa-envelope-circle-check"></i></div>
+          <h2 class="auth-title">로그인 이메일 찾기</h2>
+          <p class="auth-sub text-muted">
+            가입 시 <strong>인증 완료한</strong> 휴대폰 번호로 문자 인증 후, 로그인 이메일 일부를 안내합니다.
+          </p>
+
+          {% if not sms_ok %}
+          <div class="alert alert-warning small" role="alert">
+            SMS 발송이 설정되지 않아 이 기능을 사용할 수 없습니다. 관리자에게 문의하거나 비밀번호 재설정만 이용해 주세요.
+          </div>
+          {% else %}
+          <div class="mb-3">
+            <label class="form-label" for="fe-phone">휴대폰 번호 (국제번호, 예: +821012345678)</label>
+            <div class="input-icon-wrap">
+              <i class="fa-solid fa-phone input-icon"></i>
+              <input type="tel" id="fe-phone" class="form-control input-with-icon" autocomplete="tel"
+                     placeholder="+821012345678"/>
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button type="button" class="btn btn-outline-primary" id="fe-send">인증번호 받기</button>
+          </div>
+          <div class="small text-muted mb-2" id="fe-send-status" aria-live="polite"></div>
+
+          <div class="mb-3" id="fe-code-wrap" style="display:none">
+            <label class="form-label" for="fe-code">인증번호 (6자리)</label>
+            <input type="text" id="fe-code" class="form-control font-monospace" maxlength="6" inputmode="numeric"
+                   placeholder="000000" autocomplete="one-time-code"/>
+          </div>
+          <button type="button" class="btn btn-primary w-100 mb-3" id="fe-verify" style="display:none">확인하고 이메일 보기</button>
+
+          <div id="fe-result" class="alert small" style="display:none" role="status"></div>
+          {% endif %}
+
+          <p class="text-center small mb-2">
+            <a href="/forgot-password">비밀번호를 잊으셨나요?</a>
+          </p>
+          <p class="text-center text-muted small mb-0">
+            <a href="/login">로그인으로 돌아가기</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% if sms_ok %}
+<script>
+(function () {
+  const phoneEl = document.getElementById('fe-phone');
+  const sendBtn = document.getElementById('fe-send');
+  const verifyBtn = document.getElementById('fe-verify');
+  const codeWrap = document.getElementById('fe-code-wrap');
+  const codeEl = document.getElementById('fe-code');
+  const statusEl = document.getElementById('fe-send-status');
+  const resultEl = document.getElementById('fe-result');
+
+  function showResult(kind, html) {
+    resultEl.style.display = '';
+    resultEl.className = 'alert small ' + (kind === 'ok' ? 'alert-success' : kind === 'warn' ? 'alert-warning' : 'alert-danger');
+    resultEl.innerHTML = html;
+  }
+
+  sendBtn.addEventListener('click', function () {
+    const phone = (phoneEl.value || '').trim();
+    if (!phone.startsWith('+')) {
+      statusEl.textContent = '국제번호 형식(+로 시작)으로 입력해 주세요.';
+      statusEl.className = 'small text-danger';
+      return;
+    }
+    sendBtn.disabled = true;
+    statusEl.textContent = '발송 중…';
+    statusEl.className = 'small text-muted';
+    const fd = new FormData();
+    fd.append('phone_number', phone);
+    fetch('/forgot-email/send-code', { method: 'POST', body: fd })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j, status: r.status }; }); })
+      .then(function (res) {
+        sendBtn.disabled = false;
+        if (res.ok && res.j && res.j.ok) {
+          statusEl.textContent = '요청을 접수했습니다. 이 번호로 인증된 계정이 있으면 곧 인증번호 문자가 도착합니다. 문자가 없으면 번호·인증 여부를 확인해 주세요.';
+          statusEl.className = 'small text-muted';
+          codeWrap.style.display = '';
+          verifyBtn.style.display = '';
+          codeEl.focus();
+        } else {
+          const err = (res.j && res.j.error) || '';
+          let msg = '요청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+          if (err === 'cooldown') msg = '잠시 후(약 1분) 다시 시도해 주세요.';
+          if (err === 'invalid_phone') msg = '휴대폰 번호 형식을 확인해 주세요.';
+          statusEl.textContent = msg;
+          statusEl.className = 'small text-danger';
+        }
+      })
+      .catch(function () {
+        sendBtn.disabled = false;
+        statusEl.textContent = '네트워크 오류가 발생했습니다.';
+        statusEl.className = 'small text-danger';
+      });
+  });
+
+  verifyBtn.addEventListener('click', function () {
+    const phone = (phoneEl.value || '').trim();
+    const code = (codeEl.value || '').replace(/\D/g, '');
+    if (code.length !== 6) {
+      showResult('err', '인증번호 6자리를 입력해 주세요.');
+      return;
+    }
+    verifyBtn.disabled = true;
+    const fd = new FormData();
+    fd.append('phone_number', phone);
+    fd.append('code', code);
+    fetch('/forgot-email/verify-code', { method: 'POST', body: fd })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        verifyBtn.disabled = false;
+        if (res.ok && res.j && res.j.ok) {
+          const emails = res.j.emails || [];
+          if (!emails.length) {
+            showResult('warn', '조회된 로그인 이메일이 없습니다. 번호가 맞는지, 가입 시 휴대폰 인증을 마쳤는지 확인해 주세요.');
+          } else {
+            const list = emails.map(function (e) { return '<li class="font-monospace">' + e + '</li>'; }).join('');
+            showResult('ok', '<div class="mb-1">로그인 이메일(일부 마스킹):</div><ul class="mb-0 ps-3">' + list + '</ul>');
+          }
+        } else {
+          const err = (res.j && res.j.error) || '';
+          let msg = '인증에 실패했습니다.';
+          if (err === 'bad_code') msg = '인증번호가 올바르지 않습니다.';
+          if (err === 'expired_code') msg = '인증번호가 만료되었습니다. 다시 받아 주세요.';
+          if (err === 'locked') msg = '시도 횟수가 많습니다. 인증번호를 다시 받아 주세요.';
+          if (err === 'no_code_sent') msg = '먼저 인증번호를 받아 주세요.';
+          showResult('err', msg);
+        }
+      })
+      .catch(function () {
+        verifyBtn.disabled = false;
+        showResult('err', '네트워크 오류가 발생했습니다.');
+      });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

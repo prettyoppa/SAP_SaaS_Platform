@@ -91,3 +91,40 @@ def send_registration_otp_sms(phone_e164: str, code: str) -> None:
         raise RuntimeError(f"SMS webhook {e.code}: {err_body}") from e
     except urllib.error.URLError as e:
         raise RuntimeError(f"SMS webhook 연결 실패: {e}") from e
+
+
+def send_email_hint_otp_sms(phone_e164: str, code: str) -> None:
+    """로그인 이메일 찾기용 OTP (문구만 구분)."""
+    ttl = _registration_otp_ttl_minutes()
+    body = f"[SAP Dev Hub] 이메일 찾기 인증번호 {code} (유효 {ttl}분)"
+    phone = (phone_e164 or "").strip()
+
+    webhook = (os.environ.get("SMS_WEBHOOK_URL") or "").strip()
+    if not webhook:
+        print(f"[SMS MOCK email_hint] to={phone} body={body}")
+        return
+
+    route = "domestic_kr_sens" if phone.startswith("+82") else "global_twilio"
+    payload = {
+        "to": phone,
+        "text": body,
+        "type": "email_hint_otp",
+        "route_hint": route,
+        "country_hint": "KR" if phone.startswith("+82") else "GLOBAL",
+    }
+    req = urllib.request.Request(
+        webhook,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            if resp.status >= 400:
+                raw = resp.read().decode("utf-8", errors="replace")
+                raise RuntimeError(f"SMS webhook HTTP {resp.status}: {raw}")
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"SMS webhook {e.code}: {err_body}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"SMS webhook 연결 실패: {e}") from e

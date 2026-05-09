@@ -292,6 +292,23 @@ def send_registration_otp_email(to_addr: str, code: str) -> None:
     _deliver_plain_email(to_addr, subject, body)
 
 
+def send_password_reset_email(to_addr: str, reset_url: str) -> None:
+    try:
+        ttl = max(15, min(24 * 60, int(os.environ.get("PASSWORD_RESET_TTL_MIN") or "60")))
+    except ValueError:
+        ttl = 60
+    subject = os.environ.get(
+        "MAIL_PASSWORD_RESET_SUBJECT", "[SAP Dev Hub] 비밀번호 재설정 안내"
+    )
+    body = (
+        "비밀번호를 재설정하려면 아래 링크를 눌러 주세요.\n\n"
+        f"{reset_url}\n\n"
+        f"링크는 약 {ttl}분 동안만 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시하고 "
+        "계정 비밀번호는 그대로 두셔도 됩니다."
+    )
+    _deliver_plain_email(to_addr, subject, body)
+
+
 def send_email_change_confirm_email(to_new_email: str, confirm_url: str) -> None:
     subject = os.environ.get("MAIL_EMAIL_CHANGE_SUBJECT", "[SAP Dev Hub] 새 이메일 주소 확인")
     body = (

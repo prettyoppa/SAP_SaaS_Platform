@@ -27,6 +27,15 @@
               <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>오퍼
             </span>
             {% endif %}
+            {% if c %}
+            <span class="offer-consent-inline d-inline-flex flex-wrap align-items-center gap-1 ms-2 fw-normal">
+              <span class="text-muted small text-nowrap">이메일 수신</span>
+              <span class="badge rounded-pill {{ 'bg-success' if c.ops_email_opt_in else 'bg-secondary' }}">{{ '동의' if c.ops_email_opt_in else '미동의' }}</span>
+              <span class="text-muted small" aria-hidden="true">·</span>
+              <span class="text-muted small text-nowrap">SMS 수신</span>
+              <span class="badge rounded-pill {{ 'bg-success' if c.ops_sms_opt_in else 'bg-secondary' }}">{{ '동의' if c.ops_sms_opt_in else '미동의' }}</span>
+            </span>
+            {% endif %}
           </div>
           <div class="small text-muted">{{ of.created_at|local_dt_span }}</div>
         </div>
@@ -53,27 +62,13 @@
       </div>
       {% if request_offer_can_inquire|default(false) and request_offer_inquiry_url_builder is defined %}
       <div class="collapse offer-inquiry-collapse w-100 mt-2" id="offer-inq-body-{{ of.id }}">
-        <div class="border rounded p-3 bg-body-secondary small offer-inquiry-panel-inner">
-          {% if c %}
-          <div class="mb-2">
-            <span class="text-muted">이메일</span>
-            <span class="fw-medium">{{ c.email }}</span>
-            <span class="text-muted ms-2">업무 이메일 수신</span>
-            <span class="badge {{ 'bg-success' if c.ops_email_opt_in else 'bg-secondary' }}">{{ '동의' if c.ops_email_opt_in else '미동의' }}</span>
-          </div>
-          <div class="mb-2">
-            <span class="text-muted">SMS 수신(업무)</span>
-            <span class="badge {{ 'bg-success' if c.ops_sms_opt_in else 'bg-secondary' }}">{{ '동의' if c.ops_sms_opt_in else '미동의' }}</span>
-            <span class="text-muted ms-2">휴대폰 인증</span>
-            <span class="badge {{ 'bg-success' if c.phone_verified else 'bg-secondary' }}">{{ '완료' if c.phone_verified else '미완료' }}</span>
-          </div>
-          {% endif %}
+        <div class="border rounded p-3 small offer-inquiry-panel-inner">
           {% if inq_list|length > 0 %}
           <div class="mb-3">
             <div class="text-muted text-uppercase small mb-1">문의 이력</div>
             <div class="vstack gap-2 offer-inquiry-history">
               {% for inv in inq_list %}
-              <div class="border rounded p-2 bg-white small">
+              <div class="border rounded p-2 small offer-inquiry-history-card">
                 <div class="d-flex flex-wrap justify-content-between gap-1 align-items-center mb-1">
                   <span class="fw-semibold">{{ inv.author.full_name if inv.author else '요청자' }}</span>
                   <span class="text-muted">{{ inv.created_at|local_dt_span }}</span>
@@ -89,7 +84,8 @@
           </div>
           {% endif %}
           <form method="post" action="{{ request_offer_inquiry_url_builder(of.id) }}" class="offer-inquiry-form" data-no-busy="true">
-            <label class="form-label small text-muted mb-1">문의 작성</label>
+            <p class="small offer-inquiry-privacy-note mb-2">회원 개인정보 보호를 위해 문의 내용은 Catch Lab 이름으로 발신됩니다.</p>
+            <label class="form-label small offer-inquiry-label mb-1">문의 작성</label>
             <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="2000" required placeholder="컨설턴트에게 전달할 내용을 입력하세요."></textarea>
             <div class="d-flex justify-content-end mt-2">
               <button type="submit" class="btn btn-sm btn-primary">전송</button>

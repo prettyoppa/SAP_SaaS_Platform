@@ -1457,6 +1457,34 @@ html[data-theme="light"] .consent-opt-section .form-text {
   color: var(--text);
 }
 
+/* 컨설턴트 프로필 안내 — 다크 모드에서 본문과 구분 */
+.consultant-profile-hint {
+  color: var(--label);
+  line-height: 1.5;
+}
+html[data-theme="light"] .consultant-profile-hint {
+  color: var(--muted);
+}
+
+/* 로그인: 계정 찾기 링크 가독성 */
+.auth-recovery-links {
+  color: var(--muted);
+}
+.auth-recovery-link {
+  color: var(--info);
+  text-decoration: none;
+}
+.auth-recovery-link:hover {
+  color: var(--primary-light);
+  text-decoration: underline;
+}
+html[data-theme="light"] .auth-recovery-link {
+  color: #0369a1;
+}
+html[data-theme="light"] .auth-recovery-link:hover {
+  color: #0c4a6e;
+}
+
 /* ── Flow Diagram ───────────────────────────── */
 .flow-diagram {
   display: flex; align-items: flex-start; justify-content: center;
@@ -2408,6 +2436,57 @@ html[data-theme="light"] .abap-float-chat-resize {
 .list-group-item .btn .fa-solid {
   font-size: 0.95em;
   vertical-align: -0.1em;
+}
+
+/* 오퍼 문의 확장 패널 — 다크/라이트에서 표면·라벨·입력 대비 통일 */
+.offer-inquiry-panel-inner {
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+  color: var(--text);
+}
+.offer-inquiry-panel-inner .offer-inquiry-label {
+  color: var(--label);
+}
+.offer-inquiry-panel-inner .form-control {
+  background: var(--input-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+.offer-inquiry-panel-inner .form-control::placeholder {
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+.offer-inquiry-panel-inner .form-control:focus {
+  background: var(--input-bg);
+  border-color: var(--primary);
+  color: var(--text);
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary) 25%, transparent);
+}
+.offer-inquiry-privacy-note {
+  color: var(--label);
+  line-height: 1.45;
+}
+html[data-theme="light"] .offer-inquiry-privacy-note {
+  color: var(--muted);
+}
+.offer-inquiry-history .text-uppercase {
+  color: var(--label);
+}
+.offer-inquiry-history-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text);
+}
+.offer-inquiry-history-card .text-muted {
+  color: var(--muted) !important;
+}
+.offer-consent-inline {
+  max-width: 100%;
+}
+.offer-consent-inline .badge.rounded-pill {
+  font-weight: 600;
+  font-size: 0.68rem;
+  padding: 0.28em 0.55em;
+  vertical-align: middle;
 }
 
 .menu-list-card {

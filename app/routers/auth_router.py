@@ -1,6 +1,8 @@
+import hashlib
 import logging
 import os
 import re
+import secrets
 import threading
 import time
 from datetime import datetime, timedelta
@@ -25,9 +27,10 @@ from ..email_smtp import (
     send_registration_otp_email,
     send_verification_email,
     send_consultant_application_received_email,
+    send_password_reset_email,
 )
 from ..templates_config import templates
-from ..sms_sender import send_registration_otp_sms
+from ..sms_sender import send_email_hint_otp_sms, send_registration_otp_sms, sms_enabled
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -76,6 +79,14 @@ def _schedule_verification_email(to_addr: str, verify_url: str) -> None:
     ).start()
 
 
+def _send_password_reset_email_bg(to_addr: str, reset_url: str) -> None:
+    try:
+        send_password_reset_email(to_addr, reset_url)
+        logger.info("Password reset email queued/delivered for %s", to_addr)
+    except Exception:
+        logger.exception("Password reset email failed for %s", to_addr)
+
+
 def _normalize_email_strict(raw: str) -> str | None:
     """RFC 기반 구문 검증(가장 흔한 방식). DNS MX 조회는 배포 환경에 따라 생략."""
     try:
@@ -103,6 +114,31 @@ def _normalize_phone_e164(raw: str) -> str | None:
 
 def _form_bool(raw: str | None) -> bool:
     return (raw or "").strip().lower() in ("1", "true", "on", "yes", "y")
+
+
+def _password_reset_token_hash(raw: str) -> str:
+    return hashlib.sha256((raw or "").encode("utf-8")).hexdigest()
+
+
+def _password_reset_ttl_minutes() -> int:
+    try:
+        return max(15, min(24 * 60, int(os.environ.get("PASSWORD_RESET_TTL_MIN") or "60")))
+    except ValueError:
+        return 60
+
+
+def _mask_login_email(email: str) -> str:
+    e = (email or "").strip()
+    if "@" not in e:
+        return "***"
+    local, _, domain = e.partition("@")
+    if not domain:
+        return "***"
+    if len(local) <= 2:
+        masked_local = (local[0] + "***") if local else "***"
+    else:
+        masked_local = local[:2] + "***"
+    return f"{masked_local}@{domain}"
 
 
 def _public_base_url(request: Request) -> str:
@@ -293,6 +329,10 @@ def login_page(
         ctx["email_change_invalid"] = True
     if delete_cancel_invalid == "1":
         ctx["delete_cancel_invalid"] = True
+    if request.query_params.get("reset_sent") == "1":
+        ctx["password_reset_sent"] = True
+    if request.query_params.get("reset_done") == "1":
+        ctx["password_reset_done"] = True
     return templates.TemplateResponse(request, "login.html", ctx)
 
 
@@ -346,6 +386,287 @@ def login(
     response.set_cookie(**_access_token_cookie_args(request, token))
     _sync_viewer_tz_cookie(response, request, user)
     return response
+
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_get(request: Request):
+    user = auth.get_current_user(request, next(get_db()))
+    if user:
+        return RedirectResponse(url="/", status_code=302)
+    mail_ok = email_verification_enabled()
+    sent = request.query_params.get("sent") == "1"
+    return templates.TemplateResponse(
+        request,
+        "forgot_password.html",
+        {"mail_configured": mail_ok, "sent": sent, "error": None},
+    )
+
+
+@router.post("/forgot-password")
+def forgot_password_post(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, next(get_db()))
+    if user:
+        return RedirectResponse(url="/", status_code=302)
+    if not email_verification_enabled():
+        return templates.TemplateResponse(
+            request,
+            "forgot_password.html",
+            {"mail_configured": False, "sent": False, "error": "mail_disabled"},
+            status_code=400,
+        )
+    email_norm = _normalize_email_strict(email)
+    redirect_ok = RedirectResponse(url="/forgot-password?sent=1", status_code=302)
+    if not email_norm:
+        return redirect_ok
+    u = db.query(models.User).filter(models.User.email == email_norm).first()
+    if not u or not u.is_active or getattr(u, "pending_account_deletion", False):
+        return redirect_ok
+
+    now = datetime.utcnow()
+    ttl_min = _password_reset_ttl_minutes()
+    for old in (
+        db.query(models.PasswordResetToken)
+        .filter(
+            models.PasswordResetToken.user_id == u.id,
+            models.PasswordResetToken.used_at.is_(None),
+        )
+        .all()
+    ):
+        db.delete(old)
+    db.commit()
+
+    raw_token = secrets.token_urlsafe(32)
+    th = _password_reset_token_hash(raw_token)
+    db.add(
+        models.PasswordResetToken(
+            user_id=u.id,
+            token_hash=th,
+            expires_at=now + timedelta(minutes=ttl_min),
+        )
+    )
+    db.commit()
+    reset_url = f"{_public_base_url(request)}/reset-password?t={quote(raw_token, safe='')}"
+    _schedule_bg(_send_password_reset_email_bg, u.email, reset_url)
+    return redirect_ok
+
+
+@router.get("/reset-password", response_class=HTMLResponse)
+def reset_password_get(request: Request, t: str = "", db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, next(get_db()))
+    if user:
+        return RedirectResponse(url="/", status_code=302)
+    raw = (t or "").strip()
+    if not raw:
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"valid": False, "error": "missing", "token": ""},
+        )
+    th = _password_reset_token_hash(raw)
+    row = (
+        db.query(models.PasswordResetToken)
+        .filter(models.PasswordResetToken.token_hash == th)
+        .first()
+    )
+    if not row or row.used_at is not None or datetime.utcnow() > row.expires_at:
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"valid": False, "error": "invalid", "token": ""},
+        )
+    return templates.TemplateResponse(
+        request,
+        "reset_password.html",
+        {"valid": True, "error": None, "token": raw},
+    )
+
+
+@router.post("/reset-password")
+def reset_password_post(
+    request: Request,
+    token: str = Form(...),
+    password: str = Form(...),
+    password_confirm: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, next(get_db()))
+    if user:
+        return RedirectResponse(url="/", status_code=302)
+    raw = (token or "").strip()
+    if not raw:
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"valid": False, "error": "invalid", "token": ""},
+            status_code=400,
+        )
+    th = _password_reset_token_hash(raw)
+    row = (
+        db.query(models.PasswordResetToken)
+        .filter(models.PasswordResetToken.token_hash == th)
+        .first()
+    )
+    if not row or row.used_at is not None or datetime.utcnow() > row.expires_at:
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"valid": False, "error": "invalid", "token": ""},
+            status_code=400,
+        )
+    u = db.query(models.User).filter(models.User.id == row.user_id).first()
+    if not u or not u.is_active or getattr(u, "pending_account_deletion", False):
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"valid": False, "error": "invalid", "token": ""},
+            status_code=400,
+        )
+    np, pw_err = _parse_new_password(password)
+    if pw_err:
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"valid": True, "error": pw_err, "token": raw},
+            status_code=400,
+        )
+    if (password or "").strip() != (password_confirm or "").strip():
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"valid": True, "error": "mismatch", "token": raw},
+            status_code=400,
+        )
+    u.hashed_password = auth.hash_password(np)
+    db.add(u)
+    row.used_at = datetime.utcnow()
+    db.add(row)
+    db.commit()
+    return RedirectResponse(url="/login?reset_done=1", status_code=302)
+
+
+@router.get("/forgot-email", response_class=HTMLResponse)
+def forgot_email_get(request: Request):
+    user = auth.get_current_user(request, next(get_db()))
+    if user:
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "forgot_email.html",
+        {"sms_ok": sms_enabled()},
+    )
+
+
+@router.post("/forgot-email/send-code")
+def forgot_email_send_code(
+    phone_number: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    phone_e164 = _normalize_phone_e164(phone_number)
+    if not phone_e164:
+        return JSONResponse({"ok": False, "error": "invalid_phone"}, status_code=400)
+    if not sms_enabled():
+        return JSONResponse({"ok": False, "error": "sms_disabled"}, status_code=400)
+
+    candidates = (
+        db.query(models.User)
+        .filter(
+            models.User.phone_number == phone_e164,
+            models.User.phone_verified.is_(True),
+            models.User.is_active.is_(True),
+        )
+        .all()
+    )
+    candidates = [u for u in candidates if not getattr(u, "pending_account_deletion", False)]
+    now = datetime.utcnow()
+    if not candidates:
+        return JSONResponse({"ok": True, "hint": "noop"})
+
+    row = (
+        db.query(models.PhoneEmailHintCode)
+        .filter(models.PhoneEmailHintCode.phone_number == phone_e164)
+        .first()
+    )
+    if row and row.last_sent_at and (now - row.last_sent_at).total_seconds() < 60:
+        return JSONResponse({"ok": False, "error": "cooldown"}, status_code=429)
+
+    code = auth.generate_registration_otp()
+    code_hash = auth.registration_code_hash(phone_e164, code)
+    expires = now + timedelta(minutes=auth.registration_otp_ttl_minutes())
+    try:
+        send_email_hint_otp_sms(phone_e164, code)
+    except Exception:
+        logger.exception("forgot_email send sms failed")
+        return JSONResponse({"ok": False, "error": "send_failed"}, status_code=500)
+
+    if row:
+        row.code_hash = code_hash
+        row.expires_at = expires
+        row.last_sent_at = now
+        row.attempt_count = 0
+        row.verified_at = None
+        db.add(row)
+    else:
+        db.add(
+            models.PhoneEmailHintCode(
+                phone_number=phone_e164,
+                code_hash=code_hash,
+                expires_at=expires,
+                last_sent_at=now,
+                attempt_count=0,
+            )
+        )
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post("/forgot-email/verify-code")
+def forgot_email_verify_code(
+    phone_number: str = Form(...),
+    code: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    phone_e164 = _normalize_phone_e164(phone_number)
+    if not phone_e164:
+        return JSONResponse({"ok": False, "error": "invalid_phone"}, status_code=400)
+    code_in = "".join(c for c in (code or "") if c.isdigit())
+    if len(code_in) != 6:
+        return JSONResponse({"ok": False, "error": "invalid_code"}, status_code=400)
+
+    row = (
+        db.query(models.PhoneEmailHintCode)
+        .filter(models.PhoneEmailHintCode.phone_number == phone_e164)
+        .first()
+    )
+    if not row:
+        return JSONResponse({"ok": False, "error": "no_code_sent"}, status_code=400)
+    if datetime.utcnow() > row.expires_at:
+        return JSONResponse({"ok": False, "error": "expired_code"}, status_code=400)
+    if int(row.attempt_count or 0) >= 5:
+        return JSONResponse({"ok": False, "error": "locked"}, status_code=429)
+    if not auth.registration_codes_equal(phone_e164, code_in, row.code_hash):
+        row.attempt_count = int(row.attempt_count or 0) + 1
+        db.add(row)
+        db.commit()
+        return JSONResponse({"ok": False, "error": "bad_code"}, status_code=400)
+
+    users = (
+        db.query(models.User)
+        .filter(
+            models.User.phone_number == phone_e164,
+            models.User.phone_verified.is_(True),
+            models.User.is_active.is_(True),
+        )
+        .all()
+    )
+    users = [u for u in users if not getattr(u, "pending_account_deletion", False)]
+    masked = sorted({_mask_login_email(u.email) for u in users})
+    db.delete(row)
+    db.commit()
+    return JSONResponse({"ok": True, "emails": masked})
 
 
 @router.get("/api/companies")
