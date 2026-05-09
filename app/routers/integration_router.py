@@ -44,6 +44,7 @@ from ..devtype_catalog import (
     integration_impl_allowed_codes,
     integration_impl_labels_map,
 )
+from ..offer_inquiry_service import inquiries_by_offer_id, public_request_url, send_offer_inquiry_from_owner
 from ..request_hub_access import apply_integration_hub_read_access, consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..templates_config import layout_template_from_embed_query, templates
@@ -1296,6 +1297,13 @@ def _collect_integration_unified_hub_ctx(
 
     delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
 
+    vis_int_offers = visible_request_offers_for_viewer(
+        _integration_offer_rows(db, ir.id),
+        viewer=user,
+        owner_user_id=ir.user_id,
+        privileged_operator=bool(getattr(user, "is_admin", False)),
+    )
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
@@ -1329,15 +1337,18 @@ def _collect_integration_unified_hub_ctx(
         "chat_error": chat_error,
         "max_followup_user_turns": INT_CHAT_MAX_USER,
         "hub_include_proposal_scripts": hub_scripts,
-        "request_offers": visible_request_offers_for_viewer(
-            _integration_offer_rows(db, ir.id),
-            viewer=user,
-            owner_user_id=ir.user_id,
-            privileged_operator=bool(getattr(user, "is_admin", False)),
-        ),
+        "request_offers": vis_int_offers,
         "request_offer_can_match": bool(user and ir and user.id == ir.user_id and not readonly_console),
         "request_offer_profile_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/profile",
         "request_offer_match_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/match",
+        "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_int_offers]),
+        "request_offer_inquiry_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/inquiry",
+        "request_offer_can_inquire": bool(user and ir and user.id == ir.user_id and not readonly_console),
+        "offer_inquiry_request_detail_url": public_request_url(
+            request, f"/integration/{ir.id}?phase=proposal"
+        ),
+        "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
+        "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
     }
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
@@ -1554,6 +1565,54 @@ def integration_offer_match(
     db.add(offer)
     db.commit()
     return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
+
+
+@router.post("/integration/{req_id}/offers/{offer_id}/inquiry")
+def integration_offer_inquiry_post(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    body: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
+        .first()
+    )
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "integration",
+            models.RequestOffer.request_id == req_id,
+        )
+        .first()
+    )
+    if not offer or not offer.consultant:
+        return RedirectResponse(url=integration_hub_url(req_id, "proposal"), status_code=303)
+    title = (ir.title or "").strip() or f"연동 #{req_id}"
+    detail = public_request_url(request, f"/integration/{req_id}?phase=proposal")
+    err, _row = send_offer_inquiry_from_owner(
+        db,
+        author=user,
+        offer=offer,
+        consultant=offer.consultant,
+        request_title=title,
+        request_detail_url=detail,
+        body_raw=body,
+    )
+    base = integration_hub_url(req_id, "proposal")
+    sep = "&" if "?" in base else "?"
+    if err:
+        return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}", status_code=303)
+    return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1", status_code=303)
 
 
 @router.get("/integration/{req_id}/offers/{offer_id}/profile")

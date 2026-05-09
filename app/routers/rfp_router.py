@@ -19,6 +19,7 @@ from ..delivered_code_package import (
     parse_delivered_code_payload,
     rfp_delivered_body_ready,
 )
+from ..offer_inquiry_service import inquiries_by_offer_id, public_request_url, send_offer_inquiry_from_owner
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..request_hub_access import consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
@@ -754,6 +755,13 @@ def _collect_rfp_unified_hub_ctx(
 
     proposal_scripts = (not readonly_console) and bool(proposal_html) and not hub_proposal_generating
 
+    vis_offers = visible_request_offers_for_viewer(
+        _rfp_offer_rows(db, rfp.id),
+        viewer=user,
+        owner_user_id=rfp.user_id,
+        privileged_operator=bool(getattr(user, "is_admin", False)),
+    )
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
@@ -783,15 +791,18 @@ def _collect_rfp_unified_hub_ctx(
         "reference_section_count": ref_section_count,
         "tabs_base_id": tabs_base_id,
         "hub_include_proposal_scripts": proposal_scripts,
-        "request_offers": visible_request_offers_for_viewer(
-            _rfp_offer_rows(db, rfp.id),
-            viewer=user,
-            owner_user_id=rfp.user_id,
-            privileged_operator=bool(getattr(user, "is_admin", False)),
-        ),
+        "request_offers": vis_offers,
         "request_offer_can_match": bool(user and rfp and user.id == rfp.user_id and not readonly_console),
         "request_offer_profile_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/profile",
         "request_offer_match_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/match",
+        "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_offers]),
+        "request_offer_inquiry_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/inquiry",
+        "request_offer_can_inquire": bool(user and rfp and user.id == rfp.user_id and not readonly_console),
+        "offer_inquiry_request_detail_url": public_request_url(
+            request, f"/rfp/{rfp.id}?phase=proposal"
+        ),
+        "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
+        "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
     }
     ctx.update(delivered_fields)
 
@@ -931,6 +942,50 @@ def rfp_offer_match(
     db.add(offer)
     db.commit()
     return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
+
+
+@router.post("/rfp/{rfp_id}/offers/{offer_id}/inquiry")
+def rfp_offer_inquiry_post(
+    rfp_id: int,
+    offer_id: int,
+    request: Request,
+    body: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
+    if not rfp:
+        return RedirectResponse(url="/rfp", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "rfp",
+            models.RequestOffer.request_id == rfp_id,
+        )
+        .first()
+    )
+    if not offer or not offer.consultant:
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=303)
+    title = (rfp.title or "").strip() or f"RFP #{rfp_id}"
+    detail = public_request_url(request, f"/rfp/{rfp_id}?phase=proposal")
+    err, _row = send_offer_inquiry_from_owner(
+        db,
+        author=user,
+        offer=offer,
+        consultant=offer.consultant,
+        request_title=title,
+        request_detail_url=detail,
+        body_raw=body,
+    )
+    base = rfp_hub_url(rfp_id, "proposal")
+    sep = "&" if "?" in base else "?"
+    if err:
+        return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}", status_code=303)
+    return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1", status_code=303)
 
 
 @router.get("/rfp/{rfp_id}/offers/{offer_id}/profile")

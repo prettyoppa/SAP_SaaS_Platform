@@ -269,6 +269,11 @@ def _deliver_plain_email(to_addr: str, subject: str, body: str) -> None:
             smtp.send_message(msg)
 
 
+def send_plain_notification_email(to_addr: str, subject: str, body: str) -> None:
+    """일반 알림 메일(문의 등). Resend 또는 SMTP 설정을 사용한다."""
+    _deliver_plain_email(to_addr, subject, body)
+
+
 def send_verification_email(to_addr: str, verify_url: str) -> None:
     subject, body = _verification_subject_and_body(verify_url)
     _deliver_plain_email(to_addr, subject, body)

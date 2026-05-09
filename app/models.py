@@ -472,3 +472,28 @@ class RequestOffer(Base):
     matched_at = Column(DateTime, nullable=True)
 
     consultant = relationship("User", foreign_keys=[consultant_user_id])
+    inquiries = relationship(
+        "RequestOfferInquiry",
+        back_populates="request_offer",
+        order_by="RequestOfferInquiry.created_at",
+        cascade="all, delete-orphan",
+    )
+
+
+class RequestOfferInquiry(Base):
+    """요청 소유자가 오퍼한 컨설턴트에게 보낸 문의(이력)."""
+
+    __tablename__ = "request_offer_inquiries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_offer_id = Column(
+        Integer, ForeignKey("request_offers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    body = Column(Text, nullable=False)
+    email_sent = Column(Boolean, default=False, nullable=False)
+    sms_sent = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    request_offer = relationship("RequestOffer", back_populates="inquiries")
+    author = relationship("User", foreign_keys=[author_user_id])

@@ -1,39 +1,103 @@
 {% if request_offers is defined and request_offers %}
 <div class="{{ request_offer_panel_wrap_class|default('mt-3') }}">
   <h6 class="text-muted small text-uppercase mb-2">오퍼 현황</h6>
+  {% if offer_inquiry_err is defined and offer_inquiry_err %}
+  <div class="alert alert-danger small py-2 mb-2">{{ offer_inquiry_err }}</div>
+  {% endif %}
+  {% if offer_inquiry_ok is defined and offer_inquiry_ok %}
+  <div class="alert alert-success small py-2 mb-2">문의를 전송했습니다.</div>
+  {% endif %}
   <div class="list-group">
     {% for of in request_offers %}
     {% set c = of.consultant %}
-    <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
-      <div>
-        <div class="fw-semibold">
-          {{ c.full_name if c else '컨설턴트' }}
-          {% if c and c.company %}<span class="text-muted small"> · {{ c.company }}</span>{% endif %}
-          {% if of.status == 'matched' %}
-          <span class="badge bg-success ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
-            <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>매칭
-          </span>
-          {% else %}
-          <span class="badge bg-secondary ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
-            <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>오퍼
-          </span>
+    {% set inq_map = request_offer_inquiries_by_offer_id if request_offer_inquiries_by_offer_id is defined else {} %}
+    {% set inq_list = inq_map.get(of.id, []) %}
+    <div class="list-group-item px-3 py-2">
+      <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+        <div class="flex-grow-1" style="min-width: 0;">
+          <div class="fw-semibold">
+            {{ c.full_name if c else '컨설턴트' }}
+            {% if c and c.company %}<span class="text-muted small"> · {{ c.company }}</span>{% endif %}
+            {% if of.status == 'matched' %}
+            <span class="badge bg-success ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
+              <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>매칭
+            </span>
+            {% else %}
+            <span class="badge bg-secondary ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
+              <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>오퍼
+            </span>
+            {% endif %}
+          </div>
+          <div class="small text-muted">{{ of.created_at|local_dt_span }}</div>
+        </div>
+        <div class="d-flex flex-wrap gap-1 justify-content-end align-items-start">
+          {% if request_offer_can_inquire|default(false) and request_offer_inquiry_url_builder is defined %}
+          <button type="button" class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1"
+                  data-bs-toggle="collapse" data-bs-target="#offer-inq-body-{{ of.id }}"
+                  aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
+            <i class="fa-solid fa-envelope" aria-hidden="true"></i>문의
+          </button>
+          {% endif %}
+          {% if request_offer_profile_url_builder is defined %}
+          <a class="btn btn-sm btn-outline-secondary" href="{{ request_offer_profile_url_builder(of.id) }}" data-no-busy="true">프로필</a>
+          {% endif %}
+          {% if request_offer_match_url_builder is defined and request_offer_can_match %}
+          <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm="{% if of.status == 'matched' %}매칭을 해제하시겠습니까?{% else %}이 오퍼로 매칭하시겠습니까?{% endif %}">
+            <button type="submit" class="btn btn-sm d-inline-flex align-items-center gap-1 {% if of.status == 'matched' %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
+              <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
+              {% if of.status == 'matched' %}매칭 해제{% else %}매칭{% endif %}
+            </button>
+          </form>
           {% endif %}
         </div>
-        <div class="small text-muted">{{ of.created_at|local_dt_span }}</div>
       </div>
-      <div class="d-flex flex-wrap gap-1 justify-content-end">
-        {% if request_offer_profile_url_builder is defined %}
-        <a class="btn btn-sm btn-outline-secondary" href="{{ request_offer_profile_url_builder(of.id) }}" data-no-busy="true">프로필</a>
-        {% endif %}
-        {% if request_offer_match_url_builder is defined and request_offer_can_match %}
-        <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm="{% if of.status == 'matched' %}매칭을 해제하시겠습니까?{% else %}이 오퍼로 매칭하시겠습니까?{% endif %}">
-          <button type="submit" class="btn btn-sm d-inline-flex align-items-center gap-1 {% if of.status == 'matched' %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
-            <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
-            {% if of.status == 'matched' %}매칭 해제{% else %}매칭{% endif %}
-          </button>
-        </form>
-        {% endif %}
+      {% if request_offer_can_inquire|default(false) and request_offer_inquiry_url_builder is defined %}
+      <div class="collapse offer-inquiry-collapse w-100 mt-2" id="offer-inq-body-{{ of.id }}">
+        <div class="border rounded p-3 bg-body-secondary small offer-inquiry-panel-inner">
+          {% if c %}
+          <div class="mb-2">
+            <span class="text-muted">이메일</span>
+            <span class="fw-medium">{{ c.email }}</span>
+            <span class="text-muted ms-2">업무 이메일 수신</span>
+            <span class="badge {{ 'bg-success' if c.ops_email_opt_in else 'bg-secondary' }}">{{ '동의' if c.ops_email_opt_in else '미동의' }}</span>
+          </div>
+          <div class="mb-2">
+            <span class="text-muted">SMS 수신(업무)</span>
+            <span class="badge {{ 'bg-success' if c.ops_sms_opt_in else 'bg-secondary' }}">{{ '동의' if c.ops_sms_opt_in else '미동의' }}</span>
+            <span class="text-muted ms-2">휴대폰 인증</span>
+            <span class="badge {{ 'bg-success' if c.phone_verified else 'bg-secondary' }}">{{ '완료' if c.phone_verified else '미완료' }}</span>
+          </div>
+          {% endif %}
+          {% if inq_list|length > 0 %}
+          <div class="mb-3">
+            <div class="text-muted text-uppercase small mb-1">문의 이력</div>
+            <div class="vstack gap-2 offer-inquiry-history">
+              {% for inv in inq_list %}
+              <div class="border rounded p-2 bg-white small">
+                <div class="d-flex flex-wrap justify-content-between gap-1 align-items-center mb-1">
+                  <span class="fw-semibold">{{ inv.author.full_name if inv.author else '요청자' }}</span>
+                  <span class="text-muted">{{ inv.created_at|local_dt_span }}</span>
+                </div>
+                <div class="text-break mb-1">{{ inv.body }}</div>
+                <div class="d-flex flex-wrap gap-2 text-muted">
+                  <span><i class="fa-solid fa-envelope fa-fw"></i> {% if inv.email_sent %}발송{% else %}미발송{% endif %}</span>
+                  <span><i class="fa-solid fa-sms fa-fw"></i> {% if inv.sms_sent %}발송{% else %}미발송{% endif %}</span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          <form method="post" action="{{ request_offer_inquiry_url_builder(of.id) }}" class="offer-inquiry-form" data-no-busy="true">
+            <label class="form-label small text-muted mb-1">문의 작성</label>
+            <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="2000" required placeholder="컨설턴트에게 전달할 내용을 입력하세요."></textarea>
+            <div class="d-flex justify-content-end mt-2">
+              <button type="submit" class="btn btn-sm btn-primary">전송</button>
+            </div>
+          </form>
+        </div>
       </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
