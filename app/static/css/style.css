@@ -1384,6 +1384,29 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   font-size: 0.95em;
   color: var(--text);
 }
+/* 제안 행: 라벨 — 점(있을 때) — 숫자, 점은 가운데 열에 배치 */
+.home-tile-stats-item--proposal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.45rem;
+}
+.home-tile-stats-item--proposal .home-tile-stats-label {
+  justify-self: start;
+  min-width: 0;
+}
+.home-tile-stats-item--proposal .home-tile-stats-mid {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0.65rem;
+  min-height: 1em;
+}
+.home-tile-stats-item--proposal strong {
+  justify-self: end;
+  text-align: end;
+}
 .home-proposal-offer-dot {
   width: 9px;
   height: 9px;
@@ -1395,6 +1418,43 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
     0 2px 8px color-mix(in srgb, #ef4444 45%, transparent);
   animation: nav-proposal-offer-dot-glow 2.4s ease-in-out infinite;
   pointer-events: none;
+}
+
+/* 수신 동의 블록 — 라이트 모드에서 본문 대비 유지 */
+.consent-opt-section .consent-opt-heading {
+  color: var(--label);
+}
+.consent-opt-section .form-check-label {
+  color: var(--text);
+}
+.consent-opt-section .form-text {
+  color: var(--muted);
+}
+html[data-theme="light"] .consent-opt-section .form-text {
+  color: var(--label);
+}
+
+/* 컨설턴트 프로필 드롭존 (회원가입·프로필 수정 공통) */
+.consultant-dropzone {
+  position: relative;
+  border: 1px dashed color-mix(in srgb, var(--border) 85%, var(--muted));
+  border-radius: 0.6rem;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--surface2) 88%, transparent);
+  cursor: pointer;
+}
+.consultant-dropzone.is-dragging {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface2));
+}
+.consultant-dropzone-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.consultant-dropzone-copy {
+  color: var(--text);
 }
 
 /* ── Flow Diagram ───────────────────────────── */

@@ -652,6 +652,44 @@ async def register(
         prow.verified_at = datetime.utcnow()
         phone_verified = True
 
+    if account_type_norm == "consultant":
+        if not phone_e164 or not phone_verified:
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "consultant_phone_required",
+                    "settings": settings,
+                    "email_verification": ev,
+                    "account_type": account_type_norm,
+                },
+                status_code=400,
+            )
+        if not _form_bool(ops_email_opt_in):
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "consultant_ops_email_required",
+                    "settings": settings,
+                    "email_verification": ev,
+                    "account_type": account_type_norm,
+                },
+                status_code=400,
+            )
+        if not _form_bool(ops_sms_opt_in):
+            return templates.TemplateResponse(
+                request,
+                "register.html",
+                {
+                    "error": "consultant_ops_sms_required",
+                    "settings": settings,
+                    "email_verification": ev,
+                    "account_type": account_type_norm,
+                },
+                status_code=400,
+            )
+
     consultant_profile_path = None
     consultant_profile_name = None
     if account_type_norm == "consultant":
@@ -1023,6 +1061,40 @@ async def account_profile_edit_post(
             status_code=400,
         )
 
+    def _profile_edit_error(err: str, profile_file_name: str | None = None):
+        display_name = profile_file_name if profile_file_name is not None else (getattr(user, "consultant_profile_file_name", None) or "")
+        was_p = bool(getattr(user, "consultant_application_pending", False))
+        return templates.TemplateResponse(
+            request,
+            "account_profile_edit.html",
+            {
+                "user": user,
+                "time_zones": tz_list,
+                "full_name_value": name_ok or "",
+                "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
+                "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                "ops_email_opt_in_value": ops_email_opt_in_value,
+                "marketing_email_opt_in_value": marketing_email_opt_in_value,
+                "ops_sms_opt_in_value": ops_sms_opt_in_value,
+                "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
+                "account_type_value": account_type_norm,
+                "consultant_profile_file_name": display_name,
+                "consultant_application_pending": was_p,
+                "error": err,
+            },
+            status_code=400,
+        )
+
+    if account_type_norm == "consultant":
+        if not getattr(user, "email_verified", False):
+            return _profile_edit_error("consultant_need_email_verify")
+        if not getattr(user, "phone_verified", False):
+            return _profile_edit_error("consultant_need_phone_verify")
+        if not ops_email_opt_in_value:
+            return _profile_edit_error("consultant_ops_email_required")
+        if not ops_sms_opt_in_value:
+            return _profile_edit_error("consultant_ops_sms_required")
+
     remove_profile = _form_bool(remove_consultant_profile_file)
     new_profile_path = getattr(user, "consultant_profile_file_path", None)
     new_profile_name = getattr(user, "consultant_profile_file_name", None)
@@ -1130,27 +1202,8 @@ async def account_profile_edit_post(
                         },
                         status_code=400,
                     )
-        if not user.is_consultant and not new_profile_path:
-            return templates.TemplateResponse(
-                request,
-                "account_profile_edit.html",
-                {
-                    "user": user,
-                    "time_zones": tz_list,
-                    "full_name_value": name_ok or "",
-                    "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
-                    "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
-                    "ops_email_opt_in_value": ops_email_opt_in_value,
-                    "marketing_email_opt_in_value": marketing_email_opt_in_value,
-                    "ops_sms_opt_in_value": ops_sms_opt_in_value,
-                    "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
-                    "account_type_value": account_type_norm,
-                    "consultant_profile_file_name": new_profile_name or "",
-                    "consultant_application_pending": was_pending,
-                    "error": "consultant_profile_required",
-                },
-                status_code=400,
-            )
+        if account_type_norm == "consultant" and not new_profile_path:
+            return _profile_edit_error("consultant_profile_required", new_profile_name or "")
         if user.is_consultant:
             user.consultant_application_pending = False
         else:

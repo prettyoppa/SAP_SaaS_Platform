@@ -102,7 +102,22 @@
           {% elif error == 'consultant_profile_required' %}
           <div class="alert alert-danger d-flex align-items-center" role="alert">
             <i class="fa-solid fa-circle-exclamation me-2"></i>
-            <span>컨설턴트 회원가입을 위해서는 프로필 첨부가 필요합니다. 일단 일반회원으로 가입 후 프로필 준비되시면 변경도 가능합니다.</span>
+            <span>컨설턴트 회원가입을 위해서는 상세 프로필 첨부가 필요합니다. 프로필 준비가 어렵다면 일반회원으로 가입한 뒤, 준비되면 프로필 수정에서 컨설턴트로 변경할 수 있습니다.</span>
+          </div>
+          {% elif error == 'consultant_phone_required' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>컨설턴트 가입은 휴대폰 번호 입력 및 인증이 필수입니다.</span>
+          </div>
+          {% elif error == 'consultant_ops_email_required' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>컨설턴트는 이메일 업무 알림 수신 동의가 필수입니다.</span>
+          </div>
+          {% elif error == 'consultant_ops_sms_required' %}
+          <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <span>컨설턴트는 SMS 업무 알림 수신 동의가 필수입니다.</span>
           </div>
           {% endif %}
 
@@ -187,11 +202,12 @@
               </div>
             </div>
 
-            <!-- 휴대폰(선택) + SMS 인증 -->
+            <!-- 휴대폰(선택) + SMS 인증 — 컨설턴트는 필수 -->
             <div class="mb-3">
               <label class="form-label" for="phoneInput">
                 휴대폰 번호
-                <span class="text-muted small ms-1">(선택, 국제번호)</span>
+                <span class="text-muted small ms-1" id="phoneOptionalLabel">(선택, 국제번호)</span>
+                <span class="text-danger small ms-1" id="phoneConsultantLabel" style="display:none">(컨설턴트 필수 · 국제번호)</span>
               </label>
               <div class="d-flex flex-wrap gap-2 align-items-stretch">
                 <div class="input-icon-wrap flex-grow-1" style="min-width:12rem">
@@ -252,8 +268,8 @@
             </div>
 
             <!-- 이용약관 동의 -->
-            <div class="mb-3">
-              <div class="small text-muted mb-2">수신 동의 (선택)</div>
+            <div class="mb-3 consent-opt-section">
+              <div class="small mb-2 consent-opt-heading">수신 동의 <span id="regConsentOptionalHint" class="fw-normal">(선택)</span><span id="regConsentConsultantOpsHint" class="fw-normal text-danger" style="display:none"> — 컨설턴트는 업무 알림(이메일·SMS) 동의 필수</span></div>
               <div class="form-check mb-1">
                 <input class="form-check-input" type="checkbox" id="opsEmailOptIn" name="ops_email_opt_in" disabled>
                 <label class="form-check-label small" for="opsEmailOptIn">
@@ -284,8 +300,8 @@
             </div>
 
             <div id="consultantProfileWrap" class="mb-4" {% if account_type != 'consultant' %}style="display:none"{% endif %}>
-              <label class="form-label d-flex justify-content-between align-items-center" for="consultantProfileFileInput">
-                <span>상세 프로필 첨부 (선택)</span>
+              <label class="form-label d-flex justify-content-between align-items-center flex-wrap gap-2" for="consultantProfileFileInput">
+                <span>상세 프로필 첨부 <span class="text-danger">*</span></span>
                 <span class="text-muted small">최대 1건 · 20MB</span>
               </label>
               <div id="consultantProfileDropzone" class="consultant-dropzone">
@@ -299,6 +315,9 @@
                 </div>
                 <div id="consultantProfileFileName" class="small mt-2 text-info" hidden></div>
               </div>
+              <p class="form-text mb-0 mt-2">
+                프로필 준비가 아직 어렵다면 일반회원으로 가입한 뒤, 준비되면 프로필 수정에서 컨설턴트로 변경할 수 있습니다.
+              </p>
             </div>
 
             <div class="mb-4">
@@ -468,19 +487,6 @@ const consultantProfileWrap = document.getElementById('consultantProfileWrap');
 const consultantProfileDropzone = document.getElementById('consultantProfileDropzone');
 const consultantProfileInput = document.getElementById('consultantProfileFileInput');
 const consultantProfileFileName = document.getElementById('consultantProfileFileName');
-function updateAccountTypeUI() {
-  const isConsultant = !!(accountTypeConsultant && accountTypeConsultant.checked);
-  if (consultantProfileWrap) {
-    consultantProfileWrap.style.display = isConsultant ? '' : 'none';
-  }
-  if (!isConsultant && consultantProfileInput && consultantProfileInput.value) {
-    consultantProfileInput.value = '';
-    renderConsultantFileName();
-  }
-}
-if (accountTypeMember) accountTypeMember.addEventListener('change', updateAccountTypeUI);
-if (accountTypeConsultant) accountTypeConsultant.addEventListener('change', updateAccountTypeUI);
-updateAccountTypeUI();
 
 function renderConsultantFileName() {
   if (!consultantProfileInput || !consultantProfileFileName) return;
@@ -529,24 +535,67 @@ if (consultantProfileDropzone && consultantProfileInput) {
   consultantProfileDropzone.addEventListener('click', () => consultantProfileInput.click());
 }
 
-// 인증메일/휴대폰 인증 상태
-let emailCodeVerified = false;
+// 인증메일/휴대폰 인증 상태 (이메일 인증 미사용 사이트는 즉시 동의 가능)
+let emailCodeVerified = {% if email_verification %}false{% else %}true{% endif %};
 let phoneCodeVerified = false;
 const opsEmailOptIn = document.getElementById('opsEmailOptIn');
 const marketingEmailOptIn = document.getElementById('marketingEmailOptIn');
 const opsSmsOptIn = document.getElementById('opsSmsOptIn');
 const marketingSmsOptIn = document.getElementById('marketingSmsOptIn');
-function toggleConsentInputs() {
-  if (opsEmailOptIn) opsEmailOptIn.disabled = !emailCodeVerified;
-  if (marketingEmailOptIn) marketingEmailOptIn.disabled = !emailCodeVerified;
-  if (opsSmsOptIn) opsSmsOptIn.disabled = !phoneCodeVerified;
-  if (marketingSmsOptIn) marketingSmsOptIn.disabled = !phoneCodeVerified;
-  if (opsEmailOptIn && opsEmailOptIn.disabled) opsEmailOptIn.checked = false;
-  if (marketingEmailOptIn && marketingEmailOptIn.disabled) marketingEmailOptIn.checked = false;
-  if (opsSmsOptIn && opsSmsOptIn.disabled) opsSmsOptIn.checked = false;
-  if (marketingSmsOptIn && marketingSmsOptIn.disabled) marketingSmsOptIn.checked = false;
+const regConsentOptionalHint = document.getElementById('regConsentOptionalHint');
+const regConsentConsultantOpsHint = document.getElementById('regConsentConsultantOpsHint');
+const phoneOptionalLabel = document.getElementById('phoneOptionalLabel');
+const phoneConsultantLabel = document.getElementById('phoneConsultantLabel');
+function isRegConsultant() {
+  return !!(accountTypeConsultant && accountTypeConsultant.checked);
 }
-toggleConsentInputs();
+function toggleConsentInputs() {
+  const isConsultant = isRegConsultant();
+  if (regConsentOptionalHint) regConsentOptionalHint.style.display = isConsultant ? 'none' : '';
+  if (regConsentConsultantOpsHint) regConsentConsultantOpsHint.style.display = isConsultant ? '' : 'none';
+  if (opsEmailOptIn) {
+    opsEmailOptIn.disabled = !emailCodeVerified;
+    if (opsEmailOptIn.disabled) opsEmailOptIn.checked = false;
+    else if (isConsultant) opsEmailOptIn.checked = true;
+  }
+  if (marketingEmailOptIn) {
+    marketingEmailOptIn.disabled = !emailCodeVerified;
+    if (marketingEmailOptIn.disabled) marketingEmailOptIn.checked = false;
+  }
+  if (opsSmsOptIn) {
+    opsSmsOptIn.disabled = !phoneCodeVerified;
+    if (opsSmsOptIn.disabled) opsSmsOptIn.checked = false;
+    else if (isConsultant) opsSmsOptIn.checked = true;
+  }
+  if (marketingSmsOptIn) {
+    marketingSmsOptIn.disabled = !phoneCodeVerified;
+    if (marketingSmsOptIn.disabled) marketingSmsOptIn.checked = false;
+  }
+}
+function guardRegConsultantOpsUncheck() {
+  if (!isRegConsultant()) return;
+  if (emailCodeVerified && opsEmailOptIn && !opsEmailOptIn.checked) opsEmailOptIn.checked = true;
+  if (phoneCodeVerified && opsSmsOptIn && !opsSmsOptIn.checked) opsSmsOptIn.checked = true;
+}
+if (opsEmailOptIn) opsEmailOptIn.addEventListener('change', guardRegConsultantOpsUncheck);
+if (opsSmsOptIn) opsSmsOptIn.addEventListener('change', guardRegConsultantOpsUncheck);
+
+function updateAccountTypeUI() {
+  const isConsultant = !!(accountTypeConsultant && accountTypeConsultant.checked);
+  if (consultantProfileWrap) {
+    consultantProfileWrap.style.display = isConsultant ? '' : 'none';
+  }
+  if (phoneOptionalLabel) phoneOptionalLabel.style.display = isConsultant ? 'none' : '';
+  if (phoneConsultantLabel) phoneConsultantLabel.style.display = isConsultant ? '' : 'none';
+  if (!isConsultant && consultantProfileInput && consultantProfileInput.value) {
+    consultantProfileInput.value = '';
+    renderConsultantFileName();
+  }
+  toggleConsentInputs();
+}
+if (accountTypeMember) accountTypeMember.addEventListener('change', updateAccountTypeUI);
+if (accountTypeConsultant) accountTypeConsultant.addEventListener('change', updateAccountTypeUI);
+updateAccountTypeUI();
 
 // 인증메일 발송 (이메일 인증 사용 시에만 DOM 존재)
 const sendCodeBtn = document.getElementById('sendCodeBtn');
@@ -794,7 +843,51 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
       return;
     }
   }
-  if (phoneInput && (phoneInput.value || '').trim()) {
+  const regIsConsultant = !!(accountTypeConsultant && accountTypeConsultant.checked);
+  if (regIsConsultant && verificationCodeInput) {
+    const dPre = verificationCodeInput.value.replace(/\D/g, '');
+    if (dPre.length === 6) {
+      emailCodeVerified = true;
+      toggleConsentInputs();
+    }
+  }
+  if (regIsConsultant) {
+    if (!phoneInput || !(phoneInput.value || '').trim()) {
+      e.preventDefault();
+      alert('컨설턴트 가입을 위해서는 휴대폰 번호 입력 및 인증이 필요합니다.');
+      if (phoneInput) phoneInput.focus();
+      return;
+    }
+    if (!isE164(phoneInput.value)) {
+      e.preventDefault();
+      alert('휴대폰 번호는 국제번호 형식(+국가번호 포함)으로 입력해 주세요.');
+      phoneInput.focus();
+      return;
+    }
+    const pdC = phoneCodeInput ? phoneCodeInput.value.replace(/\D/g, '') : '';
+    if (pdC.length !== 6) {
+      e.preventDefault();
+      alert('휴대폰 인증 코드 6자리를 입력해 주세요.');
+      if (phoneCodeInput) phoneCodeInput.focus();
+      return;
+    }
+    if (!phoneCodeVerified) {
+      e.preventDefault();
+      alert('휴대폰 인증을 완료해 주세요. 발송된 코드 입력 후 「코드 확인」을 눌러 주세요.');
+      if (phoneCodeInput) phoneCodeInput.focus();
+      return;
+    }
+    if (!opsEmailOptIn || !opsEmailOptIn.checked) {
+      e.preventDefault();
+      alert('컨설턴트는 이메일 업무 알림 수신 동의가 필수입니다. 이메일 인증을 완료한 뒤 동의에 체크해 주세요.');
+      return;
+    }
+    if (!opsSmsOptIn || !opsSmsOptIn.checked) {
+      e.preventDefault();
+      alert('컨설턴트는 SMS 업무 알림 수신 동의가 필수입니다.');
+      return;
+    }
+  } else if (phoneInput && (phoneInput.value || '').trim()) {
     if (!isE164(phoneInput.value)) {
       e.preventDefault();
       alert('휴대폰 번호는 국제번호 형식(+국가번호 포함)으로 입력해 주세요.');
@@ -815,12 +908,12 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
     consultantProfileInput.focus();
     return;
   }
-  if (accountTypeConsultant && accountTypeConsultant.checked) {
+  if (regIsConsultant) {
     const f = consultantProfileInput && consultantProfileInput.files ? consultantProfileInput.files[0] : null;
     if (!f) {
       e.preventDefault();
-      alert('컨설턴트 회원가입을 위해서는 프로필 첨부가 필요합니다. 일단 일반회원으로 가입 후 프로필 준비되시면 변경도 가능합니다.');
-      if (consultantProfileInput) consultantProfileInput.focus();
+      alert('컨설턴트 회원가입을 위해서는 상세 프로필 첨부가 필요합니다. 준비가 어렵다면 일반회원으로 가입한 뒤 프로필 수정에서 변경할 수 있습니다.');
+      if (consultantProfileDropzone) consultantProfileDropzone.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
   }
@@ -847,24 +940,6 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
 .dashboard-search-bar .form-control,
 .dashboard-search-bar .form-select {
   background: #1e2a38; border-color: #3d5166; color: #e2e8f0;
-}
-.consultant-dropzone {
-  position: relative;
-  border: 1px dashed #64748b;
-  border-radius: 0.6rem;
-  padding: 1rem;
-  background: rgba(148, 163, 184, 0.08);
-  cursor: pointer;
-}
-.consultant-dropzone.is-dragging {
-  border-color: var(--bs-primary);
-  background: rgba(59, 130, 246, 0.12);
-}
-.consultant-dropzone-input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
 }
 </style>
 {% endblock %}

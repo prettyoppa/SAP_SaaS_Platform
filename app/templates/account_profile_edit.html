@@ -37,7 +37,23 @@
     </div>
     {% elif error == 'consultant_profile_required' %}
     <div class="alert alert-danger small" role="alert">
-      <span class="nav-ko">컨설턴트 회원가입을 위해서는 프로필 첨부가 필요합니다. 일단 일반회원으로 가입 후 프로필 준비되시면 변경도 가능합니다.</span>
+      <span class="nav-ko">컨설턴트로 신청하려면 상세 프로필 첨부가 필요합니다. 프로필 준비가 어렵다면 일반회원으로 두었다가 나중에 프로필 수정에서 변경할 수 있습니다.</span>
+    </div>
+    {% elif error == 'consultant_need_email_verify' %}
+    <div class="alert alert-danger small" role="alert">
+      <span class="nav-ko">컨설턴트 신청 전에 계정 이메일 인증을 완료해 주세요.</span>
+    </div>
+    {% elif error == 'consultant_need_phone_verify' %}
+    <div class="alert alert-danger small" role="alert">
+      <span class="nav-ko">컨설턴트 신청 전에 휴대폰 인증을 완료해 주세요.</span>
+    </div>
+    {% elif error == 'consultant_ops_email_required' %}
+    <div class="alert alert-danger small" role="alert">
+      <span class="nav-ko">컨설턴트는 이메일 업무 알림 수신 동의가 필수입니다.</span>
+    </div>
+    {% elif error == 'consultant_ops_sms_required' %}
+    <div class="alert alert-danger small" role="alert">
+      <span class="nav-ko">컨설턴트는 SMS 업무 알림 수신 동의가 필수입니다.</span>
     </div>
     {% endif %}
 
@@ -96,8 +112,8 @@
               <span class="nav-en" style="display:none">Timestamps are stored in UTC; the UI shows them in this zone (or your browser default).</span>
             </div>
           </div>
-          <div class="mb-4">
-            <div class="small text-muted mb-2">수신 동의 (선택)</div>
+          <div class="mb-4 consent-opt-section">
+            <div class="small mb-2 consent-opt-heading">수신 동의 <span id="pf-consent-optional-hint" class="fw-normal">(선택)</span><span id="pf-consent-consultant-ops-hint" class="fw-normal text-danger" style="display:none"> — 컨설턴트는 업무 알림(이메일·SMS) 동의 필수</span></div>
             <div class="form-check mb-1">
               <input class="form-check-input" type="checkbox" id="pf-ops-email-opt-in" name="ops_email_opt_in" {% if ops_email_opt_in_value %}checked{% endif %}>
               <label class="form-check-label small" for="pf-ops-email-opt-in">이메일 업무 알림 수신 동의 (요청 진행/완료 등)</label>
@@ -119,20 +135,30 @@
             </div>
           </div>
           <div class="mb-4" id="pf-consultant-upload-wrap" {% if account_type_value != 'consultant' %}style="display:none"{% endif %}>
-            <label class="form-label" for="pf-consultant-profile-file">상세 프로필 첨부 (선택)</label>
+            <label class="form-label d-flex justify-content-between align-items-center flex-wrap gap-2" for="pfConsultantProfileFileInput">
+              <span>상세 프로필 첨부 <span class="text-danger">*</span></span>
+              <span class="text-muted small">최대 1건 · 20MB</span>
+            </label>
             {% if consultant_profile_file_name %}
             <div class="small text-muted mb-2">
               현재 파일: <strong>{{ consultant_profile_file_name }}</strong>
+              <span class="d-block mt-1">교체하려면 아래에서 새 파일을 첨부하세요.</span>
             </div>
             {% endif %}
-            <input type="file" class="form-control" id="pf-consultant-profile-file" name="consultant_profile_file">
-            <div class="form-text">최대 1건, 20MB. 모든 파일 형식을 업로드할 수 있습니다.</div>
-            {% if consultant_profile_file_name %}
-            <div class="form-check mt-2">
-              <input class="form-check-input" type="checkbox" id="pf-remove-consultant-file" name="remove_consultant_profile_file" value="1">
-              <label class="form-check-label small" for="pf-remove-consultant-file">현재 첨부 파일 삭제</label>
+            <div id="pfConsultantProfileDropzone" class="consultant-dropzone">
+              <input type="file" name="consultant_profile_file" id="pfConsultantProfileFileInput" class="consultant-dropzone-input"/>
+              <div class="consultant-dropzone-copy">
+                <i class="fa-solid fa-file-arrow-up me-2"></i>
+                파일을 드래그 앤 드롭하거나 클릭해서 첨부하세요.
+              </div>
+              <div class="small text-muted mt-2">
+                지원 형식: 모든 파일 형식(*.*) / PDF, DOCX, PPTX, XLSX, 이미지, 압축파일 등
+              </div>
+              <div id="pfConsultantProfileFileName" class="small mt-2 text-info" hidden></div>
             </div>
-            {% endif %}
+            <p class="form-text mb-0 mt-2">
+              프로필 준비가 아직 어렵다면 일반회원으로 두었다가, 준비되면 이 화면에서 컨설턴트로 변경할 수 있습니다.
+            </p>
           </div>
           <div class="d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-primary">
@@ -161,23 +187,118 @@
   const member = document.getElementById('pf-account-type-member');
   const consultant = document.getElementById('pf-account-type-consultant');
   const wrap = document.getElementById('pf-consultant-upload-wrap');
-  [opsEmail, mktEmail].forEach((el) => {
-    if (!el) return;
-    el.disabled = !emailVerified;
-    if (!emailVerified) el.checked = false;
-  });
-  [opsSms, mktSms].forEach((el) => {
-    if (!el) return;
-    el.disabled = !phoneVerified;
-    if (!phoneVerified) el.checked = false;
-  });
-  function sync() {
-    if (!wrap || !consultant) return;
-    wrap.style.display = consultant.checked ? '' : 'none';
+  const optionalHint = document.getElementById('pf-consent-optional-hint');
+  const consultantOpsHint = document.getElementById('pf-consent-consultant-ops-hint');
+  const dz = document.getElementById('pfConsultantProfileDropzone');
+  const fileInput = document.getElementById('pfConsultantProfileFileInput');
+  const fileNameEl = document.getElementById('pfConsultantProfileFileName');
+  const form = document.querySelector('form.account-profile-form');
+
+  function isConsultantSelected() {
+    return !!(consultant && consultant.checked);
   }
+
+  function renderPfFileName() {
+    if (!fileInput || !fileNameEl) return;
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) {
+      fileNameEl.hidden = true;
+      fileNameEl.textContent = '';
+      return;
+    }
+    fileNameEl.hidden = false;
+    fileNameEl.textContent = '첨부됨: ' + f.name;
+  }
+
+  function syncConsultantOpsGuards() {
+    const c = isConsultantSelected();
+    if (optionalHint) optionalHint.style.display = c ? 'none' : '';
+    if (consultantOpsHint) consultantOpsHint.style.display = c ? '' : 'none';
+    if (opsEmail) {
+      if (c && emailVerified) opsEmail.checked = true;
+      opsEmail.disabled = !emailVerified;
+      if (!emailVerified) opsEmail.checked = false;
+    }
+    if (opsSms) {
+      if (c && phoneVerified) opsSms.checked = true;
+      opsSms.disabled = !phoneVerified;
+      if (!phoneVerified) opsSms.checked = false;
+    }
+    if (mktEmail) {
+      mktEmail.disabled = !emailVerified;
+      if (!emailVerified) mktEmail.checked = false;
+    }
+    if (mktSms) {
+      mktSms.disabled = !phoneVerified;
+      if (!phoneVerified) mktSms.checked = false;
+    }
+  }
+
+  function guardConsultantOpsUncheck() {
+    if (!isConsultantSelected()) return;
+    if (emailVerified && opsEmail && !opsEmail.checked) opsEmail.checked = true;
+    if (phoneVerified && opsSms && !opsSms.checked) opsSms.checked = true;
+  }
+  if (opsEmail) opsEmail.addEventListener('change', guardConsultantOpsUncheck);
+  if (opsSms) opsSms.addEventListener('change', guardConsultantOpsUncheck);
+
+  function sync() {
+    if (wrap && consultant) wrap.style.display = consultant.checked ? '' : 'none';
+    if (!isConsultantSelected() && fileInput && fileInput.value) {
+      fileInput.value = '';
+      renderPfFileName();
+    }
+    syncConsultantOpsGuards();
+  }
+
+  if (fileInput) fileInput.addEventListener('change', renderPfFileName);
+  if (dz && fileInput) {
+    const prevent = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((n) => dz.addEventListener(n, prevent));
+    ['dragenter', 'dragover'].forEach((n) => dz.addEventListener(n, () => dz.classList.add('is-dragging')));
+    ['dragleave', 'drop'].forEach((n) => dz.addEventListener(n, () => dz.classList.remove('is-dragging')));
+    dz.addEventListener('drop', (ev) => {
+      const files = ev.dataTransfer && ev.dataTransfer.files ? ev.dataTransfer.files : null;
+      if (!files || files.length === 0) return;
+      if (window.DataTransfer) {
+        const dt = new DataTransfer();
+        dt.items.add(files[0]);
+        fileInput.files = dt.files;
+      } else {
+        fileInput.files = files;
+      }
+      renderPfFileName();
+    });
+    dz.addEventListener('click', () => fileInput.click());
+  }
+
   if (member) member.addEventListener('change', sync);
   if (consultant) consultant.addEventListener('change', sync);
   sync();
+
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      if (!isConsultantSelected()) return;
+      const hasExisting = {{ 'true' if consultant_profile_file_name else 'false' }};
+      const f = fileInput && fileInput.files ? fileInput.files[0] : null;
+      if (!hasExisting && !f) {
+        e.preventDefault();
+        alert('컨설턴트 신청을 위해 상세 프로필 파일을 첨부해 주세요.');
+        if (dz) dz.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      if (!emailVerified || !opsEmail || !opsEmail.checked) {
+        e.preventDefault();
+        alert('컨설턴트는 이메일 인증 및 업무 알림(이메일) 동의가 필요합니다.');
+        return;
+      }
+      if (!phoneVerified || !opsSms || !opsSms.checked) {
+        e.preventDefault();
+        alert('컨설턴트는 휴대폰 인증 및 업무 알림(SMS) 동의가 필요합니다.');
+        return;
+      }
+    });
+  }
 })();
 </script>
 {% endblock %}
