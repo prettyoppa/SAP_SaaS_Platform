@@ -2912,6 +2912,55 @@ a.review-item-card:hover {
   font-size: 0.9rem;
 }
 
+/* 공지/FAQ 상세: 헤더 제목 마크다운·본문이 테마 대비 색으로 보이도록 */
+.site-article.card .site-article-header .markdown-body,
+.site-article.card .site-article-header .markdown-body p,
+.site-article.card .site-article-header .markdown-body h1,
+.site-article.card .site-article-header .markdown-body h2,
+.site-article.card .site-article-header .markdown-body h3,
+.site-article.card .site-article-header .markdown-body strong,
+.site-article.card .site-article-header .markdown-body li {
+  color: var(--text);
+}
+.site-article.card .site-article-header .markdown-body a {
+  color: var(--primary-light);
+  text-decoration: underline;
+}
+html[data-theme="light"] .site-article.card .site-article-header .markdown-body a {
+  color: var(--primary-dark);
+}
+.site-article.card .site-article-header h1.text-reset,
+.site-article.card .site-article-header h1.h3,
+.site-article.card .site-faq-answer .site-article-body.markdown-body,
+.site-article.card .site-faq-answer .site-article-body.markdown-body p,
+.site-article.card .site-faq-answer .site-article-body.markdown-body li,
+.site-article.card .site-faq-answer .site-article-body.markdown-body td,
+.site-article.card .site-faq-answer .site-article-body.markdown-body th {
+  color: var(--text);
+}
+.site-article.card .site-article-body.markdown-body a {
+  color: var(--primary-light);
+}
+html[data-theme="light"] .site-article.card .site-article-body.markdown-body a {
+  color: var(--primary-dark);
+}
+
+/* 홈 탭 하단 전체 목록 링크(다크·라이트에서 대비) */
+a.site-home-tab-more-link {
+  color: var(--primary-light);
+  font-weight: 600;
+}
+a.site-home-tab-more-link:hover {
+  filter: brightness(1.12);
+  text-decoration: underline !important;
+}
+html[data-theme="light"] a.site-home-tab-more-link {
+  color: var(--primary-dark);
+}
+html[data-theme="light"] a.site-home-tab-more-link:hover {
+  color: var(--primary);
+}
+
 /* 공지/FAQ 목록·제목 마크다운(한 줄·짧은 블록) */
 .site-content-toolbar {
   gap: 0.5rem;

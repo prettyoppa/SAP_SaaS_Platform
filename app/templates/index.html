@@ -62,15 +62,15 @@
                   <span class="notice-date text-muted small">{{ n.created_at|local_dt_span('date_dots') }}</span>
                 </a>
                 {% endfor %}
-                <div class="text-end mt-2 pt-1 border-top border-secondary border-opacity-25">
-                  <a href="/notices" class="small text-decoration-none" data-i18n="home.notice.all">공지사항 전체 목록</a>
-                </div>
               {% else %}
               <div class="empty-tab-msg">
                 <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
                 <p class="text-muted small" data-i18n="home.notice.empty">등록된 공지사항이 없습니다.</p>
               </div>
               {% endif %}
+              <div class="text-end mt-2 pt-1 border-top border-secondary border-opacity-25">
+                <a href="/notices" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.notice.all">공지사항 전체 목록</a>
+              </div>
             </div>
             <div class="tab-pane fade" id="tab-faq">
               {% if faqs %}
@@ -81,9 +81,6 @@
                   <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body">{{ faq.question|md_html }}</span>
                 </a>
                 {% endfor %}
-                <div class="text-end mt-2 pt-1">
-                  <a href="/faqs" class="small text-decoration-none" data-i18n="home.faq.all">FAQ 전체 목록</a>
-                </div>
               </div>
               {% else %}
               <div class="empty-tab-msg">
@@ -91,6 +88,9 @@
                 <p class="text-muted small" data-i18n="home.faq.empty">등록된 FAQ가 없습니다.</p>
               </div>
               {% endif %}
+              <div class="text-end mt-2 pt-1 border-top border-secondary border-opacity-25">
+                <a href="/faqs" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.faq.all">FAQ 전체 목록</a>
+              </div>
             </div>
             <div class="tab-pane fade" id="tab-reviews">
               <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
@@ -136,9 +136,9 @@
               {% endif %}
               <div class="text-end mt-2 pt-2 border-top border-secondary border-opacity-25">
                 {% if user %}
-                <a href="/reviews" class="btn btn-link btn-sm text-decoration-none p-0">문의/리뷰 전체 페이지 <i class="fa-solid fa-chevron-right fa-xs ms-1"></i></a>
+                <a href="/reviews" class="small text-decoration-none site-home-tab-more-link"><span data-i18n="home.review.all">문의/리뷰 전체 목록</span><i class="fa-solid fa-chevron-right fa-xs ms-1" aria-hidden="true"></i></a>
                 {% else %}
-                <a href="/login?next=/reviews" class="btn btn-link btn-sm text-decoration-none p-0">로그인하고 문의/리뷰 보기 <i class="fa-solid fa-chevron-right fa-xs ms-1"></i></a>
+                <a href="/login?next=/reviews" class="small text-decoration-none site-home-tab-more-link"><span data-i18n="home.review.allLogin">로그인 후 문의/리뷰 전체 목록</span><i class="fa-solid fa-chevron-right fa-xs ms-1" aria-hidden="true"></i></a>
                 {% endif %}
               </div>
             </div>
