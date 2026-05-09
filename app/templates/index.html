@@ -184,7 +184,10 @@
               <strong>{{ home_counts.rfp.delivery }}</strong>
             </li>
             <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span></span>
+              <span class="position-relative d-inline-flex align-items-center gap-1">
+                <span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span>
+                {% if proposal_offer_badges.get('rfp') %}<span class="home-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
+              </span>
               <strong>{{ home_counts.rfp.proposal }}</strong>
             </li>
             <li class="home-tile-stats-item">
@@ -233,7 +236,10 @@
               <strong>{{ home_counts.abap_analysis.delivery }}</strong>
             </li>
             <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span></span>
+              <span class="position-relative d-inline-flex align-items-center gap-1">
+                <span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span>
+                {% if proposal_offer_badges.get('analysis') %}<span class="home-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
+              </span>
               <strong>{{ home_counts.abap_analysis.proposal }}</strong>
             </li>
             <li class="home-tile-stats-item">
@@ -279,7 +285,10 @@
               <strong>{{ home_counts.integration.delivery }}</strong>
             </li>
             <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span></span>
+              <span class="position-relative d-inline-flex align-items-center gap-1">
+                <span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span>
+                {% if proposal_offer_badges.get('integration') %}<span class="home-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
+              </span>
               <strong>{{ home_counts.integration.proposal }}</strong>
             </li>
             <li class="home-tile-stats-item">

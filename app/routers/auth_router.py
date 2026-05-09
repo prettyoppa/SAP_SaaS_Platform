@@ -933,6 +933,10 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
             "full_name_value": user.full_name,
             "company_value": user.company or "",
             "timezone_value": getattr(user, "timezone", None) or "",
+            "ops_email_opt_in_value": bool(getattr(user, "ops_email_opt_in", False)),
+            "marketing_email_opt_in_value": bool(getattr(user, "marketing_email_opt_in", False)),
+            "ops_sms_opt_in_value": bool(getattr(user, "ops_sms_opt_in", False)),
+            "marketing_sms_opt_in_value": bool(getattr(user, "marketing_sms_opt_in", False)),
             "account_type_value": "consultant"
             if (getattr(user, "is_consultant", False) or getattr(user, "consultant_application_pending", False))
             else "member",
@@ -950,6 +954,10 @@ async def account_profile_edit_post(
     full_name: str = Form(...),
     company: str = Form(""),
     timezone: str = Form(""),
+    ops_email_opt_in: str = Form(""),
+    marketing_email_opt_in: str = Form(""),
+    ops_sms_opt_in: str = Form(""),
+    marketing_sms_opt_in: str = Form(""),
     account_type: str = Form("member"),
     consultant_profile_file: UploadFile | None = File(None),
     remove_consultant_profile_file: str = Form(""),
@@ -963,6 +971,10 @@ async def account_profile_edit_post(
     account_type_norm = (account_type or "member").strip().lower()
     if account_type_norm not in ("member", "consultant"):
         account_type_norm = "member"
+    ops_email_opt_in_value = _form_bool(ops_email_opt_in)
+    marketing_email_opt_in_value = _form_bool(marketing_email_opt_in)
+    ops_sms_opt_in_value = _form_bool(ops_sms_opt_in)
+    marketing_sms_opt_in_value = _form_bool(marketing_sms_opt_in)
     name_ok, err = _parse_profile_full_name(full_name)
     company_ok = _parse_profile_company(company)
     tz_ok, tz_err = _parse_profile_timezone(timezone)
@@ -977,6 +989,10 @@ async def account_profile_edit_post(
                 "full_name_value": (full_name or "").strip()[:_MAX_PROFILE_FULL_NAME],
                 "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                 "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                "ops_email_opt_in_value": ops_email_opt_in_value,
+                "marketing_email_opt_in_value": marketing_email_opt_in_value,
+                "ops_sms_opt_in_value": ops_sms_opt_in_value,
+                "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                 "account_type_value": account_type_norm,
                 "consultant_profile_file_name": getattr(user, "consultant_profile_file_name", None) or "",
                 "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
@@ -995,6 +1011,10 @@ async def account_profile_edit_post(
                 "full_name_value": name_ok or "",
                 "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                 "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                "ops_email_opt_in_value": ops_email_opt_in_value,
+                "marketing_email_opt_in_value": marketing_email_opt_in_value,
+                "ops_sms_opt_in_value": ops_sms_opt_in_value,
+                "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                 "account_type_value": account_type_norm,
                 "consultant_profile_file_name": getattr(user, "consultant_profile_file_name", None) or "",
                 "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
@@ -1024,6 +1044,10 @@ async def account_profile_edit_post(
                     "full_name_value": name_ok or "",
                     "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                     "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                    "ops_email_opt_in_value": ops_email_opt_in_value,
+                    "marketing_email_opt_in_value": marketing_email_opt_in_value,
+                    "ops_sms_opt_in_value": ops_sms_opt_in_value,
+                    "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                     "account_type_value": account_type_norm,
                     "consultant_profile_file_name": new_profile_name or "",
                     "consultant_application_pending": was_pending,
@@ -1047,6 +1071,10 @@ async def account_profile_edit_post(
                         "full_name_value": name_ok or "",
                         "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                         "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                        "ops_email_opt_in_value": ops_email_opt_in_value,
+                        "marketing_email_opt_in_value": marketing_email_opt_in_value,
+                        "ops_sms_opt_in_value": ops_sms_opt_in_value,
+                        "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                         "account_type_value": account_type_norm,
                         "consultant_profile_file_name": new_profile_name or "",
                         "consultant_application_pending": was_pending,
@@ -1064,6 +1092,10 @@ async def account_profile_edit_post(
                         "full_name_value": name_ok or "",
                         "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                         "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                        "ops_email_opt_in_value": ops_email_opt_in_value,
+                        "marketing_email_opt_in_value": marketing_email_opt_in_value,
+                        "ops_sms_opt_in_value": ops_sms_opt_in_value,
+                        "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                         "account_type_value": account_type_norm,
                         "consultant_profile_file_name": new_profile_name or "",
                         "consultant_application_pending": was_pending,
@@ -1087,6 +1119,10 @@ async def account_profile_edit_post(
                             "full_name_value": name_ok or "",
                             "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                             "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                            "ops_email_opt_in_value": ops_email_opt_in_value,
+                            "marketing_email_opt_in_value": marketing_email_opt_in_value,
+                            "ops_sms_opt_in_value": ops_sms_opt_in_value,
+                            "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                             "account_type_value": account_type_norm,
                             "consultant_profile_file_name": new_profile_name or "",
                             "consultant_application_pending": was_pending,
@@ -1104,6 +1140,10 @@ async def account_profile_edit_post(
                     "full_name_value": name_ok or "",
                     "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                     "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                    "ops_email_opt_in_value": ops_email_opt_in_value,
+                    "marketing_email_opt_in_value": marketing_email_opt_in_value,
+                    "ops_sms_opt_in_value": ops_sms_opt_in_value,
+                    "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
                     "account_type_value": account_type_norm,
                     "consultant_profile_file_name": new_profile_name or "",
                     "consultant_application_pending": was_pending,
@@ -1120,6 +1160,11 @@ async def account_profile_edit_post(
     user.full_name = name_ok
     user.company = company_ok
     user.timezone = tz_ok
+    user.ops_email_opt_in = bool(getattr(user, "email_verified", False)) and ops_email_opt_in_value
+    user.marketing_email_opt_in = bool(getattr(user, "email_verified", False)) and marketing_email_opt_in_value
+    user.ops_sms_opt_in = bool(getattr(user, "phone_verified", False)) and ops_sms_opt_in_value
+    user.marketing_sms_opt_in = bool(getattr(user, "phone_verified", False)) and marketing_sms_opt_in_value
+    user.consent_updated_at = datetime.utcnow()
     user.consultant_profile_file_path = new_profile_path
     user.consultant_profile_file_name = new_profile_name
     db.add(user)

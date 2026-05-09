@@ -501,9 +501,11 @@ def index(request: Request):
     try:
         user = auth.get_current_user(request, _db)
         home_counts = None
+        proposal_offer_badges = {"rfp": False, "analysis": False, "integration": False}
         if user:
             try:
                 home_counts = home_tile_counts(_db, user.id, is_admin=bool(user.is_admin))
+                proposal_offer_badges = user_proposal_pending_offer_badges(_db, user.id)
             except Exception:
                 _log.exception("home_tile_counts failed user_id=%s", getattr(user, "id", None))
                 home_counts = None
@@ -532,4 +534,5 @@ def index(request: Request):
         "faqs": faqs,
         "reviews": reviews,
         "home_counts": home_counts,
+        "proposal_offer_badges": proposal_offer_badges,
     })

@@ -1384,6 +1384,18 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   font-size: 0.95em;
   color: var(--text);
 }
+.home-proposal-offer-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  background: radial-gradient(circle at 32% 30%, #fecaca, #ef4444 52%, #991b1b);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, #ef4444 28%, transparent),
+    0 2px 8px color-mix(in srgb, #ef4444 45%, transparent);
+  animation: nav-proposal-offer-dot-glow 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
 
 /* ── Flow Diagram ───────────────────────────── */
 .flow-diagram {
