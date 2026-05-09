@@ -104,8 +104,9 @@
           {% if can_send_inquiry %}
           <form method="post" action="{{ request_offer_inquiry_url_builder(of.id) }}" class="offer-inquiry-form" data-no-busy="true">
             <p class="small offer-inquiry-privacy-note mb-2">회원 개인정보 보호를 위해 문의 내용은 Catch Lab 이름으로 발신됩니다.</p>
+            <p class="small text-muted mb-2">한 번에 최대 1,000자까지 입력할 수 있습니다. 상세한 논의는 매칭 후 연락처를 주고받아 진행해 주세요.</p>
             <label class="form-label small offer-inquiry-label mb-1">문의 작성</label>
-            <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="2000" required placeholder="컨설턴트에게 전달할 내용을 입력하세요."></textarea>
+            <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="1000" required placeholder="컨설턴트에게 전달할 내용을 입력하세요."></textarea>
             <div class="d-flex justify-content-end mt-2">
               <button type="submit" class="btn btn-sm btn-primary">전송</button>
             </div>
@@ -113,8 +114,10 @@
           {% endif %}
           {% if can_reply_as_consultant %}
           <form method="post" action="{{ request_offer_inquiry_reply_url_builder(of.id) }}" class="offer-inquiry-form mt-3 pt-3 border-top" data-no-busy="true">
+            <p class="small offer-inquiry-privacy-note mb-2">회원 개인정보 보호를 위해 문의 내용은 Catch Lab 이름으로 발신됩니다.</p>
+            <p class="small text-muted mb-2">한 번에 최대 1,000자까지 입력할 수 있습니다. 상세한 논의는 매칭 후 연락처를 주고받아 진행해 주세요.</p>
             <label class="form-label small offer-inquiry-label mb-1">요청자 문의에 답변</label>
-            <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="2000" required placeholder="요청자에게 전달할 답변을 입력하세요."></textarea>
+            <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="1000" required placeholder="요청자에게 전달할 답변을 입력하세요."></textarea>
             <div class="d-flex justify-content-end mt-2">
               <button type="submit" class="btn btn-sm btn-primary">답변 전송</button>
             </div>

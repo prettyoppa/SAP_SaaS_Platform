@@ -13,7 +13,8 @@ from . import models
 from .email_smtp import send_plain_notification_email
 from .sms_sender import send_offer_inquiry_sms
 
-MAX_INQUIRY_BODY_LEN = 2000
+# 플랫폼 내 1차 문의·답변 상한(다수 마켓플레이스 첫 메시지 수백~1,500자 수준). 상세 협의는 매칭 후 연락처로 이어가도록 유도.
+MAX_INQUIRY_BODY_LEN = 1000
 logger = logging.getLogger(__name__)
 
 
