@@ -56,11 +56,11 @@
             <div class="tab-pane fade show active" id="tab-notice">
               {% if notices %}
                 {% for n in notices %}
-                <div class="notice-item">
+                <a href="/notices/{{ n.id }}" class="notice-item notice-item-link text-decoration-none d-block text-reset">
                   <span class="notice-badge" data-i18n="home.noticeBadge">공지</span>
                   <span class="notice-title">{{ n.title }}</span>
                   <span class="notice-date text-muted small">{{ n.created_at|local_dt_span('date_dots') }}</span>
-                </div>
+                </a>
                 {% endfor %}
               {% else %}
               <div class="empty-tab-msg">
@@ -71,19 +71,12 @@
             </div>
             <div class="tab-pane fade" id="tab-faq">
               {% if faqs %}
-              <div class="accordion accordion-flush" id="faqAccordion">
+              <div class="home-faq-link-list">
                 {% for faq in faqs %}
-                <div class="accordion-item bg-transparent">
-                  <h2 class="accordion-header">
-                    <button class="accordion-button collapsed bg-transparent text-light" type="button"
-                            data-bs-toggle="collapse" data-bs-target="#faq-{{ loop.index }}">
-                      {{ faq.question }}
-                    </button>
-                  </h2>
-                  <div id="faq-{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                    <div class="accordion-body text-muted small">{{ faq.answer }}</div>
-                  </div>
-                </div>
+                <a href="/faqs/{{ faq.id }}" class="home-faq-row d-flex align-items-center gap-2 text-decoration-none text-reset py-2 border-bottom border-secondary border-opacity-25">
+                  <i class="fa-solid fa-chevron-right fa-xs text-muted flex-shrink-0"></i>
+                  <span class="small text-truncate flex-grow-1">{{ faq.question }}</span>
+                </a>
                 {% endfor %}
               </div>
               {% else %}
@@ -109,7 +102,7 @@
               {% if reviews %}
               <div class="review-list">
                 {% for r in reviews %}
-                <div class="review-item-card">
+                <a href="/reviews/{{ r.id }}" class="review-item-card text-decoration-none text-reset d-block">
                   <div class="d-flex align-items-center gap-2 mb-1">
                     <div class="review-avatar">{{ r.author.full_name[0] if r.author else '?' }}</div>
                     <strong class="small">{{ r.author.full_name if r.author else '익명' }}</strong>
@@ -118,9 +111,9 @@
                       {% for i in range(5 - r.rating) %}<i class="fa-regular fa-star text-muted" style="font-size:.7rem"></i>{% endfor %}
                     </div>
                   </div>
-                  <p class="small text-muted mb-0">{{ r.content }}</p>
+                  <p class="small text-muted mb-0 text-truncate">{{ r.content }}</p>
                   <small class="text-muted" style="font-size:.7rem">{{ r.created_at|local_dt_span('date_dots') }}</small>
-                </div>
+                </a>
                 {% endfor %}
               </div>
               {% else %}

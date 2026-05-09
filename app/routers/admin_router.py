@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Body, Depends, Request, Form, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import models, auth, r2_storage
 from ..codelib_reference_import import build_reference_payload_dict_from_abap_code
@@ -540,7 +540,11 @@ def admin_notices(request: Request, db: Session = Depends(get_db)):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    notices = db.query(models.Notice).order_by(models.Notice.created_at.desc()).all()
+    notices = (
+        db.query(models.Notice)
+        .order_by(models.Notice.sort_order.asc(), models.Notice.created_at.asc())
+        .all()
+    )
     return templates.TemplateResponse(request, "admin/notices.html", {
         "request": request, "user": user, "notices": notices,
     })
@@ -551,13 +555,41 @@ def admin_notice_add(
     request: Request,
     title: str = Form(...),
     content: str = Form(""),
+    sort_order: int = Form(0),
     db: Session = Depends(get_db),
 ):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    db.add(models.Notice(title=title.strip(), content=content.strip()))
+    db.add(
+        models.Notice(
+            title=title.strip(),
+            content=(content or "").strip(),
+            sort_order=max(0, int(sort_order)),
+        )
+    )
     db.commit()
+    return RedirectResponse(url="/admin/notices", status_code=302)
+
+
+@router.post("/notices/{notice_id}/update")
+def admin_notice_update(
+    notice_id: int,
+    request: Request,
+    title: str = Form(...),
+    content: str = Form(""),
+    sort_order: int = Form(0),
+    db: Session = Depends(get_db),
+):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    n = db.query(models.Notice).filter(models.Notice.id == notice_id).first()
+    if n:
+        n.title = title.strip()
+        n.content = (content or "").strip()
+        n.sort_order = max(0, int(sort_order))
+        db.commit()
     return RedirectResponse(url="/admin/notices", status_code=302)
 
 
@@ -592,7 +624,11 @@ def admin_faqs(request: Request, db: Session = Depends(get_db)):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    faqs = db.query(models.FAQ).order_by(models.FAQ.sort_order).all()
+    faqs = (
+        db.query(models.FAQ)
+        .order_by(models.FAQ.sort_order.asc(), models.FAQ.created_at.asc())
+        .all()
+    )
     return templates.TemplateResponse(request, "admin/faqs.html", {
         "request": request, "user": user, "faqs": faqs,
     })
@@ -609,8 +645,35 @@ def admin_faq_add(
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    db.add(models.FAQ(question=question.strip(), answer=answer.strip(), sort_order=sort_order))
+    db.add(
+        models.FAQ(
+            question=question.strip(),
+            answer=(answer or "").strip(),
+            sort_order=max(0, int(sort_order)),
+        )
+    )
     db.commit()
+    return RedirectResponse(url="/admin/faqs", status_code=302)
+
+
+@router.post("/faqs/{faq_id}/update")
+def admin_faq_update(
+    faq_id: int,
+    request: Request,
+    question: str = Form(...),
+    answer: str = Form(...),
+    sort_order: int = Form(0),
+    db: Session = Depends(get_db),
+):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    f = db.query(models.FAQ).filter(models.FAQ.id == faq_id).first()
+    if f:
+        f.question = question.strip()
+        f.answer = (answer or "").strip()
+        f.sort_order = max(0, int(sort_order))
+        db.commit()
     return RedirectResponse(url="/admin/faqs", status_code=302)
 
 
@@ -638,27 +701,32 @@ def admin_faq_delete(faq_id: int, request: Request, db: Session = Depends(get_db
     return RedirectResponse(url="/admin/faqs", status_code=302)
 
 
-# ── 이용후기 관리 (Admin 공개 승인) ─────────────────────
+# ── 문의/리뷰 전체 모니터링 (관리자 비노출·삭제) ─────────────────────
 
 @router.get("/reviews", response_class=HTMLResponse)
 def admin_reviews(request: Request, db: Session = Depends(get_db)):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    reviews = db.query(models.Review).order_by(models.Review.created_at.desc()).all()
+    reviews = (
+        db.query(models.Review)
+        .options(joinedload(models.Review.author), joinedload(models.Review.comments))
+        .order_by(models.Review.created_at.desc())
+        .all()
+    )
     return templates.TemplateResponse(request, "admin/reviews.html", {
         "request": request, "user": user, "reviews": reviews,
     })
 
 
-@router.post("/reviews/{review_id}/toggle")
-def admin_review_toggle(review_id: int, request: Request, db: Session = Depends(get_db)):
+@router.post("/reviews/{review_id}/suppress")
+def admin_review_suppress(review_id: int, request: Request, db: Session = Depends(get_db)):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
     r = db.query(models.Review).filter(models.Review.id == review_id).first()
     if r:
-        r.is_public = not r.is_public
+        r.admin_suppressed = not bool(r.admin_suppressed)
         db.commit()
     return RedirectResponse(url="/admin/reviews", status_code=302)
 

@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session, joinedload
 from .database import SessionLocal, db_target_log_line, engine
 from .email_smtp import email_verification_enabled, log_smtp_startup_checks
@@ -26,6 +26,7 @@ from .offer_inquiry_service import consultant_has_any_pending_inquiry_reply
 from .home_counts import home_tile_counts
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
+from .routers import site_content_router
 from .routers import payments_router, paid_admin_router
 from .templates_config import templates
 
@@ -118,6 +119,8 @@ def _run_migrations():
         ("users", "consultant_profile_file_path", "TEXT", "TEXT"),
         ("users", "consultant_profile_file_name", "VARCHAR(512)", "VARCHAR(512)"),
         ("request_offer_inquiries", "parent_inquiry_id", "INTEGER", "INTEGER"),
+        ("notices", "sort_order", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
+        ("reviews", "admin_suppressed", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -494,6 +497,7 @@ app.include_router(codelib_router.router)
 app.include_router(abap_analysis_router.router)
 app.include_router(admin_router.router)
 app.include_router(review_router.router)
+app.include_router(site_content_router.router)
 app.include_router(integration_interview_router.router)
 app.include_router(integration_router.router)
 app.include_router(payments_router.router)
@@ -517,19 +521,37 @@ def index(request: Request):
                 home_counts = None
         raw_settings = _db.query(models.SiteSettings).all()
         settings = {s.key: s.value for s in raw_settings}
-        notices = (_db.query(models.Notice)
-                   .filter(models.Notice.is_active == True)
-                   .order_by(models.Notice.created_at.desc())
-                   .limit(5).all())
-        faqs = (_db.query(models.FAQ)
-                .filter(models.FAQ.is_active == True)
-                .order_by(models.FAQ.sort_order)
-                .all())
-        reviews = (_db.query(models.Review)
-                   .options(joinedload(models.Review.author))
-                   .filter(models.Review.is_public == True)
-                   .order_by(models.Review.created_at.desc())
-                   .limit(10).all())
+        notices = (
+            _db.query(models.Notice)
+            .filter(models.Notice.is_active == True)
+            .order_by(models.Notice.sort_order.asc(), models.Notice.created_at.asc())
+            .limit(5)
+            .all()
+        )
+        faqs = (
+            _db.query(models.FAQ)
+            .filter(models.FAQ.is_active == True)
+            .order_by(models.FAQ.sort_order.asc(), models.FAQ.created_at.asc())
+            .all()
+        )
+        _rcc = (
+            _db.query(models.ReviewComment.review_id, func.count(models.ReviewComment.id).label("n"))
+            .group_by(models.ReviewComment.review_id)
+            .subquery()
+        )
+        reviews = (
+            _db.query(models.Review)
+            .options(joinedload(models.Review.author))
+            .outerjoin(_rcc, models.Review.id == _rcc.c.review_id)
+            .filter(models.Review.is_public == True, models.Review.admin_suppressed == False)
+            .order_by(
+                func.coalesce(_rcc.c.n, 0).desc(),
+                models.Review.rating.desc(),
+                models.Review.created_at.desc(),
+            )
+            .limit(10)
+            .all()
+        )
     finally:
         _db.close()
     return templates.TemplateResponse(request, "index.html", {

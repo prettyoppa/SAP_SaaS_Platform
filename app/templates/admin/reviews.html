@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}이용후기 관리 – Admin{% endblock %}
+{% block title %}문의/리뷰 모니터링 – Admin{% endblock %}
 
 {% block content %}
 <div class="py-4">
@@ -8,8 +8,8 @@
       <div class="d-flex align-items-center gap-3">
         {% include 'partials/nav_prev_screen.html' %}
         <div>
-          <h4 class="mb-0"><i class="fa-solid fa-star me-2 text-warning"></i>이용후기 관리</h4>
-          <small class="text-muted">회원이 작성한 이용후기를 검토하고 홈 화면 공개 여부를 설정합니다.</small>
+          <h4 class="mb-0"><i class="fa-solid fa-comments me-2 text-warning"></i>문의/리뷰 모니터링</h4>
+          <small class="text-muted">회원 공개·비공개는 작성자 설정입니다. <strong>관리자 비노출</strong>은 홈·목록 피드에서만 숨기며, 작성자와 관리자는 상세 URL로 계속 열람할 수 있습니다.</small>
         </div>
       </div>
     </div>
@@ -25,8 +25,10 @@
             <th>작성자</th>
             <th>내용</th>
             <th>평점</th>
+            <th>댓글</th>
             <th>작성일</th>
-            <th>공개</th>
+            <th>회원 공개</th>
+            <th>관리자 비노출</th>
             <th class="text-end">관리</th>
           </tr>
         </thead>
@@ -42,28 +44,44 @@
               <span class="text-muted">(탈퇴 회원)</span>
               {% endif %}
             </td>
-            <td class="small">{{ r.content[:100] + '...' if r.content|length > 100 else r.content }}</td>
-            <td>
-              {% for i in range(r.rating) %}<i class="fa-solid fa-star text-warning" style="font-size:.8rem"></i>{% endfor %}
-              {% for i in range(5 - r.rating) %}<i class="fa-regular fa-star text-muted" style="font-size:.8rem"></i>{% endfor %}
+            <td class="small">
+              <a href="/reviews/{{ r.id }}" class="text-reset text-decoration-none" title="상세 보기">
+                {{ r.content[:100] + '…' if r.content|length > 100 else r.content }}
+              </a>
             </td>
+            <td>
+              {% set rt = r.rating if r.rating is not none else 5 %}
+              {% for i in range(rt) %}<i class="fa-solid fa-star text-warning" style="font-size:.8rem"></i>{% endfor %}
+              {% for i in range(5 - rt) %}<i class="fa-regular fa-star text-muted" style="font-size:.8rem"></i>{% endfor %}
+            </td>
+            <td class="text-center small">{{ (r.comments or [])|length }}</td>
             <td class="small">{{ r.created_at|local_dt_span('date') }}</td>
             <td>
               {% if r.is_public %}
               <span class="badge bg-success">공개</span>
               {% else %}
               <span class="badge bg-secondary">비공개</span>
+              <span class="text-muted d-block small mt-1">작성자·관리자만</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.admin_suppressed %}
+              <span class="badge bg-warning text-dark">예</span>
+              <span class="text-muted d-block small mt-1">피드 숨김</span>
+              {% else %}
+              <span class="badge bg-outline-light border border-secondary text-secondary">아니오</span>
               {% endif %}
             </td>
             <td class="text-end">
-              <form method="post" action="/admin/reviews/{{ r.id }}/toggle" class="d-inline">
-                <button type="submit" class="btn btn-sm {% if r.is_public %}btn-outline-secondary{% else %}btn-outline-success{% endif %}">
-                  {% if r.is_public %}<i class="fa-solid fa-eye-slash"></i> 숨기기
-                  {% else %}<i class="fa-solid fa-check"></i> 공개{% endif %}
+              <form method="post" action="/admin/reviews/{{ r.id }}/suppress" class="d-inline">
+                <button type="submit" class="btn btn-sm {% if r.admin_suppressed %}btn-outline-success{% else %}btn-outline-warning{% endif %}"
+                        title="홈·목록 피드 표시 여부만 전환합니다.">
+                  {% if r.admin_suppressed %}<i class="fa-solid fa-eye"></i> 피드에 표시
+                  {% else %}<i class="fa-solid fa-eye-slash"></i> 피드에서 숨기기{% endif %}
                 </button>
               </form>
               <form method="post" action="/admin/reviews/{{ r.id }}/delete" class="d-inline"
-                    data-app-confirm="이 이용후기를 삭제할까요?">
+                    data-app-confirm="이 글을 삭제할까요? 댓글도 함께 삭제될 수 있습니다.">
                 <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
                   <i class="fa-solid fa-trash"></i>
                 </button>
@@ -76,8 +94,8 @@
     </div>
     {% else %}
     <div class="empty-state">
-      <i class="fa-solid fa-star empty-icon"></i>
-      <p class="text-muted mt-2">작성된 이용후기가 없습니다.</p>
+      <i class="fa-solid fa-comments empty-icon"></i>
+      <p class="text-muted mt-2">작성된 문의/리뷰가 없습니다.</p>
     </div>
     {% endif %}
   </div>

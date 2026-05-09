@@ -9,78 +9,76 @@
         {% include 'partials/nav_prev_screen.html' %}
         <div>
           <h4 class="mb-0"><i class="fa-solid fa-bullhorn me-2 text-warning"></i>공지사항 관리</h4>
-          <small class="text-muted">홈 화면 공지사항 탭에 표시될 공지를 작성합니다.</small>
+          <small class="text-muted">본문은 <strong>마크다운</strong>으로 작성합니다. 표시 순서: 숫자 오름차순 → 같은 숫자면 등록일 오름차순.</small>
         </div>
       </div>
     </div>
   </div>
 
   <div class="container">
-    <!-- 추가 폼 -->
     <div class="admin-content-card mb-4">
       <h6 class="mb-3 text-warning"><i class="fa-solid fa-plus me-2"></i>새 공지사항 추가</h6>
       <form method="post" action="/admin/notices/add">
         <div class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-8">
+            <label class="form-label small">제목</label>
             <input type="text" name="title" class="form-control" placeholder="공지 제목" required/>
           </div>
-          <div class="col-md-6">
-            <input type="text" name="content" class="form-control" placeholder="내용 (간략하게)"/>
+          <div class="col-md-4">
+            <label class="form-label small">표시 순서</label>
+            <input type="number" name="sort_order" class="form-control" value="0" min="0"/>
           </div>
-          <div class="col-md-2">
-            <button type="submit" class="btn btn-primary w-100">
-              <i class="fa-solid fa-plus me-1"></i>추가
-            </button>
+          <div class="col-12">
+            <label class="form-label small">내용 (Markdown)</label>
+            <textarea name="content" class="form-control font-monospace small" rows="10" placeholder="## 소제목&#10;- 목록&#10;**강조**"></textarea>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>추가</button>
           </div>
         </div>
       </form>
     </div>
 
-    <!-- 목록 -->
     {% if notices %}
-    <div class="table-responsive">
-      <table class="table table-dark table-hover align-middle">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>제목</th>
-            <th>내용</th>
-            <th>등록일</th>
-            <th>상태</th>
-            <th class="text-end">관리</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for n in notices %}
-          <tr class="{% if not n.is_active %}text-muted{% endif %}">
-            <td>{{ loop.index }}</td>
-            <td><strong>{{ n.title }}</strong></td>
-            <td class="small text-muted">{{ n.content[:60] + '...' if n.content and n.content|length > 60 else (n.content or '-') }}</td>
-            <td class="small">{{ n.created_at|local_dt_span('date') }}</td>
-            <td>
-              {% if n.is_active %}
-              <span class="badge bg-success">활성</span>
-              {% else %}
-              <span class="badge bg-secondary">비활성</span>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              <form method="post" action="/admin/notices/{{ n.id }}/toggle" class="d-inline">
-                <button type="submit" class="btn btn-sm btn-outline-warning">
-                  {% if n.is_active %}<i class="fa-solid fa-eye-slash"></i>{% else %}<i class="fa-solid fa-eye"></i>{% endif %}
-                </button>
-              </form>
-              <form method="post" action="/admin/notices/{{ n.id }}/delete" class="d-inline"
-                    data-app-confirm="이 공지를 삭제할까요?">
-                <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <h6 class="mb-3 text-muted">등록된 공지</h6>
+    <div class="vstack gap-4">
+      {% for n in notices %}
+      <div class="admin-content-card {% if not n.is_active %}opacity-75{% endif %}">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <span class="small text-muted">ID {{ n.id }}</span>
+          <div class="d-flex gap-1">
+            <form method="post" action="/admin/notices/{{ n.id }}/toggle" class="d-inline">
+              <button type="submit" class="btn btn-sm btn-outline-warning">
+                {% if n.is_active %}<i class="fa-solid fa-eye-slash"></i> 비공개{% else %}<i class="fa-solid fa-eye"></i> 공개{% endif %}
+              </button>
+            </form>
+            <form method="post" action="/admin/notices/{{ n.id }}/delete" class="d-inline" data-app-confirm="이 공지를 삭제할까요?">
+              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+            </form>
+          </div>
+        </div>
+        <form method="post" action="/admin/notices/{{ n.id }}/update">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label small">제목</label>
+              <input type="text" name="title" class="form-control" value="{{ n.title }}" required/>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">표시 순서</label>
+              <input type="number" name="sort_order" class="form-control" value="{{ n.sort_order|default(0) }}" min="0"/>
+            </div>
+            <div class="col-12">
+              <label class="form-label small">내용 (Markdown)</label>
+              <textarea name="content" class="form-control font-monospace small" rows="12">{{ n.content or '' }}</textarea>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>저장</button>
+              <span class="small text-muted ms-2">등록 {{ n.created_at|local_dt_span('date') }}</span>
+            </div>
+          </div>
+        </form>
+      </div>
+      {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">

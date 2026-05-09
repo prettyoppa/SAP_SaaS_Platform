@@ -198,6 +198,68 @@ def send_offer_inquiry_from_owner(
     return None, row
 
 
+def send_consultant_matched_first_inquiry_to_owner(
+    db: Session,
+    *,
+    consultant: models.User,
+    offer: models.RequestOffer,
+    owner: models.User,
+    request_title: str,
+    request_detail_url: str,
+    body_raw: str,
+) -> tuple[str | None, models.RequestOfferInquiry | None]:
+    """매칭된 오퍼에서만, 문의 이력이 없을 때 컨설턴트가 회원에게 첫 문의(저장 + 회원 이메일)."""
+    if int(offer.consultant_user_id) != int(consultant.id):
+        return "이 오퍼에 대한 문의 권한이 없습니다.", None
+    if (offer.status or "").strip() != "matched":
+        return "매칭된 요청에만 먼저 문의할 수 있습니다.", None
+    existing = (
+        db.query(models.RequestOfferInquiry)
+        .filter(models.RequestOfferInquiry.request_offer_id == offer.id)
+        .count()
+    )
+    if existing > 0:
+        return "이미 문의 이력이 있습니다. 문의 내역에서 회원 문의에 답변해 주세요.", None
+
+    body = (body_raw or "").strip()
+    if len(body) < 1:
+        return "문의 내용을 입력해 주세요.", None
+    if len(body) > MAX_INQUIRY_BODY_LEN:
+        return f"문의 내용은 {MAX_INQUIRY_BODY_LEN}자 이하로 입력해 주세요.", None
+
+    owner_email = (owner.email or "").strip()
+    if not owner_email:
+        return "요청자 이메일이 등록되어 있지 않아 알림을 보낼 수 없습니다.", None
+
+    subject = f"[SAP Dev Hub] 컨설턴트 문의 — {request_title[:80]}"
+    body_email = (
+        f"컨설턴트: {consultant.full_name}\n"
+        f"요청 ID: {inquiry_request_label(offer)}\n"
+        f"요청: {request_title}\n"
+        f"링크: {request_detail_url}\n\n"
+        f"문의 내용:\n{body}\n"
+    )
+
+    row = models.RequestOfferInquiry(
+        request_offer_id=offer.id,
+        author_user_id=consultant.id,
+        body=body,
+        email_sent=False,
+        sms_sent=False,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    try:
+        send_plain_notification_email(owner_email, subject, body_email)
+        row.email_sent = True
+        db.add(row)
+        db.commit()
+    except Exception:
+        logger.exception("consultant first inquiry email failed offer_id=%s", offer.id)
+    return None, row
+
+
 def send_consultant_offer_inquiry_reply(
     db: Session,
     *,

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}문의/리뷰 · SAP 개발 파트너{% endblock %}
+{% block content %}
+<div class="py-4 py-md-5 reviews-detail-page">
+  <div class="container" style="max-width: 720px;">
+    <nav aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a href="/">홈</a></li>
+        <li class="breadcrumb-item"><a href="/reviews">문의/리뷰</a></li>
+        <li class="breadcrumb-item active" aria-current="page">#{{ review.id }}</li>
+      </ol>
+    </nav>
+
+    <article class="card border shadow-sm mb-4" style="background:var(--surface2);border-color:var(--border)!important;">
+      <div class="card-body p-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+          <div>
+            <strong>{{ review.author.full_name if review.author else '회원' }}</strong>
+            <div class="small text-muted">{{ review.created_at|local_dt_span('date_dots') }}</div>
+          </div>
+          <div>
+            {% for i in range(review.rating) %}<i class="fa-solid fa-star text-warning"></i>{% endfor %}
+            {% for i in range(5 - review.rating) %}<i class="fa-regular fa-star text-muted"></i>{% endfor %}
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% if review.is_public and not review.admin_suppressed %}
+          <span class="badge bg-success bg-opacity-75">공개</span>
+          {% elif review.admin_suppressed %}
+          <span class="badge bg-warning text-dark">관리자 비노출</span>
+          {% else %}
+          <span class="badge bg-secondary">비공개</span>
+          {% endif %}
+        </div>
+        <div class="review-body-text text-break" style="white-space: pre-wrap;">{{ review.content }}</div>
+        {% if can_delete %}
+        <form method="post" action="/reviews/{{ review.id }}/delete" class="mt-4" data-app-confirm="이 글을 삭제할까요?">
+          <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash me-1"></i>삭제</button>
+        </form>
+        {% endif %}
+      </div>
+    </article>
+
+    <section class="card border shadow-sm" style="background:var(--surface2);border-color:var(--border)!important;">
+      <div class="card-header bg-transparent py-3 border-bottom" style="border-color:var(--border)!important;">
+        <h2 class="h6 mb-0">댓글 {% if comments %}<span class="text-muted">({{ comments|length }})</span>{% endif %}</h2>
+      </div>
+      <div class="card-body">
+        {% if comments %}
+        <ul class="list-unstyled mb-4">
+          {% for c in comments %}
+          <li class="border-bottom pb-3 mb-3" style="border-color:var(--border)!important;">
+            <div class="d-flex justify-content-between gap-2 small mb-1">
+              <strong>{{ c.author.full_name if c.author else '회원' }}</strong>
+              <span class="text-muted">{{ c.created_at|local_dt_span('date_dots') }}</span>
+            </div>
+            <p class="small mb-0 text-break" style="white-space: pre-wrap;">{{ c.content }}</p>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted small mb-4">첫 댓글을 남겨 보세요.</p>
+        {% endif %}
+
+        {% if user %}
+        <form method="post" action="/reviews/{{ review.id }}/comment">
+          <input type="hidden" name="next" value="/reviews/{{ review.id }}"/>
+          <label class="form-label small">댓글</label>
+          <textarea name="content" class="form-control form-control-sm mb-2" rows="3" required placeholder="일반 텍스트로 입력"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm">등록</button>
+        </form>
+        {% else %}
+        <p class="small text-muted mb-0"><a href="/login?next=/reviews/{{ review.id }}">로그인</a> 후 댓글을 남길 수 있습니다.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="mt-4">
+      <a href="/reviews" class="btn btn-outline-secondary btn-sm">목록</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

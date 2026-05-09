@@ -2814,3 +2814,91 @@ html[data-theme="dark"] .navbar-custom .nav-request-console-bubble::before {
   box-shadow: inset 3px 0 0 0 #ef4444;
 }
 
+/* ── 공지·FAQ·이용후기 상세 & 홈에서 한 줄 링크 ─────────────────── */
+.notice-item-link:hover {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.home-faq-link-list .home-faq-row:last-child {
+  border-bottom: none !important;
+}
+.home-faq-row:hover {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+a.review-item-card:hover {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  border-radius: 0.35rem;
+}
+
+.site-content-page {
+  background: var(--surface);
+  min-height: 50vh;
+}
+.site-content-container {
+  max-width: 820px;
+}
+.site-content-breadcrumb .breadcrumb {
+  background: transparent;
+  padding: 0;
+}
+.site-content-breadcrumb .breadcrumb-item a {
+  color: var(--primary-light);
+  text-decoration: none;
+}
+.site-content-breadcrumb .breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+.site-article {
+  background: var(--surface2);
+  border-color: var(--border) !important;
+}
+.site-faq-q-icon {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  color: var(--primary-light);
+}
+.site-article-body.markdown-body h1,
+.site-article-body.markdown-body h2,
+.site-article-body.markdown-body h3 {
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.site-article-body.markdown-body h1 {
+  font-size: 1.35rem;
+}
+.site-article-body.markdown-body h2 {
+  font-size: 1.2rem;
+}
+.site-article-body.markdown-body h3 {
+  font-size: 1.05rem;
+}
+.site-article-body.markdown-body p {
+  margin-bottom: 0.85rem;
+  line-height: 1.65;
+  color: var(--text);
+}
+.site-article-body.markdown-body ul,
+.site-article-body.markdown-body ol {
+  padding-left: 1.25rem;
+  margin-bottom: 0.85rem;
+}
+.site-article-body.markdown-body li {
+  margin-bottom: 0.35rem;
+}
+.site-article-body.markdown-body hr {
+  border-color: var(--border);
+  opacity: 1;
+}
+.site-article-body.markdown-body strong {
+  color: var(--text);
+}
+.site-article-body.markdown-body table {
+  width: 100%;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+

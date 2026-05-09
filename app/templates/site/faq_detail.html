@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ faq.question }} · FAQ{% endblock %}
+{% block content %}
+<div class="site-content-page py-4 py-md-5">
+  <div class="container site-content-container">
+    <nav aria-label="breadcrumb" class="site-content-breadcrumb mb-3">
+      <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="/">홈</a></li>
+        <li class="breadcrumb-item"><a href="/#tab-faq">FAQ</a></li>
+        <li class="breadcrumb-item active text-truncate" aria-current="page" style="max-width: 14rem">{{ faq.question }}</li>
+      </ol>
+    </nav>
+
+    <article class="site-article card border shadow-sm">
+      <div class="card-body p-4 p-md-5">
+        <header class="site-article-header border-bottom pb-3 mb-4">
+          <div class="d-flex align-items-start gap-3">
+            <span class="site-faq-q-icon flex-shrink-0 rounded-circle d-inline-flex align-items-center justify-content-center" aria-hidden="true">Q</span>
+            <h1 class="h4 mb-0 fw-semibold flex-grow-1">{{ faq.question }}</h1>
+          </div>
+        </header>
+        <div class="site-faq-answer">
+          <div class="site-faq-a-label small text-muted text-uppercase mb-2">Answer</div>
+          <div class="site-article-body markdown-body text-break">
+            {{ answer_html|safe }}
+          </div>
+        </div>
+        <footer class="mt-5 pt-4 border-top">
+          <a href="/#tab-faq" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-list me-1"></i>FAQ 목록</a>
+        </footer>
+      </div>
+    </article>
+  </div>
+</div>
+{% endblock %}

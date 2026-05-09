@@ -199,6 +199,12 @@ html[data-theme="dark"] .btn-console-offer:hover {
         <button type="submit" class="btn btn-sm btn-outline-secondary" data-no-busy="true">검색</button>
       </form>
     </div>
+    {% if console_consultant_inquiry_err is defined and console_consultant_inquiry_err %}
+    <div class="alert alert-danger small py-2 mb-2 mx-1">{{ console_consultant_inquiry_err }}</div>
+    {% endif %}
+    {% if console_consultant_inquiry_ok is defined and console_consultant_inquiry_ok %}
+    <div class="alert alert-success small py-2 mb-2 mx-1">회원에게 문의를 보냈습니다.</div>
+    {% endif %}
 
     <div class="request-console-shell" id="request-console-shell">
       <div id="console-inline-loading" class="console-inline-loading" hidden>
@@ -320,6 +326,28 @@ html[data-theme="dark"] .btn-console-offer:hover {
         </div>
       </div>
       <hr class="my-2" />
+      {% if selected_row.console_can_init_inquiry %}
+      <div class="border rounded p-3 small mb-3 console-consultant-inquiry-panel">
+        <div class="fw-semibold mb-2"><i class="fa-solid fa-paper-plane me-1 text-primary"></i>회원에게 문의 (매칭 후 · 첫 문의)</div>
+        <p class="text-muted mb-2">문의 이력이 없을 때만 보낼 수 있습니다. 이후에는 아래 미리보기의 문의 내역에서 회원 메시지에 답변해 주세요.</p>
+        <p class="small mb-2" style="color: var(--muted, #6b7280);">회원 개인정보 보호를 위해 문의 내용은 Catch Lab 이름으로 발신됩니다.</p>
+        <p class="small text-muted mb-2">한 번에 최대 1,000자까지 입력할 수 있습니다. 상세한 논의는 연락처를 주고받아 진행해 주세요.</p>
+        <form method="post" action="/request-console/consultant-inquiry" id="console-consultant-inquiry-form" data-no-busy="true">
+          <input type="hidden" name="sel_key" value="{{ selected_row.sel_key }}" />
+          <input type="hidden" name="return_kind" value="{{ kind }}" />
+          <input type="hidden" name="return_bucket" value="{{ bucket }}" />
+          <input type="hidden" name="return_sel" value="{{ selected_row.sel_key }}" />
+          <input type="hidden" name="return_title" value="{{ menu_search_title }}" />
+          <input type="hidden" name="return_date_from" value="{{ menu_date_from_raw }}" />
+          <input type="hidden" name="return_date_to" value="{{ menu_date_to_raw }}" />
+          <label class="form-label small mb-1">문의 작성</label>
+          <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="1000" required placeholder="회원에게 전달할 내용을 입력하세요."></textarea>
+          <div class="d-flex justify-content-end mt-2">
+            <button type="submit" class="btn btn-sm btn-primary">전송</button>
+          </div>
+        </form>
+      </div>
+      {% endif %}
       <div class="console-detail-frame-wrap">
         <iframe id="console-detail-iframe" class="console-detail-iframe" src="{{ selected_row.preview_href|default(selected_row.detail_href, true) }}" loading="lazy" referrerpolicy="same-origin"></iframe>
       </div>

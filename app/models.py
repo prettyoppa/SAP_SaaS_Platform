@@ -382,6 +382,7 @@ class Notice(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -400,19 +401,28 @@ class FAQ(Base):
 
 
 class Review(Base):
-    """이용후기"""
+    """문의/리뷰 커뮤니티 글(회원 작성, 댓글 스레드)."""
+
     __tablename__ = "reviews"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     content = Column(Text, nullable=False)
-    rating = Column(Integer, default=5)          # 1~5점
-    is_public = Column(Boolean, default=False)   # Admin이 공개 승인
+    rating = Column(Integer, default=5)  # 1~5점
+    # 회원이 선택한 공개 여부. False면 작성자·관리자만 열람.
+    is_public = Column(Boolean, default=True, nullable=False)
+    # True면 회원이 공개로 올렸어도 목록·홈에서 숨김(작성자·관리자만 열람).
+    admin_suppressed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     author = relationship("User", foreign_keys=[user_id])
-    comments = relationship("ReviewComment", back_populates="review", order_by="ReviewComment.created_at")
+    comments = relationship(
+        "ReviewComment",
+        back_populates="review",
+        order_by="ReviewComment.created_at",
+        cascade="all, delete-orphan",
+    )
 
 
 class ReviewComment(Base):

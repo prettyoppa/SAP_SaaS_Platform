@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}문의/리뷰 – SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="py-5 reviews-board-page">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        {% include 'partials/nav_prev_screen.html' %}
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+          <div>
+            <h3 class="mb-1"><i class="fa-solid fa-comments text-warning me-2"></i>문의/리뷰</h3>
+            <p class="text-muted small mb-0">회원 간 문의·후기·답글을 남기는 공간입니다. 비공개 글은 본인과 운영자만 볼 수 있습니다.</p>
+          </div>
+          <a href="/" class="btn btn-sm btn-outline-secondary">홈</a>
+        </div>
+
+        {% if request.query_params.get('submitted') %}
+        <div class="alert alert-success mb-4 small">
+          <i class="fa-solid fa-circle-check me-2"></i>글이 등록되었습니다.
+        </div>
+        {% endif %}
+
+        <div class="card border shadow-sm mb-4" style="background:var(--surface2);border-color:var(--border)!important;">
+          <div class="card-body">
+            <h6 class="mb-3"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i>새 글 작성</h6>
+            <form method="post" action="/reviews/write">
+              <div class="mb-3">
+                <label class="form-label small">평점</label>
+                <div class="d-flex gap-1" id="ratingStars">
+                  {% for i in range(1, 6) %}
+                  <button type="button" class="star-btn" data-value="{{ i }}" onclick="setRating({{ i }})" aria-label="{{ i }}점">
+                    <i class="fa-regular fa-star" id="star{{ i }}"></i>
+                  </button>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="rating" id="ratingInput" value="5"/>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small">내용 (일반 텍스트)</label>
+                <textarea name="content" class="form-control" rows="5" required placeholder="문의·이용 후기 등을 자유롭게 작성해 주세요."></textarea>
+              </div>
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="is_private" value="1" id="chkPrivate">
+                <label class="form-check-label small" for="chkPrivate">비공개 (본인·운영자만 열람)</label>
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-2"></i>등록</button>
+            </form>
+          </div>
+        </div>
+
+        <h6 class="mb-3 text-muted">게시물</h6>
+        {% if board_reviews %}
+        <div class="vstack gap-3">
+          {% for r in board_reviews %}
+          <a href="/reviews/{{ r.id }}" class="text-decoration-none text-reset review-board-row card border p-3 shadow-sm" style="background:var(--surface2);border-color:var(--border)!important;">
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+              <div class="small">
+                <strong>{{ r.author.full_name if r.author else '회원' }}</strong>
+                <span class="text-muted ms-2">{{ r.created_at|local_dt_span('date_dots') }}</span>
+              </div>
+              <div class="text-nowrap">
+                {% for i in range(r.rating) %}<i class="fa-solid fa-star text-warning" style="font-size:.75rem"></i>{% endfor %}
+                {% for i in range(5 - r.rating) %}<i class="fa-regular fa-star text-muted" style="font-size:.75rem"></i>{% endfor %}
+              </div>
+            </div>
+            <p class="small mb-2 text-muted text-truncate-3" style="white-space:pre-wrap;max-height:4.5rem;overflow:hidden;">{{ r.content }}</p>
+            <div class="d-flex flex-wrap gap-2 small">
+              {% if r.is_public and not r.admin_suppressed %}
+              <span class="badge bg-success bg-opacity-75">공개</span>
+              {% elif r.is_public and r.admin_suppressed %}
+              <span class="badge bg-warning text-dark">관리자 비노출</span>
+              {% else %}
+              <span class="badge bg-secondary">비공개</span>
+              {% endif %}
+              <span class="text-muted"><i class="fa-regular fa-comment me-1"></i>{{ (r.comments or [])|length }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted small">표시할 글이 없습니다.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setRating(val) {
+  document.getElementById('ratingInput').value = val;
+  for (let i = 1; i <= 5; i++) {
+    const icon = document.getElementById('star' + i);
+    if (!icon) continue;
+    icon.className = i <= val ? 'fa-solid fa-star' : 'fa-regular fa-star';
+  }
+}
+setRating(5);
+</script>
+<style>
+.reviews-board-page .star-btn {
+  background: none; border: none; color: #eab308;
+  font-size: 1.35rem; cursor: pointer; padding: 0 2px;
+}
+.review-board-row:hover { border-color: var(--primary) !important; }
+</style>
+{% endblock %}
