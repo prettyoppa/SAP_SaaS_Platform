@@ -2902,3 +2902,89 @@ a.review-item-card:hover {
   font-size: 0.9rem;
 }
 
+/* 공지/FAQ 목록·제목 마크다운(한 줄·짧은 블록) */
+.site-content-toolbar {
+  gap: 0.5rem;
+}
+.site-list-page {
+  max-width: 960px;
+}
+.site-list-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  overflow: hidden;
+}
+.site-notice-list-table {
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: color-mix(in srgb, var(--primary) 8%, transparent);
+  color: var(--text);
+  margin-bottom: 0;
+}
+.site-notice-list-table thead th {
+  border-bottom-color: var(--border);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+.site-notice-list-table td {
+  border-color: var(--border);
+}
+.site-list-title-link:hover {
+  color: var(--primary-light) !important;
+}
+.site-list-page-input {
+  width: 4.25rem;
+}
+.site-list-pagination .page-link {
+  background: var(--surface2);
+  border-color: var(--border);
+  color: var(--text);
+}
+.site-list-pagination .page-item.active .page-link {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.site-list-pagination .page-item.disabled .page-link {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.site-md-title-inline.markdown-body > p,
+.site-md-title-inline.markdown-body > h1,
+.site-md-title-inline.markdown-body > h2,
+.site-md-title-inline.markdown-body > h3 {
+  display: inline;
+  font-size: inherit;
+  font-weight: inherit;
+  margin: 0;
+  padding: 0;
+  line-height: inherit;
+}
+.site-md-title-inline.markdown-body h1,
+.site-md-title-inline.markdown-body h2,
+.site-md-title-inline.markdown-body h3 {
+  font-weight: 600;
+}
+.notice-title.site-md-title-inline.markdown-body > p {
+  display: inline;
+  margin: 0;
+}
+.home-faq-row .site-md-title-inline.markdown-body > p {
+  display: inline;
+  margin: 0;
+}
+
+/* Admin 공지/FAQ: 컴팩트 입력란(고정 높이 + 스크롤) */
+.admin-compact-md {
+  height: 6.75rem;
+  min-height: 6.75rem;
+  max-height: 6.75rem;
+  overflow-y: auto;
+  resize: none;
+  box-sizing: border-box;
+}
+.admin-compact-md--title {
+  height: 3.75rem;
+  min-height: 3.75rem;
+  max-height: 3.75rem;
+}
+

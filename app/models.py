@@ -380,7 +380,7 @@ class Notice(Base):
     __tablename__ = "notices"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
+    title = Column(Text, nullable=False)
     content = Column(Text, nullable=True)
     sort_order = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True)
@@ -393,7 +393,7 @@ class FAQ(Base):
     __tablename__ = "faqs"
 
     id = Column(Integer, primary_key=True, index=True)
-    question = Column(String, nullable=False)
+    question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)

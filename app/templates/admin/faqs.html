@@ -9,34 +9,38 @@
         {% include 'partials/nav_prev_screen.html' %}
         <div>
           <h4 class="mb-0"><i class="fa-solid fa-circle-question me-2 text-warning"></i>FAQ 관리</h4>
-          <small class="text-muted">답변은 <strong>마크다운</strong>입니다. 순서: 숫자 오름차순 → 같으면 등록일 오름차순.</small>
+          <small class="text-muted"><strong>질문·답변</strong> 모두 마크다운입니다. 순서: 숫자 오름차순 → 같으면 등록일 오름차순.</small>
         </div>
       </div>
     </div>
   </div>
 
   <div class="container">
-    <div class="admin-content-card mb-4">
-      <h6 class="mb-3 text-warning"><i class="fa-solid fa-plus me-2"></i>새 FAQ 추가</h6>
-      <form method="post" action="/admin/faqs/add">
-        <div class="row g-3">
-          <div class="col-md-8">
-            <label class="form-label small">질문</label>
-            <input type="text" name="question" class="form-control" placeholder="자주 묻는 질문" required/>
+    <button class="btn btn-sm btn-outline-primary mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#faq-add-collapse" aria-expanded="false" aria-controls="faq-add-collapse">
+      <i class="fa-solid fa-plus me-1"></i>새 FAQ 추가
+    </button>
+    <div class="collapse" id="faq-add-collapse">
+      <div class="admin-content-card mb-4">
+        <form method="post" action="/admin/faqs/add">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label small">질문 (Markdown)</label>
+              <textarea name="question" class="form-control font-monospace small admin-compact-md admin-compact-md--title" placeholder="**FAQ** 질문" required></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">표시 순서</label>
+              <input type="number" name="sort_order" class="form-control" value="0" min="0"/>
+            </div>
+            <div class="col-12">
+              <label class="form-label small">답변 (Markdown)</label>
+              <textarea name="answer" class="form-control font-monospace small admin-compact-md" required placeholder="## 답변"></textarea>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>추가</button>
+            </div>
           </div>
-          <div class="col-md-4">
-            <label class="form-label small">표시 순서</label>
-            <input type="number" name="sort_order" class="form-control" value="0" min="0"/>
-          </div>
-          <div class="col-12">
-            <label class="form-label small">답변 (Markdown)</label>
-            <textarea name="answer" class="form-control font-monospace small" rows="10" required placeholder="## 답변&#10;1. 항목"></textarea>
-          </div>
-          <div class="col-12">
-            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>추가</button>
-          </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
 
     {% if faqs %}
@@ -60,8 +64,8 @@
         <form method="post" action="/admin/faqs/{{ f.id }}/update">
           <div class="row g-3">
             <div class="col-md-8">
-              <label class="form-label small">질문</label>
-              <input type="text" name="question" class="form-control" value="{{ f.question }}" required/>
+              <label class="form-label small">질문 (Markdown)</label>
+              <textarea name="question" class="form-control font-monospace small admin-compact-md admin-compact-md--title" required>{{ f.question or '' }}</textarea>
             </div>
             <div class="col-md-4">
               <label class="form-label small">표시 순서</label>
@@ -69,7 +73,7 @@
             </div>
             <div class="col-12">
               <label class="form-label small">답변 (Markdown)</label>
-              <textarea name="answer" class="form-control font-monospace small" rows="12">{{ f.answer }}</textarea>
+              <textarea name="answer" class="form-control font-monospace small admin-compact-md">{{ f.answer }}</textarea>
             </div>
             <div class="col-12">
               <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>저장</button>

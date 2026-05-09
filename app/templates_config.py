@@ -5,6 +5,7 @@ main.py 에서 직접 생성하지 않고 여기서 한 번만 생성하여 필�
 import json as _json
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
@@ -92,6 +93,22 @@ def _request_no_filter(v, prefix: str = "REQ") -> str:
 
 
 templates.env.filters["request_no"] = _request_no_filter
+
+
+def _md_html_filter(s) -> Markup:
+    """제목·본문 등 저장된 마크다운을 HTML로 (interview_router 구현 재사용)."""
+    if s is None:
+        return Markup("")
+    raw = str(s).strip()
+    if not raw:
+        return Markup("")
+    from .routers.interview_router import _markdown_to_html
+
+    return Markup(_markdown_to_html(raw))
+
+
+templates.env.filters["md_html"] = _md_html_filter
+templates.env.filters["urlquote"] = lambda s: quote_plus(str(s or ""))
 
 
 def layout_template_from_embed_query(request) -> str:

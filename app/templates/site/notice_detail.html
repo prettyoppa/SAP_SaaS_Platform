@@ -1,15 +1,19 @@
 {% extends "base.html" %}
-{% block title %}{{ notice.title }} · 공지사항{% endblock %}
+{% block title %}{{ meta_title }} · 공지사항{% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">
   <div class="container site-content-container">
-    <nav aria-label="breadcrumb" class="site-content-breadcrumb mb-3">
-      <ol class="breadcrumb mb-0 small">
-        <li class="breadcrumb-item"><a href="/">홈</a></li>
-        <li class="breadcrumb-item"><a href="/#tab-notice">공지사항</a></li>
-        <li class="breadcrumb-item active text-truncate" aria-current="page" style="max-width: 12rem">{{ notice.title }}</li>
-      </ol>
-    </nav>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 site-content-toolbar">
+      <nav aria-label="breadcrumb" class="site-content-breadcrumb flex-grow-1" style="min-width:0">
+        <ol class="breadcrumb mb-0 small">
+          <li class="breadcrumb-item"><a href="/">홈</a></li>
+          <li class="breadcrumb-item"><a href="/notices">공지사항</a></li>
+          <li class="breadcrumb-item active text-truncate" aria-current="page" style="max-width: 16rem">{{ meta_title }}</li>
+        </ol>
+      </nav>
+      {% set active = 'notices' %}
+      {% include 'site/content_subnav.html' %}
+    </div>
 
     <article class="site-article card border shadow-sm">
       <div class="card-body p-4 p-md-5">
@@ -18,14 +22,11 @@
             <span class="badge rounded-pill bg-primary bg-opacity-75">공지</span>
             {% if notice.created_at %}<time class="text-muted small">{{ notice.created_at|local_dt_span('date_dots') }}</time>{% endif %}
           </div>
-          <h1 class="h3 mb-0 fw-semibold">{{ notice.title }}</h1>
+          <h1 class="h3 mb-0 fw-semibold site-md-title-inline markdown-body">{{ title_html|safe }}</h1>
         </header>
         <div class="site-article-body markdown-body text-break">
           {{ body_html|safe }}
         </div>
-        <footer class="mt-5 pt-4 border-top">
-          <a href="/#tab-notice" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-list me-1"></i>목록으로</a>
-        </footer>
       </div>
     </article>
   </div>

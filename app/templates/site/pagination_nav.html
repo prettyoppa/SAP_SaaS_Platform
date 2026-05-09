@@ -1,0 +1,23 @@
+{# expects: page, total_pages, q, list_base e.g. /notices #}
+{% set qpart = ('q=' ~ (q|urlquote) ~ '&') if q else '' %}
+<nav aria-label="페이지" class="site-list-pagination">
+  <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
+    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ list_base }}?{{ qpart }}page=1" aria-label="첫 페이지"><span class="small">|‹</span></a>
+    </li>
+    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ list_base }}?{{ qpart }}page={{ page - 1 if page > 1 else 1 }}" aria-label="이전">‹</a>
+    </li>
+    {% for p in page_nums %}
+    <li class="page-item {% if p == page %}active{% endif %}">
+      <a class="page-link" href="{{ list_base }}?{{ qpart }}page={{ p }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ list_base }}?{{ qpart }}page={{ page + 1 if page < total_pages else total_pages }}" aria-label="다음">›</a>
+    </li>
+    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ list_base }}?{{ qpart }}page={{ total_pages }}" aria-label="마지막"><span class="small">›|</span></a>
+    </li>
+  </ul>
+</nav>

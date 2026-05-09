@@ -1,0 +1,5 @@
+{# expects: active — 'notices' | 'faqs' #}
+<div class="site-content-subnav d-flex flex-wrap gap-1 flex-shrink-0 align-items-center">
+  <a href="/notices" class="btn btn-sm rounded-pill {% if active == 'notices' %}btn-primary{% else %}btn-outline-secondary{% endif %}">공지 목록</a>
+  <a href="/faqs" class="btn btn-sm rounded-pill {% if active == 'faqs' %}btn-primary{% else %}btn-outline-secondary{% endif %}">FAQ 목록</a>
+</div>
