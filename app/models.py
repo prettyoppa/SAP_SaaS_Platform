@@ -518,6 +518,7 @@ class RequestOfferInquiry(Base):
         Integer, ForeignKey("request_offers.id", ondelete="CASCADE"), nullable=False, index=True
     )
     author_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    parent_inquiry_id = Column(Integer, ForeignKey("request_offer_inquiries.id", ondelete="SET NULL"), nullable=True)
     body = Column(Text, nullable=False)
     email_sent = Column(Boolean, default=False, nullable=False)
     sms_sent = Column(Boolean, default=False, nullable=False)

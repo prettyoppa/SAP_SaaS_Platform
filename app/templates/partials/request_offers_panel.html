@@ -8,6 +8,12 @@
   {% if offer_inquiry_ok is defined and offer_inquiry_ok %}
   <div class="alert alert-success small py-2 mb-2">문의를 전송했습니다.</div>
   {% endif %}
+  {% if offer_inquiry_reply_err is defined and offer_inquiry_reply_err %}
+  <div class="alert alert-danger small py-2 mb-2">{{ offer_inquiry_reply_err }}</div>
+  {% endif %}
+  {% if offer_inquiry_reply_ok is defined and offer_inquiry_reply_ok %}
+  <div class="alert alert-success small py-2 mb-2">답변을 전송했습니다.</div>
+  {% endif %}
   <div class="list-group">
     {% for of in request_offers %}
     {% set c = of.consultant %}
@@ -15,7 +21,9 @@
     {% set inq_list = inq_map.get(of.id, []) %}
     {% set is_offer_staff = user and (user.is_consultant or user.is_admin) %}
     {% set can_send_inquiry = request_offer_can_inquire|default(false) and request_offer_inquiry_url_builder is defined %}
-    {% set can_see_inquiry_block = can_send_inquiry or (is_offer_staff and inq_list|length > 0) %}
+    {% set last_inq = inq_list[-1] if inq_list|length > 0 else none %}
+    {% set can_reply_as_consultant = user and user.is_consultant and of.consultant_user_id == user.id and last_inq and last_inq.author_user_id != user.id and request_offer_inquiry_reply_url_builder is defined %}
+    {% set can_see_inquiry_block = can_send_inquiry or (is_offer_staff and inq_list|length > 0) or can_reply_as_consultant %}
     <div class="list-group-item px-3 py-2">
       <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
         <div class="flex-grow-1" style="min-width: 0;">
@@ -50,11 +58,11 @@
                   aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
             <i class="fa-solid fa-envelope" aria-hidden="true"></i>문의
           </button>
-          {% elif is_offer_staff and inq_list|length > 0 %}
+          {% elif (is_offer_staff and inq_list|length > 0) or can_reply_as_consultant %}
           <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
                   data-bs-toggle="collapse" data-bs-target="#offer-inq-body-{{ of.id }}"
                   aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
-            <i class="fa-solid fa-comments" aria-hidden="true"></i>문의 내역
+            <i class="fa-solid fa-comments" aria-hidden="true"></i>{% if can_reply_as_consultant %}문의 / 답변{% else %}문의 내역{% endif %}
           </button>
           {% endif %}
           {% if request_offer_profile_url_builder is defined %}
@@ -100,6 +108,15 @@
             <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="2000" required placeholder="컨설턴트에게 전달할 내용을 입력하세요."></textarea>
             <div class="d-flex justify-content-end mt-2">
               <button type="submit" class="btn btn-sm btn-primary">전송</button>
+            </div>
+          </form>
+          {% endif %}
+          {% if can_reply_as_consultant %}
+          <form method="post" action="{{ request_offer_inquiry_reply_url_builder(of.id) }}" class="offer-inquiry-form mt-3 pt-3 border-top" data-no-busy="true">
+            <label class="form-label small offer-inquiry-label mb-1">요청자 문의에 답변</label>
+            <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="2000" required placeholder="요청자에게 전달할 답변을 입력하세요."></textarea>
+            <div class="d-flex justify-content-end mt-2">
+              <button type="submit" class="btn btn-sm btn-primary">답변 전송</button>
             </div>
           </form>
           {% endif %}

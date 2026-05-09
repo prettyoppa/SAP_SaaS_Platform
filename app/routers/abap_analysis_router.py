@@ -36,7 +36,12 @@ from ..menu_landing import (
     user_proposal_pending_offer_badges,
 )
 from ..attachment_context import build_attachment_llm_digest
-from ..offer_inquiry_service import inquiries_by_offer_id, public_request_url, send_offer_inquiry_from_owner
+from ..offer_inquiry_service import (
+    inquiries_by_offer_id,
+    public_request_url,
+    send_consultant_offer_inquiry_reply,
+    send_offer_inquiry_from_owner,
+)
 from ..request_hub_access import consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_reference_code import (
@@ -949,12 +954,15 @@ def _prepare_abap_analysis_detail_ctx(
         "request_offers": vis_offers,
         "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_offers]),
         "request_offer_inquiry_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/inquiry",
+        "request_offer_inquiry_reply_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/inquiry-reply",
         "request_offer_can_inquire": bool(not readonly_console and user.id == row.user_id),
         "offer_inquiry_request_detail_url": public_request_url(
             request, f"/abap-analysis/{row.id}#abap-phase-offers"
         ),
         "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
         "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
+        "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
+        "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
     }
 
     if readonly_console:
@@ -1228,6 +1236,54 @@ def abap_analysis_offer_inquiry_post(
     if err:
         return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}{suffix}", status_code=303)
     return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1{suffix}", status_code=303)
+
+
+@router.post("/{req_id}/offers/{offer_id}/inquiry-reply")
+def abap_analysis_offer_inquiry_reply_post(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    body: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    if not getattr(user, "is_consultant", False):
+        return RedirectResponse(url="/", status_code=302)
+    row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == req_id).first()
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "analysis",
+            models.RequestOffer.request_id == req_id,
+        )
+        .first()
+    )
+    if not offer:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
+    owner = db.query(models.User).filter(models.User.id == row.user_id).first()
+    if not owner:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
+    title = (row.title or "").strip() or f"분석 #{req_id}"
+    detail = public_request_url(request, f"/abap-analysis/{req_id}#abap-phase-offers")
+    err, _row = send_consultant_offer_inquiry_reply(
+        db,
+        consultant=user,
+        offer=offer,
+        owner=owner,
+        request_title=title,
+        request_detail_url=detail,
+        body_raw=body,
+    )
+    base = f"/abap-analysis/{req_id}"
+    sep = "&" if "?" in base else "?"
+    suffix = "#abap-phase-offers"
+    if err:
+        return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}{suffix}", status_code=303)
+    return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_ok=1{suffix}", status_code=303)
 
 
 @router.get("/{req_id}/offers/{offer_id}/profile")

@@ -22,6 +22,7 @@ from .menu_landing import (
     DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO,
     user_proposal_pending_offer_badges,
 )
+from .offer_inquiry_service import consultant_has_any_pending_inquiry_reply
 from .home_counts import home_tile_counts
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
@@ -116,6 +117,7 @@ def _run_migrations():
         ("users", "timezone", "VARCHAR(64)", "VARCHAR(64)"),
         ("users", "consultant_profile_file_path", "TEXT", "TEXT"),
         ("users", "consultant_profile_file_name", "VARCHAR(512)", "VARCHAR(512)"),
+        ("request_offer_inquiries", "parent_inquiry_id", "INTEGER", "INTEGER"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -453,6 +455,7 @@ app.add_middleware(
 async def nav_proposal_offer_badges_middleware(request: Request, call_next):
     """상단 메뉴(신규·분석·연동) 오퍼 알림 점용 — 제안 버킷에 미매칭 오퍼가 있으면 True."""
     badges = {"rfp": False, "analysis": False, "integration": False}
+    nav_console_pending_inquiry = False
     token = request.cookies.get("access_token")
     if token:
         db = SessionLocal()
@@ -460,9 +463,12 @@ async def nav_proposal_offer_badges_middleware(request: Request, call_next):
             u = auth.get_user_from_token(token, db)
             if u:
                 badges = user_proposal_pending_offer_badges(db, u.id)
+                if getattr(u, "is_consultant", False):
+                    nav_console_pending_inquiry = consultant_has_any_pending_inquiry_reply(db, u.id)
         finally:
             db.close()
     request.state.nav_proposal_offer_badges = badges
+    request.state.nav_console_pending_inquiry = nav_console_pending_inquiry
     return await call_next(request)
 
 

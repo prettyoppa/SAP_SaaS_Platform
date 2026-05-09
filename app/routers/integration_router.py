@@ -44,7 +44,13 @@ from ..devtype_catalog import (
     integration_impl_allowed_codes,
     integration_impl_labels_map,
 )
-from ..offer_inquiry_service import inquiries_by_offer_id, public_request_url, send_offer_inquiry_from_owner
+from ..offer_inquiry_service import (
+    inquiries_by_offer_id,
+    pending_inquiry_reply_offer_ids_for_consultant,
+    public_request_url,
+    send_consultant_offer_inquiry_reply,
+    send_offer_inquiry_from_owner,
+)
 from ..request_hub_access import apply_integration_hub_read_access, consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..templates_config import layout_template_from_embed_query, templates
@@ -421,6 +427,57 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
     active_offer_keys = _consultant_active_offer_sel_keys(db, user.id)
     for row in rows:
         row["consultant_has_offered"] = row.get("sel_key") in active_offer_keys
+
+    pending_inquiry_offer_ids: set[int] = set()
+    consultant_offer_by_request: dict[tuple[str, int], int] = {}
+    if getattr(user, "is_consultant", False):
+        pending_inquiry_offer_ids = pending_inquiry_reply_offer_ids_for_consultant(db, user.id)
+        for co in (
+            db.query(models.RequestOffer)
+            .filter(
+                models.RequestOffer.consultant_user_id == user.id,
+                models.RequestOffer.status.in_(("offered", "matched")),
+            )
+            .all()
+        ):
+            consultant_offer_by_request[(co.request_kind, int(co.request_id))] = int(co.id)
+
+    def _mark_row_pending_inquiry_reply(row: dict[str, Any]) -> None:
+        row["pending_inquiry_reply"] = False
+        if not getattr(user, "is_consultant", False):
+            return
+        oid = row.get("offer_id")
+        if oid is not None and int(oid) in pending_inquiry_offer_ids:
+            row["pending_inquiry_reply"] = True
+            return
+        sk = row.get("sel_key") or ""
+        key: tuple[str, int] | None = None
+        if sk.startswith("rfp:"):
+            try:
+                key = ("rfp", int(sk.split(":", 1)[1]))
+            except (ValueError, IndexError):
+                key = None
+        elif sk.startswith("ana:"):
+            try:
+                key = ("analysis", int(sk.split(":", 1)[1]))
+            except (ValueError, IndexError):
+                key = None
+        elif sk.startswith("int:"):
+            try:
+                key = ("integration", int(sk.split(":", 1)[1]))
+            except (ValueError, IndexError):
+                key = None
+        if not key:
+            return
+        oix = consultant_offer_by_request.get(key)
+        if oix is not None and oix in pending_inquiry_offer_ids:
+            row["pending_inquiry_reply"] = True
+
+    for row in rows:
+        _mark_row_pending_inquiry_reply(row)
+
+    console_offer_pending_inquiry = bool(getattr(user, "is_consultant", False) and pending_inquiry_offer_ids)
+
     selected_key = (request.query_params.get("sel") or "").strip()
     selected_row = next((r for r in rows if r["sel_key"] == selected_key), None) if selected_key else None
     if selected_row is None and rows:
@@ -451,6 +508,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "menu_search_title": title_search or "",
             "menu_date_from_raw": date_from_raw or "",
             "menu_date_to_raw": date_to_raw or "",
+            "console_offer_pending_inquiry": console_offer_pending_inquiry,
         },
     )
 
@@ -1375,6 +1433,9 @@ def _collect_integration_unified_hub_ctx(
         ),
         "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
         "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
+        "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
+        "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
+        "request_offer_inquiry_reply_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/inquiry-reply",
     }
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
@@ -1639,6 +1700,55 @@ def integration_offer_inquiry_post(
     if err:
         return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}", status_code=303)
     return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1", status_code=303)
+
+
+@router.post("/integration/{req_id}/offers/{offer_id}/inquiry-reply")
+def integration_offer_inquiry_reply_post(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    body: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not getattr(user, "is_consultant", False):
+        return RedirectResponse(url="/", status_code=302)
+    ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "integration",
+            models.RequestOffer.request_id == req_id,
+        )
+        .first()
+    )
+    if not offer:
+        return RedirectResponse(url=integration_hub_url(req_id, "proposal"), status_code=303)
+    owner = db.query(models.User).filter(models.User.id == ir.user_id).first()
+    if not owner:
+        return RedirectResponse(url=integration_hub_url(req_id, "proposal"), status_code=303)
+    title = (ir.title or "").strip() or f"연동 #{req_id}"
+    detail = public_request_url(request, f"/integration/{req_id}?phase=proposal")
+    err, _row = send_consultant_offer_inquiry_reply(
+        db,
+        consultant=user,
+        offer=offer,
+        owner=owner,
+        request_title=title,
+        request_detail_url=detail,
+        body_raw=body,
+    )
+    base = integration_hub_url(req_id, "proposal")
+    sep = "&" if "?" in base else "?"
+    if err:
+        return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}", status_code=303)
+    return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_ok=1", status_code=303)
 
 
 @router.get("/integration/{req_id}/offers/{offer_id}/profile")

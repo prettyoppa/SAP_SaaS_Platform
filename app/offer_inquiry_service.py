@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from typing import Any
@@ -13,6 +14,7 @@ from .email_smtp import send_plain_notification_email
 from .sms_sender import send_offer_inquiry_sms
 
 MAX_INQUIRY_BODY_LEN = 2000
+logger = logging.getLogger(__name__)
 
 
 def inquiry_request_label(offer: models.RequestOffer) -> str:
@@ -62,6 +64,43 @@ def phone_e164_for_sms(raw: str | None) -> str | None:
     if digits.startswith("0") and len(digits) >= 10:
         return "+82" + digits[1:]
     return None
+
+
+def offer_inquiry_needs_consultant_reply(db: Session, offer_id: int) -> bool:
+    """해당 오퍼에 회원(요청자) 쪽이 마지막으로 남긴 문의에 컨설턴트 답이 없으면 True."""
+    rows = (
+        db.query(models.RequestOfferInquiry)
+        .filter(models.RequestOfferInquiry.request_offer_id == int(offer_id))
+        .order_by(models.RequestOfferInquiry.created_at.asc())
+        .all()
+    )
+    if not rows:
+        return False
+    of = db.query(models.RequestOffer).filter(models.RequestOffer.id == int(offer_id)).first()
+    if not of:
+        return False
+    return int(rows[-1].author_user_id) != int(of.consultant_user_id)
+
+
+def pending_inquiry_reply_offer_ids_for_consultant(db: Session, consultant_user_id: int) -> set[int]:
+    """답변 대기 중인 오퍼 id 집합."""
+    offers = (
+        db.query(models.RequestOffer.id)
+        .filter(
+            models.RequestOffer.consultant_user_id == int(consultant_user_id),
+            models.RequestOffer.status.in_(("offered", "matched")),
+        )
+        .all()
+    )
+    out: set[int] = set()
+    for (oid,) in offers:
+        if offer_inquiry_needs_consultant_reply(db, int(oid)):
+            out.add(int(oid))
+    return out
+
+
+def consultant_has_any_pending_inquiry_reply(db: Session, consultant_user_id: int) -> bool:
+    return bool(pending_inquiry_reply_offer_ids_for_consultant(db, consultant_user_id))
 
 
 def inquiries_by_offer_id(db: Session, offer_ids: list[int]) -> dict[int, list[models.RequestOfferInquiry]]:
@@ -155,4 +194,67 @@ def send_offer_inquiry_from_owner(
     db.add(row)
     db.commit()
     db.refresh(row)
+    return None, row
+
+
+def send_consultant_offer_inquiry_reply(
+    db: Session,
+    *,
+    consultant: models.User,
+    offer: models.RequestOffer,
+    owner: models.User,
+    request_title: str,
+    request_detail_url: str,
+    body_raw: str,
+) -> tuple[str | None, models.RequestOfferInquiry | None]:
+    """컨설턴트가 요청자 문의에 답변(저장 + 요청자에게 이메일 알림)."""
+    if int(offer.consultant_user_id) != int(consultant.id):
+        return "이 오퍼에 대한 답변 권한이 없습니다.", None
+    body = (body_raw or "").strip()
+    if len(body) < 1:
+        return "답변 내용을 입력해 주세요.", None
+    if len(body) > MAX_INQUIRY_BODY_LEN:
+        return f"답변은 {MAX_INQUIRY_BODY_LEN}자 이하로 입력해 주세요.", None
+
+    rows = (
+        db.query(models.RequestOfferInquiry)
+        .filter(models.RequestOfferInquiry.request_offer_id == offer.id)
+        .order_by(models.RequestOfferInquiry.created_at.asc())
+        .all()
+    )
+    if not rows:
+        return "문의 이력이 없습니다.", None
+    last = rows[-1]
+    if int(last.author_user_id) == int(consultant.id):
+        return "요청자 문의에 대한 답변이 이미 반영된 상태입니다.", None
+
+    owner_email = (owner.email or "").strip()
+    subject = f"[SAP Dev Hub] 문의 답변 — {request_title[:80]}"
+    body_email = (
+        f"컨설턴트: {consultant.full_name}\n"
+        f"요청 ID: {inquiry_request_label(offer)}\n"
+        f"요청: {request_title}\n"
+        f"링크: {request_detail_url}\n\n"
+        f"답변:\n{body}\n"
+    )
+
+    row = models.RequestOfferInquiry(
+        request_offer_id=offer.id,
+        author_user_id=consultant.id,
+        parent_inquiry_id=last.id,
+        body=body,
+        email_sent=False,
+        sms_sent=False,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    if owner_email:
+        try:
+            send_plain_notification_email(owner_email, subject, body_email)
+            row.email_sent = True
+            db.add(row)
+            db.commit()
+        except Exception:
+            logger.exception("consultant inquiry reply email failed offer_id=%s", offer.id)
     return None, row

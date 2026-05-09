@@ -213,6 +213,9 @@ html[data-theme="dark"] .btn-console-offer:hover {
                 <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>
                 <span>오퍼</span>
                 <span class="text-muted">({{ counts_by_kind['offer']['all'] }})</span>
+                {% if console_offer_pending_inquiry is defined and console_offer_pending_inquiry %}
+                <span class="console-tree-pending-dot" title="답변 대기 문의가 있습니다" aria-hidden="true"></span>
+                {% endif %}
               </span>
             </a>
           </summary>
@@ -261,17 +264,20 @@ html[data-theme="dark"] .btn-console-offer:hover {
     <section class="console-pane console-pane-center" id="pane-center">
       {% if rows %}
         {% for r in rows %}
-        <div class="mail-row {% if selected_row and selected_row.sel_key == r.sel_key %}active{% endif %}"
+        <div class="mail-row {% if selected_row and selected_row.sel_key == r.sel_key %}active{% endif %}{% if r.pending_inquiry_reply %} mail-row-pending-inquiry{% endif %}"
              data-sel="{{ r.sel_key }}" data-href="{{ r.detail_href }}">
           <div class="d-flex justify-content-between align-items-center gap-2">
-            <div class="fw-semibold text-truncate">
-              <span class="mail-kind-icon">
+            <div class="fw-semibold text-truncate d-flex align-items-center gap-2 min-w-0">
+              <span class="mail-kind-icon flex-shrink-0">
                 {% if r.kind == 'abap' %}<i class="fa-solid fa-code"></i>
                 {% elif r.kind == 'analysis' %}<i class="fa-solid fa-hospital"></i>
                 {% elif r.kind == 'integration' %}<i class="fa-solid fa-link"></i>
                 {% else %}<i class="fa-solid fa-layer-group"></i>{% endif %}
               </span>
-              {{ r.title }}
+              <span class="text-truncate">{{ r.title }}</span>
+              {% if r.pending_inquiry_reply %}
+              <span class="console-mail-pending-dot flex-shrink-0" title="답변 대기 문의"></span>
+              {% endif %}
             </div>
             <div class="small text-muted text-nowrap">{{ r.created_at|local_dt_span }}</div>
           </div>

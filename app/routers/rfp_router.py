@@ -19,7 +19,12 @@ from ..delivered_code_package import (
     parse_delivered_code_payload,
     rfp_delivered_body_ready,
 )
-from ..offer_inquiry_service import inquiries_by_offer_id, public_request_url, send_offer_inquiry_from_owner
+from ..offer_inquiry_service import (
+    inquiries_by_offer_id,
+    public_request_url,
+    send_consultant_offer_inquiry_reply,
+    send_offer_inquiry_from_owner,
+)
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..request_hub_access import consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
@@ -815,6 +820,9 @@ def _collect_rfp_unified_hub_ctx(
         ),
         "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
         "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
+        "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
+        "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
+        "request_offer_inquiry_reply_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/inquiry-reply",
     }
     ctx.update(delivered_fields)
 
@@ -998,6 +1006,55 @@ def rfp_offer_inquiry_post(
     if err:
         return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}", status_code=303)
     return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1", status_code=303)
+
+
+@router.post("/rfp/{rfp_id}/offers/{offer_id}/inquiry-reply")
+def rfp_offer_inquiry_reply_post(
+    rfp_id: int,
+    offer_id: int,
+    request: Request,
+    body: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if not getattr(user, "is_consultant", False):
+        return RedirectResponse(url="/", status_code=302)
+    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
+    if not rfp:
+        return RedirectResponse(url="/rfp", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "rfp",
+            models.RequestOffer.request_id == rfp_id,
+        )
+        .first()
+    )
+    if not offer:
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=303)
+    owner = db.query(models.User).filter(models.User.id == rfp.user_id).first()
+    if not owner:
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=303)
+    title = (rfp.title or "").strip() or f"RFP #{rfp_id}"
+    detail = public_request_url(request, f"/rfp/{rfp_id}?phase=proposal")
+    err, _row = send_consultant_offer_inquiry_reply(
+        db,
+        consultant=user,
+        offer=offer,
+        owner=owner,
+        request_title=title,
+        request_detail_url=detail,
+        body_raw=body,
+    )
+    base = rfp_hub_url(rfp_id, "proposal")
+    sep = "&" if "?" in base else "?"
+    if err:
+        return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}", status_code=303)
+    return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_ok=1", status_code=303)
 
 
 @router.get("/rfp/{rfp_id}/offers/{offer_id}/profile")
