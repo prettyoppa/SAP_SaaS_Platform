@@ -22,7 +22,7 @@
     <div class="collapse" id="faq-add-collapse">
       <div class="admin-content-card mb-4">
         <form method="post" action="/admin/faqs/add">
-          <div class="row g-3">
+          <div class="row g-2">
             <div class="col-md-8">
               <label class="form-label small">질문 (Markdown)</label>
               <textarea name="question" class="form-control font-monospace small admin-compact-md admin-compact-md--title" placeholder="**FAQ** 질문" required></textarea>
@@ -44,11 +44,11 @@
     </div>
 
     {% if faqs %}
-    <h6 class="mb-3 text-muted">등록된 FAQ</h6>
-    <div class="vstack gap-4">
+    <h6 class="mb-2 text-muted small text-uppercase fw-semibold">등록된 FAQ</h6>
+    <div class="vstack admin-notice-faq-list-stack">
       {% for f in faqs %}
       <div class="admin-content-card {% if not f.is_active %}opacity-75{% endif %}">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
           <span class="small text-muted">ID {{ f.id }} · 순서 {{ f.sort_order }}</span>
           <div class="d-flex gap-1">
             <form method="post" action="/admin/faqs/{{ f.id }}/toggle" class="d-inline">

@@ -1879,6 +1879,16 @@ span.btn.btn-sm.rfp-phase-btn.rfp-phase-btn--muted {
   border-color: var(--primary); box-shadow: 0 0 0 0.2rem rgba(74,144,217,.25);
 }
 
+/* 공지/FAQ 관리: 항목 간격·카드 패딩 축소(기본 vstack gap-4 대비 약 1/2) */
+.admin-notice-faq-list-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.admin-notice-faq-list-stack > .admin-content-card {
+  padding: 1rem 1.15rem;
+}
+
 /* ── Admin page header ────── */
 .admin-page-header { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 1rem 0; }
 
