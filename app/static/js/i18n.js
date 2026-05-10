@@ -21,6 +21,7 @@ const TRANSLATIONS = {
     "hero.powerAgents": "with 8 Power Agents",
     "hero.cta.newRfp": "New RFP", "hero.cta.newIntegration": "Integration request",
     "hero.cta.features": "Explore services",
+    "hero.cta.plans": "Subscription plans",
     "hero.stat1": "Development Proposal", "hero.stat2": "Turnaround", "hero.stat3": "Certified Experts",
     /* How */
     "how.title": "How It Works", "how.subtitle": "From requirement to delivery in 3 simple steps",
@@ -403,6 +404,7 @@ const TRANSLATIONS = {
     "hero.powerAgents": "with 8 Power Agents",
     "hero.cta.newRfp": "RFP 작성", "hero.cta.newIntegration": "연동 요청",
     "hero.cta.features": "서비스 둘러보기",
+    "hero.cta.plans": "구독 플랜 소개",
     "hero.stat1": "개발 제안서 무료", "hero.stat2": "납품 기간", "hero.stat3": "SAP 전문가",
     /* How */
     "how.title": "이용 방법", "how.subtitle": "요구사항 접수부터 납품까지 3단계",

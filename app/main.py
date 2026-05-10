@@ -588,3 +588,20 @@ def index(request: Request):
         "home_counts": home_counts,
         "proposal_offer_badges": proposal_offer_badges,
     })
+
+
+@app.get("/subscription-plans", response_class=HTMLResponse)
+def subscription_plans_page(request: Request):
+    """구독 플랜 안내(표시 전용; 한도는 추후 구독 모듈과 연동)."""
+    from .database import SessionLocal as _SL
+
+    _db = _SL()
+    try:
+        user = auth.get_current_user(request, _db)
+    finally:
+        _db.close()
+    return templates.TemplateResponse(
+        request,
+        "subscription_plans.html",
+        {"request": request, "user": user},
+    )

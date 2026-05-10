@@ -3216,3 +3216,58 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
   -webkit-user-select: auto !important;
 }
 
+/* 구독 플랜 소개 (/subscription-plans) */
+.subscription-plans-page .breadcrumb {
+  --bs-breadcrumb-divider-color: var(--muted);
+}
+.subscription-plans-tabs {
+  border-bottom: none;
+}
+.subscription-plans-tabs .nav-link {
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 0.5rem 1rem;
+}
+.subscription-plans-tabs .nav-link:hover {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--surface2);
+}
+.subscription-plans-tabs .nav-link.active {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--surface);
+  border-color: var(--border);
+  border-bottom-color: var(--surface);
+  margin-bottom: -1px;
+}
+.subscription-plans-tab-content {
+  background: var(--surface);
+  border-color: var(--border) !important;
+}
+.subscription-plans-table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border);
+  --bs-table-striped-bg: color-mix(in srgb, var(--surface2) 55%, transparent);
+  --bs-table-hover-bg: color-mix(in srgb, var(--primary) 12%, transparent);
+  font-size: 0.875rem;
+}
+.subscription-plans-table thead th {
+  background: var(--surface2);
+  color: var(--text);
+  vertical-align: middle;
+}
+.subscription-plans-table tbody th {
+  background: color-mix(in srgb, var(--surface2) 40%, transparent);
+  font-weight: 500;
+  white-space: nowrap;
+}
+@media (max-width: 767.98px) {
+  .subscription-plans-feature-col {
+    min-width: 9.5rem;
+  }
+}
+

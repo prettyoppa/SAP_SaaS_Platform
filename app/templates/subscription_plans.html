@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}구독 플랜 소개 · SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5 subscription-plans-page">
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small mb-0">
+      <li class="breadcrumb-item"><a href="/" class="text-decoration-none">홈</a></li>
+      <li class="breadcrumb-item active" aria-current="page">구독 플랜 소개</li>
+    </ol>
+  </nav>
+
+  <header class="mb-4">
+    <h1 class="h2 mb-2">구독 플랜 소개</h1>
+    <p class="text-muted mb-0">
+      일반 회원과 컨설턴트 계정별 플랜 구성·안내용 초안입니다. 실제 결제·한도 적용은 추후 구독 시스템 연동 시 최종 확정됩니다.
+    </p>
+  </header>
+
+  <ul class="nav nav-tabs subscription-plans-tabs mb-0" id="subscriptionPlansTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-member-btn" data-bs-toggle="tab" data-bs-target="#tab-member" type="button" role="tab" aria-controls="tab-member" aria-selected="true">
+        <i class="fa-solid fa-user me-1"></i>일반 회원
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-consultant-btn" data-bs-toggle="tab" data-bs-target="#tab-consultant" type="button" role="tab" aria-controls="tab-consultant" aria-selected="false">
+        <i class="fa-solid fa-user-tie me-1"></i>컨설턴트
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content subscription-plans-tab-content border border-top-0 rounded-bottom p-3 p-md-4" id="subscriptionPlansTabContent">
+    <div class="tab-pane fade show active" id="tab-member" role="tabpanel" aria-labelledby="tab-member-btn" tabindex="0">
+      <div class="table-responsive subscription-plans-table-wrap">
+        <table class="table table-bordered table-sm subscription-plans-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col" class="subscription-plans-feature-col">기능</th>
+              <th scope="col" class="text-center text-nowrap">
+                <div class="fw-semibold">Experience</div>
+                <div class="small text-muted fw-normal">₩0</div>
+              </th>
+              <th scope="col" class="text-center text-nowrap">
+                <div class="fw-semibold">End User</div>
+                <div class="small text-muted fw-normal">₩10,000/월</div>
+              </th>
+              <th scope="col" class="text-center text-nowrap">
+                <div class="fw-semibold">Power User</div>
+                <div class="small text-muted fw-normal">₩30,000/월</div>
+              </th>
+              <th scope="col" class="text-center text-nowrap">
+                <div class="fw-semibold">Process Innovator</div>
+                <div class="small text-muted fw-normal">₩90,000/월</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">문의/리뷰 작성·조회·댓글</th>
+              <td class="text-center">무제한</td>
+              <td class="text-center">무제한</td>
+              <td class="text-center">무제한</td>
+              <td class="text-center">무제한</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 요청</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">요청 복사 생성</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">AI 문의</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">건당 30회</td>
+              <td class="text-center">건당 60회</td>
+              <td class="text-center">건당 60회</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 제안</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 제안 재생성</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">건당 1회</td>
+              <td class="text-center">건당 3회</td>
+            </tr>
+            <tr>
+              <th scope="row">FS</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+            </tr>
+            <tr>
+              <th scope="row">FS 재생성</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 코드</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 코드 재생성</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center text-muted">사용 불가</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-consultant" role="tabpanel" aria-labelledby="tab-consultant-btn" tabindex="0">
+      <div class="table-responsive subscription-plans-table-wrap">
+        <table class="table table-bordered table-sm subscription-plans-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col" class="subscription-plans-feature-col">기능</th>
+              <th scope="col" class="text-center text-nowrap">
+                <div class="fw-semibold">Experience</div>
+                <div class="small text-muted fw-normal">₩0</div>
+              </th>
+              <th scope="col" class="text-center text-nowrap">
+                <div class="fw-semibold">Junior</div>
+                <div class="small text-muted fw-normal">₩20,000/월</div>
+              </th>
+              <th scope="col" class="text-center text-nowrap">
+                <div class="fw-semibold">Senior</div>
+                <div class="small text-muted fw-normal">₩60,000/월</div>
+              </th>
+              <th scope="col" class="text-center text-nowrap">
+                <div class="fw-semibold">Superior</div>
+                <div class="small text-muted fw-normal">₩150,000/월</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">문의/리뷰 작성·조회·댓글</th>
+              <td class="text-center">무제한</td>
+              <td class="text-center">무제한</td>
+              <td class="text-center">무제한</td>
+              <td class="text-center">무제한</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 요청</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">요청 복사 생성</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">AI 문의</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">건당 30회</td>
+              <td class="text-center">건당 60회</td>
+              <td class="text-center">건당 60회</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 제안</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 제안 재생성</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">건당 1회</td>
+              <td class="text-center">건당 1회</td>
+              <td class="text-center">건당 3회</td>
+            </tr>
+            <tr>
+              <th scope="row">오퍼</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">FS</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">FS 재생성</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">건당 1회</td>
+              <td class="text-center">건당 1회</td>
+              <td class="text-center">건당 3회</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 코드</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">월 3회</td>
+              <td class="text-center">월 10회</td>
+              <td class="text-center">월 30회</td>
+            </tr>
+            <tr>
+              <th scope="row">개발 코드 재생성</th>
+              <td class="text-center text-muted">사용 불가</td>
+              <td class="text-center">건당 1회</td>
+              <td class="text-center">건당 1회</td>
+              <td class="text-center">건당 3회</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="small text-muted mt-3 mb-0">
+    <i class="fa-solid fa-circle-info me-1"></i>
+    월 한도는 매월 갱신, 건당 한도는 해당 개발 요청(및 그 하위 기능) 기준으로 적용되는 것을 전제로 한 표입니다.
+  </p>
+</div>
+{% endblock %}
