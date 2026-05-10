@@ -573,6 +573,35 @@ def admin_notice_add(
     return RedirectResponse(url="/admin/notices", status_code=302)
 
 
+@router.post("/notices/add-bulk")
+async def admin_notice_add_bulk(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    n_saved = 0
+    for i in range(10):
+        title = (form.get(f"title_{i}") or "").strip()
+        if not title:
+            continue
+        content = (form.get(f"content_{i}") or "").strip()
+        try:
+            so = int(form.get(f"sort_order_{i}") or 0)
+        except (TypeError, ValueError):
+            so = 0
+        db.add(
+            models.Notice(
+                title=title,
+                content=content,
+                sort_order=max(0, so),
+            )
+        )
+        n_saved += 1
+    if n_saved:
+        db.commit()
+    return RedirectResponse(url=f"/admin/notices?bulk_saved={n_saved}", status_code=303)
+
+
 @router.post("/notices/{notice_id}/update")
 def admin_notice_update(
     notice_id: int,
@@ -655,6 +684,35 @@ def admin_faq_add(
     )
     db.commit()
     return RedirectResponse(url="/admin/faqs", status_code=302)
+
+
+@router.post("/faqs/add-bulk")
+async def admin_faq_add_bulk(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    n_saved = 0
+    for i in range(10):
+        question = (form.get(f"question_{i}") or "").strip()
+        answer = (form.get(f"answer_{i}") or "").strip()
+        if not question or not answer:
+            continue
+        try:
+            so = int(form.get(f"sort_order_{i}") or 0)
+        except (TypeError, ValueError):
+            so = 0
+        db.add(
+            models.FAQ(
+                question=question,
+                answer=answer,
+                sort_order=max(0, so),
+            )
+        )
+        n_saved += 1
+    if n_saved:
+        db.commit()
+    return RedirectResponse(url=f"/admin/faqs?bulk_saved={n_saved}", status_code=303)
 
 
 @router.post("/faqs/{faq_id}/update")

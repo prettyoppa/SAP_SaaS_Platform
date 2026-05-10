@@ -16,9 +16,22 @@
   </div>
 
   <div class="container">
-    <button class="btn btn-sm btn-outline-primary mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#notice-add-collapse" aria-expanded="false" aria-controls="notice-add-collapse">
-      <i class="fa-solid fa-plus me-1"></i>새 공지사항 추가
-    </button>
+    {% if request.query_params.get('bulk_saved') %}
+    {% set _bs = request.query_params.get('bulk_saved')|int %}
+    {% if _bs > 0 %}
+    <div class="alert alert-success py-2 small mb-3">
+      <i class="fa-solid fa-circle-check me-1"></i>일괄 추가로 <strong>{{ _bs }}</strong>건을 저장했습니다.
+    </div>
+    {% endif %}
+    {% endif %}
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#notice-add-collapse" aria-expanded="false" aria-controls="notice-add-collapse">
+        <i class="fa-solid fa-plus me-1"></i>새 공지사항 추가
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#notice-bulk-add-collapse" aria-expanded="false" aria-controls="notice-bulk-add-collapse">
+        <i class="fa-solid fa-layer-group me-1"></i>일괄 추가 (최대 10건)
+      </button>
+    </div>
     <div class="collapse" id="notice-add-collapse">
       <div class="admin-content-card mb-4">
         <form method="post" action="/admin/notices/add">
@@ -39,6 +52,34 @@
               <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>추가</button>
             </div>
           </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="collapse" id="notice-bulk-add-collapse">
+      <div class="admin-content-card mb-4">
+        <p class="small text-muted mb-3">아래 10개 영역에 입력한 뒤 <strong>한 번에 저장</strong>합니다. <strong>제목</strong>이 비어 있는 줄은 건너뜁니다.</p>
+        <form method="post" action="/admin/notices/add-bulk">
+          {% for i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] %}
+          <div class="border rounded p-3 mb-3" style="border-color:var(--border)!important;background:var(--surface2);">
+            <div class="small fw-semibold text-muted mb-2">{{ loop.index }} / 10</div>
+            <div class="row g-2">
+              <div class="col-md-8">
+                <label class="form-label small">제목 (Markdown)</label>
+                <textarea name="title_{{ i }}" class="form-control font-monospace small admin-compact-md admin-compact-md--title" placeholder="비우면 이 줄은 저장되지 않음"></textarea>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">표시 순서</label>
+                <input type="number" name="sort_order_{{ i }}" class="form-control" value="0" min="0"/>
+              </div>
+              <div class="col-12">
+                <label class="form-label small">내용 (Markdown)</label>
+                <textarea name="content_{{ i }}" class="form-control font-monospace small admin-compact-md" placeholder="선택"></textarea>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>일괄 저장</button>
         </form>
       </div>
     </div>

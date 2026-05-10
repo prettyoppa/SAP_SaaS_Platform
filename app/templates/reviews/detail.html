@@ -13,15 +13,17 @@
 
     <article class="card border shadow-sm mb-3" style="background:var(--surface2);border-color:var(--border)!important;">
       <div class="card-body p-4">
+        {% set rc = rating_ctx.count %}
+        {% set av = rating_ctx.avg %}
+        {% set mine = rating_ctx.my_stars or 0 %}
+        {% set filled = (av|round(0, 'common')|int) if av is not none and rc > 0 else 0 %}
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
           <div>
             <strong>{{ review|review_author_label }}</strong>
             <div class="small text-muted">{{ review.created_at|local_dt_span('date_dots') }}</div>
           </div>
-          <div class="review-detail-aggregate text-nowrap small text-muted">
-            {% set rc = rating_ctx.count %}
-            {% set av = rating_ctx.avg %}
-            {% set filled = (av|round(0, 'common')|int) if av is not none and rc > 0 else 0 %}
+          <div class="review-detail-aggregate text-nowrap small text-muted"
+               data-agg-avg="{% if av is not none %}{{ av }}{% endif %}" data-agg-count="{{ rc }}">
             {% if rc > 0 and av is not none %}
             {% for i in range(filled) %}<i class="fa-solid fa-star text-warning"></i>{% endfor %}
             {% for i in range(5 - filled) %}<i class="fa-regular fa-star text-muted"></i>{% endfor %}
@@ -43,9 +45,8 @@
         <div class="review-body-text text-break" style="white-space: pre-wrap;">{{ review.content }}</div>
 
         {% if user and rating_ctx.can_rate %}
-        {% set mine = rating_ctx.my_stars or 0 %}
         <div class="mt-4 pt-3 border-top d-flex align-items-center" style="border-color:var(--border)!important;">
-          <div class="review-star-rate" role="group" aria-label="별점">
+          <div class="review-star-rate" role="group" aria-label="별점" data-my-stars="{{ mine }}">
             {% for s in range(1, 6) %}
             <form method="post" action="/reviews/{{ review.id }}/rate" class="d-inline m-0" data-no-busy="true" data-review-rate="1">
               <input type="hidden" name="next" value="/reviews/{{ review.id }}"/>
@@ -114,5 +115,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/review_rating.js?v=20260509fetch"></script>
+<script src="/static/js/review_rating.js?v=20260509optimistic"></script>
 {% endblock %}

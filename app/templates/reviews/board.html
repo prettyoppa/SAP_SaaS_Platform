@@ -34,7 +34,8 @@
                   <strong>{{ r|review_author_label }}</strong>
                   <span class="text-muted ms-2">{{ r.created_at|local_dt_span('date_dots') }}</span>
                 </div>
-                <div class="review-board-aggregate text-nowrap small text-muted" title="다른 회원 평균">
+                <div class="review-board-aggregate text-nowrap small text-muted" title="다른 회원 평균"
+                     data-agg-avg="{% if ravg is not none %}{{ ravg }}{% endif %}" data-agg-count="{{ rcnt }}">
                   {% if rcnt > 0 and ravg is not none %}
                   {% for i in range(filled) %}<i class="fa-solid fa-star text-warning" style="font-size:.75rem"></i>{% endfor %}
                   {% for i in range(5 - filled) %}<i class="fa-regular fa-star text-muted" style="font-size:.75rem"></i>{% endfor %}
@@ -58,7 +59,7 @@
             </a>
             {% if user and (r.user_id is none or r.user_id != user.id) %}
             <div class="px-3 py-2 border-top d-flex align-items-center" style="border-color:var(--border)!important;">
-              <div class="review-star-rate" role="group" aria-label="별점">
+              <div class="review-star-rate" role="group" aria-label="별점" data-my-stars="{{ mine }}">
                 {% for s in range(1, 6) %}
                 <form method="post" action="/reviews/{{ r.id }}/rate" class="d-inline m-0" data-no-busy="true" data-review-rate="1">
                   <input type="hidden" name="next" value="/reviews"/>
@@ -126,5 +127,5 @@
   max-height: 4.5rem;
 }
 </style>
-<script src="/static/js/review_rating.js?v=20260509fetch"></script>
+<script src="/static/js/review_rating.js?v=20260509optimistic"></script>
 {% endblock %}
