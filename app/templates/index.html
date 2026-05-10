@@ -105,6 +105,7 @@
                 </a>
                 {% endif %}
               </div>
+              {% if reviews %}
               <div class="home-review-guide px-3 py-2 mb-2">
                 <div class="fw-semibold mb-1 text-body"><i class="fa-solid fa-route me-1 text-primary"></i><span data-i18n="home.review.guideTitle">어디로 가면 되나요?</span></div>
                 <ul class="small mb-0">
@@ -113,7 +114,6 @@
                 </ul>
               </div>
               <p class="small text-muted mb-2" data-i18n="home.review.intro">홈에는 일부 글만 보입니다. 전체 목록·댓글·<strong>새 글 작성</strong>은 문의/리뷰 페이지에서 할 수 있습니다.</p>
-              {% if reviews %}
               <p class="small mb-1" style="color: var(--primary-light); font-weight: 600;"><i class="fa-solid fa-hand-pointer me-1"></i><span data-i18n="home.review.clickCard">아래 카드를 눌러 상세로 이동</span></p>
               <div class="review-list">
                 {% for r in reviews %}
@@ -132,20 +132,14 @@
                 {% endfor %}
               </div>
               {% else %}
-              <div class="empty-tab-msg text-center text-md-start py-2">
+              <div class="empty-tab-msg py-3">
                 <i class="fa-solid fa-comments fa-2x text-muted mb-2"></i>
-                <p class="text-muted small mb-2" data-i18n="home.review.empty">아직 홈에 표시할 글이 없습니다.</p>
-                <p class="small mb-3" data-i18n="home.review.emptyHint">상세·목록·작성은 아래 버튼의 <strong>문의/리뷰 페이지</strong>로 이동하세요.</p>
+                <p class="text-muted small mb-0" data-i18n="home.review.empty">아직 홈에 표시할 글이 없습니다.</p>
               </div>
               {% endif %}
-              <div class="home-review-tab-cta mt-2 pt-2 border-top border-secondary border-opacity-25">
-                {% if user %}
-                <a href="/reviews" class="btn btn-sm btn-primary w-100"><i class="fa-solid fa-comments me-1"></i><span data-i18n="home.review.ctaPage">문의/리뷰 페이지 (목록·상세·작성)</span></a>
-                <div class="text-center mt-2"><a href="/reviews" class="small site-home-tab-more-link text-decoration-none"><span data-i18n="home.review.all">문의/리뷰 전체 목록으로</span><i class="fa-solid fa-chevron-right fa-xs ms-1" aria-hidden="true"></i></a></div>
-                {% else %}
-                <a href="/login?next=/reviews" class="btn btn-sm btn-primary w-100"><i class="fa-solid fa-right-to-bracket me-1"></i><span data-i18n="home.review.ctaLogin">로그인 후 문의/리뷰 페이지</span></a>
-                <div class="text-center mt-2"><a href="/login?next=/reviews" class="small site-home-tab-more-link text-decoration-none"><span data-i18n="home.review.allLogin">로그인 후 전체 목록·작성</span><i class="fa-solid fa-chevron-right fa-xs ms-1" aria-hidden="true"></i></a></div>
-                {% endif %}
+              {# 공지/FAQ 탭과 동일: 항상 한 줄 링크(340px 패널 안에서도 바로 보이도록 글이 없을 때는 위 블록만 최소화) #}
+              <div class="text-end mt-2 pt-1 border-top border-secondary border-opacity-25">
+                <a href="/reviews" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.review.pageLink">문의/리뷰 페이지 (목록·글 작성)</a>
               </div>
             </div>
           </div>
