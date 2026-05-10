@@ -3202,3 +3202,17 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
   max-height: 3.75rem;
 }
 
+/* 요청 자산: 비허용 사용자는 드래그 선택 억제(JS에서 copy/cut 추가 차단) */
+.code-asset-locked,
+.code-asset-locked * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+.code-asset-locked input,
+.code-asset-locked textarea,
+.code-asset-locked select,
+.code-asset-locked button {
+  user-select: auto !important;
+  -webkit-user-select: auto !important;
+}
+

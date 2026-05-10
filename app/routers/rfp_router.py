@@ -26,6 +26,7 @@ from ..offer_inquiry_service import (
     send_offer_inquiry_from_owner,
 )
 from ..paid_generation import resolved_fs_markdown_for_codegen
+from ..code_asset_access import user_may_copy_download_request_assets
 from ..request_hub_access import consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..paid_tier import (
@@ -629,6 +630,14 @@ def rfp_download_attachment(
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="rfp",
+        request_id=rfp_id,
+        owner_user_id=int(rfp.user_id),
+    ):
+        return RedirectResponse(url="/", status_code=302)
     entries = _rfp_attachment_entries(rfp)
     if idx < 0 or idx >= len(entries):
         return RedirectResponse(url="/", status_code=302)
@@ -779,11 +788,20 @@ def _collect_rfp_unified_hub_ctx(
         privileged_operator=bool(getattr(user, "is_admin", False)),
     )
 
+    code_asset_unlocked = user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="rfp",
+        request_id=rfp_id,
+        owner_user_id=int(rfp.user_id),
+    )
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
         "rfp": rfp,
         "owner": owner,
+        "code_asset_unlocked": code_asset_unlocked,
         "delete_blocked_reason": delete_blocked,
         "hub_phase_open": display_phase,
         "hub_embedded": hub_embedded,
@@ -1230,6 +1248,14 @@ def rfp_fs_download(rfp_id: int, request: Request, db: Session = Depends(get_db)
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp or not user_can_access_fs_hub(user, rfp):
         return RedirectResponse(url="/", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="rfp",
+        request_id=rfp_id,
+        owner_user_id=int(rfp.user_id),
+    ):
+        return RedirectResponse(url="/", status_code=302)
     if (rfp.fs_status or "") != "ready" or not (rfp.fs_text or "").strip():
         return RedirectResponse(url=rfp_hub_url(rfp_id, "fs"), status_code=302)
     body = (rfp.fs_text or "").encode("utf-8")
@@ -1248,6 +1274,14 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
         return RedirectResponse(url="/login", status_code=302)
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp or not user_can_access_fs_hub(user, rfp):
+        return RedirectResponse(url="/", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="rfp",
+        request_id=rfp_id,
+        owner_user_id=int(rfp.user_id),
+    ):
         return RedirectResponse(url="/", status_code=302)
     if not rfp_delivered_body_ready(rfp):
         return RedirectResponse(url=rfp_hub_url(rfp_id, "fs"), status_code=302)

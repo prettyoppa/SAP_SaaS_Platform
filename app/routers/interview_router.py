@@ -12,6 +12,7 @@ from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
 from ..rfp_reference_code import format_reference_code_for_llm
 from ..agent_display import wrap_unbracketed_agent_names
+from ..code_asset_access import user_may_copy_download_request_assets
 from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
 from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
@@ -905,6 +906,14 @@ def download_proposal(rfp_id: int, request: Request, db: Session = Depends(get_d
 
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp or not rfp.proposal_text:
+        return RedirectResponse(url="/", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="rfp",
+        request_id=rfp_id,
+        owner_user_id=int(rfp.user_id),
+    ):
         return RedirectResponse(url="/", status_code=302)
 
     # ASCII 파일명만 사용(한글 파일명은 Content-Disposition에서 500 유발 가능)

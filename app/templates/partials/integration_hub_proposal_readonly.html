@@ -3,14 +3,18 @@
     <h5 class="mb-0 me-auto small text-uppercase text-muted">Integration Proposal</h5>
     {% if proposal_html %}
     {% set _pdl = proposal_download_url|default('/integration/' ~ (ir.id|string) ~ '/proposal/download') %}
+    {% if code_asset_unlocked|default(false) %}
     <a href="{{ _pdl }}" class="btn btn-sm btn-outline-primary" download data-no-busy="true">
       <i class="fa-solid fa-download me-1"></i>Markdown 다운로드
     </a>
+    {% else %}
+    <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-download me-1"></i>Markdown 다운로드</span>
+    {% endif %}
     {% endif %}
   </div>
   {% if proposal_html %}
   <div class="proposal-card">
-    <div class="proposal-body proposal-prose">{{ proposal_html | safe }}</div>
+    <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ proposal_html | safe }}</div>
   </div>
   {% else %}
   <p class="text-muted small mb-0">제안서가 없습니다.</p>

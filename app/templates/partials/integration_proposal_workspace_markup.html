@@ -34,9 +34,13 @@
             </div>
             {% endif %}
             <div class="d-flex gap-2 flex-wrap align-items-center">
+              {% if code_asset_unlocked|default(false) %}
               <a href="{{ ivb }}/proposal/download" class="btn btn-outline-primary">
                 <i class="fa-solid fa-download me-2"></i>Markdown 다운로드
               </a>
+              {% else %}
+              <span class="btn btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-download me-2"></i>Markdown 다운로드</span>
+              {% endif %}
               {% if messages %}
               <button type="button" class="btn btn-outline-secondary" id="proposalModifyReveal"
                       data-bs-toggle="collapse" data-bs-target="#proposalEditDock" aria-expanded="false" aria-controls="proposalEditDock">
@@ -67,7 +71,7 @@
         </div>
 
         <div class="proposal-card">
-          <div class="proposal-body proposal-prose">
+          <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
             {{ proposal_html | safe }}
           </div>
         </div>

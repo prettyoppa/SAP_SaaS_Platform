@@ -10,6 +10,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 
 from .. import auth, models
+from ..code_asset_access import user_may_copy_download_request_assets
+from ..request_hub_access import apply_integration_hub_read_access
 from ..database import get_db
 from ..integration_hub import integration_hub_url
 from ..integration_interview_service import (
@@ -410,12 +412,20 @@ def integration_proposal_download(req_id: int, request: Request, db: Session = D
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    ir = (
-        db.query(models.IntegrationRequest)
-        .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
-        .first()
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
     )
+    ir = q.first()
     if not ir or (ir.interview_status or "") != "completed" or not (ir.proposal_text or "").strip():
+        return RedirectResponse(url="/integration", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="integration",
+        request_id=req_id,
+        owner_user_id=int(ir.user_id),
+    ):
         return RedirectResponse(url="/integration", status_code=302)
     body = (ir.proposal_text or "").encode("utf-8")
     fname = f"integration-proposal-{req_id}.md"

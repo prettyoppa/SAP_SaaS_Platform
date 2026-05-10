@@ -11,21 +11,21 @@
   {% if ir.sap_touchpoints %}
   <div class="mb-4">
     <h5 class="small text-uppercase text-muted" data-i18n="detail.sapTouch">SAP 터치포인트</h5>
-    <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.sap_touchpoints }}</div>
+    <div class="border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.sap_touchpoints }}</div>
   </div>
   {% endif %}
 
   {% if ir.environment_notes %}
   <div class="mb-4">
     <h5 class="small text-uppercase text-muted" data-i18n="detail.env">실행 환경</h5>
-    <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.environment_notes }}</div>
+    <div class="border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.environment_notes }}</div>
   </div>
   {% endif %}
 
   {% if ir.description %}
   <div class="mb-4">
     <h5 class="small text-uppercase text-muted" data-i18n="detail.description">상세 설명</h5>
-    <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.description }}</div>
+    <div class="border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.description }}</div>
   </div>
   {% endif %}
 
@@ -35,9 +35,13 @@
     <ul class="list-unstyled mb-0">
       {% for att in attachment_entries %}
       <li class="mb-1">
+        {% if code_asset_unlocked|default(false) %}
         <a href="/integration/{{ ir.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">
           <i class="fa-solid fa-paperclip me-1"></i>{{ att.filename or '파일' }}
         </a>
+        {% else %}
+        <span class="text-muted"><i class="fa-solid fa-paperclip me-1"></i>{{ att.filename or '파일' }}</span>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>

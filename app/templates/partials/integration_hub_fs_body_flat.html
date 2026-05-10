@@ -4,7 +4,7 @@
   <pre class="mb-0 small text-wrap" style="white-space:pre-wrap;">{{ ir.fs_error or '알 수 없는 오류' }}</pre>
 </div>
 {% elif fs_html %}
-<div class="proposal-body proposal-prose border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;">
+<div class="proposal-body proposal-prose border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;">
   {{ fs_html | safe }}
 </div>
 {% else %}

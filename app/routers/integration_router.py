@@ -52,6 +52,7 @@ from ..offer_inquiry_service import (
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
 )
+from ..code_asset_access import user_may_copy_download_request_assets
 from ..request_hub_access import apply_integration_hub_read_access, consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..templates_config import layout_template_from_embed_query, templates
@@ -1585,11 +1586,20 @@ def _collect_integration_unified_hub_ctx(
         privileged_operator=bool(getattr(user, "is_admin", False)),
     )
 
+    code_asset_unlocked = user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="integration",
+        request_id=req_id,
+        owner_user_id=int(ir.user_id),
+    )
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
         "ir": ir,
         "rfp": ir,
+        "code_asset_unlocked": code_asset_unlocked,
         "iv_submit_base": f"/integration/{req_id}",
         "owner": owner,
         "delete_blocked_reason": delete_blocked,
@@ -2030,6 +2040,14 @@ def integration_download_attachment(
     )
     ir = q.first()
     if not ir:
+        return RedirectResponse(url="/", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="integration",
+        request_id=req_id,
+        owner_user_id=int(ir.user_id),
+    ):
         return RedirectResponse(url="/", status_code=302)
     entries = _attachment_entries(ir)
     if idx < 0 or idx >= len(entries):

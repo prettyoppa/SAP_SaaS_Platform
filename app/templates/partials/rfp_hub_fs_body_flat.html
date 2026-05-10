@@ -28,13 +28,17 @@
   {% if fs_stat == 'ready' and fs_html %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <h5 class="mb-0 me-auto small text-uppercase text-muted">Markdown 미리보기</h5>
+    {% if code_asset_unlocked|default(false) %}
     <a href="/rfp/{{ rfp.id }}/fs/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">
       <i class="fa-solid fa-download me-1"></i>FS 다운로드 (.md)
     </a>
+    {% else %}
+    <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-download me-1"></i>FS 다운로드 (.md)</span>
+    {% endif %}
   </div>
   <div class="proposal-card mb-0">
-    <div class="proposal-body proposal-prose">{{ fs_html | safe }}</div>
+    <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ fs_html | safe }}</div>
   </div>
   {% endif %}
 </div>

@@ -412,3 +412,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ev.persisted) hideGlobalBusy();
   });
 });
+
+/* 참고·개발 코드 등: 잠금 영역에서 복사/잘라내기 차단(허용 사용자는 .code-asset-locked 없음) */
+document.addEventListener(
+  'copy',
+  (e) => {
+    const t = e.target;
+    if (!t || typeof t.closest !== 'function') return;
+    if (t.closest('textarea, input, [contenteditable="true"]')) return;
+    if (t.closest('.code-asset-locked')) e.preventDefault();
+  },
+  true,
+);
+document.addEventListener(
+  'cut',
+  (e) => {
+    const t = e.target;
+    if (!t || typeof t.closest !== 'function') return;
+    if (t.closest('textarea, input, [contenteditable="true"]')) return;
+    if (t.closest('.code-asset-locked')) e.preventDefault();
+  },
+  true,
+);

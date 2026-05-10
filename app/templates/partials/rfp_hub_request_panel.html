@@ -28,17 +28,17 @@
     {% if wf_abap_mirror is defined and wf_abap_mirror %}
     <details class="mb-0">
       <summary class="small text-muted mb-2" data-i18n="reqPanel.workflowSummaryToggle">펼쳐서 보기 (인터뷰·제안서 생성 시 참고)</summary>
-      <div class="border rounded p-3" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ rfp.description }}</div>
+      <div class="border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ rfp.description }}</div>
     </details>
     {% else %}
-    <div class="border rounded p-3" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ rfp.description }}</div>
+    <div class="border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ rfp.description }}</div>
     {% endif %}
     {% endif %}
     {% if attachment_entries %}
     <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.attachments">첨부</h6>
     <ul class="mb-0">
       {% for att in attachment_entries %}
-      <li class="mb-1"><a href="/rfp/{{ rfp.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener" data-no-busy="true">{{ att.filename or '파일' }}</a></li>
+      <li class="mb-1">{% if code_asset_unlocked|default(false) %}<a href="/rfp/{{ rfp.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener" data-no-busy="true">{{ att.filename or '파일' }}</a>{% else %}<span class="text-muted">{{ att.filename or '파일' }}</span>{% endif %}</li>
       {% endfor %}
     </ul>
     {% endif %}

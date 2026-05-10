@@ -54,7 +54,7 @@ def require_code_library_access(request: Request, db: Session = Depends(get_db))
 
 
 def _enforce_code_access(user: models.User, code: models.ABAPCode | None) -> bool:
-    """쿼리 필터 외 이중 확인: 타인 행 접근 차단."""
+    """쿼리 필터 외 이중 확인: 관리자는 전체, 그 외는 본인 업로드만."""
     if not code:
         return False
     if user.is_admin:

@@ -17,6 +17,7 @@
   <div class="rfp-hub-phase-body pt-2">
     <div class="proposal-card mb-0">
       <div class="proposal-body">
+        <div class="{% if not wf_code_asset_unlocked|default(false) %}code-asset-locked{% endif %}">
         <dl class="row mb-0 small">
           {% if wf_row.program_id %}
           <dt class="col-sm-3 text-muted" data-i18n="reqPanel.programId">프로그램 ID</dt>
@@ -54,7 +55,11 @@
         <ul class="mb-0">
           {% for att in wf_attachment_entries %}
           <li class="mb-1">
+            {% if wf_code_asset_unlocked|default(false) %}
             <a href="/abap-analysis/{{ wf_row.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener" data-no-busy="true">{{ att.filename or '파일' }}</a>
+            {% else %}
+            <span class="text-muted">{{ att.filename or '파일' }}</span>
+            {% endif %}
             {% if att.note %}<span class="text-muted small">— {{ att.note }}</span>{% endif %}
           </li>
           {% endfor %}
@@ -64,8 +69,10 @@
         <h6 class="text-muted mt-3 small text-uppercase">참고 ABAP 코드</h6>
         {% set tabs_base_id = wf_tabs_base_id %}
         {% set source_program_groups = wf_source_program_groups %}
+        {% set code_asset_unlocked = wf_code_asset_unlocked|default(false) %}
         {% include "partials/reference_code_program_boxes.html" %}
         {% endif %}
+        </div>
       </div>
     </div>
   </div>
@@ -92,7 +99,7 @@
     </div>
     {% else %}
     <div class="proposal-card mb-0">
-      <div class="proposal-body">
+      <div class="proposal-body{% if not wf_code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
         <h4 class="h6 mb-3" style="border-left:3px solid var(--primary);padding-left:.75rem">
           <i class="fa-solid fa-robot me-2 text-primary-light"></i>{{ 'f_analyst'|agent_label }} – 코드 구조 분석
         </h4>
@@ -197,7 +204,7 @@
     {% elif wf_analysis.get('requirement_analysis') %}
     {% set ra = wf_analysis.requirement_analysis %}
     <div class="proposal-card mb-0">
-      <div class="proposal-body">
+      <div class="proposal-body{% if not wf_code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
         <h4 class="h6 mb-3" style="border-left:3px solid #22c55e;padding-left:.75rem">
           <i class="fa-solid fa-link me-2 text-success"></i><span data-i18n="analysis.reqLinkTitle">요구사항 연계 분석</span>
         </h4>
@@ -255,7 +262,7 @@
   </summary>
   <div class="rfp-hub-phase-body pt-2">
     <div class="proposal-card mb-0 border border-warning border-opacity-50" style="background:var(--surface2);">
-      <div class="proposal-body">
+      <div class="proposal-body{% if not wf_code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
         <div class="border rounded p-3 small" style="white-space:pre-wrap;border-color:var(--border)!important">{{ wf_row.improvement_request_text or '' }}</div>
       </div>
     </div>
@@ -274,7 +281,7 @@
       <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
     </span>
   </summary>
-  <div class="rfp-hub-phase-body pt-2">
+  <div class="rfp-hub-phase-body pt-2{% if not wf_code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
     {% for turn in wf_followup_turns %}
     <div class="proposal-card mb-3 mb-md-2">
       <div class="proposal-body small">

@@ -12,15 +12,19 @@
   {% if delivered_package and delivered_package.slots %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
     <h5 class="mb-0 me-auto small text-uppercase text-muted">납품 ABAP · 슬롯별 소스</h5>
+    {% if code_asset_unlocked|default(false) %}
     <a href="/rfp/{{ rfp.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">
       <i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)
     </a>
+    {% else %}
+    <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)</span>
+    {% endif %}
   </div>
   <p class="small text-muted mb-3">에디터에 옮길 때 슬롯 파일명을 INCLUDE / 서브루틴 구조에 맞게 사용하세요. 최종 납품 전 반드시 검수합니다.</p>
 
   {% for sl in delivered_package.slots %}
-  <div class="reference-code-program-box border rounded {% if not loop.last %}mb-3{% endif %} overflow-hidden"
+  <div class="reference-code-program-box border rounded {% if not loop.last %}mb-3{% endif %} overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
        style="border-color:var(--border)!important;background:var(--surface2);">
     <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
          style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
@@ -37,7 +41,7 @@
   {% if delivered_impl_guide_html %}
   <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">
     <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">구현·운영 가이드</summary>
-    <div class="proposal-body proposal-prose border-top px-3 py-2 small" style="border-color:var(--border)!important;">
+    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
       {{ delivered_impl_guide_html | safe }}
     </div>
   </details>
@@ -46,7 +50,7 @@
   {% if delivered_test_scenarios_html %}
   <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">
     <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">테스트 시나리오</summary>
-    <div class="proposal-body proposal-prose border-top px-3 py-2 small" style="border-color:var(--border)!important;">
+    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
       {{ delivered_test_scenarios_html | safe }}
     </div>
   </details>
@@ -55,13 +59,17 @@
   {% elif delivered_code_html %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <h5 class="mb-0 me-auto small text-uppercase text-muted">납품 ABAP · Markdown 미리보기</h5>
+    {% if code_asset_unlocked|default(false) %}
     <a href="/rfp/{{ rfp.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">
       <i class="fa-solid fa-download me-1"></i>납품 코드 다운로드 (.abap)
     </a>
+    {% else %}
+    <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-download me-1"></i>납품 코드 다운로드 (.abap)</span>
+    {% endif %}
   </div>
   <div class="proposal-card mb-0">
-    <div class="proposal-body proposal-prose">{{ delivered_code_html | safe }}</div>
+    <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ delivered_code_html | safe }}</div>
   </div>
   {% elif fs_stat == 'ready' and not dc_busy %}
   <p class="text-muted small mb-0">납품 코드는 FS 준비 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>

@@ -42,6 +42,7 @@ from ..offer_inquiry_service import (
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
 )
+from ..code_asset_access import user_may_copy_download_request_assets
 from ..request_hub_access import consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_reference_code import (
@@ -950,6 +951,13 @@ def _prepare_abap_analysis_detail_ctx(
         owner_user_id=row.user_id,
         privileged_operator=bool(user.is_admin),
     )
+    code_asset_unlocked = user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="analysis",
+        request_id=int(row.id),
+        owner_user_id=int(row.user_id),
+    )
     offer_panel_ctx = {
         "request_offers": vis_offers,
         "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_offers]),
@@ -973,6 +981,7 @@ def _prepare_abap_analysis_detail_ctx(
             "analysis": analysis,
             "attachment_entries": _attachment_entries(row),
             "owner": owner,
+            "code_asset_unlocked": code_asset_unlocked,
             "source_program_groups": program_groups,
             **offer_panel_ctx,
             "request_offer_can_match": False,
@@ -997,6 +1006,7 @@ def _prepare_abap_analysis_detail_ctx(
         "analysis": analysis,
         "attachment_entries": _attachment_entries(row),
         "owner": owner,
+        "code_asset_unlocked": code_asset_unlocked,
         "followup_turns": followup_turns,
         "chat_enabled": chat_enabled,
         "chat_limit_reached": chat_limit_reached,
@@ -1334,6 +1344,14 @@ def abap_analysis_download_attachment(
     row = _get_abap_row_readable(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="analysis",
+        request_id=req_id,
+        owner_user_id=int(row.user_id),
+    ):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     entries = _attachment_entries(row)
     if idx < 0 or idx >= len(entries):
         return RedirectResponse(url="/abap-analysis", status_code=302)

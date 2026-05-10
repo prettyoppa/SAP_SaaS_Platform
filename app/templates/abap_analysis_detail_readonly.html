@@ -83,14 +83,18 @@
                 </dl>
 
                 <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.requirements">요구사항</h6>
-                <div class="border rounded p-3 small" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ row.requirement_text or '' }}</div>
+                <div class="border rounded p-3 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ row.requirement_text or '' }}</div>
 
                 {% if attachment_entries %}
                 <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.attachments">첨부</h6>
                 <ul class="mb-0">
                   {% for att in attachment_entries %}
                   <li class="mb-1">
+                    {% if code_asset_unlocked|default(false) %}
                     <a href="/abap-analysis/{{ row.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename or '파일' }}</a>
+                    {% else %}
+                    <span class="text-muted">{{ att.filename or '파일' }}</span>
+                    {% endif %}
                     {% if att.note %}<span class="text-muted small">— {{ att.note }}</span>{% endif %}
                   </li>
                   {% endfor %}
@@ -133,7 +137,7 @@
         </div>
         {% else %}
         <div class="proposal-card mb-0">
-          <div class="proposal-body">
+          <div class="proposal-body{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
             <h4 style="border-left:3px solid var(--primary);padding-left:.75rem;margin-top:0;margin-bottom:1.25rem">
               <i class="fa-solid fa-robot me-2 text-primary-light"></i>{{ 'f_analyst'|agent_label }} – 코드 구조 분석
             </h4>
@@ -258,7 +262,7 @@
         {% elif analysis.get('requirement_analysis') %}
         {% set ra = analysis.requirement_analysis %}
         <div class="proposal-card mb-0">
-          <div class="proposal-body">
+          <div class="proposal-body{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
             <h4 style="border-left:3px solid #22c55e;padding-left:.75rem;margin-top:0;margin-bottom:1.25rem">
               <i class="fa-solid fa-link me-2 text-success"></i><span data-i18n="analysis.reqLinkTitle">요구사항 연계 분석</span>
             </h4>
@@ -317,7 +321,7 @@
           </summary>
           <div class="rfp-hub-phase-body pt-2">
         <div class="proposal-card mb-0 border border-warning border-opacity-50" style="background:var(--surface2);">
-          <div class="proposal-body">
+          <div class="proposal-body{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
             <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem" data-i18n="detail.improveTitle">개선 제안 요청</h4>
             {% if row.workflow_rfp %}
             <div class="alert alert-light border small mb-0" role="status">

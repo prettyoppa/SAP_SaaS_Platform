@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
+from .code_asset_access import user_may_copy_download_request_assets
 from .rfp_reference_code import reference_code_program_groups_for_tabs
 
 
@@ -79,6 +80,19 @@ def load_workflow_abap_mirror_context(db: Session, user: models.User, rfp: model
     followup_turns = pair_abap_followup_turns(msgs)
     att = abap_row_attachment_entries(row)
     groups = reference_code_program_groups_for_tabs(row.reference_code_payload)
+    wf_unlock = user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="rfp",
+        request_id=int(rfp.id),
+        owner_user_id=int(rfp.user_id),
+    ) or user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="analysis",
+        request_id=int(row.id),
+        owner_user_id=int(row.user_id),
+    )
     return {
         "wf_abap_mirror": True,
         "wf_row": row,
@@ -87,4 +101,5 @@ def load_workflow_abap_mirror_context(db: Session, user: models.User, rfp: model
         "wf_source_program_groups": groups,
         "wf_followup_turns": followup_turns,
         "wf_tabs_base_id": f"wf-abap-mirror-{row.id}-{rfp.id}",
+        "wf_code_asset_unlocked": wf_unlock,
     }
