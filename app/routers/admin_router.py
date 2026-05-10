@@ -885,3 +885,45 @@ def admin_api_codelib_item_reference_payload(
     if payload is None:
         return JSONResponse({"error": "reference_code_too_large"}, status_code=400)
     return {"payload": payload}
+
+
+# ── 구독 플랜(안내 문구 · 추후 권한/한도 확장) ─────────────────
+
+SUBSCRIPTION_PLAN_NOTICE_KEYS = (
+    "subscription_plans_notice_md_ko",
+    "subscription_plans_notice_md_en",
+)
+
+
+@router.get("/subscription-plans", response_class=HTMLResponse)
+def admin_subscription_plans_settings(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    return templates.TemplateResponse(
+        request,
+        "admin/subscription_plans_settings.html",
+        {
+            "request": request,
+            "user": user,
+            "settings": raw,
+        },
+    )
+
+
+@router.post("/subscription-plans")
+async def admin_subscription_plans_settings_save(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    for key in SUBSCRIPTION_PLAN_NOTICE_KEYS:
+        val = (form.get(key) or "").strip()
+        existing = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
+        if existing:
+            existing.value = val
+        else:
+            db.add(models.SiteSettings(key=key, value=val))
+    db.commit()
+    return RedirectResponse(url="/admin/subscription-plans?saved=1", status_code=302)

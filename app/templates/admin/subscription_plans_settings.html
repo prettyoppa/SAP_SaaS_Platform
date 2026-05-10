@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}구독 플랜 관리 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="admin-page-header mb-4">
+    <div class="container">
+      <div class="d-flex align-items-center gap-3">
+        {% include 'partials/nav_prev_screen.html' %}
+        <div>
+          <h4 class="mb-0"><i class="fa-solid fa-layer-group me-2 text-warning"></i>구독 플랜 관리</h4>
+          <small class="text-muted">플랜 페이지 상단 안내·프로모션 문구를 편집합니다. 추후 플랜별 권한·한도·실적은 이 메뉴에서 확장할 수 있습니다.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    {% if request.query_params.get('saved') %}
+    <div class="alert alert-success d-flex align-items-center mb-4">
+      <i class="fa-solid fa-circle-check me-2"></i> 저장되었습니다.
+    </div>
+    {% endif %}
+
+    <div class="admin-content-card mb-4">
+      <h6 class="mb-3 text-warning"><i class="fa-solid fa-bullhorn me-2"></i>구독 플랜 페이지 · 상단 안내</h6>
+      <p class="text-muted small mb-3">
+        <strong>/subscription-plans</strong> 페이지에서 제목 아래에 표시됩니다. Markdown 지원(굵게, 목록, 링크 등).
+        비우면 해당 언어 영역에는 박스가 나오지 않습니다. 예: Experience 체험 기간 연장, 한시적 혜택 등.
+      </p>
+      <form method="post" action="/admin/subscription-plans">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small" for="subscription_plans_notice_md_ko">한국어 (Markdown)</label>
+            <textarea id="subscription_plans_notice_md_ko" name="subscription_plans_notice_md_ko" class="form-control font-monospace small" rows="10"
+              placeholder="예: **한정 프로모션** — Experience 회원 체험 기간을 ~까지 30일로 연장합니다.">{{ settings.get('subscription_plans_notice_md_ko', '') }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small" for="subscription_plans_notice_md_en">English (Markdown)</label>
+            <textarea id="subscription_plans_notice_md_en" name="subscription_plans_notice_md_en" class="form-control font-monospace small" rows="10"
+              placeholder="Promotional notice in English…">{{ settings.get('subscription_plans_notice_md_en', '') }}</textarea>
+          </div>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>저장</button>
+          <a href="/subscription-plans" class="btn btn-outline-secondary ms-2" target="_blank" rel="noopener">미리보기</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

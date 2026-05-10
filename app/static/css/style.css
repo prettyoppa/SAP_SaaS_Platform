@@ -3216,58 +3216,254 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
   -webkit-user-select: auto !important;
 }
 
-/* 구독 플랜 소개 (/subscription-plans) */
-.subscription-plans-page .breadcrumb {
+/* 구독 플랜 (/subscription-plans) */
+.subscription-plans-page {
+  background: var(--bg);
+}
+.subscription-plans-hero {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, color-mix(in srgb, var(--primary) 28%, transparent), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 50%, color-mix(in srgb, var(--primary-light) 12%, transparent), transparent 45%),
+    var(--bg);
+}
+.subscription-plans-breadcrumb .breadcrumb {
   --bs-breadcrumb-divider-color: var(--muted);
 }
-.subscription-plans-tabs {
-  border-bottom: none;
-}
-.subscription-plans-tabs .nav-link {
-  color: var(--muted);
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  padding: 0.5rem 1rem;
-}
-.subscription-plans-tabs .nav-link:hover {
-  color: var(--text);
-  border-color: var(--border);
-  background: var(--surface2);
-}
-.subscription-plans-tabs .nav-link.active {
-  color: var(--text);
+.subscription-plans-eyebrow {
+  font-size: 0.75rem;
   font-weight: 600;
-  background: var(--surface);
-  border-color: var(--border);
-  border-bottom-color: var(--surface);
-  margin-bottom: -1px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary-light);
 }
-.subscription-plans-tab-content {
-  background: var(--surface);
-  border-color: var(--border) !important;
-}
-.subscription-plans-table {
-  --bs-table-bg: transparent;
-  --bs-table-color: var(--text);
-  --bs-table-border-color: var(--border);
-  --bs-table-striped-bg: color-mix(in srgb, var(--surface2) 55%, transparent);
-  --bs-table-hover-bg: color-mix(in srgb, var(--primary) 12%, transparent);
-  font-size: 0.875rem;
-}
-.subscription-plans-table thead th {
-  background: var(--surface2);
+.subscription-plans-title {
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   color: var(--text);
-  vertical-align: middle;
 }
-.subscription-plans-table tbody th {
-  background: color-mix(in srgb, var(--surface2) 40%, transparent);
+.subscription-plans-lead {
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+.subscription-plans-notice {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  box-shadow: var(--shadow);
+}
+.subscription-plans-notice.markdown-body {
+  margin-bottom: 0;
+}
+.subscription-plans-notice.markdown-body > p:last-child {
+  margin-bottom: 0;
+}
+.subscription-plans-tabs-wrap {
+  max-width: 72rem;
+}
+.subscription-plans-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  max-width: 22rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+.subscription-plans-segment {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
   font-weight: 500;
-  white-space: nowrap;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-@media (max-width: 767.98px) {
-  .subscription-plans-feature-col {
-    min-width: 9.5rem;
+.subscription-plans-segment:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+}
+.subscription-plans-segment.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.subscription-plans-tab-panels {
+  min-height: 12rem;
+}
+.subscription-plans-cards {
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+.plan-price-card {
+  position: relative;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.plan-price-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+}
+.plan-price-card--featured {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 10%, var(--surface)) 0%, var(--surface) 48%);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.plan-price-card--featured:hover {
+  border-color: var(--primary-light);
+}
+.plan-price-badge {
+  position: absolute;
+  top: -0.5rem;
+  right: 0.85rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--warning), color-mix(in srgb, var(--warning) 70%, #c2410c));
+  color: #1a1008;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.plan-price-card-inner {
+  padding: 1.15rem 1rem 1rem;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+}
+.plan-price-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  color: var(--text);
+}
+.plan-price-amount {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.2;
+}
+.plan-price-period {
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.plan-price-note {
+  margin: 0.35rem 0 0.5rem;
+  min-height: 2.4em;
+}
+.plan-price-bullets {
+  text-align: left;
+  padding-left: 1.1rem;
+  margin: 0 0 0.85rem;
+  flex-grow: 1;
+}
+.plan-price-bullets li {
+  margin-bottom: 0.2rem;
+}
+.subscription-plans-compare {
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+.subscription-plans-compare-title {
+  color: var(--text);
+}
+.plan-compare-table {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--surface);
+}
+.plan-compare-row {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 1.35fr) repeat(4, 1fr);
+  gap: 0;
+  align-items: stretch;
+  font-size: 0.82rem;
+}
+@media (min-width: 768px) {
+  .plan-compare-row {
+    font-size: 0.875rem;
   }
+}
+.plan-compare-row > div {
+  padding: 0.55rem 0.45rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.plan-compare-row > div:first-child {
+  justify-content: flex-start;
+  text-align: left;
+  padding-left: 0.75rem;
+  background: color-mix(in srgb, var(--surface2) 55%, transparent);
+  font-weight: 500;
+  color: var(--text);
+}
+.plan-compare-row--head > div {
+  background: var(--surface2);
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--label);
+  border-bottom: 1px solid var(--border);
+}
+.plan-compare-row:last-child > div {
+  border-bottom: none;
+}
+.plan-compare-row--head > div:first-child {
+  background: var(--surface2);
+}
+.plan-compare-val {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.plan-compare-val--ok {
+  color: var(--success);
+  font-size: 1rem;
+}
+.plan-compare-val--na {
+  color: var(--muted);
+  opacity: 0.65;
+  font-size: 0.95rem;
+}
+.plan-compare-val--txt {
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.25;
+}
+@media (max-width: 575.98px) {
+  .plan-compare-row {
+    grid-template-columns: minmax(5.5rem, 1fr) repeat(4, minmax(0, 1fr));
+  }
+  .plan-compare-row > div {
+    padding: 0.45rem 0.25rem;
+  }
+  .plan-compare-row--head > div {
+    font-size: 0.65rem;
+  }
+}
+.subscription-plans-footnote {
+  opacity: 0.92;
 }
 

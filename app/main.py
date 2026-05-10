@@ -213,6 +213,8 @@ def _seed_home_tile_settings():
         ("home_tile_integration_desc_ko", "VBA, Python, API 등 비-ABAP 연동·자동화 요청"),
         ("home_tile_integration_desc_en", "Non-ABAP automation: VBA, Python, APIs, batch, small web apps."),
         ("user_guide_pdf_url", "/static/docs/user-guide.pdf"),
+        ("subscription_plans_notice_md_ko", ""),
+        ("subscription_plans_notice_md_en", ""),
         ("service_abap_intro_md_ko", DEFAULT_SERVICE_ABAP_INTRO_MD_KO),
         ("service_analysis_intro_md_ko", DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO),
         ("service_integration_intro_md_ko", DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO),
@@ -592,16 +594,23 @@ def index(request: Request):
 
 @app.get("/subscription-plans", response_class=HTMLResponse)
 def subscription_plans_page(request: Request):
-    """구독 플랜 안내(표시 전용; 한도는 추후 구독 모듈과 연동)."""
+    """구독 플랜 안내(표시 전용; 상단 프로모션 문구는 SiteSettings)."""
     from .database import SessionLocal as _SL
 
     _db = _SL()
+    raw_settings: dict = {}
     try:
         user = auth.get_current_user(request, _db)
+        raw_settings = {s.key: s.value for s in _db.query(models.SiteSettings).all()}
     finally:
         _db.close()
     return templates.TemplateResponse(
         request,
         "subscription_plans.html",
-        {"request": request, "user": user},
+        {
+            "request": request,
+            "user": user,
+            "subscription_notice_md_ko": (raw_settings.get("subscription_plans_notice_md_ko") or "").strip(),
+            "subscription_notice_md_en": (raw_settings.get("subscription_plans_notice_md_en") or "").strip(),
+        },
     )

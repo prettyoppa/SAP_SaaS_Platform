@@ -1,247 +1,268 @@
 {% extends "base.html" %}
-{% block title %}구독 플랜 소개 · SAP 개발 파트너{% endblock %}
+{% block title %}구독 플랜 · SAP 개발 파트너{% endblock %}
+
+{# t: u=무제한(check), n=사용불가, else=표시 문자열 #}
+{% macro pc(t) -%}
+{%- if t == 'u' -%}
+<span class="plan-compare-val plan-compare-val--ok" title="무제한"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+{%- elif t == 'n' -%}
+<span class="plan-compare-val plan-compare-val--na" title="사용 불가"><i class="fa-solid fa-minus" aria-hidden="true"></i></span>
+{%- else -%}
+<span class="plan-compare-val plan-compare-val--txt">{{ t }}</span>
+{%- endif -%}
+{%- endmacro %}
 
 {% block content %}
-<div class="container py-4 py-lg-5 subscription-plans-page">
-  <nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb small mb-0">
-      <li class="breadcrumb-item"><a href="/" class="text-decoration-none">홈</a></li>
-      <li class="breadcrumb-item active" aria-current="page">구독 플랜 소개</li>
-    </ol>
-  </nav>
+{% set cta_href = '/account' if user else '/register' %}
 
-  <header class="mb-4">
-    <h1 class="h2 mb-2">구독 플랜 소개</h1>
-    <p class="text-muted mb-0">
-      일반 회원과 컨설턴트 계정별 플랜 구성·안내용 초안입니다. 실제 결제·한도 적용은 추후 구독 시스템 연동 시 최종 확정됩니다.
-    </p>
-  </header>
+<div class="subscription-plans-page">
+  <div class="subscription-plans-hero">
+    <div class="container py-4 py-lg-5">
+      <nav aria-label="breadcrumb" class="subscription-plans-breadcrumb mb-3">
+        <ol class="breadcrumb small mb-0">
+          <li class="breadcrumb-item"><a href="/" class="text-decoration-none">홈</a></li>
+          <li class="breadcrumb-item active" aria-current="page">구독 플랜</li>
+        </ol>
+      </nav>
 
-  <ul class="nav nav-tabs subscription-plans-tabs mb-0" id="subscriptionPlansTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="tab-member-btn" data-bs-toggle="tab" data-bs-target="#tab-member" type="button" role="tab" aria-controls="tab-member" aria-selected="true">
-        <i class="fa-solid fa-user me-1"></i>일반 회원
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="tab-consultant-btn" data-bs-toggle="tab" data-bs-target="#tab-consultant" type="button" role="tab" aria-controls="tab-consultant" aria-selected="false">
-        <i class="fa-solid fa-user-tie me-1"></i>컨설턴트
-      </button>
-    </li>
-  </ul>
+      <header class="subscription-plans-header text-center mx-auto" style="max-width: 42rem;">
+        <p class="subscription-plans-eyebrow mb-2">Catch Lab · SAP 개발 파트너</p>
+        <h1 class="subscription-plans-title mb-3">구독 플랜</h1>
+        <p class="subscription-plans-lead text-muted mb-0">
+          <span class="nav-ko">계정 유형에 맞는 플랜을 선택하세요. 월 정액으로 개발 요청·AI 문의·제안 등 핵심 기능을 이용할 수 있습니다.</span>
+          <span class="nav-en" style="display:none">Pick a plan for your account type. Monthly plans unlock requests, AI Q&amp;A, proposals, and more.</span>
+        </p>
+      </header>
 
-  <div class="tab-content subscription-plans-tab-content border border-top-0 rounded-bottom p-3 p-md-4" id="subscriptionPlansTabContent">
-    <div class="tab-pane fade show active" id="tab-member" role="tabpanel" aria-labelledby="tab-member-btn" tabindex="0">
-      <div class="table-responsive subscription-plans-table-wrap">
-        <table class="table table-bordered table-sm subscription-plans-table align-middle mb-0">
-          <thead>
-            <tr>
-              <th scope="col" class="subscription-plans-feature-col">기능</th>
-              <th scope="col" class="text-center text-nowrap">
-                <div class="fw-semibold">Experience</div>
-                <div class="small text-muted fw-normal">₩0</div>
-              </th>
-              <th scope="col" class="text-center text-nowrap">
-                <div class="fw-semibold">End User</div>
-                <div class="small text-muted fw-normal">₩10,000/월</div>
-              </th>
-              <th scope="col" class="text-center text-nowrap">
-                <div class="fw-semibold">Power User</div>
-                <div class="small text-muted fw-normal">₩30,000/월</div>
-              </th>
-              <th scope="col" class="text-center text-nowrap">
-                <div class="fw-semibold">Process Innovator</div>
-                <div class="small text-muted fw-normal">₩90,000/월</div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">문의/리뷰 작성·조회·댓글</th>
-              <td class="text-center">무제한</td>
-              <td class="text-center">무제한</td>
-              <td class="text-center">무제한</td>
-              <td class="text-center">무제한</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 요청</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">요청 복사 생성</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">AI 문의</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">건당 30회</td>
-              <td class="text-center">건당 60회</td>
-              <td class="text-center">건당 60회</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 제안</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 제안 재생성</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">건당 1회</td>
-              <td class="text-center">건당 3회</td>
-            </tr>
-            <tr>
-              <th scope="row">FS</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-            </tr>
-            <tr>
-              <th scope="row">FS 재생성</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 코드</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 코드 재생성</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center text-muted">사용 불가</td>
-            </tr>
-          </tbody>
-        </table>
+      {% if subscription_notice_md_ko or subscription_notice_md_en %}
+      <div class="subscription-plans-notice-outer mx-auto mt-4" style="max-width: 48rem;">
+        {% if subscription_notice_md_ko %}
+        <div class="nav-ko subscription-plans-notice markdown-body">
+          {{ subscription_notice_md_ko|md_html }}
+        </div>
+        {% endif %}
+        {% if subscription_notice_md_en %}
+        <div class="nav-en subscription-plans-notice markdown-body" style="display:none">
+          {{ subscription_notice_md_en|md_html }}
+        </div>
+        {% endif %}
       </div>
-    </div>
+      {% endif %}
 
-    <div class="tab-pane fade" id="tab-consultant" role="tabpanel" aria-labelledby="tab-consultant-btn" tabindex="0">
-      <div class="table-responsive subscription-plans-table-wrap">
-        <table class="table table-bordered table-sm subscription-plans-table align-middle mb-0">
-          <thead>
-            <tr>
-              <th scope="col" class="subscription-plans-feature-col">기능</th>
-              <th scope="col" class="text-center text-nowrap">
-                <div class="fw-semibold">Experience</div>
-                <div class="small text-muted fw-normal">₩0</div>
-              </th>
-              <th scope="col" class="text-center text-nowrap">
-                <div class="fw-semibold">Junior</div>
-                <div class="small text-muted fw-normal">₩20,000/월</div>
-              </th>
-              <th scope="col" class="text-center text-nowrap">
-                <div class="fw-semibold">Senior</div>
-                <div class="small text-muted fw-normal">₩60,000/월</div>
-              </th>
-              <th scope="col" class="text-center text-nowrap">
-                <div class="fw-semibold">Superior</div>
-                <div class="small text-muted fw-normal">₩150,000/월</div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">문의/리뷰 작성·조회·댓글</th>
-              <td class="text-center">무제한</td>
-              <td class="text-center">무제한</td>
-              <td class="text-center">무제한</td>
-              <td class="text-center">무제한</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 요청</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">요청 복사 생성</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">AI 문의</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">건당 30회</td>
-              <td class="text-center">건당 60회</td>
-              <td class="text-center">건당 60회</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 제안</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 제안 재생성</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">건당 1회</td>
-              <td class="text-center">건당 1회</td>
-              <td class="text-center">건당 3회</td>
-            </tr>
-            <tr>
-              <th scope="row">오퍼</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">FS</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">FS 재생성</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">건당 1회</td>
-              <td class="text-center">건당 1회</td>
-              <td class="text-center">건당 3회</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 코드</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">월 3회</td>
-              <td class="text-center">월 10회</td>
-              <td class="text-center">월 30회</td>
-            </tr>
-            <tr>
-              <th scope="row">개발 코드 재생성</th>
-              <td class="text-center text-muted">사용 불가</td>
-              <td class="text-center">건당 1회</td>
-              <td class="text-center">건당 1회</td>
-              <td class="text-center">건당 3회</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="subscription-plans-tabs-wrap mx-auto mt-4 mt-lg-5">
+        <div class="subscription-plans-segmented" role="tablist" aria-label="계정 유형">
+          <button class="subscription-plans-segment active" id="tab-member-btn" data-bs-toggle="tab" data-bs-target="#tab-member" type="button" role="tab" aria-selected="true" aria-controls="tab-member">
+            <i class="fa-solid fa-user me-2" aria-hidden="true"></i><span class="nav-ko">일반 회원</span><span class="nav-en" style="display:none">Member</span>
+          </button>
+          <button class="subscription-plans-segment" id="tab-consultant-btn" data-bs-toggle="tab" data-bs-target="#tab-consultant" type="button" role="tab" aria-selected="false" aria-controls="tab-consultant">
+            <i class="fa-solid fa-user-tie me-2" aria-hidden="true"></i><span class="nav-ko">컨설턴트</span><span class="nav-en" style="display:none">Consultant</span>
+          </button>
+        </div>
+
+        <div class="tab-content subscription-plans-tab-panels mt-4" id="subscriptionPlansTabContent">
+          {# ── 일반 회원 ── #}
+          <div class="tab-pane fade show active" id="tab-member" role="tabpanel" aria-labelledby="tab-member-btn" tabindex="0">
+            <div class="row g-3 g-lg-4 justify-content-center subscription-plans-cards">
+              <div class="col-6 col-lg-3">
+                <div class="plan-price-card h-100">
+                  <div class="plan-price-card-inner">
+                    <h3 class="plan-price-name">Experience</h3>
+                    <p class="plan-price-amount">₩0</p>
+                    <p class="plan-price-note text-muted small">문의·리뷰 무제한</p>
+                    <ul class="plan-price-bullets small text-muted">
+                      <li>커뮤니티 중심</li>
+                      <li>개발 요청 단계적 이용</li>
+                    </ul>
+                    <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
+                      <span class="nav-ko">시작하기</span><span class="nav-en" style="display:none">Get started</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="plan-price-card h-100">
+                  <div class="plan-price-card-inner">
+                    <h3 class="plan-price-name">End User</h3>
+                    <p class="plan-price-amount">₩10,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-note text-muted small">개인·소규모 팀</p>
+                    <ul class="plan-price-bullets small text-muted">
+                      <li>월 3회 개발 요청</li>
+                      <li>AI 문의 건당 30회</li>
+                    </ul>
+                    <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
+                      <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="plan-price-card plan-price-card--featured h-100">
+                  <span class="plan-price-badge"><span class="nav-ko">추천</span><span class="nav-en" style="display:none">Popular</span></span>
+                  <div class="plan-price-card-inner">
+                    <h3 class="plan-price-name">Power User</h3>
+                    <p class="plan-price-amount">₩30,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-note text-muted small">많은 요청이 있는 경우</p>
+                    <ul class="plan-price-bullets small text-muted">
+                      <li>월 10회 개발 요청</li>
+                      <li>제안 재생성 건당 1회</li>
+                    </ul>
+                    <a href="{{ cta_href }}" class="btn btn-primary btn-sm w-100 mt-auto shadow-sm">
+                      <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="plan-price-card h-100">
+                  <div class="plan-price-card-inner">
+                    <h3 class="plan-price-name">Process Innovator</h3>
+                    <p class="plan-price-amount">₩90,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-note text-muted small">최대 한도</p>
+                    <ul class="plan-price-bullets small text-muted">
+                      <li>월 30회 개발 요청</li>
+                      <li>제안 재생성 건당 3회</li>
+                    </ul>
+                    <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
+                      <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="subscription-plans-compare subscription-plans-compare--member mt-4 mt-lg-5">
+              <h2 class="subscription-plans-compare-title h5 mb-3">
+                <i class="fa-solid fa-table-list me-2 text-primary" aria-hidden="true"></i>
+                <span class="nav-ko">기능 비교</span><span class="nav-en" style="display:none">Compare features</span>
+              </h2>
+              <div class="plan-compare-table" role="table" aria-label="일반 회원 플랜 비교">
+                <div class="plan-compare-row plan-compare-row--head" role="row">
+                  <div class="plan-compare-feature" role="columnheader">기능</div>
+                  <div role="columnheader">Experience</div>
+                  <div role="columnheader">End User</div>
+                  <div role="columnheader">Power User</div>
+                  <div role="columnheader">Process Innovator</div>
+                </div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">문의/리뷰 작성·조회·댓글</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 요청</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">요청 복사 생성</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">AI 문의</div><div>{{ pc('n') }}</div><div>{{ pc('건당 30회') }}</div><div>{{ pc('건당 60회') }}</div><div>{{ pc('건당 60회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 제안</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 제안 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">FS</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">FS 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 코드</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 코드 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+              </div>
+            </div>
+          </div>
+
+          {# ── 컨설턴트 ── #}
+          <div class="tab-pane fade" id="tab-consultant" role="tabpanel" aria-labelledby="tab-consultant-btn" tabindex="0">
+            <div class="row g-3 g-lg-4 justify-content-center subscription-plans-cards">
+              <div class="col-6 col-lg-3">
+                <div class="plan-price-card h-100">
+                  <div class="plan-price-card-inner">
+                    <h3 class="plan-price-name">Experience</h3>
+                    <p class="plan-price-amount">₩0</p>
+                    <p class="plan-price-note text-muted small">문의·리뷰 무제한</p>
+                    <ul class="plan-price-bullets small text-muted">
+                      <li>커뮤니티 중심</li>
+                      <li>오퍼·FS는 유료 플랜</li>
+                    </ul>
+                    <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
+                      <span class="nav-ko">시작하기</span><span class="nav-en" style="display:none">Get started</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="plan-price-card h-100">
+                  <div class="plan-price-card-inner">
+                    <h3 class="plan-price-name">Junior</h3>
+                    <p class="plan-price-amount">₩20,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-note text-muted small">입문 컨설턴트</p>
+                    <ul class="plan-price-bullets small text-muted">
+                      <li>월 3회 오퍼·FS·코드</li>
+                      <li>재생성 건당 1회</li>
+                    </ul>
+                    <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
+                      <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="plan-price-card plan-price-card--featured h-100">
+                  <span class="plan-price-badge"><span class="nav-ko">추천</span><span class="nav-en" style="display:none">Popular</span></span>
+                  <div class="plan-price-card-inner">
+                    <h3 class="plan-price-name">Senior</h3>
+                    <p class="plan-price-amount">₩60,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-note text-muted small">활동량이 많은 경우</p>
+                    <ul class="plan-price-bullets small text-muted">
+                      <li>월 10회 오퍼·FS·코드</li>
+                      <li>AI 문의 건당 60회</li>
+                    </ul>
+                    <a href="{{ cta_href }}" class="btn btn-primary btn-sm w-100 mt-auto shadow-sm">
+                      <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="plan-price-card h-100">
+                  <div class="plan-price-card-inner">
+                    <h3 class="plan-price-name">Superior</h3>
+                    <p class="plan-price-amount">₩150,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-note text-muted small">최대 한도</p>
+                    <ul class="plan-price-bullets small text-muted">
+                      <li>월 30회 오퍼·FS·코드</li>
+                      <li>재생성 건당 3회</li>
+                    </ul>
+                    <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
+                      <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="subscription-plans-compare subscription-plans-compare--consultant mt-4 mt-lg-5">
+              <h2 class="subscription-plans-compare-title h5 mb-3">
+                <i class="fa-solid fa-table-list me-2 text-primary" aria-hidden="true"></i>
+                <span class="nav-ko">기능 비교</span><span class="nav-en" style="display:none">Compare features</span>
+              </h2>
+              <div class="plan-compare-table" role="table" aria-label="컨설턴트 플랜 비교">
+                <div class="plan-compare-row plan-compare-row--head" role="row">
+                  <div class="plan-compare-feature" role="columnheader">기능</div>
+                  <div role="columnheader">Experience</div>
+                  <div role="columnheader">Junior</div>
+                  <div role="columnheader">Senior</div>
+                  <div role="columnheader">Superior</div>
+                </div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">문의/리뷰 작성·조회·댓글</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 요청</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">요청 복사 생성</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">AI 문의</div><div>{{ pc('n') }}</div><div>{{ pc('건당 30회') }}</div><div>{{ pc('건당 60회') }}</div><div>{{ pc('건당 60회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 제안</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 제안 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">오퍼</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">FS</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">FS 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 코드</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 코드 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <p class="subscription-plans-footnote small text-muted text-center mx-auto mt-4 mb-0" style="max-width: 36rem;">
+        <i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>
+        <span class="nav-ko">월 한도는 매월 갱신되며, 건당 한도는 해당 개발 요청과 그 하위 기능(예: AI 문의·재생성)에 적용됩니다. 결제·플랜 변경은 추후 연동 예정입니다.</span>
+        <span class="nav-en" style="display:none">Monthly quotas reset each month; per-request limits apply to that request and its sub-features. Billing is coming soon.</span>
+      </p>
     </div>
   </div>
-
-  <p class="small text-muted mt-3 mb-0">
-    <i class="fa-solid fa-circle-info me-1"></i>
-    월 한도는 매월 갱신, 건당 한도는 해당 개발 요청(및 그 하위 기능) 기준으로 적용되는 것을 전제로 한 표입니다.
-  </p>
 </div>
 {% endblock %}
