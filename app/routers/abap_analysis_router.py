@@ -18,9 +18,18 @@ from sqlalchemy.orm import Session, joinedload
 
 from .. import auth, models, r2_storage, sap_fields
 from ..abap_followup_chat import (
-    MAX_USER_TURNS_PER_REQUEST,
     generate_followup_reply,
     validate_user_message,
+)
+from ..subscription_catalog import METRIC_DEV_REQUEST, METRIC_REQUEST_DUPLICATE
+from ..subscription_quota import (
+    ai_inquiry_limit_reached,
+    ai_inquiry_snapshot,
+    consume_monthly,
+    get_ai_inquiry_used,
+    monthly_quota_exceeded,
+    record_ai_inquiry_user_turn,
+    try_consume_monthly,
 )
 from ..database import get_db
 from ..menu_landing import (
@@ -347,8 +356,8 @@ def _form_template_response(
                 key=lambda m: (m.created_at or row_w.created_at),
             )
             turns = _pair_abap_followup_turns(follow_msgs)
-            n_fu = sum(1 for m in follow_msgs if (m.role or "") == "user")
             eff = _effective_abap_source(row_w).strip()
+            snap_f = ai_inquiry_snapshot(db, user, "analysis", row_w.id)
             ai_inquiry = {
                 "mode": "live",
                 "float_id": "abap-followup-chat",
@@ -357,8 +366,8 @@ def _form_template_response(
                 "return_to": "edit",
                 "followup_turns": turns,
                 "chat_error": form_chat_err,
-                "chat_limit_reached": n_fu >= MAX_USER_TURNS_PER_REQUEST,
-                "max_turns": MAX_USER_TURNS_PER_REQUEST,
+                "chat_limit_reached": snap_f["reached"],
+                "max_turns": snap_f["max_turns_display"],
                 "header_i18n": "chat.abapHeaderTitle",
                 "context_i18n": "chat.abapContextHelp",
                 "form_ready": bool(eff),
@@ -597,6 +606,12 @@ async def abap_analysis_create(
 
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
+    qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
+    if qerr == "disabled":
+        return _bad("subscription_dev_request_disabled")
+    if qerr == "monthly_limit":
+        return _bad("subscription_dev_request_limit")
+
     if is_draft_save:
         row = models.AbapAnalysisRequest(
             user_id=user.id,
@@ -662,6 +677,12 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
     row = _get_request_for_user(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
+    if monthly_quota_exceeded(db, user, METRIC_REQUEST_DUPLICATE, 1):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?quota_err=duplicate_limit", status_code=302)
+    if monthly_quota_exceeded(db, user, METRIC_DEV_REQUEST, 1):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?quota_err=dev_request_limit", status_code=302)
+    consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
+    consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     att = duplicate_attachment_entries(_attachment_entries(row), user_id=user.id)
     title = (row.title or "").strip()
     if title and not title.endswith(" (복사)"):
@@ -993,12 +1014,20 @@ def _prepare_abap_analysis_detail_ctx(
         list(row.followup_messages or []),
         key=lambda m: (m.created_at or row.created_at),
     )
-    n_followup_user = sum(1 for m in followup_messages if (m.role or "") == "user")
     followup_turns = _pair_abap_followup_turns(followup_messages)
     chat_enabled = (not row.is_draft) and bool(eff_src.strip())
-    chat_limit_reached = n_followup_user >= MAX_USER_TURNS_PER_REQUEST
+    snap_d = ai_inquiry_snapshot(db, user, "analysis", row.id)
+    chat_limit_reached = snap_d["reached"]
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
     wf_err = (request.query_params.get("wf_err") or "").strip() or None
+    qe = (request.query_params.get("quota_err") or "").strip()
+    subscription_quota_flash = None
+    if qe == "duplicate_limit":
+        subscription_quota_flash = "이번 달(UTC) 요청 복사 한도에 도달했습니다."
+    elif qe == "dev_request_limit":
+        subscription_quota_flash = "이번 달(UTC) 개발 요청 생성 한도에 도달했습니다."
+    elif qe == "dev_request_disabled":
+        subscription_quota_flash = "현재 플랜에서 개발 요청을 더 만들 수 없습니다."
     return {
         "request": request,
         "user": user,
@@ -1012,8 +1041,11 @@ def _prepare_abap_analysis_detail_ctx(
         "chat_limit_reached": chat_limit_reached,
         "chat_error": chat_error,
         "wf_err": wf_err,
+        "subscription_quota_flash": subscription_quota_flash,
         "source_program_groups": program_groups,
-        "max_followup_user_turns": MAX_USER_TURNS_PER_REQUEST,
+        "max_followup_user_turns": snap_d["max_turns_display"],
+        "abap_ai_inquiry_unlimited": snap_d["unlimited"],
+        "abap_followup_cap": snap_d["cap"],
         **offer_panel_ctx,
         "request_offer_can_match": bool(user and row and user.id == row.user_id),
         "request_offer_profile_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/profile",
@@ -1069,6 +1101,12 @@ def abap_analysis_improvement_proposal_post(
     if len(txt) < MIN_IMPROVEMENT_PROPOSAL_LEN:
         return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=short", status_code=302)
 
+    wf_q = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
+    if wf_q == "disabled":
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?quota_err=dev_request_disabled", status_code=302)
+    if wf_q == "monthly_limit":
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?quota_err=dev_request_limit", status_code=302)
+
     rfp = create_workflow_rfp_from_abap_analysis(
         db,
         row=row_el,
@@ -1105,15 +1143,9 @@ def abap_analysis_chat_post(
             status_code=303,
         )
 
-    n_user = (
-        db.query(models.AbapAnalysisFollowupMessage)
-        .filter(
-            models.AbapAnalysisFollowupMessage.request_id == row.id,
-            models.AbapAnalysisFollowupMessage.role == "user",
-        )
-        .count()
-    )
-    if n_user >= MAX_USER_TURNS_PER_REQUEST:
+    used_ai = get_ai_inquiry_used(db, user.id, "analysis", row.id)
+    cap = ai_inquiry_snapshot(db, user, "analysis", row.id)["cap"]
+    if ai_inquiry_limit_reached(cap, used_ai):
         return RedirectResponse(
             url=f"{chat_base}?chat_err={quote('이 분석 건의 후속 질문은 상한에 도달했습니다.')}",
             status_code=303,
@@ -1162,6 +1194,8 @@ def abap_analysis_chat_post(
             content=reply,
         )
     )
+    if not getattr(user, "is_admin", False):
+        record_ai_inquiry_user_turn(db, user.id, "analysis", row.id, ledger_after=used_ai + 1)
     db.commit()
     return RedirectResponse(url=f"{chat_base}#abap-followup-chat", status_code=303)
 

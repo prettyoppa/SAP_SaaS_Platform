@@ -51,11 +51,18 @@ from ..rfp_reference_code import normalize_reference_code_payload, reference_cod
 from ..rfp_hub import normalize_rfp_hub_phase, rfp_hub_url
 from ..workflow_abap_rfp_context import load_workflow_abap_mirror_context
 from ..rfp_followup_chat import (
-    MAX_USER_TURNS_PER_REQUEST as RFP_FOLLOWUP_MAX_USER,
     generate_rfp_followup_reply,
     pair_followup_turn_messages,
     rfp_followup_context_block,
     validate_rfp_user_message,
+)
+from ..subscription_catalog import METRIC_DEV_REQUEST, METRIC_REQUEST_DUPLICATE
+from ..subscription_quota import (
+    ai_inquiry_limit_reached,
+    ai_inquiry_snapshot,
+    get_ai_inquiry_used,
+    record_ai_inquiry_user_turn,
+    try_consume_monthly,
 )
 from ..rfp_phase_gates import rfp_for_hub_readonly_embed, rfp_for_owner_or_admin, rfp_owned_only
 from ..stripe_service import stripe_keys_configured
@@ -584,6 +591,30 @@ async def submit_rfp(
             status_code=400,
         )
 
+    qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
+    if qerr == "disabled":
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip, db,
+                error="subscription_dev_request_disabled",
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
+    if qerr == "monthly_limit":
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip, db,
+                error="subscription_dev_request_limit",
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
+
     rfp = models.RFP(
         user_id=user.id,
         program_id=pid,
@@ -778,6 +809,20 @@ def _collect_rfp_unified_hub_ctx(
         owner = db.query(models.User).filter(models.User.id == rfp.user_id).first()
 
     delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
+    qe = (request.query_params.get("quota_err") or "").strip()
+    subscription_quota_flash = None
+    if qe == "duplicate_limit":
+        subscription_quota_flash = "이번 달(UTC) 요청 복사 한도에 도달했습니다."
+    elif qe == "dev_request_limit":
+        subscription_quota_flash = "이번 달(UTC) 개발 요청 생성 한도에 도달했습니다."
+    elif qe == "dev_proposal_limit":
+        subscription_quota_flash = "이번 달(UTC) 개발 제안서 생성 한도에 도달했습니다."
+    elif qe == "proposal_regen_limit":
+        subscription_quota_flash = "이 요청에서 제안서 재생성 허용 횟수에 도달했습니다."
+    elif qe == "dev_proposal_disabled":
+        subscription_quota_flash = "현재 플랜에서 개발 제안서 생성을 사용할 수 없습니다."
+    elif qe == "proposal_regen_disabled":
+        subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
 
     proposal_scripts = (not readonly_console) and bool(proposal_html) and not hub_proposal_generating
 
@@ -803,6 +848,7 @@ def _collect_rfp_unified_hub_ctx(
         "owner": owner,
         "code_asset_unlocked": code_asset_unlocked,
         "delete_blocked_reason": delete_blocked,
+        "subscription_quota_flash": subscription_quota_flash,
         "hub_phase_open": display_phase,
         "hub_embedded": hub_embedded,
         "attachment_entries": _rfp_attachment_entries(rfp),
@@ -853,12 +899,14 @@ def _collect_rfp_unified_hub_ctx(
             ctx.update(wf_ctx)
 
     if readonly_console:
+        snap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)
         ctx.update(
             {
                 "rfp_followup_turns": [],
-                "rfp_chat_limit_reached": False,
+                "rfp_chat_limit_reached": snap["reached"],
                 "rfp_chat_error": None,
-                "rfp_followup_max_user": RFP_FOLLOWUP_MAX_USER,
+                "rfp_followup_max_user": snap["cap"],
+                "rfp_ai_inquiry_unlimited": snap["unlimited"],
             }
         )
     else:
@@ -867,15 +915,15 @@ def _collect_rfp_unified_hub_ctx(
             key=lambda m: (m.created_at or rfp.created_at),
         )
         followup_turns = pair_followup_turn_messages(follow_msgs)
-        n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
-        rfp_chat_limit_reached = n_followup_user >= RFP_FOLLOWUP_MAX_USER
+        snap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)
         rfp_chat_error = (request.query_params.get("chat_err") or "").strip() or None
         ctx.update(
             {
                 "rfp_followup_turns": followup_turns,
-                "rfp_chat_limit_reached": rfp_chat_limit_reached,
+                "rfp_chat_limit_reached": snap["reached"],
                 "rfp_chat_error": rfp_chat_error,
-                "rfp_followup_max_user": RFP_FOLLOWUP_MAX_USER,
+                "rfp_followup_max_user": snap["cap"],
+                "rfp_ai_inquiry_unlimited": snap["unlimited"],
             }
         )
 
@@ -1136,15 +1184,9 @@ def rfp_hub_chat_post(
             status_code=303,
         )
 
-    n_user = (
-        db.query(models.RfpFollowupMessage)
-        .filter(
-            models.RfpFollowupMessage.rfp_id == rfp.id,
-            models.RfpFollowupMessage.role == "user",
-        )
-        .count()
-    )
-    if n_user >= RFP_FOLLOWUP_MAX_USER:
+    used_ai = get_ai_inquiry_used(db, user.id, "rfp", rfp.id)
+    cap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)["cap"]
+    if ai_inquiry_limit_reached(cap, used_ai):
         return RedirectResponse(
             url=_rfp_ai_chat_redirect(rfp_id, return_to, "후속 질문은 상한에 도달했습니다."),
             status_code=303,
@@ -1182,6 +1224,8 @@ def rfp_hub_chat_post(
 
     db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="user", content=msg))
     db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="assistant", content=reply))
+    if not getattr(user, "is_admin", False):
+        record_ai_inquiry_user_turn(db, user.id, "rfp", rfp.id, ledger_after=used_ai + 1)
     db.commit()
     return RedirectResponse(url=_rfp_ai_chat_redirect(rfp_id, return_to), status_code=303)
 
@@ -1334,6 +1378,14 @@ def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(g
     rfp = rfp_owned_only(db, user_id=user.id, rfp_id=rfp_id)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
+    from ..subscription_quota import consume_monthly, monthly_quota_exceeded
+
+    if monthly_quota_exceeded(db, user, METRIC_REQUEST_DUPLICATE, 1):
+        return RedirectResponse(url=f"/rfp/{rfp_id}?quota_err=duplicate_limit", status_code=302)
+    if monthly_quota_exceeded(db, user, METRIC_DEV_REQUEST, 1):
+        return RedirectResponse(url=f"/rfp/{rfp_id}?quota_err=dev_request_limit", status_code=302)
+    consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
+    consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     entries = duplicate_attachment_entries(_rfp_attachment_entries(rfp), user_id=user.id)
     title = (rfp.title or "").strip()
     if title and not title.endswith(" (복사)"):
@@ -1415,8 +1467,8 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         key=lambda m: (m.created_at or rfp_w.created_at),
     )
     followup_turns = pair_followup_turn_messages(follow_msgs)
-    n_fu = sum(1 for m in follow_msgs if (m.role or "") == "user")
     chat_err = (request.query_params.get("chat_err") or "").strip() or None
+    snap_ed = ai_inquiry_snapshot(db, user, "rfp", rfp_w.id)
     ai_inquiry = {
         "mode": "live",
         "float_id": "rfp-followup-chat",
@@ -1425,8 +1477,8 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         "return_to": "edit",
         "followup_turns": followup_turns,
         "chat_error": chat_err,
-        "chat_limit_reached": n_fu >= RFP_FOLLOWUP_MAX_USER,
-        "max_turns": RFP_FOLLOWUP_MAX_USER,
+        "chat_limit_reached": snap_ed["reached"],
+        "max_turns": snap_ed["max_turns_display"],
         "header_i18n": "chat.rfpHeaderTitle",
         "context_i18n": "chat.rfpContextHelp",
         "form_ready": True,

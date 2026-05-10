@@ -143,6 +143,7 @@
               <th style="width:110px">연동</th>
               <th style="width:110px">ABAP 분석</th>
               <th style="width:110px">총 활동</th>
+              <th class="admin-users-actions-col">구독·한도</th>
               <th class="admin-users-actions-col">컨설턴트 프로필</th>
               <th class="admin-users-actions-col">컨설턴트 권한</th>
               <th class="admin-users-actions-col">탈퇴</th>
@@ -184,6 +185,9 @@
               <td><span class="badge bg-secondary">{{ row.integration_count }}</span></td>
               <td><span class="badge bg-secondary">{{ row.abap_analysis_count }}</span></td>
               <td><span class="badge {% if row.total_activity_count > 0 %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ row.total_activity_count }}</span></td>
+              <td class="admin-users-actions-col">
+                <a class="btn btn-sm btn-outline-secondary" href="/admin/users/{{ u.id }}/subscription">구독</a>
+              </td>
               <td class="admin-users-actions-col">
                 {% if u.consultant_profile_file_path %}
                 <a class="btn btn-sm btn-outline-info" href="/admin/users/{{ u.id }}/consultant-profile/download">

@@ -17,6 +17,8 @@ from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
 from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
 from ..rfp_hub import rfp_hub_url
+from ..subscription_catalog import METRIC_DEV_PROPOSAL, METRIC_DEV_PROPOSAL_REGEN
+from ..subscription_quota import try_consume_monthly, try_consume_per_request
 
 router = APIRouter()
 
@@ -428,6 +430,17 @@ def serve_interview_workspace(
     next_round = len(rfp.messages) + 1
 
     if next_round > _fc().MAX_ROUNDS or (answered and len(answered) >= _fc().MAX_ROUNDS):
+        err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
+        if err_p == "disabled":
+            return InterviewWorkspaceOutcome(
+                kind="redirect",
+                redirect_url=f"{rfp_hub_url(rid, 'interview')}&quota_err=dev_proposal_disabled",
+            )
+        if err_p == "monthly_limit":
+            return InterviewWorkspaceOutcome(
+                kind="redirect",
+                redirect_url=f"{rfp_hub_url(rid, 'interview')}&quota_err=dev_proposal_limit",
+            )
         rfp.interview_status = "generating_proposal"
         db.commit()
         background_tasks.add_task(_run_proposal_background, rfp.id)
@@ -588,7 +601,17 @@ def request_proposal_now(
         return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
     if not _interview_has_substance(rfp):
         return RedirectResponse(url=f"{rfp_hub_url(rfp_id, 'interview')}&err=proposal", status_code=302)
-    rfp_dict = _rfp_to_dict(rfp)
+    err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
+    if err_p == "disabled":
+        return RedirectResponse(
+            url=f"{rfp_hub_url(rfp_id, 'interview')}&quota_err=dev_proposal_disabled",
+            status_code=302,
+        )
+    if err_p == "monthly_limit":
+        return RedirectResponse(
+            url=f"{rfp_hub_url(rfp_id, 'interview')}&quota_err=dev_proposal_limit",
+            status_code=302,
+        )
     rfp.interview_status = "generating_proposal"
     db.commit()
     background_tasks.add_task(_run_proposal_background, rfp.id)
@@ -878,8 +901,17 @@ def regenerate_proposal(
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
 
-    rfp_dict = _rfp_to_dict(rfp)
-    conv = _messages_to_list(rfp.messages)
+    err_r = try_consume_per_request(db, user, METRIC_DEV_PROPOSAL_REGEN, "rfp", rfp_id, 1)
+    if err_r == "disabled":
+        return RedirectResponse(
+            url=f"{rfp_hub_url(rfp_id, 'proposal')}&quota_err=proposal_regen_disabled",
+            status_code=302,
+        )
+    if err_r == "per_request_limit":
+        return RedirectResponse(
+            url=f"{rfp_hub_url(rfp_id, 'proposal')}&quota_err=proposal_regen_limit",
+            status_code=302,
+        )
     rfp.interview_status = "generating_proposal"
     rfp.proposal_text = None
     db.commit()

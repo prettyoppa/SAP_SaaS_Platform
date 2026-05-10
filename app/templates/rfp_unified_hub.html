@@ -80,6 +80,12 @@
       <span>기능명세(FS)가 있는 요청은 삭제할 수 없습니다.</span>
     </div>
     {% endif %}
+    {% if subscription_quota_flash %}
+    <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+      <i class="fa-solid fa-gauge-high me-2"></i>
+      <span>{{ subscription_quota_flash }}</span>
+    </div>
+    {% endif %}
 
     <div class="proposal-header mb-4">
       <div class="d-flex align-items-center gap-3 mb-3">
@@ -261,8 +267,13 @@
     <p class="small text-muted mb-0 mt-2">
       <i class="fa-solid fa-comments me-1 text-primary-light"></i>
       <span data-i18n="detail.chatHintRfp">요청·인터뷰·제안서 내용에 대해 궁금한 점은 화면 <strong>오른쪽 아래</strong> <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.</span>
+      {% if rfp_ai_inquiry_unlimited is defined and rfp_ai_inquiry_unlimited %}
+      <span class="nav-ko">(무제한)</span>
+      <span class="nav-en" style="display:none">(Unlimited)</span>
+      {% elif rfp_followup_max_user is not none %}
       <span class="nav-ko">(회당 최대 {{ rfp_followup_max_user }}회)</span>
       <span class="nav-en" style="display:none">(Up to {{ rfp_followup_max_user }} messages per request)</span>
+      {% endif %}
     </p>
     {% endif %}
   </div>

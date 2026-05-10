@@ -47,7 +47,19 @@
           <span>코드 정보가 허용 용량을 초과했습니다. (대략 JSON 6MB·UTF-8 기준)</span>
         </div>
         {% endif %}
-        {% if error and error not in ['need_title', 'need_impl_types', 'too_many_attachments', 'reference_code_too_large'] %}
+        {% if error == 'subscription_dev_request_limit' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>이번 달(UTC) 개발 요청 생성 한도에 도달했습니다.</span>
+        </div>
+        {% endif %}
+        {% if error == 'subscription_dev_request_disabled' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>현재 플랜에서는 새 연동 요청을 만들 수 없습니다.</span>
+        </div>
+        {% endif %}
+        {% if error and error not in ['need_title', 'need_impl_types', 'too_many_attachments', 'reference_code_too_large', 'subscription_dev_request_limit', 'subscription_dev_request_disabled'] %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           <span>첨부 처리 중 오류가 났습니다. 파일을 확인한 뒤 다시 시도해 주세요.</span>

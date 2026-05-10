@@ -8,6 +8,12 @@
       <div class="col-lg-9">
         <div class="mb-4">
           {% include 'partials/nav_prev_screen.html' %}
+          {% if subscription_quota_flash %}
+          <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+            <i class="fa-solid fa-gauge-high me-2"></i>
+            <span>{{ subscription_quota_flash }}</span>
+          </div>
+          {% endif %}
 
           <div class="proposal-header">
             <div class="d-flex align-items-center gap-3 mb-3">
@@ -383,8 +389,13 @@
         <p class="small text-muted mb-4">
           <i class="fa-solid fa-comments me-1 text-primary-light"></i>
           <span data-i18n="detail.chatHintAnalysis">이 분석에 대해 궁금한 점은 화면 <strong>오른쪽 아래</strong> <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.</span>
+          {% if abap_ai_inquiry_unlimited is defined and abap_ai_inquiry_unlimited %}
+          <span class="nav-ko">(무제한)</span>
+          <span class="nav-en" style="display:none">(Unlimited)</span>
+          {% elif abap_followup_cap is not none %}
           <span class="nav-ko">(회당 최대 {{ max_followup_user_turns }}회)</span>
           <span class="nav-en" style="display:none">(Up to {{ max_followup_user_turns }} messages per request)</span>
+          {% endif %}
         </p>
         {% endif %}
 

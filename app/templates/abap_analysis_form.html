@@ -103,7 +103,19 @@
           <span>ABAP 본문이 너무 짧습니다. 분석 가능한 분량을 입력해 주세요.</span>
         </div>
         {% endif %}
-        {% if error and error not in ['invalid_file', 'file_too_large', 'empty_attachment', 'max_selection', 'program_id_required', 'program_id_too_long', 'program_id_ime', 'program_id_chars', 'transaction_code_too_long', 'transaction_code_ime', 'transaction_code_chars', 'too_many_attachments', 'reference_code_too_large', 'need_title', 'need_requirement', 'need_reference_code', 'code_too_short'] %}
+        {% if error == 'subscription_dev_request_limit' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>이번 달(UTC) 개발 요청 생성 한도에 도달했습니다.</span>
+        </div>
+        {% endif %}
+        {% if error == 'subscription_dev_request_disabled' %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>현재 플랜에서는 새 분석 요청을 만들 수 없습니다.</span>
+        </div>
+        {% endif %}
+        {% if error and error not in ['invalid_file', 'file_too_large', 'empty_attachment', 'max_selection', 'program_id_required', 'program_id_too_long', 'program_id_ime', 'program_id_chars', 'transaction_code_too_long', 'transaction_code_ime', 'transaction_code_chars', 'too_many_attachments', 'reference_code_too_large', 'need_title', 'need_requirement', 'need_reference_code', 'code_too_short', 'subscription_dev_request_limit', 'subscription_dev_request_disabled'] %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           <span>제출 처리 중 오류가 발생했습니다. 입력 내용을 확인해 주세요.</span>

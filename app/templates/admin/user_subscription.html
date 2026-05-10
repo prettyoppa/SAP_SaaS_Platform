@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}회원 구독·한도 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="container">
+    {% include 'partials/nav_prev_screen.html' %}
+    <h3 class="mb-3">구독·한도 — {{ target.full_name }} <span class="text-muted small font-monospace">#{{ target.id }}</span></h3>
+    <p class="text-muted small">
+      플랜 코드는 이 화면에서 저장 시 <code>subscription_plan_source=admin</code> 으로 고정됩니다.
+      Stripe 연동 시에도 관리자 잠금이 있으면 자동 변경에서 제외하는 것을 권장합니다.
+      월 사용량·날짜는 서버 <strong>UTC</strong> 기준입니다.
+    </p>
+
+    {% if saved %}
+    <div class="alert alert-success py-2">저장했습니다.</div>
+    {% endif %}
+
+    <div class="rfp-section p-3 mb-4">
+      <h5 class="mb-3">이번 달 사용량 ({{ usage_year_month }} UTC)</h5>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>항목</th><th class="text-end">사용</th></tr></thead>
+          <tbody>
+            {% for m in metric_order %}
+            <tr>
+              <td>{{ metric_label_ko.get(m, m) }} <code class="small text-muted">{{ m }}</code></td>
+              <td class="text-end font-monospace">{{ usage_map.get(m, 0) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <form method="post" action="/admin/users/{{ target.id }}/subscription" class="rfp-section p-3 mb-4">
+      <h5 class="mb-3">플랜·만료·체험</h5>
+      <div class="mb-3">
+        <label class="form-label">플랜 코드 ({{ 'consultant' if target.is_consultant else 'member' }} 카탈로그)</label>
+        <select name="subscription_plan_code" class="form-select" required>
+          {% for p in plans %}
+          <option value="{{ p.code }}" {% if p.code == target.subscription_plan_code %}selected{% endif %}>{{ p.display_name_ko }} ({{ p.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">플랜 만료 (UTC, 비우면 유지 / 아래 체크 시 삭제)</label>
+        <input type="datetime-local" name="plan_expires_at" class="form-control"
+               value="{% if target.subscription_plan_expires_at %}{{ target.subscription_plan_expires_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" name="clear_plan_expires" value="1" id="clear_plan_expires">
+          <label class="form-check-label" for="clear_plan_expires">플랜 만료일 지우기</label>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Experience 체험 종료 (UTC)</label>
+        <input type="datetime-local" name="trial_ends_at" class="form-control"
+               value="{% if target.experience_trial_ends_at %}{{ target.experience_trial_ends_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" name="clear_trial" value="1" id="clear_trial">
+          <label class="form-check-label" for="clear_trial">체험 종료 시각 지우기</label>
+        </div>
+      </div>
+
+      <hr class="my-4">
+      <h6 class="mb-2">UTC 이번 달 사용량 수동 설정</h6>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <select name="usage_metric" class="form-select">
+            <option value="">— metric 선택 —</option>
+            {% for m in metric_order %}
+            <option value="{{ m }}">{{ metric_label_ko.get(m, m) }} ({{ m }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <input type="number" name="usage_set_used" class="form-control" min="0" step="1" placeholder="used 값">
+        </div>
+      </div>
+      <p class="small text-muted mt-2 mb-0">선택한 metric과 숫자가 모두 있을 때만 갱신됩니다. AI 문의 건당 레저는 여기서 바꾸지 않습니다.</p>
+
+      <div class="mt-4">
+        <button type="submit" class="btn btn-primary">저장</button>
+        <a href="/admin/users" class="btn btn-outline-secondary ms-2">회원 목록</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, Request, Form, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -13,6 +14,8 @@ from ..templates_config import templates
 from ..writing_guides_service import LOGICAL_KEYS, save_writing_guide_bilingual
 from ..email_smtp import send_consultant_approved_email
 from ..review_ratings_util import rating_aggregates_for_reviews
+from ..subscription_catalog import METRIC_LABEL_KO, METRIC_ORDER
+from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
 
 router = APIRouter(prefix="/admin")
 
@@ -277,6 +280,135 @@ def admin_user_consultant_profile_download(user_id: int, request: Request, db: S
     if not os.path.isfile(ref):
         return RedirectResponse(url="/admin/users", status_code=302)
     return FileResponse(ref, filename=fname)
+
+
+def _parse_admin_optional_utc_datetime(raw: str) -> datetime | None:
+    s = (raw or "").strip().replace("Z", "")
+    if not s:
+        return None
+    if "T" in s:
+        try:
+            return datetime.strptime(s[:16], "%Y-%m-%dT%H:%M")
+        except ValueError:
+            return None
+    if len(s) >= 16:
+        try:
+            return datetime.strptime(s[:16], "%Y-%m-%d %H:%M")
+        except ValueError:
+            pass
+    try:
+        return datetime.strptime(s[:10], "%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+@router.get("/users/{user_id}/subscription", response_class=HTMLResponse)
+def admin_user_subscription_page(user_id: int, request: Request, db: Session = Depends(get_db)):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    kind = "consultant" if target.is_consultant else "member"
+    plans = (
+        db.query(models.SubscriptionPlan)
+        .filter(
+            models.SubscriptionPlan.account_kind == kind,
+            models.SubscriptionPlan.is_active.is_(True),
+        )
+        .order_by(models.SubscriptionPlan.sort_order, models.SubscriptionPlan.id)
+        .all()
+    )
+    ym = utc_year_month()
+    usage_rows = (
+        db.query(models.SubscriptionUsageMonthly)
+        .filter(
+            models.SubscriptionUsageMonthly.user_id == target.id,
+            models.SubscriptionUsageMonthly.year_month == ym,
+        )
+        .all()
+    )
+    usage_map = {r.metric_key: int(r.used) for r in usage_rows}
+    return templates.TemplateResponse(
+        request,
+        "admin/user_subscription.html",
+        {
+            "request": request,
+            "user": actor,
+            "target": target,
+            "plans": plans,
+            "usage_map": usage_map,
+            "usage_year_month": ym,
+            "metric_order": METRIC_ORDER,
+            "metric_label_ko": METRIC_LABEL_KO,
+            "saved": request.query_params.get("saved") == "1",
+        },
+    )
+
+
+@router.post("/users/{user_id}/subscription")
+def admin_user_subscription_save(
+    user_id: int,
+    request: Request,
+    subscription_plan_code: str = Form(""),
+    clear_plan_expires: str = Form("0"),
+    plan_expires_at: str = Form(""),
+    clear_trial: str = Form("0"),
+    trial_ends_at: str = Form(""),
+    usage_metric: str = Form(""),
+    usage_set_used: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    code = (subscription_plan_code or "").strip()[:32] or "experience"
+    target.subscription_plan_code = code
+    target.subscription_plan_source = SUBSCRIPTION_SOURCE_ADMIN
+    if (clear_plan_expires or "").strip() == "1":
+        target.subscription_plan_expires_at = None
+    else:
+        pdt = _parse_admin_optional_utc_datetime(plan_expires_at)
+        if pdt:
+            target.subscription_plan_expires_at = pdt
+    if (clear_trial or "").strip() == "1":
+        target.experience_trial_ends_at = None
+    else:
+        tdt = _parse_admin_optional_utc_datetime(trial_ends_at)
+        if tdt:
+            target.experience_trial_ends_at = tdt
+
+    mk = (usage_metric or "").strip()
+    su = (usage_set_used or "").strip()
+    if mk and su.isdigit():
+        used_v = max(0, int(su))
+        ym = utc_year_month()
+        row = (
+            db.query(models.SubscriptionUsageMonthly)
+            .filter(
+                models.SubscriptionUsageMonthly.user_id == target.id,
+                models.SubscriptionUsageMonthly.metric_key == mk,
+                models.SubscriptionUsageMonthly.year_month == ym,
+            )
+            .first()
+        )
+        if row is None:
+            db.add(
+                models.SubscriptionUsageMonthly(
+                    user_id=target.id,
+                    metric_key=mk,
+                    year_month=ym,
+                    used=used_v,
+                )
+            )
+        else:
+            row.used = used_v
+    db.commit()
+    return RedirectResponse(url=f"/admin/users/{user_id}/subscription?saved=1", status_code=302)
 
 
 @router.post("/users/{user_id}/purge-now")
@@ -901,6 +1033,17 @@ def admin_subscription_plans_settings(request: Request, db: Session = Depends(ge
     if not user:
         return RedirectResponse(url="/", status_code=302)
     raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    plans = (
+        db.query(models.SubscriptionPlan)
+        .options(joinedload(models.SubscriptionPlan.entitlements))
+        .order_by(models.SubscriptionPlan.account_kind, models.SubscriptionPlan.sort_order)
+        .all()
+    )
+    plan_views: list[dict] = []
+    for p in plans:
+        emap = {e.metric_key: e for e in (p.entitlements or [])}
+        rows = [emap[k] for k in METRIC_ORDER if k in emap]
+        plan_views.append({"plan": p, "rows": rows})
     return templates.TemplateResponse(
         request,
         "admin/subscription_plans_settings.html",
@@ -908,6 +1051,8 @@ def admin_subscription_plans_settings(request: Request, db: Session = Depends(ge
             "request": request,
             "user": user,
             "settings": raw,
+            "plan_views": plan_views,
+            "metric_labels": METRIC_LABEL_KO,
         },
     )
 
@@ -927,3 +1072,32 @@ async def admin_subscription_plans_settings_save(request: Request, db: Session =
             db.add(models.SiteSettings(key=key, value=val))
     db.commit()
     return RedirectResponse(url="/admin/subscription-plans?saved=1", status_code=302)
+
+
+_ALLOWED_PERIOD = frozenset({"monthly", "per_request", "unlimited", "disabled"})
+
+
+@router.post("/subscription-plans/entitlements")
+async def admin_subscription_entitlements_save(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    for ent in db.query(models.PlanEntitlement).all():
+        pk = f"e_{ent.id}_period"
+        lk = f"e_{ent.id}_limit"
+        if pk in form:
+            pt = (form.get(pk) or "").strip()
+            if pt in _ALLOWED_PERIOD:
+                ent.period_type = pt
+        if lk in form:
+            raw = (form.get(lk) or "").strip()
+            if raw == "":
+                ent.limit_value = None
+            else:
+                try:
+                    ent.limit_value = int(raw)
+                except ValueError:
+                    pass
+    db.commit()
+    return RedirectResponse(url="/admin/subscription-plans?saved_ent=1", status_code=302)

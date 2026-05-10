@@ -13,7 +13,16 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, auth
-from ..abap_followup_chat import MAX_USER_TURNS_PER_REQUEST as INT_CHAT_MAX_USER
+from ..subscription_catalog import METRIC_DEV_REQUEST, METRIC_REQUEST_DUPLICATE
+from ..subscription_quota import (
+    ai_inquiry_limit_reached,
+    ai_inquiry_snapshot,
+    consume_monthly,
+    get_ai_inquiry_used,
+    monthly_quota_exceeded,
+    record_ai_inquiry_user_turn,
+    try_consume_monthly,
+)
 from .abap_analysis_router import _pair_abap_followup_turns as _pair_integration_followup_turns
 from ..attachment_context import build_attachment_llm_digest
 from ..database import get_db
@@ -1290,6 +1299,38 @@ async def integration_new_submit(
             },
             status_code=400,
         )
+    qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
+    if qerr == "disabled":
+        return templates.TemplateResponse(
+            request,
+            "integration_form.html",
+            {
+                "request": request,
+                "user": user,
+                "modules": modules,
+                "devtypes": devtypes,
+                **_integration_impl_ui_ctx(db),
+                "error": "subscription_dev_request_disabled",
+                "form": _form_dict(),
+            },
+            status_code=400,
+        )
+    if qerr == "monthly_limit":
+        return templates.TemplateResponse(
+            request,
+            "integration_form.html",
+            {
+                "request": request,
+                "user": user,
+                "modules": modules,
+                "devtypes": devtypes,
+                **_integration_impl_ui_ctx(db),
+                "error": "subscription_dev_request_limit",
+                "form": _form_dict(),
+            },
+            status_code=400,
+        )
+
     display_title = title_clean or "SAP 연동 개발 요청 (임시)"
     ir = models.IntegrationRequest(
         user_id=user.id,
@@ -1325,6 +1366,12 @@ def integration_duplicate_request(req_id: int, request: Request, db: Session = D
     )
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
+    if monthly_quota_exceeded(db, user, METRIC_REQUEST_DUPLICATE, 1):
+        return RedirectResponse(url=f"/integration/{req_id}?quota_err=duplicate_limit", status_code=302)
+    if monthly_quota_exceeded(db, user, METRIC_DEV_REQUEST, 1):
+        return RedirectResponse(url=f"/integration/{req_id}?quota_err=dev_request_limit", status_code=302)
+    consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
+    consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     entries = duplicate_attachment_entries(_attachment_entries(ir), user_id=user.id)
     title = (ir.title or "").strip()
     if title and not title.endswith(" (복사)"):
@@ -1412,8 +1459,8 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
         key=lambda m: (m.created_at or ir.created_at),
     )
     followup_turns = _pair_integration_followup_turns(follow_msgs)
-    n_fu = sum(1 for m in follow_msgs if (m.role or "") == "user")
     chat_err = (request.query_params.get("chat_err") or "").strip() or None
+    snap_ie = ai_inquiry_snapshot(db, user, "integration", ir.id)
     ai_inquiry = {
         "mode": "live",
         "float_id": "integration-followup-chat",
@@ -1422,8 +1469,8 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
         "return_to": "edit",
         "followup_turns": followup_turns,
         "chat_error": chat_err,
-        "chat_limit_reached": n_fu >= INT_CHAT_MAX_USER,
-        "max_turns": INT_CHAT_MAX_USER,
+        "chat_limit_reached": snap_ie["reached"],
+        "max_turns": snap_ie["max_turns_display"],
         "header_i18n": "chat.intHeaderTitle",
         "context_i18n": "chat.intContextHelp",
         "form_ready": True,
@@ -1744,21 +1791,42 @@ def _collect_integration_unified_hub_ctx(
 
     if readonly_console:
         followup_turns = []
-        chat_limit_reached = False
+        snap_hub_ro = ai_inquiry_snapshot(db, user, "integration", ir.id)
+        chat_limit_reached = snap_hub_ro["reached"]
         chat_error = None
         hub_scripts = False
+        int_max_followup = snap_hub_ro["max_turns_display"]
+        int_ai_unlimited = snap_hub_ro["unlimited"]
+        int_followup_cap = snap_hub_ro["cap"]
     else:
         follow_msgs = sorted(
             list(ir.followup_messages or []),
             key=lambda m: (m.created_at or ir.created_at),
         )
         followup_turns = _pair_integration_followup_turns(follow_msgs)
-        n_followup_user = sum(1 for m in follow_msgs if (m.role or "") == "user")
-        chat_limit_reached = n_followup_user >= INT_CHAT_MAX_USER
+        snap_hub = ai_inquiry_snapshot(db, user, "integration", ir.id)
+        chat_limit_reached = snap_hub["reached"]
         chat_error = (request.query_params.get("chat_err") or "").strip() or None
         hub_scripts = bool(proposal_html) and not hub_proposal_generating
+        int_max_followup = snap_hub["max_turns_display"]
+        int_ai_unlimited = snap_hub["unlimited"]
+        int_followup_cap = snap_hub["cap"]
 
     delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
+    qe = (request.query_params.get("quota_err") or "").strip()
+    subscription_quota_flash = None
+    if qe == "duplicate_limit":
+        subscription_quota_flash = "이번 달(UTC) 요청 복사 한도에 도달했습니다."
+    elif qe == "dev_request_limit":
+        subscription_quota_flash = "이번 달(UTC) 개발 요청 생성 한도에 도달했습니다."
+    elif qe == "dev_proposal_limit":
+        subscription_quota_flash = "이번 달(UTC) 개발 제안서 생성 한도에 도달했습니다."
+    elif qe == "proposal_regen_limit":
+        subscription_quota_flash = "이 요청에서 제안서 재생성 허용 횟수에 도달했습니다."
+    elif qe == "dev_proposal_disabled":
+        subscription_quota_flash = "현재 플랜에서 개발 제안서 생성을 사용할 수 없습니다."
+    elif qe == "proposal_regen_disabled":
+        subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
 
     vis_int_offers = visible_request_offers_for_viewer(
         _integration_offer_rows(db, ir.id),
@@ -1784,6 +1852,7 @@ def _collect_integration_unified_hub_ctx(
         "iv_submit_base": f"/integration/{req_id}",
         "owner": owner,
         "delete_blocked_reason": delete_blocked,
+        "subscription_quota_flash": subscription_quota_flash,
         "hub_phase_open": display_phase,
         "hub_embedded": hub_embedded,
         "attachment_entries": _attachment_entries(ir),
@@ -1807,7 +1876,9 @@ def _collect_integration_unified_hub_ctx(
         "followup_turns": followup_turns,
         "chat_limit_reached": chat_limit_reached,
         "chat_error": chat_error,
-        "max_followup_user_turns": INT_CHAT_MAX_USER,
+        "max_followup_user_turns": int_max_followup,
+        "integration_ai_inquiry_unlimited": int_ai_unlimited,
+        "integration_followup_cap": int_followup_cap,
         "hub_include_proposal_scripts": hub_scripts,
         "request_offers": vis_int_offers,
         "request_offer_can_match": bool(user and ir and user.id == ir.user_id and not readonly_console),
@@ -1947,15 +2018,9 @@ def integration_chat_post(
             status_code=303,
         )
 
-    n_user = (
-        db.query(models.IntegrationFollowupMessage)
-        .filter(
-            models.IntegrationFollowupMessage.request_id == ir.id,
-            models.IntegrationFollowupMessage.role == "user",
-        )
-        .count()
-    )
-    if n_user >= INT_CHAT_MAX_USER:
+    used_ai = get_ai_inquiry_used(db, user.id, "integration", ir.id)
+    cap_i = ai_inquiry_snapshot(db, user, "integration", ir.id)["cap"]
+    if ai_inquiry_limit_reached(cap_i, used_ai):
         return RedirectResponse(
             url=f"{chat_base}?chat_err={quote('후속 질문은 상한에 도달했습니다.')}#integration-followup-chat",
             status_code=303,
@@ -1993,6 +2058,8 @@ def integration_chat_post(
             content=reply,
         )
     )
+    if not getattr(user, "is_admin", False):
+        record_ai_inquiry_user_turn(db, user.id, "integration", ir.id, ledger_after=used_ai + 1)
     db.commit()
     return RedirectResponse(url=f"{chat_base}#integration-followup-chat", status_code=303)
 

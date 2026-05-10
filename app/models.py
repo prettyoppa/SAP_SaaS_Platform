@@ -37,6 +37,12 @@ class User(Base):
     pending_account_deletion = Column(Boolean, default=False)
     deletion_requested_at = Column(DateTime, nullable=True)
     deletion_hard_scheduled_at = Column(DateTime, nullable=True)
+    # 구독 플랜(일반/컨설턴트 각각 catalog의 code와 대응, 기본 experience)
+    subscription_plan_code = Column(String(32), nullable=False, default="experience")
+    subscription_plan_source = Column(String(20), nullable=False, default="default")  # default | admin | stripe
+    subscription_plan_expires_at = Column(DateTime, nullable=True)
+    # Experience 플랜 체험(UTC): 기간 중 entitlement는 consultant+junior와 동일. 이메일·휴대폰당 1회(해시 보관).
+    experience_trial_ends_at = Column(DateTime, nullable=True)
 
     rfps = relationship("RFP", back_populates="owner")
     integration_requests = relationship("IntegrationRequest", back_populates="owner")
@@ -561,3 +567,89 @@ class RequestOfferInquiry(Base):
 
     request_offer = relationship("RequestOffer", back_populates="inquiries")
     author = relationship("User", foreign_keys=[author_user_id])
+
+
+class SubscriptionPlan(Base):
+    """구독 플랜 정의(일반 회원 / 컨설턴트 별 catalog)."""
+
+    __tablename__ = "subscription_plans"
+    __table_args__ = (UniqueConstraint("account_kind", "code", name="uq_subscription_plan_kind_code"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_kind = Column(String(16), nullable=False, index=True)  # member | consultant
+    code = Column(String(32), nullable=False, index=True)
+    display_name_ko = Column(String(128), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    entitlements = relationship(
+        "PlanEntitlement",
+        back_populates="plan",
+        cascade="all, delete-orphan",
+        order_by="PlanEntitlement.metric_key",
+    )
+
+
+class PlanEntitlement(Base):
+    """플랜별 기능 한도(period_type + limit_value)."""
+
+    __tablename__ = "plan_entitlements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plan_id = Column(Integer, ForeignKey("subscription_plans.id", ondelete="CASCADE"), nullable=False, index=True)
+    metric_key = Column(String(64), nullable=False, index=True)
+    # monthly | per_request | unlimited | disabled
+    period_type = Column(String(20), nullable=False)
+    # monthly/per_request: 상한 숫자. unlimited/disabled 에서는 무시(저장은 NULL 허용)
+    limit_value = Column(Integer, nullable=True)
+
+    plan = relationship("SubscriptionPlan", back_populates="entitlements")
+
+    __table_args__ = (UniqueConstraint("plan_id", "metric_key", name="uq_plan_entitlement_metric"),)
+
+
+class SubscriptionUsageMonthly(Base):
+    """월 단위 사용량(추후 dev_request 등)."""
+
+    __tablename__ = "subscription_usage_monthly"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    metric_key = Column(String(64), nullable=False, index=True)
+    year_month = Column(String(7), nullable=False, index=True)  # YYYY-MM (UTC 기준)
+    used = Column(Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "metric_key", "year_month", name="uq_sub_usage_monthly"),
+    )
+
+
+class SubscriptionUsagePerRequest(Base):
+    """요청 건당 사용량(선택적; AI 문의 등은 메시지 카운트와 병행 가능)."""
+
+    __tablename__ = "subscription_usage_per_request"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    metric_key = Column(String(64), nullable=False, index=True)
+    request_kind = Column(String(20), nullable=False)  # rfp | analysis | integration
+    request_id = Column(Integer, nullable=False, index=True)
+    used = Column(Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "metric_key", "request_kind", "request_id", name="uq_sub_usage_per_request"
+        ),
+    )
+
+
+class TrialEligibilityConsumed(Base):
+    """체험판(Experience→Junior 권한) 중복 방지: 이메일/휴대폰 식별자 해시."""
+
+    __tablename__ = "trial_eligibility_consumed"
+    __table_args__ = (UniqueConstraint("kind", "identity_hash", name="uq_trial_eligibility_kind_hash"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    kind = Column(String(16), nullable=False, index=True)  # email | phone
+    identity_hash = Column(String(64), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

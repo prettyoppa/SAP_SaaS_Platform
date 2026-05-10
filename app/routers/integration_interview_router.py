@@ -18,6 +18,8 @@ from ..integration_interview_service import (
     _run_integration_proposal_background,
     serve_integration_interview_workspace,
 )
+from ..subscription_catalog import METRIC_DEV_PROPOSAL, METRIC_DEV_PROPOSAL_REGEN
+from ..subscription_quota import try_consume_monthly, try_consume_per_request
 from ..integration_crew_adapter import integration_request_to_crew_rfp_dict, _member_safe_for_integration
 from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
@@ -368,6 +370,17 @@ def integration_regenerate_proposal(
     )
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
+    err_r = try_consume_per_request(db, user, METRIC_DEV_PROPOSAL_REGEN, "integration", req_id, 1)
+    if err_r == "disabled":
+        return RedirectResponse(
+            url=f"{integration_hub_url(req_id, 'proposal')}&quota_err=proposal_regen_disabled",
+            status_code=302,
+        )
+    if err_r == "per_request_limit":
+        return RedirectResponse(
+            url=f"{integration_hub_url(req_id, 'proposal')}&quota_err=proposal_regen_limit",
+            status_code=302,
+        )
     ir.interview_status = "generating_proposal"
     ir.proposal_text = None
     db.commit()

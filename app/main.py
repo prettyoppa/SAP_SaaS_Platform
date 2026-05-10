@@ -126,6 +126,10 @@ def _run_migrations():
         ("notices", "sort_order", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
         ("reviews", "admin_suppressed", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("reviews", "display_name", "VARCHAR(200)", "VARCHAR(200)"),
+        ("users", "subscription_plan_code", "VARCHAR(32) DEFAULT 'experience'", "VARCHAR(32) DEFAULT 'experience'"),
+        ("users", "subscription_plan_source", "VARCHAR(20) DEFAULT 'default'", "VARCHAR(20) DEFAULT 'default'"),
+        ("users", "subscription_plan_expires_at", "DATETIME", "TIMESTAMP"),
+        ("users", "experience_trial_ends_at", "DATETIME", "TIMESTAMP"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -215,6 +219,7 @@ def _seed_home_tile_settings():
         ("user_guide_pdf_url", "/static/docs/user-guide.pdf"),
         ("subscription_plans_notice_md_ko", ""),
         ("subscription_plans_notice_md_en", ""),
+        ("experience_trial_days", "14"),
         ("service_abap_intro_md_ko", DEFAULT_SERVICE_ABAP_INTRO_MD_KO),
         ("service_analysis_intro_md_ko", DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO),
         ("service_integration_intro_md_ko", DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO),
@@ -282,6 +287,17 @@ def _seed_modules_and_devtypes():
         db.close()
 
 
+def _seed_subscription_catalog():
+    """구독 플랜·entitlement 초기 데이터(테이블 비어 있을 때만)."""
+    db: Session = SessionLocal()
+    try:
+        from .subscription_catalog import seed_subscription_catalog
+
+        seed_subscription_catalog(db)
+    finally:
+        db.close()
+
+
 def _sync_admins():
     """admins.txt 파일을 읽어 관리자 권한을 DB와 동기화합니다."""
     import os
@@ -323,6 +339,7 @@ def _bootstrap_database():
     _seed_modules_and_devtypes()
     _ensure_integration_impl_devtypes()
     _seed_home_tile_settings()
+    _seed_subscription_catalog()
     _sync_admins()
     _log.info("[DB] bootstrap complete")
 

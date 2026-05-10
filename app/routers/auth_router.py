@@ -404,6 +404,12 @@ def login(
             _ctx(error="email_not_verified", email=email_norm),
             status_code=400,
         )
+    from ..trial_service import maybe_grant_experience_trial
+
+    maybe_grant_experience_trial(db, user)
+    db.commit()
+    db.refresh(user)
+
     token = auth.create_access_token({"sub": user.email})
     redirect_url = _safe_login_redirect_next((next_path or "").strip()) or "/"
     response = RedirectResponse(url=redirect_url, status_code=302)
@@ -1125,6 +1131,11 @@ async def register(
         if prow:
             db.delete(prow)
     db.commit()
+    db.refresh(new_user)
+    from ..trial_service import maybe_grant_experience_trial
+
+    maybe_grant_experience_trial(db, new_user)
+    db.commit()
 
     if account_type_norm == "consultant":
         _schedule_bg(send_consultant_application_received_email, new_user.email)
@@ -1229,6 +1240,10 @@ def verify_email(token: str = "", db: Session = Depends(get_db)):
     if user.email_verified:
         return RedirectResponse(url="/login", status_code=302)
     user.email_verified = True
+    db.commit()
+    from ..trial_service import maybe_grant_experience_trial
+
+    maybe_grant_experience_trial(db, user)
     db.commit()
     return RedirectResponse(url="/login?verified=1", status_code=302)
 

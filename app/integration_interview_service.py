@@ -13,6 +13,8 @@ from . import models
 from .agents.agent_tools import get_code_library_context
 from .integration_crew_adapter import integration_request_to_crew_rfp_dict, _member_safe_for_integration
 from .integration_hub import integration_hub_url
+from .subscription_catalog import METRIC_DEV_PROPOSAL
+from .subscription_quota import try_consume_monthly
 from .routers.interview_router import (
     _answer_block_for_export,
     _cap_suggestions,
@@ -201,6 +203,17 @@ def serve_integration_interview_workspace(
     next_round = len(msgs) + 1
 
     if next_round > _fc().MAX_ROUNDS or (answered and len(answered) >= _fc().MAX_ROUNDS):
+        err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
+        if err_p == "disabled":
+            return IntegrationInterviewWorkspaceOutcome(
+                kind="redirect",
+                redirect_url=f"{integration_hub_url(iid, 'interview')}&quota_err=dev_proposal_disabled",
+            )
+        if err_p == "monthly_limit":
+            return IntegrationInterviewWorkspaceOutcome(
+                kind="redirect",
+                redirect_url=f"{integration_hub_url(iid, 'interview')}&quota_err=dev_proposal_limit",
+            )
         ir.interview_status = "generating_proposal"
         db.commit()
         background_tasks.add_task(_run_integration_proposal_background, ir.id)
