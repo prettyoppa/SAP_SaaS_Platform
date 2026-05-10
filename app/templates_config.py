@@ -95,6 +95,15 @@ def _request_no_filter(v, prefix: str = "REQ") -> str:
 templates.env.filters["request_no"] = _request_no_filter
 
 
+def _review_author_label_filter(review) -> str:
+    from .review_ratings_util import review_author_label
+
+    return review_author_label(review)
+
+
+templates.env.filters["review_author_label"] = _review_author_label_filter
+
+
 def _md_html_filter(s) -> Markup:
     """제목·본문 등 저장된 마크다운을 HTML로 (interview_router 구현 재사용)."""
     if s is None:

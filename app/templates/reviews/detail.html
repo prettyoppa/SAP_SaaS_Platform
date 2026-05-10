@@ -11,16 +11,24 @@
       </ol>
     </nav>
 
-    <article class="card border shadow-sm mb-4" style="background:var(--surface2);border-color:var(--border)!important;">
+    <article class="card border shadow-sm mb-3" style="background:var(--surface2);border-color:var(--border)!important;">
       <div class="card-body p-4">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
           <div>
-            <strong>{{ review.author.full_name if review.author else '회원' }}</strong>
+            <strong>{{ review|review_author_label }}</strong>
             <div class="small text-muted">{{ review.created_at|local_dt_span('date_dots') }}</div>
           </div>
-          <div>
-            {% for i in range(review.rating) %}<i class="fa-solid fa-star text-warning"></i>{% endfor %}
-            {% for i in range(5 - review.rating) %}<i class="fa-regular fa-star text-muted"></i>{% endfor %}
+          <div class="text-nowrap small text-muted">
+            {% set rc = rating_ctx.count %}
+            {% set av = rating_ctx.avg %}
+            {% set filled = (av|round(0, 'common')|int) if av is not none and rc > 0 else 0 %}
+            {% if rc > 0 and av is not none %}
+            {% for i in range(filled) %}<i class="fa-solid fa-star text-warning"></i>{% endfor %}
+            {% for i in range(5 - filled) %}<i class="fa-regular fa-star text-muted"></i>{% endfor %}
+            <span class="ms-1">평균 · {{ "%.1f"|format(av) }} ({{ rc }}명)</span>
+            {% else %}
+            <span>아직 평가 없음</span>
+            {% endif %}
           </div>
         </div>
         <div class="d-flex flex-wrap gap-2 mb-3">
@@ -33,6 +41,27 @@
           {% endif %}
         </div>
         <div class="review-body-text text-break" style="white-space: pre-wrap;">{{ review.content }}</div>
+
+        {% if user and rating_ctx.can_rate %}
+        <div class="mt-4 pt-3 border-top" style="border-color:var(--border)!important;">
+          <div class="small text-muted mb-2">이 글 평가 (1~5점)</div>
+          <div class="btn-group btn-group-sm flex-wrap">
+            {% for s in range(1, 6) %}
+            <form method="post" action="/reviews/{{ review.id }}/rate" class="d-inline">
+              <input type="hidden" name="next" value="/reviews/{{ review.id }}"/>
+              <input type="hidden" name="stars" value="{{ s }}"/>
+              <button type="submit" class="btn btn-outline-warning {% if rating_ctx.my_stars == s %}active{% endif %}">{{ s }}점</button>
+            </form>
+            {% endfor %}
+          </div>
+          {% if rating_ctx.my_stars %}
+          <div class="small text-success mt-2">내가 준 별점: {{ rating_ctx.my_stars }}점 (다시 누르면 변경)</div>
+          {% endif %}
+        </div>
+        {% elif user and not rating_ctx.can_rate %}
+        <p class="small text-muted mt-4 mb-0">본인 글에는 별점을 남길 수 없습니다.</p>
+        {% endif %}
+
         {% if can_delete %}
         <form method="post" action="/reviews/{{ review.id }}/delete" class="mt-4" data-app-confirm="이 글을 삭제할까요?">
           <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash me-1"></i>삭제</button>
@@ -41,15 +70,27 @@
       </div>
     </article>
 
+    {# 뉴스 댓글: 본문 바로 아래 입력란 → 그 아래 댓글 목록 #}
     <section class="card border shadow-sm" style="background:var(--surface2);border-color:var(--border)!important;">
-      <div class="card-header bg-transparent py-3 border-bottom" style="border-color:var(--border)!important;">
-        <h2 class="h6 mb-0">댓글 {% if comments %}<span class="text-muted">({{ comments|length }})</span>{% endif %}</h2>
-      </div>
-      <div class="card-body">
+      <div class="card-body p-4">
+        <h2 class="h6 mb-3">댓글 작성</h2>
+        {% if user %}
+        <form method="post" action="/reviews/{{ review.id }}/comment" class="mb-4">
+          <input type="hidden" name="next" value="/reviews/{{ review.id }}"/>
+          <textarea name="content" class="form-control mb-2" rows="3" required placeholder="댓글을 입력하세요 (일반 텍스트)"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm">댓글 등록</button>
+        </form>
+        {% else %}
+        <p class="small text-muted mb-4"><a href="/login?next=/reviews/{{ review.id }}">로그인</a> 후 댓글을 남길 수 있습니다.</p>
+        {% endif %}
+
+        <h3 class="h6 text-muted mb-3 border-bottom pb-2" style="border-color:var(--border)!important;">
+          댓글 목록 {% if comments %}<span class="fw-normal">({{ comments|length }})</span>{% endif %}
+        </h3>
         {% if comments %}
-        <ul class="list-unstyled mb-4">
+        <ul class="list-unstyled mb-0">
           {% for c in comments %}
-          <li class="border-bottom pb-3 mb-3" style="border-color:var(--border)!important;">
+          <li class="py-3 {% if not loop.last %}border-bottom{% endif %}" style="border-color:var(--border)!important;">
             <div class="d-flex justify-content-between gap-2 small mb-1">
               <strong>{{ c.author.full_name if c.author else '회원' }}</strong>
               <span class="text-muted">{{ c.created_at|local_dt_span('date_dots') }}</span>
@@ -59,18 +100,7 @@
           {% endfor %}
         </ul>
         {% else %}
-        <p class="text-muted small mb-4">첫 댓글을 남겨 보세요.</p>
-        {% endif %}
-
-        {% if user %}
-        <form method="post" action="/reviews/{{ review.id }}/comment">
-          <input type="hidden" name="next" value="/reviews/{{ review.id }}"/>
-          <label class="form-label small">댓글</label>
-          <textarea name="content" class="form-control form-control-sm mb-2" rows="3" required placeholder="일반 텍스트로 입력"></textarea>
-          <button type="submit" class="btn btn-primary btn-sm">등록</button>
-        </form>
-        {% else %}
-        <p class="small text-muted mb-0"><a href="/login?next=/reviews/{{ review.id }}">로그인</a> 후 댓글을 남길 수 있습니다.</p>
+        <p class="text-muted small mb-0">첫 댓글을 남겨 보세요.</p>
         {% endif %}
       </div>
     </section>

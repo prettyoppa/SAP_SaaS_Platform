@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -408,7 +408,10 @@ class Review(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     content = Column(Text, nullable=False)
-    rating = Column(Integer, default=5)  # 1~5점
+    # 0 = 저자 평점 없음(표시는 review_ratings 집계만). 과거 행은 마이그레이션 전까지 기존 값 유지 가능.
+    rating = Column(Integer, default=0, nullable=False)
+    # 화면 표시용 이름(비우면 익명). 기본값은 작성 시 계정 이름으로 채움.
+    display_name = Column(String(200), nullable=True)
     # 회원이 선택한 공개 여부. False면 작성자·관리자만 열람.
     is_public = Column(Boolean, default=True, nullable=False)
     # True면 회원이 공개로 올렸어도 목록·홈에서 숨김(작성자·관리자만 열람).
@@ -423,6 +426,28 @@ class Review(Base):
         order_by="ReviewComment.created_at",
         cascade="all, delete-orphan",
     )
+    ratings = relationship(
+        "ReviewRating",
+        back_populates="review",
+        cascade="all, delete-orphan",
+    )
+
+
+class ReviewRating(Base):
+    """다른 회원이 글에 매기는 별점(글 작성자 본인은 제외, 회원당 1회)."""
+
+    __tablename__ = "review_ratings"
+    __table_args__ = (UniqueConstraint("review_id", "user_id", name="uq_review_rating_user"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_id = Column(Integer, ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    stars = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    review = relationship("Review", back_populates="ratings")
+    rater = relationship("User", foreign_keys=[user_id])
 
 
 class ReviewComment(Base):

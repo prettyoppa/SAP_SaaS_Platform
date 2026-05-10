@@ -16,6 +16,7 @@ from .database import SessionLocal, db_target_log_line, engine
 from .email_smtp import email_verification_enabled, log_smtp_startup_checks
 from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
 from . import auth, models
+from .review_ratings_util import rating_aggregates_for_reviews
 from .rfp_landing import DEFAULT_SERVICE_ABAP_INTRO_MD_KO
 from .menu_landing import (
     DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO,
@@ -121,6 +122,7 @@ def _run_migrations():
         ("request_offer_inquiries", "parent_inquiry_id", "INTEGER", "INTEGER"),
         ("notices", "sort_order", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
         ("reviews", "admin_suppressed", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("reviews", "display_name", "VARCHAR(200)", "VARCHAR(200)"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -145,6 +147,10 @@ def _run_migrations():
                 )
             )
             conn.commit()
+    except Exception:
+        pass
+    try:
+        models.ReviewRating.__table__.create(bind=engine, checkfirst=True)
     except Exception:
         pass
 
@@ -508,6 +514,8 @@ app.include_router(paid_admin_router.router)
 def index(request: Request):
     from .database import SessionLocal as _SL
     _db = _SL()
+    reviews: list = []
+    reviews_rating_meta: dict = {}
     try:
         user = auth.get_current_user(request, _db)
         home_counts = None
@@ -539,19 +547,29 @@ def index(request: Request):
             .group_by(models.ReviewComment.review_id)
             .subquery()
         )
+        _ravg = (
+            _db.query(
+                models.ReviewRating.review_id,
+                func.avg(models.ReviewRating.stars).label("avg_s"),
+            )
+            .group_by(models.ReviewRating.review_id)
+            .subquery()
+        )
         reviews = (
             _db.query(models.Review)
             .options(joinedload(models.Review.author))
             .outerjoin(_rcc, models.Review.id == _rcc.c.review_id)
+            .outerjoin(_ravg, models.Review.id == _ravg.c.review_id)
             .filter(models.Review.is_public == True, models.Review.admin_suppressed == False)
             .order_by(
                 func.coalesce(_rcc.c.n, 0).desc(),
-                models.Review.rating.desc(),
+                func.coalesce(_ravg.c.avg_s, 0).desc(),
                 models.Review.created_at.desc(),
             )
             .limit(10)
             .all()
         )
+        reviews_rating_meta = rating_aggregates_for_reviews(_db, [r.id for r in reviews])
     finally:
         _db.close()
     return templates.TemplateResponse(request, "index.html", {
@@ -561,6 +579,7 @@ def index(request: Request):
         "notices": notices,
         "faqs": faqs,
         "reviews": reviews,
+        "reviews_rating_meta": reviews_rating_meta,
         "home_counts": home_counts,
         "proposal_offer_badges": proposal_offer_badges,
     })

@@ -12,6 +12,7 @@ from ..database import get_db
 from ..templates_config import templates
 from ..writing_guides_service import LOGICAL_KEYS, save_writing_guide_bilingual
 from ..email_smtp import send_consultant_approved_email
+from ..review_ratings_util import rating_aggregates_for_reviews
 
 router = APIRouter(prefix="/admin")
 
@@ -714,8 +715,9 @@ def admin_reviews(request: Request, db: Session = Depends(get_db)):
         .order_by(models.Review.created_at.desc())
         .all()
     )
+    rating_meta = rating_aggregates_for_reviews(db, [r.id for r in reviews])
     return templates.TemplateResponse(request, "admin/reviews.html", {
-        "request": request, "user": user, "reviews": reviews,
+        "request": request, "user": user, "reviews": reviews, "rating_meta": rating_meta,
     })
 
 

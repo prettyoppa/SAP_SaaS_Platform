@@ -10,7 +10,7 @@
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
           <div>
             <h3 class="mb-1"><i class="fa-solid fa-comments text-warning me-2"></i>문의/리뷰</h3>
-            <p class="text-muted small mb-0">회원 간 문의·후기·답글을 남기는 공간입니다. 비공개 글은 본인과 운영자만 볼 수 있습니다.</p>
+            <p class="text-muted small mb-0">회원 간 문의·후기·답글을 남기는 공간입니다. 글에 대한 별점은 <strong>다른 회원</strong>만 남길 수 있습니다. 비공개 글은 본인과 운영자만 볼 수 있습니다.</p>
           </div>
           <a href="/" class="btn btn-sm btn-outline-secondary">홈</a>
         </div>
@@ -26,15 +26,9 @@
             <h6 class="mb-3"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i>새 글 작성</h6>
             <form method="post" action="/reviews/write">
               <div class="mb-3">
-                <label class="form-label small">평점</label>
-                <div class="d-flex gap-1" id="ratingStars">
-                  {% for i in range(1, 6) %}
-                  <button type="button" class="star-btn" data-value="{{ i }}" onclick="setRating({{ i }})" aria-label="{{ i }}점">
-                    <i class="fa-regular fa-star" id="star{{ i }}"></i>
-                  </button>
-                  {% endfor %}
-                </div>
-                <input type="hidden" name="rating" id="ratingInput" value="5"/>
+                <label class="form-label small">표시 이름</label>
+                <input type="text" name="display_name" class="form-control form-control-sm" value="{{ user.full_name }}" maxlength="200" placeholder="비우면 익명으로 표시"/>
+                <div class="form-text small">계정 이름이 기본입니다. 지우면 작성자는 <strong>익명</strong>으로 보입니다.</div>
               </div>
               <div class="mb-3">
                 <label class="form-label small">내용 (일반 텍스트)</label>
@@ -53,29 +47,59 @@
         {% if board_reviews %}
         <div class="vstack gap-3">
           {% for r in board_reviews %}
-          <a href="/reviews/{{ r.id }}" class="text-decoration-none text-reset review-board-row card border p-3 shadow-sm" style="background:var(--surface2);border-color:var(--border)!important;">
-            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-              <div class="small">
-                <strong>{{ r.author.full_name if r.author else '회원' }}</strong>
-                <span class="text-muted ms-2">{{ r.created_at|local_dt_span('date_dots') }}</span>
+          {% set rm = rating_meta.get(r.id, {}) %}
+          {% set ravg = rm.get('avg') %}
+          {% set rcnt = rm.get('count', 0) %}
+          {% set filled = (ravg|round(0, 'common')|int) if ravg is not none and rcnt > 0 else 0 %}
+          <div class="review-board-card card border shadow-sm overflow-hidden" style="background:var(--surface2);border-color:var(--border)!important;">
+            <a href="/reviews/{{ r.id }}" class="text-reset text-decoration-none d-block p-3 review-board-card-link">
+              <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                <div class="small">
+                  <strong>{{ r|review_author_label }}</strong>
+                  <span class="text-muted ms-2">{{ r.created_at|local_dt_span('date_dots') }}</span>
+                </div>
+                <div class="text-nowrap small text-muted" title="다른 회원 평균">
+                  {% if rcnt > 0 and ravg is not none %}
+                  {% for i in range(filled) %}<i class="fa-solid fa-star text-warning" style="font-size:.75rem"></i>{% endfor %}
+                  {% for i in range(5 - filled) %}<i class="fa-regular fa-star text-muted" style="font-size:.75rem"></i>{% endfor %}
+                  <span class="ms-1">({{ rcnt }})</span>
+                  {% else %}
+                  <span class="text-muted">평점 없음</span>
+                  {% endif %}
+                </div>
               </div>
-              <div class="text-nowrap">
-                {% for i in range(r.rating) %}<i class="fa-solid fa-star text-warning" style="font-size:.75rem"></i>{% endfor %}
-                {% for i in range(5 - r.rating) %}<i class="fa-regular fa-star text-muted" style="font-size:.75rem"></i>{% endfor %}
+              <p class="small mb-2 text-muted review-board-snippet" style="white-space:pre-wrap;">{{ r.content }}</p>
+              <div class="d-flex flex-wrap gap-2 small">
+                {% if r.is_public and not r.admin_suppressed %}
+                <span class="badge bg-success bg-opacity-75">공개</span>
+                {% elif r.is_public and r.admin_suppressed %}
+                <span class="badge bg-warning text-dark">관리자 비노출</span>
+                {% else %}
+                <span class="badge bg-secondary">비공개</span>
+                {% endif %}
+                <span class="text-muted"><i class="fa-regular fa-comment me-1"></i>{{ (r.comments or [])|length }}</span>
               </div>
-            </div>
-            <p class="small mb-2 text-muted text-truncate-3" style="white-space:pre-wrap;max-height:4.5rem;overflow:hidden;">{{ r.content }}</p>
-            <div class="d-flex flex-wrap gap-2 small">
-              {% if r.is_public and not r.admin_suppressed %}
-              <span class="badge bg-success bg-opacity-75">공개</span>
-              {% elif r.is_public and r.admin_suppressed %}
-              <span class="badge bg-warning text-dark">관리자 비노출</span>
-              {% else %}
-              <span class="badge bg-secondary">비공개</span>
+            </a>
+            {% if user and (r.user_id is none or r.user_id != user.id) %}
+            <div class="px-3 py-2 border-top d-flex flex-wrap align-items-center gap-2" style="border-color:var(--border)!important;">
+              <span class="small text-muted flex-shrink-0">이 글 평가</span>
+              <div class="btn-group btn-group-sm review-rate-btns" role="group" aria-label="별점">
+                {% for s in range(1, 6) %}
+                <form method="post" action="/reviews/{{ r.id }}/rate" class="d-inline">
+                  <input type="hidden" name="next" value="/reviews"/>
+                  <input type="hidden" name="stars" value="{{ s }}"/>
+                  <button type="submit" class="btn btn-outline-warning {% if my_ratings.get(r.id) == s %}active{% endif %}" title="{{ s }}점">{{ s }}</button>
+                </form>
+                {% endfor %}
+              </div>
+              {% if my_ratings.get(r.id) %}
+              <span class="small text-success">저장됨 ({{ my_ratings.get(r.id) }}점)</span>
               {% endif %}
-              <span class="text-muted"><i class="fa-regular fa-comment me-1"></i>{{ (r.comments or [])|length }}</span>
             </div>
-          </a>
+            {% elif user and r.user_id is not none and r.user_id == user.id %}
+            <div class="px-3 py-2 border-top small text-muted" style="border-color:var(--border)!important;">본인 글에는 별점을 남길 수 없습니다.</div>
+            {% endif %}
+          </div>
           {% endfor %}
         </div>
         {% else %}
@@ -88,22 +112,15 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-function setRating(val) {
-  document.getElementById('ratingInput').value = val;
-  for (let i = 1; i <= 5; i++) {
-    const icon = document.getElementById('star' + i);
-    if (!icon) continue;
-    icon.className = i <= val ? 'fa-solid fa-star' : 'fa-regular fa-star';
-  }
-}
-setRating(5);
-</script>
 <style>
-.reviews-board-page .star-btn {
-  background: none; border: none; color: #eab308;
-  font-size: 1.35rem; cursor: pointer; padding: 0 2px;
+.review-board-card-link:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.review-board-snippet {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: 4.5rem;
 }
-.review-board-row:hover { border-color: var(--primary) !important; }
+.review-rate-btns .btn { min-width: 2rem; }
 </style>
 {% endblock %}
