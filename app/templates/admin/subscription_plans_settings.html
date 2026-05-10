@@ -8,8 +8,8 @@
       <div class="d-flex align-items-center gap-3">
         {% include 'partials/nav_prev_screen.html' %}
         <div>
-          <h4 class="mb-0"><i class="fa-solid fa-layer-group me-2 text-warning"></i>구독 플랜 관리</h4>
-          <small class="text-muted">플랜 페이지 상단 안내·프로모션 문구를 편집합니다. 추후 플랜별 권한·한도·실적은 이 메뉴에서 확장할 수 있습니다.</small>
+          <h4 class="mb-0"><i class="fa-solid fa-money-bill-wave me-2 text-warning"></i>구독 플랜 관리</h4>
+          <small class="text-muted">상단 안내 문구와 플랜별 기능 한도(entitlement)를 편집합니다. 사용량 집계·강제 수정·회원 플랜 배정은 다음 단계에서 확장합니다.</small>
         </div>
       </div>
     </div>
@@ -19,6 +19,26 @@
     {% if request.query_params.get('saved') %}
     <div class="alert alert-success d-flex align-items-center mb-4">
       <i class="fa-solid fa-circle-check me-2"></i> 저장되었습니다.
+    </div>
+    {% endif %}
+    {% if request.query_params.get('saved_ent') %}
+    <div class="alert alert-success d-flex align-items-center mb-4">
+      <i class="fa-solid fa-circle-check me-2"></i> 플랜 한도가 저장되었습니다.
+    </div>
+    {% endif %}
+    {% if request.query_params.get('seeded') %}
+    <div class="alert alert-success d-flex align-items-center mb-4">
+      <i class="fa-solid fa-circle-check me-2"></i> 기본 플랜·한도(entitlement) 데이터를 생성했습니다. 아래 표를 확인하세요.
+    </div>
+    {% endif %}
+    {% if request.query_params.get('seed_skipped') %}
+    <div class="alert alert-info d-flex align-items-center mb-4">
+      <i class="fa-solid fa-circle-info me-2"></i> 이미 플랜 행이 있어 시드를 건너뛰었습니다. 한도만 수정하려면 아래 표를 사용하세요.
+    </div>
+    {% endif %}
+    {% if request.query_params.get('saved_help') %}
+    <div class="alert alert-success d-flex align-items-center mb-4">
+      <i class="fa-solid fa-circle-check me-2"></i> 기능 설명(툴팁)이 저장되었습니다.
     </div>
     {% endif %}
 
@@ -46,6 +66,96 @@
           <a href="/subscription-plans" class="btn btn-outline-secondary ms-2" target="_blank" rel="noopener">미리보기</a>
         </div>
       </form>
+    </div>
+
+    <div class="admin-content-card mb-4">
+      <h6 class="mb-3 text-warning"><i class="fa-solid fa-circle-question me-2"></i>기능별 설명 (구독 플랜 페이지 툴팁)</h6>
+      <p class="text-muted small mb-3">
+        <strong>/subscription-plans</strong> 비교 표에서 각 기능명 오른쪽에 물음표가 나타나며, 마우스를 올리면 아래 텍스트가 말풍선으로 표시됩니다.
+        비우면 해당 기능에는 아이콘이 나오지 않습니다. 일반 텍스트만 지원합니다(Markdown 없음).
+      </p>
+      <form method="post" action="/admin/subscription-plans/feature-descriptions">
+        <div class="row g-3">
+          {% for mk in metric_order %}
+          <div class="col-md-6">
+            <label class="form-label small mb-1" for="help_{{ mk }}">{{ metric_labels.get(mk, mk) }}</label>
+            <textarea id="help_{{ mk }}" name="subscription_metric_help_{{ mk }}" class="form-control form-control-sm" rows="2"
+              placeholder="설명을 입력하면 공개 페이지에 툴팁으로 표시됩니다.">{{ settings.get('subscription_metric_help_' ~ mk, '') or '' }}</textarea>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>기능 설명 저장</button>
+          <a href="/subscription-plans" class="btn btn-outline-secondary ms-2" target="_blank" rel="noopener">미리보기</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="admin-content-card mb-4">
+      <h6 class="mb-3 text-warning"><i class="fa-solid fa-sliders me-2"></i>플랜별 기능 한도 (entitlement)</h6>
+      <p class="text-muted small mb-3">
+        <strong>기간 유형</strong>: 월간(monthly) · 요청 건당(per_request) · 무제한(unlimited) · 사용 불가(disabled).
+        월간/건당일 때만 <strong>숫자</strong>를 입력합니다. 무제한·불가는 숫자 비움.
+        개발 요청·복사·제안서·AI 문의 등은 앱 로직이 이 표의 metric과 연결되어 있습니다(UTC 월간 사용량은 별도 집계).
+      </p>
+
+      {% if has_plans %}
+      <form method="post" action="/admin/subscription-plans/entitlements">
+        {% for pv in plan_views %}
+        {% set p = pv.plan %}
+        <div class="border rounded p-3 mb-3 bg-body-secondary">
+          <div class="fw-semibold mb-2">
+            <span class="badge text-bg-secondary me-1">{{ p.account_kind }}</span>
+            {{ p.display_name_ko }} <code class="small">{{ p.code }}</code>
+          </div>
+          {% if pv.rows %}
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0 small">
+              <thead>
+                <tr>
+                  <th>기능</th>
+                  <th style="width:11rem">기간 유형</th>
+                  <th style="width:6rem">숫자</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ent in pv.rows %}
+                <tr>
+                  <td>{{ metric_labels.get(ent.metric_key, ent.metric_key) }}</td>
+                  <td>
+                    <select class="form-select form-select-sm" name="e_{{ ent.id }}_period">
+                      <option value="monthly" {% if ent.period_type == 'monthly' %}selected{% endif %}>monthly</option>
+                      <option value="per_request" {% if ent.period_type == 'per_request' %}selected{% endif %}>per_request</option>
+                      <option value="unlimited" {% if ent.period_type == 'unlimited' %}selected{% endif %}>unlimited</option>
+                      <option value="disabled" {% if ent.period_type == 'disabled' %}selected{% endif %}>disabled</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" class="form-control form-control-sm" name="e_{{ ent.id }}_limit" min="0" step="1"
+                      value="{{ ent.limit_value if ent.limit_value is not none else '' }}" />
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-warning small mb-0">이 플랜에 entitlement 행이 없습니다. DB를 점검하거나 개발자에게 문의하세요.</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>한도 저장</button>
+      </form>
+      {% else %}
+      <div class="alert alert-warning mb-3">
+        <strong>DB에 구독 플랜(<code>subscription_plans</code>)이 없습니다.</strong>
+        그래서 한도 편집 표가 숨겨져 있었습니다. 아래 버튼으로 기본 플랜·entitlement를 한 번에 생성할 수 있습니다.
+        (이미 플랜이 있으면 시드는 실행되지 않습니다.)
+      </div>
+      <form method="post" action="/admin/subscription-plans/seed-catalog" class="d-inline">
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-database me-1"></i>기본 플랜·한도 시드 생성</button>
+      </form>
+      {% endif %}
     </div>
   </div>
 </div>

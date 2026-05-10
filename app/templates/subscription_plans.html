@@ -12,6 +12,18 @@
 {%- endif -%}
 {%- endmacro %}
 
+{% macro feature_label(mk) -%}
+<div class="plan-compare-feature plan-compare-feature--labeled d-flex align-items-center justify-content-between gap-1 flex-wrap" role="rowheader">
+  <span>{{ metric_labels.get(mk, mk) }}</span>
+  {%- if metric_help.get(mk) -%}
+  <button type="button" class="btn btn-link p-0 plan-feature-help-btn text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" data-subscription-tooltip="1" title="{{ metric_help[mk] | replace('\n', ' ') | e }}">
+    <i class="fa-solid fa-circle-question text-muted" style="font-size:0.88rem" aria-hidden="true"></i>
+    <span class="visually-hidden">기능 설명</span>
+  </button>
+  {%- endif -%}
+</div>
+{%- endmacro %}
+
 {% block content %}
 {% set cta_href = '/account' if user else '/register' %}
 
@@ -143,16 +155,16 @@
                   <div role="columnheader">Power User</div>
                   <div role="columnheader">Process Innovator</div>
                 </div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">문의/리뷰 작성·조회·댓글</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 요청</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">요청 복사 생성</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">AI 문의</div><div>{{ pc('n') }}</div><div>{{ pc('건당 30회') }}</div><div>{{ pc('건당 60회') }}</div><div>{{ pc('건당 60회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 제안</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 제안 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">FS</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">FS 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 코드</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 코드 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('inquiry_review') }}<div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_request') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('request_duplicate') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('ai_inquiry') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 30회') }}</div><div>{{ pc('건당 60회') }}</div><div>{{ pc('건당 60회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('functional_spec') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('fs_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_code') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_code_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
               </div>
             </div>
           </div>
@@ -240,17 +252,17 @@
                   <div role="columnheader">Senior</div>
                   <div role="columnheader">Superior</div>
                 </div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">문의/리뷰 작성·조회·댓글</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 요청</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">요청 복사 생성</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">AI 문의</div><div>{{ pc('n') }}</div><div>{{ pc('건당 30회') }}</div><div>{{ pc('건당 60회') }}</div><div>{{ pc('건당 60회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 제안</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 제안 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">오퍼</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">FS</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">FS 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 코드</div><div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row"><div class="plan-compare-feature" role="rowheader">개발 코드 재생성</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('inquiry_review') }}<div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_request') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('request_duplicate') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('ai_inquiry') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 30회') }}</div><div>{{ pc('건당 60회') }}</div><div>{{ pc('건당 60회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('offer') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('functional_spec') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('fs_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_code') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_code_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
               </div>
             </div>
           </div>
@@ -265,4 +277,12 @@
     </div>
   </div>
 </div>
+<script>
+(function () {
+  if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+  document.querySelectorAll('[data-subscription-tooltip="1"]').forEach(function (el) {
+    new bootstrap.Tooltip(el, { container: 'body' });
+  });
+})();
+</script>
 {% endblock %}

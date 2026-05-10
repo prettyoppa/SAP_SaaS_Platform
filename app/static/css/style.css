@@ -3467,3 +3467,19 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
   opacity: 0.92;
 }
 
+/* 구독 플랜 비교 표 — 기능 설명 툴팁 */
+.subscription-plans-page .tooltip-inner {
+  max-width: min(22rem, 90vw);
+  text-align: left;
+  white-space: normal;
+}
+.subscription-plans-page .plan-feature-help-btn {
+  flex-shrink: 0;
+  line-height: 1;
+  min-width: 1.25rem;
+}
+.subscription-plans-page .plan-feature-help-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent, #6366f1) 55%, transparent);
+  outline-offset: 2px;
+}
+

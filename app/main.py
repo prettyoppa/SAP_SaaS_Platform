@@ -613,14 +613,26 @@ def index(request: Request):
 def subscription_plans_page(request: Request):
     """구독 플랜 안내(표시 전용; 상단 프로모션 문구는 SiteSettings)."""
     from .database import SessionLocal as _SL
+    from .subscription_catalog import (
+        METRIC_ORDER,
+        METRIC_LABEL_KO,
+        SUBSCRIPTION_METRIC_HELP_KEY_PREFIX,
+    )
 
     _db = _SL()
     raw_settings: dict = {}
+    user = None
     try:
         user = auth.get_current_user(request, _db)
         raw_settings = {s.key: s.value for s in _db.query(models.SiteSettings).all()}
     finally:
         _db.close()
+    metric_help: dict[str, str] = {}
+    for mk in METRIC_ORDER:
+        k = f"{SUBSCRIPTION_METRIC_HELP_KEY_PREFIX}{mk}"
+        v = (raw_settings.get(k) or "").strip()
+        if v:
+            metric_help[mk] = v
     return templates.TemplateResponse(
         request,
         "subscription_plans.html",
@@ -629,5 +641,7 @@ def subscription_plans_page(request: Request):
             "user": user,
             "subscription_notice_md_ko": (raw_settings.get("subscription_plans_notice_md_ko") or "").strip(),
             "subscription_notice_md_en": (raw_settings.get("subscription_plans_notice_md_en") or "").strip(),
+            "metric_labels": METRIC_LABEL_KO,
+            "metric_help": metric_help,
         },
     )

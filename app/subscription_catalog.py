@@ -47,6 +47,9 @@ METRIC_LABEL_KO: dict[str, str] = {
     METRIC_DEV_CODE_REGEN: "개발 코드 재생성",
 }
 
+# SiteSettings 키: subscription_metric_help_<metric_key> — 구독 플랜 페이지 기능 설명(툴팁)
+SUBSCRIPTION_METRIC_HELP_KEY_PREFIX = "subscription_metric_help_"
+
 
 def _e(
     db: Session,

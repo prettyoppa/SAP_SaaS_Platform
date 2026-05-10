@@ -14,7 +14,11 @@ from ..templates_config import templates
 from ..writing_guides_service import LOGICAL_KEYS, save_writing_guide_bilingual
 from ..email_smtp import send_consultant_approved_email
 from ..review_ratings_util import rating_aggregates_for_reviews
-from ..subscription_catalog import METRIC_LABEL_KO, METRIC_ORDER
+from ..subscription_catalog import (
+    METRIC_LABEL_KO,
+    METRIC_ORDER,
+    SUBSCRIPTION_METRIC_HELP_KEY_PREFIX,
+)
 from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
 
 router = APIRouter(prefix="/admin")
@@ -1052,7 +1056,9 @@ def admin_subscription_plans_settings(request: Request, db: Session = Depends(ge
             "user": user,
             "settings": raw,
             "plan_views": plan_views,
+            "has_plans": len(plan_views) > 0,
             "metric_labels": METRIC_LABEL_KO,
+            "metric_order": METRIC_ORDER,
         },
     )
 
@@ -1072,6 +1078,29 @@ async def admin_subscription_plans_settings_save(request: Request, db: Session =
             db.add(models.SiteSettings(key=key, value=val))
     db.commit()
     return RedirectResponse(url="/admin/subscription-plans?saved=1", status_code=302)
+
+
+@router.post("/subscription-plans/feature-descriptions")
+async def admin_subscription_feature_descriptions_save(request: Request, db: Session = Depends(get_db)):
+    """기능(metric)별 구독 플랜 페이지 툴팁 설명(일반 텍스트). SiteSettings subscription_metric_help_*"""
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    for mk in METRIC_ORDER:
+        key = f"{SUBSCRIPTION_METRIC_HELP_KEY_PREFIX}{mk}"
+        val = (form.get(key) or "").strip()
+        row = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
+        if not val:
+            if row:
+                db.delete(row)
+        else:
+            if row:
+                row.value = val
+            else:
+                db.add(models.SiteSettings(key=key, value=val))
+    db.commit()
+    return RedirectResponse(url="/admin/subscription-plans?saved_help=1", status_code=302)
 
 
 _ALLOWED_PERIOD = frozenset({"monthly", "per_request", "unlimited", "disabled"})
@@ -1101,3 +1130,19 @@ async def admin_subscription_entitlements_save(request: Request, db: Session = D
                     pass
     db.commit()
     return RedirectResponse(url="/admin/subscription-plans?saved_ent=1", status_code=302)
+
+
+@router.post("/subscription-plans/seed-catalog")
+def admin_subscription_plans_seed_catalog(request: Request, db: Session = Depends(get_db)):
+    """subscription_plans 테이블이 비어 있을 때만 카탈로그·entitlement 시드(운영 DB 복구용)."""
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    from ..subscription_catalog import seed_subscription_catalog
+
+    before = db.query(models.SubscriptionPlan).count()
+    seed_subscription_catalog(db)
+    after = db.query(models.SubscriptionPlan).count()
+    if after > before:
+        return RedirectResponse(url="/admin/subscription-plans?seeded=1", status_code=302)
+    return RedirectResponse(url="/admin/subscription-plans?seed_skipped=1", status_code=302)
