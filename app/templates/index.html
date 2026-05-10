@@ -96,27 +96,11 @@
               {% if reviews %}
               <div class="review-list">
                 {% for r in reviews %}
-                {% set rm = (reviews_rating_meta or {}).get(r.id, {}) %}
-                {% set ravg = rm.get('avg') %}
-                {% set rcnt = rm.get('count', 0) %}
-                {% set filled = (ravg|round(0, 'common')|int) if ravg is not none and rcnt > 0 else 0 %}
                 {% set rlabel = r|review_author_label %}
-                <a href="/reviews/{{ r.id }}" class="review-item-card text-decoration-none text-reset d-block">
-                  <div class="d-flex align-items-center gap-2 mb-1">
-                    <div class="review-avatar">{{ rlabel[0] if rlabel else '?' }}</div>
-                    <strong class="small">{{ rlabel }}</strong>
-                    <div class="ms-auto text-nowrap small text-muted" title="다른 회원 평균">
-                      {% if rcnt > 0 and ravg is not none %}
-                      {% for i in range(filled) %}<i class="fa-solid fa-star text-warning" style="font-size:.7rem"></i>{% endfor %}
-                      {% for i in range(5 - filled) %}<i class="fa-regular fa-star text-muted" style="font-size:.7rem"></i>{% endfor %}
-                      <span class="ms-1" style="font-size:.65rem">({{ rcnt }})</span>
-                      {% else %}
-                      <span style="font-size:.65rem">평점 없음</span>
-                      {% endif %}
-                    </div>
-                  </div>
-                  <p class="small text-muted mb-0 text-truncate">{{ r.content }}</p>
-                  <small class="text-muted" style="font-size:.7rem">{{ r.created_at|local_dt_span('date_dots') }}</small>
+                <a href="/reviews/{{ r.id }}" class="review-item-card review-item-card--compact text-decoration-none text-reset d-flex align-items-center gap-2 w-100">
+                  <span class="review-item-name small fw-semibold text-truncate">{{ rlabel }}</span>
+                  <span class="review-item-body small text-muted text-truncate flex-grow-1 min-w-0">{{ r.content }}</span>
+                  <span class="review-item-date small text-muted text-nowrap flex-shrink-0">{{ r.created_at|local_dt_span('date_dots') }}</span>
                 </a>
                 {% endfor %}
               </div>

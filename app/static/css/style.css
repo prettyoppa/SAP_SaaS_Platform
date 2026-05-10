@@ -1910,6 +1910,33 @@ span.btn.btn-sm.rfp-phase-btn.rfp-phase-btn--muted {
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.review-item-card--compact {
+  padding: 0.35rem 0.5rem;
+  margin-bottom: 0.35rem;
+  border-radius: 0.3rem;
+}
+.review-item-card--compact .review-item-name {
+  max-width: 28%;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+@media (max-width: 576px) {
+  .review-item-card--compact .review-item-name { max-width: 36%; }
+}
+/* 별점 제출 (문의/리뷰 보드·상세) */
+.review-star-rate { display: inline-flex; align-items: center; gap: 0.15rem; flex-wrap: wrap; }
+.review-star-rate form { display: inline-block; vertical-align: middle; margin: 0; }
+.review-star-submit {
+  color: var(--bs-warning, #ffc107) !important;
+  text-decoration: none !important;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.38;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  border: none; background: none;
+}
+.review-star-submit:hover { opacity: 0.85; transform: scale(1.08); }
+.review-star-submit--active { opacity: 1; }
 a.review-item-card:hover {
   border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 28%, transparent);

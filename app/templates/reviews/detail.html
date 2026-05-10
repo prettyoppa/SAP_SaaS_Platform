@@ -43,23 +43,19 @@
         <div class="review-body-text text-break" style="white-space: pre-wrap;">{{ review.content }}</div>
 
         {% if user and rating_ctx.can_rate %}
-        <div class="mt-4 pt-3 border-top" style="border-color:var(--border)!important;">
-          <div class="small text-muted mb-2">이 글 평가 (1~5점)</div>
-          <div class="btn-group btn-group-sm flex-wrap">
+        <div class="mt-4 pt-3 border-top d-flex align-items-center" style="border-color:var(--border)!important;">
+          <div class="review-star-rate" role="group" aria-label="별점">
             {% for s in range(1, 6) %}
-            <form method="post" action="/reviews/{{ review.id }}/rate" class="d-inline">
+            <form method="post" action="/reviews/{{ review.id }}/rate" class="d-inline m-0">
               <input type="hidden" name="next" value="/reviews/{{ review.id }}"/>
               <input type="hidden" name="stars" value="{{ s }}"/>
-              <button type="submit" class="btn btn-outline-warning {% if rating_ctx.my_stars == s %}active{% endif %}">{{ s }}점</button>
+              <button type="submit" class="btn btn-link p-0 review-star-submit {% if rating_ctx.my_stars == s %}review-star-submit--active{% endif %}" title="{{ s }}점" aria-label="{{ s }}점">
+                <i class="fa-solid fa-star"></i>
+              </button>
             </form>
             {% endfor %}
           </div>
-          {% if rating_ctx.my_stars %}
-          <div class="small text-success mt-2">내가 준 별점: {{ rating_ctx.my_stars }}점 (다시 누르면 변경)</div>
-          {% endif %}
         </div>
-        {% elif user and not rating_ctx.can_rate %}
-        <p class="small text-muted mt-4 mb-0">본인 글에는 별점을 남길 수 없습니다.</p>
         {% endif %}
 
         {% if can_delete %}

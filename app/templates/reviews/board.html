@@ -7,11 +7,8 @@
     <div class="row justify-content-center">
       <div class="col-lg-8">
         {% include 'partials/nav_prev_screen.html' %}
-        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-          <div>
-            <h3 class="mb-1"><i class="fa-solid fa-comments text-warning me-2"></i>문의/리뷰</h3>
-            <p class="text-muted small mb-0">회원 간 문의·후기·답글을 남기는 공간입니다. 글에 대한 별점은 <strong>다른 회원</strong>만 남길 수 있습니다. 비공개 글은 본인과 운영자만 볼 수 있습니다.</p>
-          </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+          <h3 class="mb-0"><i class="fa-solid fa-comments text-warning me-2"></i>문의/리뷰</h3>
           <a href="/" class="btn btn-sm btn-outline-secondary">홈</a>
         </div>
 
@@ -20,28 +17,6 @@
           <i class="fa-solid fa-circle-check me-2"></i>글이 등록되었습니다.
         </div>
         {% endif %}
-
-        <div class="card border shadow-sm mb-4" style="background:var(--surface2);border-color:var(--border)!important;">
-          <div class="card-body">
-            <h6 class="mb-3"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i>새 글 작성</h6>
-            <form method="post" action="/reviews/write">
-              <div class="mb-3">
-                <label class="form-label small">표시 이름</label>
-                <input type="text" name="display_name" class="form-control form-control-sm" value="{{ user.full_name }}" maxlength="200" placeholder="비우면 익명으로 표시"/>
-                <div class="form-text small">계정 이름이 기본입니다. 지우면 작성자는 <strong>익명</strong>으로 보입니다.</div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label small">내용 (일반 텍스트)</label>
-                <textarea name="content" class="form-control" rows="5" required placeholder="문의·이용 후기 등을 자유롭게 작성해 주세요."></textarea>
-              </div>
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" name="is_private" value="1" id="chkPrivate">
-                <label class="form-check-label small" for="chkPrivate">비공개 (본인·운영자만 열람)</label>
-              </div>
-              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-2"></i>등록</button>
-            </form>
-          </div>
-        </div>
 
         <h6 class="mb-3 text-muted">게시물</h6>
         {% if board_reviews %}
@@ -81,23 +56,19 @@
               </div>
             </a>
             {% if user and (r.user_id is none or r.user_id != user.id) %}
-            <div class="px-3 py-2 border-top d-flex flex-wrap align-items-center gap-2" style="border-color:var(--border)!important;">
-              <span class="small text-muted flex-shrink-0">이 글 평가</span>
-              <div class="btn-group btn-group-sm review-rate-btns" role="group" aria-label="별점">
+            <div class="px-3 py-2 border-top d-flex align-items-center" style="border-color:var(--border)!important;">
+              <div class="review-star-rate" role="group" aria-label="별점">
                 {% for s in range(1, 6) %}
-                <form method="post" action="/reviews/{{ r.id }}/rate" class="d-inline">
+                <form method="post" action="/reviews/{{ r.id }}/rate" class="d-inline m-0">
                   <input type="hidden" name="next" value="/reviews"/>
                   <input type="hidden" name="stars" value="{{ s }}"/>
-                  <button type="submit" class="btn btn-outline-warning {% if my_ratings.get(r.id) == s %}active{% endif %}" title="{{ s }}점">{{ s }}</button>
+                  <button type="submit" class="btn btn-link p-0 review-star-submit {% if my_ratings.get(r.id) == s %}review-star-submit--active{% endif %}" title="{{ s }}점" aria-label="{{ s }}점">
+                    <i class="fa-solid fa-star"></i>
+                  </button>
                 </form>
                 {% endfor %}
               </div>
-              {% if my_ratings.get(r.id) %}
-              <span class="small text-success">저장됨 ({{ my_ratings.get(r.id) }}점)</span>
-              {% endif %}
             </div>
-            {% elif user and r.user_id is not none and r.user_id == user.id %}
-            <div class="px-3 py-2 border-top small text-muted" style="border-color:var(--border)!important;">본인 글에는 별점을 남길 수 없습니다.</div>
             {% endif %}
           </div>
           {% endfor %}
@@ -105,6 +76,34 @@
         {% else %}
         <p class="text-muted small">표시할 글이 없습니다.</p>
         {% endif %}
+
+        <p class="mt-4 mb-2">
+          <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#reviewComposeCollapse" aria-expanded="false" aria-controls="reviewComposeCollapse" id="btnReviewCompose">
+            <i class="fa-solid fa-plus me-1"></i>새 글 작성
+          </button>
+        </p>
+        <div class="collapse {% if request.query_params.get('submitted') %}show{% endif %}" id="reviewComposeCollapse">
+          <div class="card border shadow-sm mb-2" style="background:var(--surface2);border-color:var(--border)!important;">
+            <div class="card-body">
+              <h6 class="mb-3"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i>새 글</h6>
+              <form method="post" action="/reviews/write">
+                <div class="mb-3">
+                  <label class="form-label small">표시 이름</label>
+                  <input type="text" name="display_name" class="form-control form-control-sm" value="{{ user.full_name }}" maxlength="200" placeholder="비우면 익명"/>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small">내용</label>
+                  <textarea name="content" class="form-control" rows="5" required placeholder="문의·이용 후기 등"></textarea>
+                </div>
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" name="is_private" value="1" id="chkPrivate">
+                  <label class="form-check-label small" for="chkPrivate">비공개 (본인·운영자만 열람)</label>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-2"></i>등록</button>
+              </form>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -121,6 +120,5 @@
   overflow: hidden;
   max-height: 4.5rem;
 }
-.review-rate-btns .btn { min-width: 2rem; }
 </style>
 {% endblock %}
