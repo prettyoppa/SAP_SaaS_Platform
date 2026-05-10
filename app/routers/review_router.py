@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -14,6 +14,11 @@ from ..review_ratings_util import (
 from ..templates_config import templates
 
 router = APIRouter(prefix="/reviews")
+
+
+def _wants_json_rate(request: Request) -> bool:
+    accept = (request.headers.get("accept") or "").lower()
+    return "application/json" in accept
 
 
 @router.get("", response_class=HTMLResponse)
@@ -125,14 +130,30 @@ def rate_review(
     next: str = Form("/reviews"),
     db: Session = Depends(get_db),
 ):
+    wants_json = _wants_json_rate(request)
     user = auth.get_current_user(request, db)
     if not user:
+        if wants_json:
+            return JSONResponse(
+                status_code=401,
+                content={"ok": False, "error": "auth", "message": "로그인이 필요합니다."},
+            )
         return RedirectResponse(url="/login?next=/reviews", status_code=302)
     stars = max(1, min(5, int(stars)))
     review = db.query(models.Review).filter(models.Review.id == review_id).first()
     if not review or not can_view_review(review, user):
+        if wants_json:
+            return JSONResponse(
+                status_code=404,
+                content={"ok": False, "error": "not_found", "message": "글을 찾을 수 없습니다."},
+            )
         return RedirectResponse(url="/reviews", status_code=303)
     if review.user_id is not None and int(review.user_id) == int(user.id):
+        if wants_json:
+            return JSONResponse(
+                status_code=403,
+                content={"ok": False, "error": "forbidden", "message": "본인 글에는 별점을 남길 수 없습니다."},
+            )
         nxt = (next or "").strip()
         if not nxt.startswith("/") or nxt.startswith("//"):
             nxt = "/reviews"
@@ -156,6 +177,16 @@ def rate_review(
             )
         )
     db.commit()
+    agg = rating_aggregates_for_reviews(db, [review_id]).get(review_id, {"avg": None, "count": 0})
+    if wants_json:
+        return JSONResponse(
+            {
+                "ok": True,
+                "stars": stars,
+                "avg": agg["avg"],
+                "count": agg["count"],
+            }
+        )
     nxt = (next or "").strip()
     if not nxt.startswith("/") or nxt.startswith("//"):
         nxt = f"/reviews/{review_id}"

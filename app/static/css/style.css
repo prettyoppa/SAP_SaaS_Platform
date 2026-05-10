@@ -1977,21 +1977,65 @@ a.review-item-card:hover {
   color: var(--text);
 }
 
-/* 문의/리뷰 보드·상세: 다크에서 본문·이름 대비 */
-.reviews-board-page .review-board-card-link,
-.reviews-board-page .review-board-card-link strong,
-.reviews-detail-page article.card .card-body > .review-body-text,
-.reviews-detail-page article.card .card-body strong:not(.badge) {
+/* 문의/리뷰 보드·상세: Bootstrap 카드 기본(--bs-card-color)이 어두운 색이라
+   다크 배경(surface2)에서 글자가 묻혀 보이는 문제 — 테마별로 카드·링크·본문 명시 */
+html[data-theme="dark"] .reviews-board-page .review-board-card,
+html[data-theme="dark"] .reviews-board-page .collapse .card,
+html[data-theme="dark"] .reviews-detail-page article.card {
+  --bs-card-color: var(--text);
+  --bs-body-color: var(--text);
+  color: var(--text);
+}
+html[data-theme="dark"] .reviews-board-page .review-board-card-link,
+html[data-theme="dark"] .reviews-board-page .review-board-card-link:visited,
+html[data-theme="dark"] .reviews-board-page .review-board-card-link strong {
   color: var(--text) !important;
 }
-.reviews-board-page .review-board-snippet {
-  color: color-mix(in srgb, var(--text) 88%, var(--muted)) !important;
+/* text-reset·.text-muted가 inherit/전역 규칙에 밀리지 않도록 보드 전용으로 상향 */
+html[data-theme="dark"] .reviews-board-page .review-board-card-link .text-muted,
+html[data-theme="dark"] .reviews-board-page .review-board-aggregate,
+html[data-theme="dark"] .reviews-board-page .review-board-aggregate .text-muted {
+  color: var(--label) !important;
+}
+html[data-theme="dark"] .reviews-board-page .review-board-snippet {
+  color: color-mix(in srgb, var(--text) 90%, var(--muted)) !important;
+}
+html[data-theme="light"] .reviews-board-page .review-board-card-link,
+html[data-theme="light"] .reviews-board-page .review-board-card-link strong {
+  color: var(--text) !important;
 }
 html[data-theme="light"] .reviews-board-page .review-board-snippet {
   color: color-mix(in srgb, var(--text) 78%, var(--muted)) !important;
 }
+html[data-theme="dark"] .reviews-detail-page article.card .card-body,
+html[data-theme="dark"] .reviews-detail-page .review-body-text,
+html[data-theme="dark"] .reviews-detail-page article.card .card-body strong:not(.badge) {
+  color: var(--text) !important;
+}
+html[data-theme="dark"] .reviews-detail-page .review-detail-aggregate,
+html[data-theme="dark"] .reviews-detail-page .review-detail-aggregate .text-muted {
+  color: var(--label) !important;
+}
+html[data-theme="dark"] .reviews-detail-page .card-body .text-muted {
+  color: var(--label) !important;
+}
+html[data-theme="light"] .reviews-detail-page article.card .card-body > .review-body-text,
+html[data-theme="light"] .reviews-detail-page article.card .card-body strong:not(.badge) {
+  color: var(--text) !important;
+}
 .reviews-detail-page .breadcrumb-item.active {
   color: var(--muted) !important;
+}
+html[data-theme="dark"] .reviews-detail-page .breadcrumb-item a {
+  color: var(--primary-light);
+}
+html[data-theme="dark"] .reviews-detail-page section.card {
+  --bs-card-color: var(--text);
+  --bs-body-color: var(--text);
+  color: var(--text);
+}
+html[data-theme="dark"] .reviews-detail-page section.card .text-muted {
+  color: var(--label) !important;
 }
 .review-avatar {
   width: 28px; height: 28px; border-radius: 50%;

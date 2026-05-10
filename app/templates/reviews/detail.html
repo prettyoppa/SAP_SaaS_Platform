@@ -18,7 +18,7 @@
             <strong>{{ review|review_author_label }}</strong>
             <div class="small text-muted">{{ review.created_at|local_dt_span('date_dots') }}</div>
           </div>
-          <div class="text-nowrap small text-muted">
+          <div class="review-detail-aggregate text-nowrap small text-muted">
             {% set rc = rating_ctx.count %}
             {% set av = rating_ctx.avg %}
             {% set filled = (av|round(0, 'common')|int) if av is not none and rc > 0 else 0 %}
@@ -47,7 +47,7 @@
         <div class="mt-4 pt-3 border-top d-flex align-items-center" style="border-color:var(--border)!important;">
           <div class="review-star-rate" role="group" aria-label="별점">
             {% for s in range(1, 6) %}
-            <form method="post" action="/reviews/{{ review.id }}/rate" class="d-inline m-0">
+            <form method="post" action="/reviews/{{ review.id }}/rate" class="d-inline m-0" data-no-busy="true" data-review-rate="1">
               <input type="hidden" name="next" value="/reviews/{{ review.id }}"/>
               <input type="hidden" name="stars" value="{{ s }}"/>
               <button type="submit" class="btn btn-link p-0 review-star-submit" title="{{ s }}점" aria-label="{{ s }}점">
@@ -111,4 +111,8 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/review_rating.js?v=20260509fetch"></script>
 {% endblock %}

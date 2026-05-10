@@ -28,13 +28,13 @@
           {% set rcnt = rm.get('count', 0) %}
           {% set filled = (ravg|round(0, 'common')|int) if ravg is not none and rcnt > 0 else 0 %}
           <div class="review-board-card card border shadow-sm overflow-hidden" style="background:var(--surface2);border-color:var(--border)!important;">
-            <a href="/reviews/{{ r.id }}" class="text-reset text-decoration-none d-block p-3 review-board-card-link">
+            <a href="/reviews/{{ r.id }}" class="text-decoration-none d-block p-3 review-board-card-link">
               <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                 <div class="small">
                   <strong>{{ r|review_author_label }}</strong>
                   <span class="text-muted ms-2">{{ r.created_at|local_dt_span('date_dots') }}</span>
                 </div>
-                <div class="text-nowrap small text-muted" title="다른 회원 평균">
+                <div class="review-board-aggregate text-nowrap small text-muted" title="다른 회원 평균">
                   {% if rcnt > 0 and ravg is not none %}
                   {% for i in range(filled) %}<i class="fa-solid fa-star text-warning" style="font-size:.75rem"></i>{% endfor %}
                   {% for i in range(5 - filled) %}<i class="fa-regular fa-star text-muted" style="font-size:.75rem"></i>{% endfor %}
@@ -60,7 +60,7 @@
             <div class="px-3 py-2 border-top d-flex align-items-center" style="border-color:var(--border)!important;">
               <div class="review-star-rate" role="group" aria-label="별점">
                 {% for s in range(1, 6) %}
-                <form method="post" action="/reviews/{{ r.id }}/rate" class="d-inline m-0">
+                <form method="post" action="/reviews/{{ r.id }}/rate" class="d-inline m-0" data-no-busy="true" data-review-rate="1">
                   <input type="hidden" name="next" value="/reviews"/>
                   <input type="hidden" name="stars" value="{{ s }}"/>
                   <button type="submit" class="btn btn-link p-0 review-star-submit" title="{{ s }}점" aria-label="{{ s }}점">
@@ -126,4 +126,5 @@
   max-height: 4.5rem;
 }
 </style>
+<script src="/static/js/review_rating.js?v=20260509fetch"></script>
 {% endblock %}
