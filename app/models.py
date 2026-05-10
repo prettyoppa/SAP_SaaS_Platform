@@ -581,6 +581,9 @@ class SubscriptionPlan(Base):
     display_name_ko = Column(String(128), nullable=False)
     sort_order = Column(Integer, nullable=False, default=0)
     is_active = Column(Boolean, nullable=False, default=True)
+    # 월 정액 표시용(결제 연동 전). NULL이면 subscription_catalog 기본가 사용.
+    price_monthly_krw = Column(Integer, nullable=True)
+    price_monthly_usd_cents = Column(Integer, nullable=True)
 
     entitlements = relationship(
         "PlanEntitlement",

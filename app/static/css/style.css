@@ -3263,6 +3263,19 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
 .subscription-plans-tabs-wrap {
   max-width: 72rem;
 }
+.subscription-plans-currency-row {
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+.subscription-plans-currency-toggle .btn {
+  min-width: 2.75rem;
+}
+.subscription-plans-currency-toggle .btn.active {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  border-color: transparent;
+  color: #fff;
+}
 .subscription-plans-segmented {
   display: flex;
   flex-wrap: wrap;
@@ -3359,6 +3372,11 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
   color: var(--text);
   margin: 0;
   line-height: 1.2;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.25rem;
 }
 .plan-price-period {
   font-size: 0.85rem;

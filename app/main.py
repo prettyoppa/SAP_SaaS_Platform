@@ -130,6 +130,8 @@ def _run_migrations():
         ("users", "subscription_plan_source", "VARCHAR(20) DEFAULT 'default'", "VARCHAR(20) DEFAULT 'default'"),
         ("users", "subscription_plan_expires_at", "DATETIME", "TIMESTAMP"),
         ("users", "experience_trial_ends_at", "DATETIME", "TIMESTAMP"),
+        ("subscription_plans", "price_monthly_krw", "INTEGER", "INTEGER"),
+        ("subscription_plans", "price_monthly_usd_cents", "INTEGER", "INTEGER"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -291,9 +293,10 @@ def _seed_subscription_catalog():
     """구독 플랜·entitlement 초기 데이터(테이블 비어 있을 때만)."""
     db: Session = SessionLocal()
     try:
-        from .subscription_catalog import seed_subscription_catalog
+        from .subscription_catalog import backfill_subscription_plan_prices_if_null, seed_subscription_catalog
 
         seed_subscription_catalog(db)
+        backfill_subscription_plan_prices_if_null(db)
     finally:
         db.close()
 
@@ -614,17 +617,50 @@ def subscription_plans_page(request: Request):
     """구독 플랜 안내(표시 전용; 상단 프로모션 문구는 SiteSettings)."""
     from .database import SessionLocal as _SL
     from .subscription_catalog import (
+        CONSULTANT_PLAN_PUBLIC_ORDER,
+        MEMBER_PLAN_PUBLIC_ORDER,
         METRIC_ORDER,
         METRIC_LABEL_KO,
         SUBSCRIPTION_METRIC_HELP_KEY_PREFIX,
+        format_monthly_krw_display,
+        format_monthly_usd_display,
+        resolve_plan_monthly_prices,
     )
 
     _db = _SL()
     raw_settings: dict = {}
     user = None
+    plan_prices_member: dict[str, dict[str, str]] = {}
+    plan_prices_consultant: dict[str, dict[str, str]] = {}
     try:
         user = auth.get_current_user(request, _db)
         raw_settings = {s.key: s.value for s in _db.query(models.SiteSettings).all()}
+        active_plans = (
+            _db.query(models.SubscriptionPlan)
+            .filter(models.SubscriptionPlan.is_active.is_(True))
+            .all()
+        )
+        by_key = {(p.account_kind, p.code): p for p in active_plans}
+        for code in MEMBER_PLAN_PUBLIC_ORDER:
+            p = by_key.get(("member", code))
+            if not p:
+                continue
+            krw, usdc = resolve_plan_monthly_prices(p)
+            plan_prices_member[code] = {
+                "fmt_krw": format_monthly_krw_display(krw),
+                "fmt_usd": format_monthly_usd_display(usdc),
+                "show_period": not (krw == 0 and usdc == 0),
+            }
+        for code in CONSULTANT_PLAN_PUBLIC_ORDER:
+            p = by_key.get(("consultant", code))
+            if not p:
+                continue
+            krw, usdc = resolve_plan_monthly_prices(p)
+            plan_prices_consultant[code] = {
+                "fmt_krw": format_monthly_krw_display(krw),
+                "fmt_usd": format_monthly_usd_display(usdc),
+                "show_period": not (krw == 0 and usdc == 0),
+            }
     finally:
         _db.close()
     metric_help: dict[str, str] = {}
@@ -643,5 +679,7 @@ def subscription_plans_page(request: Request):
             "subscription_notice_md_en": (raw_settings.get("subscription_plans_notice_md_en") or "").strip(),
             "metric_labels": METRIC_LABEL_KO,
             "metric_help": metric_help,
+            "plan_prices_member": plan_prices_member,
+            "plan_prices_consultant": plan_prices_consultant,
         },
     )

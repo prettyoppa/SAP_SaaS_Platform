@@ -26,8 +26,9 @@
 
 {% block content %}
 {% set cta_href = '/account' if user else '/register' %}
+{% set _pz = {'fmt_krw': '₩0', 'fmt_usd': '$0.00', 'show_period': False} %}
 
-<div class="subscription-plans-page">
+<div class="subscription-plans-page" data-sub-currency="krw">
   <div class="subscription-plans-hero">
     <div class="container py-4 py-lg-5">
       <nav aria-label="breadcrumb" class="subscription-plans-breadcrumb mb-3">
@@ -62,6 +63,19 @@
       {% endif %}
 
       <div class="subscription-plans-tabs-wrap mx-auto mt-4 mt-lg-5">
+        <div class="subscription-plans-currency-row d-flex justify-content-center align-items-center gap-2 mb-3 flex-wrap">
+          <span class="small text-muted">
+            <span class="nav-ko">표시 통화</span><span class="nav-en" style="display:none">Currency</span>
+          </span>
+          <div class="btn-group subscription-plans-currency-toggle" role="group" aria-label="표시 통화">
+            <button type="button" class="btn btn-outline-secondary btn-sm active" id="sub-currency-krw" data-currency="krw" aria-pressed="true" title="원화">
+              <i class="fa-solid fa-won-sign" aria-hidden="true"></i><span class="d-none d-sm-inline ms-1">KRW</span>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="sub-currency-usd" data-currency="usd" aria-pressed="false" title="US Dollar">
+              <i class="fa-solid fa-dollar-sign" aria-hidden="true"></i><span class="d-none d-sm-inline ms-1">USD</span>
+            </button>
+          </div>
+        </div>
         <div class="subscription-plans-segmented" role="tablist" aria-label="계정 유형">
           <button class="subscription-plans-segment active" id="tab-member-btn" data-bs-toggle="tab" data-bs-target="#tab-member" type="button" role="tab" aria-selected="true" aria-controls="tab-member">
             <i class="fa-solid fa-user me-2" aria-hidden="true"></i><span class="nav-ko">일반 회원</span><span class="nav-en" style="display:none">Member</span>
@@ -74,12 +88,16 @@
         <div class="tab-content subscription-plans-tab-panels mt-4" id="subscriptionPlansTabContent">
           {# ── 일반 회원 ── #}
           <div class="tab-pane fade show active" id="tab-member" role="tabpanel" aria-labelledby="tab-member-btn" tabindex="0">
+            {% set pm_exp = plan_prices_member.get('experience', _pz) %}
+            {% set pm_eu = plan_prices_member.get('end_user', _pz) %}
+            {% set pm_pu = plan_prices_member.get('power_user', _pz) %}
+            {% set pm_pi = plan_prices_member.get('process_innovator', _pz) %}
             <div class="row g-3 g-lg-4 justify-content-center subscription-plans-cards">
               <div class="col-6 col-lg-3">
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Experience</h3>
-                    <p class="plan-price-amount">₩0</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_exp.fmt_krw }}" data-fmt-usd="{{ pm_exp.fmt_usd }}">{{ pm_exp.fmt_krw }}</span>{% if pm_exp.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
                     <p class="plan-price-note text-muted small">문의·리뷰 무제한</p>
                     <ul class="plan-price-bullets small text-muted">
                       <li>커뮤니티 중심</li>
@@ -95,7 +113,7 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">End User</h3>
-                    <p class="plan-price-amount">₩10,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_eu.fmt_krw }}" data-fmt-usd="{{ pm_eu.fmt_usd }}">{{ pm_eu.fmt_krw }}</span>{% if pm_eu.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
                     <p class="plan-price-note text-muted small">개인·소규모 팀</p>
                     <ul class="plan-price-bullets small text-muted">
                       <li>월 3회 개발 요청</li>
@@ -112,7 +130,7 @@
                   <span class="plan-price-badge"><span class="nav-ko">추천</span><span class="nav-en" style="display:none">Popular</span></span>
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Power User</h3>
-                    <p class="plan-price-amount">₩30,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_pu.fmt_krw }}" data-fmt-usd="{{ pm_pu.fmt_usd }}">{{ pm_pu.fmt_krw }}</span>{% if pm_pu.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
                     <p class="plan-price-note text-muted small">많은 요청이 있는 경우</p>
                     <ul class="plan-price-bullets small text-muted">
                       <li>월 10회 개발 요청</li>
@@ -128,7 +146,7 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Process Innovator</h3>
-                    <p class="plan-price-amount">₩90,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_pi.fmt_krw }}" data-fmt-usd="{{ pm_pi.fmt_usd }}">{{ pm_pi.fmt_krw }}</span>{% if pm_pi.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
                     <p class="plan-price-note text-muted small">최대 한도</p>
                     <ul class="plan-price-bullets small text-muted">
                       <li>월 30회 개발 요청</li>
@@ -171,12 +189,16 @@
 
           {# ── 컨설턴트 ── #}
           <div class="tab-pane fade" id="tab-consultant" role="tabpanel" aria-labelledby="tab-consultant-btn" tabindex="0">
+            {% set pc_exp = plan_prices_consultant.get('experience', _pz) %}
+            {% set pc_ju = plan_prices_consultant.get('junior', _pz) %}
+            {% set pc_se = plan_prices_consultant.get('senior', _pz) %}
+            {% set pc_su = plan_prices_consultant.get('superior', _pz) %}
             <div class="row g-3 g-lg-4 justify-content-center subscription-plans-cards">
               <div class="col-6 col-lg-3">
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Experience</h3>
-                    <p class="plan-price-amount">₩0</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_exp.fmt_krw }}" data-fmt-usd="{{ pc_exp.fmt_usd }}">{{ pc_exp.fmt_krw }}</span>{% if pc_exp.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
                     <p class="plan-price-note text-muted small">문의·리뷰 무제한</p>
                     <ul class="plan-price-bullets small text-muted">
                       <li>커뮤니티 중심</li>
@@ -192,7 +214,7 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Junior</h3>
-                    <p class="plan-price-amount">₩20,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_ju.fmt_krw }}" data-fmt-usd="{{ pc_ju.fmt_usd }}">{{ pc_ju.fmt_krw }}</span>{% if pc_ju.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
                     <p class="plan-price-note text-muted small">입문 컨설턴트</p>
                     <ul class="plan-price-bullets small text-muted">
                       <li>월 3회 오퍼·FS·코드</li>
@@ -209,7 +231,7 @@
                   <span class="plan-price-badge"><span class="nav-ko">추천</span><span class="nav-en" style="display:none">Popular</span></span>
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Senior</h3>
-                    <p class="plan-price-amount">₩60,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_se.fmt_krw }}" data-fmt-usd="{{ pc_se.fmt_usd }}">{{ pc_se.fmt_krw }}</span>{% if pc_se.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
                     <p class="plan-price-note text-muted small">활동량이 많은 경우</p>
                     <ul class="plan-price-bullets small text-muted">
                       <li>월 10회 오퍼·FS·코드</li>
@@ -225,7 +247,7 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Superior</h3>
-                    <p class="plan-price-amount">₩150,000<span class="plan-price-period">/월</span></p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_su.fmt_krw }}" data-fmt-usd="{{ pc_su.fmt_usd }}">{{ pc_su.fmt_krw }}</span>{% if pc_su.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
                     <p class="plan-price-note text-muted small">최대 한도</p>
                     <ul class="plan-price-bullets small text-muted">
                       <li>월 30회 오퍼·FS·코드</li>
@@ -278,6 +300,34 @@
   </div>
 </div>
 <script>
+(function () {
+  var root = document.querySelector('.subscription-plans-page');
+  var KEY = 'subscriptionPlansCurrency';
+  var krwBtn = document.getElementById('sub-currency-krw');
+  var usdBtn = document.getElementById('sub-currency-usd');
+  function applyCurrency(c) {
+    if (!root) return;
+    root.setAttribute('data-sub-currency', c);
+    try { localStorage.setItem(KEY, c); } catch (e) {}
+    if (krwBtn && usdBtn) {
+      krwBtn.classList.toggle('active', c === 'krw');
+      usdBtn.classList.toggle('active', c === 'usd');
+      krwBtn.setAttribute('aria-pressed', c === 'krw' ? 'true' : 'false');
+      usdBtn.setAttribute('aria-pressed', c === 'usd' ? 'true' : 'false');
+    }
+    document.querySelectorAll('.plan-price-amount-display').forEach(function (el) {
+      var k = el.getAttribute('data-fmt-krw') || '';
+      var u = el.getAttribute('data-fmt-usd') || '';
+      el.textContent = c === 'usd' ? u : k;
+    });
+  }
+  var initial = 'krw';
+  try { initial = localStorage.getItem(KEY) || 'krw'; } catch (e) {}
+  if (initial !== 'usd' && initial !== 'krw') initial = 'krw';
+  applyCurrency(initial);
+  if (krwBtn) krwBtn.addEventListener('click', function () { applyCurrency('krw'); });
+  if (usdBtn) usdBtn.addEventListener('click', function () { applyCurrency('usd'); });
+})();
 (function () {
   if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
   document.querySelectorAll('[data-subscription-tooltip="1"]').forEach(function (el) {

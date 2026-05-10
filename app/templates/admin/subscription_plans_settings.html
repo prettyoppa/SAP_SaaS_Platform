@@ -9,7 +9,7 @@
         {% include 'partials/nav_prev_screen.html' %}
         <div>
           <h4 class="mb-0"><i class="fa-solid fa-lock-open me-2 text-warning"></i>구독 플랜 관리</h4>
-          <small class="text-muted">상단 안내 문구와 플랜별 기능 한도(entitlement)를 편집합니다. 사용량 집계·강제 수정·회원 플랜 배정은 다음 단계에서 확장합니다.</small>
+          <small class="text-muted">상단 안내·플랜별 월 요금(원/USD)·기능 한도(entitlement)를 편집합니다. 결제 연동·사용량 집계는 별도 확장입니다.</small>
         </div>
       </div>
     </div>
@@ -41,6 +41,74 @@
       <i class="fa-solid fa-circle-check me-2"></i> 기능 설명(툴팁)이 저장되었습니다.
     </div>
     {% endif %}
+    {% if request.query_params.get('saved_prices') %}
+    <div class="alert alert-success d-flex align-items-center mb-4">
+      <i class="fa-solid fa-circle-check me-2"></i> 플랜 월 요금(원·USD)이 저장되었습니다.
+    </div>
+    {% endif %}
+
+    <div class="admin-content-card mb-4">
+      <h6 class="mb-3 text-warning"><i class="fa-solid fa-tags me-2"></i>플랜별 월 요금 (표시용)</h6>
+      <p class="text-muted small mb-3">
+        <strong>/subscription-plans</strong> 카드에 표시되는 금액입니다. <strong>원/월</strong>은 정수(원), <strong>USD/월</strong>은 달러 기준 소수(예: 9.99)입니다.
+        둘 다 비우면 <code>subscription_catalog</code>에 정의된 기본가가 쓰입니다. 실제 청구·결제와는 별개이며, 결제 연동 후에는 PG 금액이 기준이 됩니다.
+      </p>
+      {% if has_plans %}
+      <form method="post" action="/admin/subscription-plans/prices">
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th>계정</th>
+                <th>플랜</th>
+                <th>코드</th>
+                <th style="min-width:7rem">원 / 월</th>
+                <th style="min-width:7rem">USD / 월</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pv in plan_views %}
+              {% set p = pv.plan %}
+              {% set hint_key = p.account_kind ~ ':' ~ p.code %}
+              <tr>
+                <td><span class="badge text-bg-secondary">{{ p.account_kind }}</span></td>
+                <td class="fw-medium">{{ p.display_name_ko }}</td>
+                <td><code>{{ p.code }}</code></td>
+                <td>
+                  <input type="number" class="form-control form-control-sm" name="p_{{ p.id }}_krw" min="0" step="1"
+                    {% if p.price_monthly_krw is not none %}value="{{ p.price_monthly_krw }}"{% endif %} placeholder="비움=기본" />
+                  <span class="d-block text-muted mt-1" style="font-size:0.72rem">{{ default_price_hints.get(hint_key, '') }}</span>
+                </td>
+                <td>
+                  <input type="number" class="form-control form-control-sm" name="p_{{ p.id }}_usd" min="0" step="0.01"
+                    {% if p.price_monthly_usd_cents is not none %}value="{{ '%.2f' % (p.price_monthly_usd_cents / 100) }}"{% endif %} placeholder="비움=기본" />
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>요금 저장</button>
+          <a href="/subscription-plans" class="btn btn-outline-secondary ms-2" target="_blank" rel="noopener">미리보기</a>
+        </div>
+      </form>
+      {% else %}
+      <p class="text-muted small mb-0">플랜 행이 없습니다. 아래에서 시드를 먼저 실행하세요.</p>
+      {% endif %}
+
+      <details class="mt-4 border rounded p-3 bg-body-secondary">
+        <summary class="fw-semibold small" style="cursor:pointer">
+          <i class="fa-solid fa-credit-card me-1 text-muted"></i>결제 기능을 붙일 때 참고 (요약)
+        </summary>
+        <div class="small text-muted mt-3 mb-0">
+          <p class="mb-2"><strong>해외·구독 SaaS에 흔한 방식:</strong> Stripe, Paddle, Lemon Squeezy 등은 구독 청구·카드·세금·영수증·웹훅을 묶어 줍니다. Checkout 또는 Customer Portal로 플랜 변경·해지 UI를 줄일 수 있습니다.</p>
+          <p class="mb-2"><strong>한국 카드·현지 정산:</strong> 토스페이먼츠, NHN KCP, 이니시스, <strong>포트원(아임포트)</strong> 등으로 카드·가상계좌를 붙이는 경우가 많습니다. 원화 정산과 부가세·현금영수증 정책을 먼저 정하는 것이 좋습니다.</p>
+          <p class="mb-2"><strong>B2B·수동:</strong> 계좌이체 후 관리자가 <code>/admin/users/…/subscription</code>에서 플랜·만료일을 부여하는 흐름은 초기에 가장 단순합니다. 결제 모듈 도입 후에는 &quot;결제 완료&quot; 웹훅에서 동일 필드를 갱신하면 됩니다.</p>
+          <p class="mb-0"><strong>이 앱과 맞추려면:</strong> User의 <code>subscription_plan_code</code>, <code>subscription_plan_expires_at</code>, <code>subscription_plan_source</code>(예: <code>stripe</code>)를 PG 웹훅·영수증 검증 후 갱신하고, 체험/쿠폰은 별도 테이블이나 메타데이터로 두는 패턴이 일반적입니다.</p>
+        </div>
+      </details>
+    </div>
 
     <div class="admin-content-card mb-4">
       <h6 class="mb-3 text-warning"><i class="fa-solid fa-bullhorn me-2"></i>구독 플랜 페이지 · 상단 안내</h6>

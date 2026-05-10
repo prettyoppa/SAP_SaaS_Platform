@@ -50,6 +50,58 @@ METRIC_LABEL_KO: dict[str, str] = {
 # SiteSettings 키: subscription_metric_help_<metric_key> — 구독 플랜 페이지 기능 설명(툴팁)
 SUBSCRIPTION_METRIC_HELP_KEY_PREFIX = "subscription_metric_help_"
 
+# 공개 카드 노출 순서(하드코드 UI와 동일)
+MEMBER_PLAN_PUBLIC_ORDER: tuple[str, ...] = (
+    "experience",
+    "end_user",
+    "power_user",
+    "process_innovator",
+)
+CONSULTANT_PLAN_PUBLIC_ORDER: tuple[str, ...] = (
+    "experience",
+    "junior",
+    "senior",
+    "superior",
+)
+
+# 기본 월 요금: (원화, USD 센트). DB price_* 가 NULL일 때·시드 시 사용.
+DEFAULT_PLAN_MONTHLY_PRICES: dict[tuple[str, str], tuple[int, int]] = {
+    ("member", "experience"): (0, 0),
+    ("member", "end_user"): (10_000, 800),
+    ("member", "power_user"): (30_000, 2_400),
+    ("member", "process_innovator"): (90_000, 7_200),
+    ("consultant", "experience"): (0, 0),
+    ("consultant", "junior"): (20_000, 1_600),
+    ("consultant", "senior"): (60_000, 4_800),
+    ("consultant", "superior"): (150_000, 12_000),
+}
+
+
+def resolve_plan_monthly_prices(plan: models.SubscriptionPlan) -> tuple[int, int]:
+    key = (plan.account_kind, plan.code)
+    d_krw, d_usd = DEFAULT_PLAN_MONTHLY_PRICES.get(key, (0, 0))
+    krw = plan.price_monthly_krw if plan.price_monthly_krw is not None else d_krw
+    usd = plan.price_monthly_usd_cents if plan.price_monthly_usd_cents is not None else d_usd
+    return krw, usd
+
+
+def format_monthly_krw_display(amount: int) -> str:
+    return f"₩{amount:,}"
+
+
+def format_monthly_usd_display(usd_cents: int) -> str:
+    return f"${usd_cents / 100:.2f}"
+
+
+def backfill_subscription_plan_prices_if_null(db: Session) -> None:
+    """기존 DB에 요금 컬럼만 추가된 경우 NULL 행을 기본가로 채움."""
+    for p in db.query(models.SubscriptionPlan).all():
+        if p.price_monthly_krw is None and p.price_monthly_usd_cents is None:
+            tup = DEFAULT_PLAN_MONTHLY_PRICES.get((p.account_kind, p.code))
+            if tup is not None:
+                p.price_monthly_krw, p.price_monthly_usd_cents = tup
+    db.commit()
+
 
 def _e(
     db: Session,
@@ -179,12 +231,15 @@ def seed_subscription_catalog(db: Session) -> None:
     ]
 
     for account_kind, code, name_ko, sort_order, fill_fn in specs:
+        tup = DEFAULT_PLAN_MONTHLY_PRICES.get((account_kind, code), (0, 0))
         p = models.SubscriptionPlan(
             account_kind=account_kind,
             code=code,
             display_name_ko=name_ko,
             sort_order=sort_order,
             is_active=True,
+            price_monthly_krw=tup[0],
+            price_monthly_usd_cents=tup[1],
         )
         db.add(p)
         db.flush()

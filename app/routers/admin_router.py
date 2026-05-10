@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from fastapi import APIRouter, Body, Depends, Request, Form, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -15,9 +16,12 @@ from ..writing_guides_service import LOGICAL_KEYS, save_writing_guide_bilingual
 from ..email_smtp import send_consultant_approved_email
 from ..review_ratings_util import rating_aggregates_for_reviews
 from ..subscription_catalog import (
+    DEFAULT_PLAN_MONTHLY_PRICES,
     METRIC_LABEL_KO,
     METRIC_ORDER,
     SUBSCRIPTION_METRIC_HELP_KEY_PREFIX,
+    format_monthly_krw_display,
+    format_monthly_usd_display,
 )
 from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
 
@@ -1025,6 +1029,31 @@ def admin_api_codelib_item_reference_payload(
 
 # ── 구독 플랜(안내 문구 · 추후 권한/한도 확장) ─────────────────
 
+def _parse_optional_krw_val(raw) -> int | None:
+    if raw is None:
+        return None
+    s = str(raw).strip().replace(",", "")
+    if not s:
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
+def _parse_optional_usd_to_cents(raw) -> int | None:
+    if raw is None:
+        return None
+    s = str(raw).strip().replace(",", "")
+    if not s:
+        return None
+    try:
+        d = Decimal(s)
+        return int((d * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    except (InvalidOperation, ValueError):
+        return None
+
+
 SUBSCRIPTION_PLAN_NOTICE_KEYS = (
     "subscription_plans_notice_md_ko",
     "subscription_plans_notice_md_en",
@@ -1048,6 +1077,11 @@ def admin_subscription_plans_settings(request: Request, db: Session = Depends(ge
         emap = {e.metric_key: e for e in (p.entitlements or [])}
         rows = [emap[k] for k in METRIC_ORDER if k in emap]
         plan_views.append({"plan": p, "rows": rows})
+    default_price_hints: dict[str, str] = {}
+    for (kind, code), (krw, usdc) in DEFAULT_PLAN_MONTHLY_PRICES.items():
+        default_price_hints[f"{kind}:{code}"] = (
+            f"미입력 시: {format_monthly_krw_display(krw)} · {format_monthly_usd_display(usdc)}"
+        )
     return templates.TemplateResponse(
         request,
         "admin/subscription_plans_settings.html",
@@ -1059,6 +1093,7 @@ def admin_subscription_plans_settings(request: Request, db: Session = Depends(ge
             "has_plans": len(plan_views) > 0,
             "metric_labels": METRIC_LABEL_KO,
             "metric_order": METRIC_ORDER,
+            "default_price_hints": default_price_hints,
         },
     )
 
@@ -1101,6 +1136,22 @@ async def admin_subscription_feature_descriptions_save(request: Request, db: Ses
                 db.add(models.SiteSettings(key=key, value=val))
     db.commit()
     return RedirectResponse(url="/admin/subscription-plans?saved_help=1", status_code=302)
+
+
+@router.post("/subscription-plans/prices")
+async def admin_subscription_plan_prices_save(request: Request, db: Session = Depends(get_db)):
+    """플랜별 월 요금: 원화 정수·USD 달러(소수). 비우면 DB NULL → 공개 페이지 기본가."""
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    for p in db.query(models.SubscriptionPlan).all():
+        krw = _parse_optional_krw_val(form.get(f"p_{p.id}_krw"))
+        usd_cents = _parse_optional_usd_to_cents(form.get(f"p_{p.id}_usd"))
+        p.price_monthly_krw = krw
+        p.price_monthly_usd_cents = usd_cents
+    db.commit()
+    return RedirectResponse(url="/admin/subscription-plans?saved_prices=1", status_code=302)
 
 
 _ALLOWED_PERIOD = frozenset({"monthly", "per_request", "unlimited", "disabled"})
