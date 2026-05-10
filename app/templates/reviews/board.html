@@ -22,6 +22,7 @@
         {% if board_reviews %}
         <div class="vstack gap-3">
           {% for r in board_reviews %}
+          {% set mine = my_ratings.get(r.id) or 0 %}
           {% set rm = rating_meta.get(r.id, {}) %}
           {% set ravg = rm.get('avg') %}
           {% set rcnt = rm.get('count', 0) %}
@@ -62,8 +63,12 @@
                 <form method="post" action="/reviews/{{ r.id }}/rate" class="d-inline m-0">
                   <input type="hidden" name="next" value="/reviews"/>
                   <input type="hidden" name="stars" value="{{ s }}"/>
-                  <button type="submit" class="btn btn-link p-0 review-star-submit {% if my_ratings.get(r.id) == s %}review-star-submit--active{% endif %}" title="{{ s }}점" aria-label="{{ s }}점">
-                    <i class="fa-solid fa-star"></i>
+                  <button type="submit" class="btn btn-link p-0 review-star-submit" title="{{ s }}점" aria-label="{{ s }}점">
+                    {% if mine >= s %}
+                    <i class="fa-solid fa-star review-star-icon review-star-icon--filled" aria-hidden="true"></i>
+                    {% else %}
+                    <i class="fa-solid fa-star review-star-icon review-star-icon--empty" aria-hidden="true"></i>
+                    {% endif %}
                   </button>
                 </form>
                 {% endfor %}

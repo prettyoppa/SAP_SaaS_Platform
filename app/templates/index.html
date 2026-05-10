@@ -68,7 +68,7 @@
                 <p class="text-muted small" data-i18n="home.notice.empty">등록된 공지사항이 없습니다.</p>
               </div>
               {% endif %}
-              <div class="text-end mt-2 pt-1 border-top border-secondary border-opacity-25">
+              <div class="text-end mt-2 pt-2">
                 <a href="/notices" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.notice.all">공지사항 전체 목록</a>
               </div>
             </div>
@@ -76,7 +76,7 @@
               {% if faqs %}
               <div class="home-faq-link-list">
                 {% for faq in faqs %}
-                <a href="/faqs/{{ faq.id }}" class="home-faq-row d-flex align-items-center gap-2 text-decoration-none text-reset py-2 border-bottom border-secondary border-opacity-25">
+                <a href="/faqs/{{ faq.id }}" class="home-faq-row d-flex align-items-center gap-2 text-decoration-none text-reset py-2">
                   <i class="fa-solid fa-chevron-right fa-xs text-muted flex-shrink-0"></i>
                   <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body">{{ faq.question|md_html }}</span>
                 </a>
@@ -88,7 +88,7 @@
                 <p class="text-muted small" data-i18n="home.faq.empty">등록된 FAQ가 없습니다.</p>
               </div>
               {% endif %}
-              <div class="text-end mt-2 pt-1 border-top border-secondary border-opacity-25">
+              <div class="text-end mt-2 pt-2">
                 <a href="/faqs" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.faq.all">FAQ 전체 목록</a>
               </div>
             </div>
@@ -110,7 +110,7 @@
                 <p class="text-muted small" data-i18n="home.review.empty">등록된 글이 없습니다.</p>
               </div>
               {% endif %}
-              <div class="text-end mt-2 pt-1 border-top border-secondary border-opacity-25">
+              <div class="text-end mt-2 pt-2">
                 <a href="/reviews" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.review.all">문의/리뷰 전체 목록</a>
               </div>
             </div>

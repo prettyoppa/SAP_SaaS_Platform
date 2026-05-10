@@ -59,6 +59,9 @@ html[data-theme="dark"] .brand-logo-dark-only {
   --scrollbar-track: rgba(255, 255, 255, 0.06);
   --scrollbar-thumb: #505a78;
   --scrollbar-thumb-hover: #7d8aac;
+  /* 문의/리뷰 별점 입력 — 미선택 별 윤곽(내부는 비워 보이게) */
+  --review-star-outline: rgba(232, 237, 245, 0.55);
+  --review-star-outline-strong: rgba(248, 250, 252, 0.88);
 }
 
 /* ── 라이트 테마 ────────────────────────────── */
@@ -89,6 +92,8 @@ html[data-theme="light"] {
   --abap-float-chat-surface: #e8eef8;
   --abap-float-chat-surface2: #dde7f5;
   --abap-float-chat-border: #b8c5da;
+  --review-star-outline: rgba(51, 65, 85, 0.75);
+  --review-star-outline-strong: rgba(15, 23, 42, 0.9);
 }
 
 /* ── 라이트 테마 컴포넌트 오버라이드 ─────────── */
@@ -271,7 +276,7 @@ html[data-theme="light"] .interview-page { background: var(--bg); }
 html[data-theme="light"] .generating-card { background: var(--surface); border-color: var(--border); }
 
 html[data-theme="light"] .review-card,
-html[data-theme="light"] .review-item-card { background: var(--surface); border-color: var(--border); }
+html[data-theme="light"] .review-item-card { background: transparent; border: none; }
 
 html[data-theme="light"] .company-autocomplete-list { background: var(--surface); border-color: var(--border); }
 html[data-theme="light"] .company-autocomplete-list li { color: var(--text); }
@@ -1271,7 +1276,7 @@ html {
 }
 .notice-item {
   display: flex; align-items: center; gap: .6rem;
-  padding: .7rem .5rem; border-bottom: 1px solid var(--border);
+  padding: .55rem .25rem; border-bottom: none;
   font-size: .88rem;
 }
 .notice-item:last-child { border-bottom: none; }
@@ -1905,14 +1910,17 @@ span.btn.btn-sm.rfp-phase-btn.rfp-phase-btn--muted {
 /* ── Review Cards (Home) ─────── */
 .review-list { max-height: 280px; overflow-y: auto; padding-right: 4px; }
 .review-item-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 0.4rem; padding: 0.75rem; margin-bottom: 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.35rem;
+  padding: 0.75rem;
+  margin-bottom: 0.35rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 .review-item-card--compact {
-  padding: 0.35rem 0.5rem;
-  margin-bottom: 0.35rem;
+  padding: 0.35rem 0.35rem;
+  margin-bottom: 0.25rem;
   border-radius: 0.3rem;
 }
 .review-item-card--compact .review-item-name {
@@ -1923,23 +1931,67 @@ span.btn.btn-sm.rfp-phase-btn.rfp-phase-btn--muted {
 @media (max-width: 576px) {
   .review-item-card--compact .review-item-name { max-width: 36%; }
 }
-/* 별점 제출 (문의/리뷰 보드·상세) */
+/* 별점 제출 (문의/리뷰 보드·상세): 미선택=윤곽만, 선택 시 1~N번째까지 채움 */
 .review-star-rate { display: inline-flex; align-items: center; gap: 0.15rem; flex-wrap: wrap; }
 .review-star-rate form { display: inline-block; vertical-align: middle; margin: 0; }
 .review-star-submit {
-  color: var(--bs-warning, #ffc107) !important;
   text-decoration: none !important;
-  font-size: 1rem;
   line-height: 1;
-  opacity: 0.38;
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  border: none; background: none;
+  border: none;
+  background: none;
+  padding: 0.1rem !important;
+  transition: transform 0.12s ease, filter 0.12s ease;
 }
-.review-star-submit:hover { opacity: 0.85; transform: scale(1.08); }
-.review-star-submit--active { opacity: 1; }
+.review-star-submit:hover { transform: scale(1.1); }
+.review-star-submit:focus-visible {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.review-star-submit .review-star-icon {
+  font-size: 1.05rem;
+  display: block;
+  line-height: 1;
+}
+/* 채워진 별(내가 준 점수 이하 구간) */
+.review-star-submit .review-star-icon--filled {
+  color: var(--warning) !important;
+  -webkit-text-stroke: 0 transparent;
+  filter: drop-shadow(0 0 0.5px color-mix(in srgb, var(--warning) 40%, transparent));
+}
+/* 비어 있는 별: 속 투명 + 굵은 윤곽(노란 채움 없음) */
+.review-star-submit .review-star-icon--empty {
+  color: transparent !important;
+  -webkit-text-stroke: 1.35px var(--review-star-outline-strong);
+  opacity: 1;
+}
+.review-star-submit:hover .review-star-icon--empty {
+  -webkit-text-stroke-color: var(--primary-light);
+  opacity: 1;
+}
 a.review-item-card:hover {
-  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 28%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border-radius: 0.35rem;
+}
+.home-tab-content .review-item-card .review-item-name {
+  color: var(--text);
+}
+
+/* 문의/리뷰 보드·상세: 다크에서 본문·이름 대비 */
+.reviews-board-page .review-board-card-link,
+.reviews-board-page .review-board-card-link strong,
+.reviews-detail-page article.card .card-body > .review-body-text,
+.reviews-detail-page article.card .card-body strong:not(.badge) {
+  color: var(--text) !important;
+}
+.reviews-board-page .review-board-snippet {
+  color: color-mix(in srgb, var(--text) 88%, var(--muted)) !important;
+}
+html[data-theme="light"] .reviews-board-page .review-board-snippet {
+  color: color-mix(in srgb, var(--text) 78%, var(--muted)) !important;
+}
+.reviews-detail-page .breadcrumb-item.active {
+  color: var(--muted) !important;
 }
 .review-avatar {
   width: 28px; height: 28px; border-radius: 50%;
@@ -1952,7 +2004,7 @@ a.review-item-card:hover {
 /* ── Notice items (Home) ─────── */
 .notice-item {
   display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0.15rem; border-bottom: none;
 }
 .notice-item:last-child { border-bottom: none; }
 .notice-badge {
@@ -2861,15 +2913,14 @@ html[data-theme="dark"] .navbar-custom .nav-request-console-bubble::before {
 .notice-item-link:hover {
   background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
+.home-faq-link-list .home-faq-row {
+  border-bottom: none !important;
+}
 .home-faq-link-list .home-faq-row:last-child {
   border-bottom: none !important;
 }
 .home-faq-row:hover {
   background: color-mix(in srgb, var(--primary) 8%, transparent);
-}
-a.review-item-card:hover {
-  background: color-mix(in srgb, var(--primary) 6%, transparent);
-  border-radius: 0.35rem;
 }
 
 .site-content-page {
