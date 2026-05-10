@@ -2994,41 +2994,6 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
   color: var(--primary);
 }
 
-/* 홈 문의/리뷰 탭: 이동 안내 */
-.home-review-guide {
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--text);
-  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-.home-review-guide ul {
-  margin-bottom: 0;
-  padding-left: 1.15rem;
-}
-.home-review-guide li {
-  margin-bottom: 0.35rem;
-}
-.home-review-guide li:last-child {
-  margin-bottom: 0;
-}
-.home-review-guide kbd,
-.home-review-guide .guide-kbd {
-  font-size: 0.72rem;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--label);
-}
-html[data-theme="dark"] .home-review-guide {
-  background: color-mix(in srgb, var(--primary) 22%, var(--surface2));
-}
-.home-review-tab-cta .btn {
-  font-weight: 600;
-}
-
 /* 공지/FAQ 목록·제목 마크다운(한 줄·짧은 블록) */
 .site-content-toolbar {
   gap: 0.5rem;
