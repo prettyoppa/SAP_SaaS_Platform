@@ -69,7 +69,7 @@
           </a>
         </li>
         {% if user %}
-        {% if user.is_consultant %}
+        {% if user.is_consultant or user.is_admin %}
         {% set nav_console_pending = request.state.nav_console_pending_inquiry|default(false) %}
         <li class="nav-item nav-item-request-console position-relative">
           <div class="nav-request-console-link-wrap position-relative">

@@ -205,6 +205,42 @@ html[data-theme="dark"] .btn-console-offer:hover {
     {% if console_consultant_inquiry_ok is defined and console_consultant_inquiry_ok %}
     <div class="alert alert-success small py-2 mb-2 mx-1">회원에게 문의를 보냈습니다.</div>
     {% endif %}
+    {% if user.is_admin and console_pending_inquiry_rows is defined and console_pending_inquiry_rows %}
+    <details class="border rounded small mb-2 mx-1">
+      <summary class="px-2 py-2 fw-semibold user-select-none" style="cursor:pointer">문의 답변 대기 (관리자) · {{ console_pending_inquiry_rows|length }}건</summary>
+      <div class="table-responsive border-top">
+        <table class="table table-sm table-striped mb-0 small">
+          <thead>
+            <tr>
+              <th>요청</th>
+              <th>회원</th>
+              <th>담당 컨설턴트</th>
+              <th>마지막 글</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in console_pending_inquiry_rows %}
+            <tr>
+              <td>
+                <div class="fw-medium">{{ p.title }}</div>
+                <div class="text-muted">{{ p.request_no }} · {{ p.kind_ko }} · 오퍼 #{{ p.offer_id }}</div>
+              </td>
+              <td>{{ p.owner_name }}</td>
+              <td>{{ p.consultant_name }}</td>
+              <td>
+                {% if p.last_author_role %}<span class="text-muted">{{ p.last_author_role }}</span>{% endif %}
+                {{ p.last_author_name }}
+                {% if p.last_preview %}<div class="text-muted text-truncate" style="max-width:14rem" title="{{ p.last_preview }}">{{ p.last_preview }}</div>{% endif %}
+              </td>
+              <td class="text-nowrap"><a class="btn btn-sm btn-outline-primary" href="{{ p.hub_url }}" target="_blank" rel="noopener">허브</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+    {% endif %}
 
     <div class="request-console-shell" id="request-console-shell">
       <div id="console-inline-loading" class="console-inline-loading" hidden>
@@ -288,7 +324,16 @@ html[data-theme="dark"] .btn-console-offer:hover {
             <div class="small text-muted text-nowrap">{{ r.created_at|local_dt_span }}</div>
           </div>
           <div class="mail-sub">{{ r.request_no }} · {{ r.kind_ko }} · {{ bucket_meta[r.bucket].label }}</div>
-          <div class="mail-sub">{{ r.owner_name }}{% if r.owner_company %} · {{ r.owner_company }}{% endif %}</div>
+          {% if user.is_consultant and r.request_offer_total_count is defined %}
+          <div class="mail-sub text-muted" title="이 요청에 다른 컨설턴트 오퍼를 포함한 총 오퍼 건수입니다.">
+            <i class="fa-solid fa-hand-holding me-1" aria-hidden="true"></i>이 요청 오퍼 {{ r.request_offer_total_count }}건 · {% if r.request_has_matched %}<span class="text-body-secondary">매칭 있음</span>{% else %}미매칭{% endif %}
+          </div>
+          {% elif user.is_admin and r.request_offer_total_count is defined %}
+          <div class="mail-sub text-muted" title="해당 요청(RequestOffer) 건수입니다.">
+            <i class="fa-solid fa-chart-simple me-1" aria-hidden="true"></i>오퍼 {{ r.request_offer_total_count }}건 · 제안 중 {{ r.request_offer_open_count }} · 매칭 {{ r.request_offer_matched_count }}
+          </div>
+          {% endif %}
+          <div class="mail-sub">{{ r.owner_name }}{% if r.owner_company %} · {{ r.owner_company }}{% endif %}{% if r.offer_consultant_name is defined and r.offer_consultant_name %} · <span class="text-muted">컨설턴트</span> {{ r.offer_consultant_name }}{% endif %}</div>
         </div>
         {% endfor %}
       {% else %}
@@ -306,6 +351,16 @@ html[data-theme="dark"] .btn-console-offer:hover {
           <div class="small text-muted">{{ selected_row.request_no }} · {{ selected_row.kind_ko }}</div>
           <h5 class="mb-1">{{ selected_row.title }}</h5>
           <div class="small text-muted">{{ bucket_meta[selected_row.bucket].label }} · {{ selected_row.created_at|local_dt_span }}</div>
+          {% if selected_row.offer_consultant_name is defined and selected_row.offer_consultant_name %}
+          <div class="small text-muted mt-1"><i class="fa-solid fa-user-tie me-1"></i>컨설턴트: {{ selected_row.offer_consultant_name }}{% if selected_row.offer_consultant_email %} <span class="font-monospace">· {{ selected_row.offer_consultant_email }}</span>{% endif %}</div>
+          {% endif %}
+          {% if user.is_consultant and selected_row.request_offer_total_count is defined %}
+          <div class="small text-muted mt-1" title="이 요청에 다른 컨설턴트 오퍼를 포함한 총 오퍼 건수입니다.">
+            <i class="fa-solid fa-hand-holding me-1" aria-hidden="true"></i>이 요청 오퍼 {{ selected_row.request_offer_total_count }}건 · {% if selected_row.request_has_matched %}매칭 있음{% else %}미매칭{% endif %}
+          </div>
+          {% elif user.is_admin and selected_row.request_offer_total_count is defined %}
+          <div class="small text-muted mt-1">오퍼 {{ selected_row.request_offer_total_count }}건 · 제안 중 {{ selected_row.request_offer_open_count }} · 매칭 {{ selected_row.request_offer_matched_count }}</div>
+          {% endif %}
         </div>
         <div class="d-flex gap-1 align-items-start">
           <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>

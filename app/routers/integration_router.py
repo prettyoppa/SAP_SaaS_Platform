@@ -9,6 +9,7 @@ from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, auth
@@ -46,6 +47,7 @@ from ..devtype_catalog import (
 )
 from ..offer_inquiry_service import (
     inquiries_by_offer_id,
+    pending_inquiry_reply_offer_ids_all,
     pending_inquiry_reply_offer_ids_for_consultant,
     public_request_url,
     send_consultant_matched_first_inquiry_to_owner,
@@ -180,17 +182,19 @@ def _console_row_for_offer_target(db: Session, kind: str, req_id: int) -> dict[s
     return None
 
 
-def _console_rows_from_offers(db: Session, consultant_user_id: int, *, matched_only: bool) -> list[dict[str, Any]]:
+def _console_rows_from_offers(
+    db: Session, consultant_user_id: int | None, *, matched_only: bool
+) -> list[dict[str, Any]]:
+    """consultant_user_id가 None이면 전체 컨설턴트의 오퍼/매칭(관리자 Console)."""
     st = "matched" if matched_only else "offered"
-    offers = (
+    q = (
         db.query(models.RequestOffer)
-        .filter(
-            models.RequestOffer.consultant_user_id == consultant_user_id,
-            models.RequestOffer.status == st,
-        )
-        .order_by(models.RequestOffer.created_at.desc())
-        .all()
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(models.RequestOffer.status == st)
     )
+    if consultant_user_id is not None:
+        q = q.filter(models.RequestOffer.consultant_user_id == consultant_user_id)
+    offers = q.order_by(models.RequestOffer.created_at.desc()).all()
     out: list[dict[str, Any]] = []
     for of in offers:
         row = _console_row_for_offer_target(db, of.request_kind, of.request_id)
@@ -198,6 +202,14 @@ def _console_rows_from_offers(db: Session, consultant_user_id: int, *, matched_o
             continue
         row["offer_status"] = of.status
         row["offer_id"] = of.id
+        if consultant_user_id is None:
+            row["sel_key"] = f"ofr:{of.id}"
+            row["created_at"] = of.created_at
+            c = of.consultant
+            fn = ((c.full_name or "").strip() if c else "") or ""
+            em = ((getattr(c, "email", None) or "").strip() if c else "") or ""
+            row["offer_consultant_name"] = fn or em or "—"
+            row["offer_consultant_email"] = em
         out.append(row)
     return out
 
@@ -296,6 +308,137 @@ def _console_public_detail_url(request: Request, req_kind: str, req_id: int) -> 
     if req_kind == "integration":
         return public_request_url(request, f"/integration/{req_id}?phase=proposal")
     return public_request_url(request, "/")
+
+
+def _console_row_offer_count_key(row: dict[str, Any]) -> tuple[str, int] | None:
+    """RequestOffer 집계용 (request_kind, request_id). kind/sel_key/entity_id 기준."""
+    sk = (row.get("sel_key") or "").strip()
+    k = row.get("kind")
+    eid = row.get("entity_id")
+    if eid is None:
+        return None
+    try:
+        rid = int(eid)
+    except (TypeError, ValueError):
+        return None
+    if sk.startswith("ofr:"):
+        if k == "abap":
+            return ("rfp", rid)
+        if k == "analysis":
+            return ("analysis", rid)
+        if k == "integration":
+            return ("integration", rid)
+        return None
+    if k == "abap":
+        return ("rfp", rid)
+    if k == "analysis":
+        return ("analysis", rid)
+    if k == "integration":
+        return ("integration", rid)
+    return None
+
+
+def _console_request_offer_stats(
+    db: Session, keys: list[tuple[str, int]]
+) -> dict[tuple[str, int], tuple[int, int, int]]:
+    """요청별 (총 오퍼 건수, 제안중 offered 건수, 매칭 matched 건수)."""
+    if not keys:
+        return {}
+    uniq: list[tuple[str, int]] = []
+    seen: set[tuple[str, int]] = set()
+    for key in keys:
+        if key not in seen:
+            seen.add(key)
+            uniq.append(key)
+    conds = [
+        (models.RequestOffer.request_kind == rk) & (models.RequestOffer.request_id == rid)
+        for rk, rid in uniq
+    ]
+    agg: dict[tuple[str, int], list[int]] = {k: [0, 0, 0] for k in uniq}
+    for o in db.query(models.RequestOffer).filter(or_(*conds)).all():
+        t = (o.request_kind, int(o.request_id))
+        if t not in agg:
+            continue
+        agg[t][0] += 1
+        if o.status == "offered":
+            agg[t][1] += 1
+        elif o.status == "matched":
+            agg[t][2] += 1
+    return {k: (v[0], v[1], v[2]) for k, v in agg.items()}
+
+
+def _admin_pending_inquiry_monitor_rows(http_request: Request, db: Session) -> list[dict[str, Any]]:
+    """답변 대기 오퍼별: 요청·회원·담당 컨설턴트·마지막 글 요약."""
+    out: list[dict[str, Any]] = []
+    for oid in sorted(pending_inquiry_reply_offer_ids_all(db)):
+        of = (
+            db.query(models.RequestOffer)
+            .options(joinedload(models.RequestOffer.consultant))
+            .filter(models.RequestOffer.id == int(oid))
+            .first()
+        )
+        if not of:
+            continue
+        last_inq = (
+            db.query(models.RequestOfferInquiry)
+            .options(joinedload(models.RequestOfferInquiry.author))
+            .filter(models.RequestOfferInquiry.request_offer_id == int(oid))
+            .order_by(models.RequestOfferInquiry.created_at.desc())
+            .first()
+        )
+        owner, title = _console_request_title_and_owner(db, of.request_kind, int(of.request_id))
+        owner_name = ""
+        if owner:
+            owner_name = ((owner.full_name or "").strip() or "") or (
+                (getattr(owner, "email", None) or "").strip() or ""
+            )
+        c = of.consultant
+        cname = ""
+        if c:
+            cname = ((c.full_name or "").strip() or "") or ((getattr(c, "email", None) or "").strip() or "")
+        last_name = ""
+        last_role = ""
+        if last_inq:
+            la = last_inq.author
+            if la:
+                last_name = ((la.full_name or "").strip() or "") or (
+                    (getattr(la, "email", None) or "").strip() or ""
+                )
+            if last_inq.author_user_id == of.consultant_user_id:
+                last_role = "컨설턴트"
+            else:
+                last_role = "회원"
+        preview = ""
+        if last_inq and (last_inq.body or "").strip():
+            preview = (last_inq.body or "").strip().replace("\n", " ")
+            if len(preview) > 120:
+                preview = preview[:117] + "..."
+        rk = of.request_kind
+        if rk == "rfp":
+            req_no = _request_no("RFP", int(of.request_id))
+            kind_ko = "신규개발"
+        elif rk == "analysis":
+            req_no = _request_no("ANA", int(of.request_id))
+            kind_ko = "분석개선"
+        else:
+            req_no = _request_no("INT", int(of.request_id))
+            kind_ko = "연동개발"
+        hub = _console_public_detail_url(http_request, rk, int(of.request_id))
+        out.append(
+            {
+                "offer_id": int(oid),
+                "request_no": req_no,
+                "kind_ko": kind_ko,
+                "title": (title or "").strip() or f"요청 {req_no}",
+                "owner_name": owner_name or "—",
+                "consultant_name": cname or "—",
+                "last_author_role": last_role,
+                "last_author_name": last_name or "—",
+                "last_preview": preview,
+                "hub_url": hub,
+            }
+        )
+    return out
 
 
 def _console_request_title_and_owner(
@@ -434,8 +577,9 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
         k: counts_by_kind["abap"].get(k, 0) + counts_by_kind["analysis"].get(k, 0) + counts_by_kind["integration"].get(k, 0)
         for k in _REQ_CONSOLE_BUCKETS
     }
-    offered_rows = _console_rows_from_offers(db, user.id, matched_only=False)
-    matched_rows = _console_rows_from_offers(db, user.id, matched_only=True)
+    offer_scope_uid: int | None = None if getattr(user, "is_admin", False) else user.id
+    offered_rows = _console_rows_from_offers(db, offer_scope_uid, matched_only=False)
+    matched_rows = _console_rows_from_offers(db, offer_scope_uid, matched_only=True)
     counts_by_kind["offer"] = _count_pack(
         {
             "delivery": sum(1 for r in offered_rows if r.get("bucket") == "delivery"),
@@ -491,8 +635,21 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
         rows.extend(_console_row_from_integration(r) for r in irs)
     if kind == "offer":
         rows = offered_rows
-    if kind == "matching":
+    elif kind == "matching":
         rows = matched_rows
+
+    if title_search and kind in ("offer", "matching"):
+        tlow = title_search.lower()
+        rows = [
+            r
+            for r in rows
+            if tlow in (r.get("title") or "").lower()
+            or tlow in (r.get("owner_name") or "").lower()
+            or tlow in (r.get("owner_company") or "").lower()
+            or tlow in (r.get("offer_consultant_name") or "").lower()
+            or tlow in (r.get("offer_consultant_email") or "").lower()
+            or tlow in (r.get("request_no") or "").lower()
+        ]
 
     rows.sort(key=lambda x: x.get("created_at") or 0, reverse=True)
     active_offer_keys = _consultant_active_offer_sel_keys(db, user.id)
@@ -501,8 +658,11 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
 
     pending_inquiry_offer_ids: set[int] = set()
     consultant_offer_meta: dict[tuple[str, int], tuple[int, str]] = {}
-    if getattr(user, "is_consultant", False):
+    if getattr(user, "is_admin", False):
+        pending_inquiry_offer_ids = pending_inquiry_reply_offer_ids_all(db)
+    elif getattr(user, "is_consultant", False):
         pending_inquiry_offer_ids = pending_inquiry_reply_offer_ids_for_consultant(db, user.id)
+    if getattr(user, "is_consultant", False):
         for co in (
             db.query(models.RequestOffer)
             .filter(
@@ -519,11 +679,11 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
 
     def _mark_row_pending_inquiry_reply(row: dict[str, Any]) -> None:
         row["pending_inquiry_reply"] = False
-        if not getattr(user, "is_consultant", False):
-            return
         oid = row.get("offer_id")
         if oid is not None and int(oid) in pending_inquiry_offer_ids:
             row["pending_inquiry_reply"] = True
+            return
+        if not getattr(user, "is_consultant", False):
             return
         sk = row.get("sel_key") or ""
         key: tuple[str, int] | None = None
@@ -568,7 +728,25 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
     for row in rows:
         _attach_console_offer_meta(row)
 
-    console_offer_pending_inquiry = bool(getattr(user, "is_consultant", False) and pending_inquiry_offer_ids)
+    count_keys: list[tuple[str, int]] = []
+    for row in rows:
+        ck = _console_row_offer_count_key(row)
+        if ck:
+            count_keys.append(ck)
+    offer_stats = _console_request_offer_stats(db, count_keys)
+    for row in rows:
+        ck = _console_row_offer_count_key(row)
+        if ck:
+            tot, n_open, n_matched = offer_stats.get(ck, (0, 0, 0))
+            row["request_offer_total_count"] = int(tot)
+            row["request_offer_open_count"] = int(n_open)
+            row["request_offer_matched_count"] = int(n_matched)
+            row["request_has_matched"] = int(n_matched) > 0
+
+    console_offer_pending_inquiry = bool(pending_inquiry_offer_ids)
+    console_pending_inquiry_rows: list[dict[str, Any]] = []
+    if getattr(user, "is_admin", False):
+        console_pending_inquiry_rows = _admin_pending_inquiry_monitor_rows(request, db)
 
     selected_key = (request.query_params.get("sel") or "").strip()
     selected_row = next((r for r in rows if r["sel_key"] == selected_key), None) if selected_key else None
@@ -622,6 +800,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             ).strip(),
             "console_consultant_inquiry_ok": (request.query_params.get("console_consultant_inquiry_ok") or "").strip()
             == "1",
+            "console_pending_inquiry_rows": console_pending_inquiry_rows,
         },
     )
 
@@ -728,6 +907,8 @@ def request_console_offer_submit(
         return RedirectResponse(url="/login?next=/request-console", status_code=302)
     if not (user.is_admin or user.is_consultant):
         return RedirectResponse(url="/", status_code=302)
+    if not getattr(user, "is_consultant", False):
+        return RedirectResponse(url="/request-console", status_code=303)
 
     raw = (sel_key or "").strip().lower()
     if ":" not in raw:

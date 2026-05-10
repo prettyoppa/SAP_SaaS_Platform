@@ -23,7 +23,10 @@ from .menu_landing import (
     DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO,
     user_proposal_pending_offer_badges,
 )
-from .offer_inquiry_service import consultant_has_any_pending_inquiry_reply
+from .offer_inquiry_service import (
+    consultant_has_any_pending_inquiry_reply,
+    pending_inquiry_reply_offer_ids_all,
+)
 from .home_counts import home_tile_counts
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
@@ -472,7 +475,9 @@ async def nav_proposal_offer_badges_middleware(request: Request, call_next):
             u = auth.get_user_from_token(token, db)
             if u:
                 badges = user_proposal_pending_offer_badges(db, u.id)
-                if getattr(u, "is_consultant", False):
+                if getattr(u, "is_admin", False):
+                    nav_console_pending_inquiry = bool(pending_inquiry_reply_offer_ids_all(db))
+                elif getattr(u, "is_consultant", False):
                     nav_console_pending_inquiry = consultant_has_any_pending_inquiry_reply(db, u.id)
         finally:
             db.close()

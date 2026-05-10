@@ -100,6 +100,20 @@ def pending_inquiry_reply_offer_ids_for_consultant(db: Session, consultant_user_
     return out
 
 
+def pending_inquiry_reply_offer_ids_all(db: Session) -> set[int]:
+    """전체 오퍼 중 회원 문의에 컨설턴트 답이 필요한 offer id (관리자 요청 Console 등)."""
+    offers = (
+        db.query(models.RequestOffer.id)
+        .filter(models.RequestOffer.status.in_(("offered", "matched")))
+        .all()
+    )
+    out: set[int] = set()
+    for (oid,) in offers:
+        if offer_inquiry_needs_consultant_reply(db, int(oid)):
+            out.add(int(oid))
+    return out
+
+
 def consultant_has_any_pending_inquiry_reply(db: Session, consultant_user_id: int) -> bool:
     return bool(pending_inquiry_reply_offer_ids_for_consultant(db, consultant_user_id))
 
