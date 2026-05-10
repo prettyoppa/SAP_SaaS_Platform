@@ -16,8 +16,8 @@
 <div class="plan-compare-feature plan-compare-feature--labeled d-flex align-items-center justify-content-between gap-1 flex-wrap" role="rowheader">
   <span>{{ metric_labels.get(mk, mk) }}</span>
   {%- if metric_help.get(mk) -%}
-  <button type="button" class="btn btn-link p-0 plan-feature-help-btn text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" data-subscription-tooltip="1" title="{{ metric_help[mk] | replace('\n', ' ') | e }}">
-    <i class="fa-solid fa-circle-question text-muted" style="font-size:0.88rem" aria-hidden="true"></i>
+  <button type="button" class="btn btn-link plan-feature-help-btn text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" data-subscription-tooltip="1" title="{{ metric_help[mk] | replace('\n', ' ') | e }}">
+    <i class="fa-solid fa-question plan-feature-help-q" aria-hidden="true"></i>
     <span class="visually-hidden">기능 설명</span>
   </button>
   {%- endif -%}

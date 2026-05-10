@@ -3475,11 +3475,38 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
 }
 .subscription-plans-page .plan-feature-help-btn {
   flex-shrink: 0;
+  --plan-help-red: #c41e3a;
+  width: 1.28rem;
+  height: 1.28rem;
+  min-width: 1.28rem;
+  padding: 0;
+  margin: 0;
   line-height: 1;
-  min-width: 1.25rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--plan-help-red) !important;
+  border-color: var(--plan-help-red) !important;
+  background: transparent !important;
+  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--plan-help-red);
+}
+.subscription-plans-page .plan-feature-help-btn:hover,
+.subscription-plans-page .plan-feature-help-btn:focus {
+  color: var(--plan-help-red);
+  border-color: var(--plan-help-red);
+  background: transparent !important;
+  opacity: 0.92;
+}
+.subscription-plans-page .plan-feature-help-btn .plan-feature-help-q {
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--plan-help-red);
 }
 .subscription-plans-page .plan-feature-help-btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent, #6366f1) 55%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--plan-help-red) 45%, transparent);
   outline-offset: 2px;
 }
 
