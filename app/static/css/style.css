@@ -1907,6 +1907,12 @@ span.btn.btn-sm.rfp-phase-btn.rfp-phase-btn--muted {
 .review-item-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 0.4rem; padding: 0.75rem; margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+a.review-item-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 28%, transparent);
 }
 .review-avatar {
   width: 28px; height: 28px; border-radius: 50%;
@@ -2931,12 +2937,39 @@ html[data-theme="light"] .site-article.card .site-article-header .markdown-body 
 }
 .site-article.card .site-article-header h1.text-reset,
 .site-article.card .site-article-header h1.h3,
+.site-article.card .site-article-header .h4.site-md-title-inline,
 .site-article.card .site-faq-answer .site-article-body.markdown-body,
 .site-article.card .site-faq-answer .site-article-body.markdown-body p,
 .site-article.card .site-faq-answer .site-article-body.markdown-body li,
 .site-article.card .site-faq-answer .site-article-body.markdown-body td,
 .site-article.card .site-faq-answer .site-article-body.markdown-body th {
   color: var(--text);
+}
+/* 다크: Bootstrap heading·text-reset이 카드 배경과 비슷해지는 경우 대비 강화 */
+html[data-theme="dark"] .site-article.card .site-article-header .site-md-title-inline,
+html[data-theme="dark"] .site-article.card .site-article-header .site-md-title-inline.markdown-body,
+html[data-theme="dark"] .site-article.card .site-article-header .site-md-title-inline.markdown-body p,
+html[data-theme="dark"] .site-article.card .site-article-header .site-md-title-inline.markdown-body h1,
+html[data-theme="dark"] .site-article.card .site-article-header .site-md-title-inline.markdown-body h2,
+html[data-theme="dark"] .site-article.card .site-article-header .site-md-title-inline.markdown-body h3,
+html[data-theme="dark"] .site-article.card .site-article-header .site-md-title-inline.markdown-body strong,
+html[data-theme="dark"] .site-article.card .site-article-header h1.h3.site-md-title-inline {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] .site-article.card .site-article-header .h4.site-md-title-inline,
+html[data-theme="dark"] .site-article.card .site-article-header .h4.site-md-title-inline.markdown-body,
+html[data-theme="dark"] .site-article.card .site-article-header .h4.site-md-title-inline.markdown-body p,
+html[data-theme="dark"] .site-article.card .site-article-header .h4.site-md-title-inline.markdown-body strong {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] .site-notice-list-table .site-list-title-link .site-md-title-inline,
+html[data-theme="dark"] .site-notice-list-table .site-list-title-link .site-md-title-inline.markdown-body p,
+html[data-theme="dark"] .site-notice-list-table .site-list-title-link .site-md-title-inline.markdown-body strong {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] .site-notice-list-table .site-list-title-link:hover .site-md-title-inline,
+html[data-theme="dark"] .site-notice-list-table .site-list-title-link:hover .site-md-title-inline.markdown-body p {
+  color: #e0e7ff !important;
 }
 .site-article.card .site-article-body.markdown-body a {
   color: var(--primary-light);
@@ -2959,6 +2992,41 @@ html[data-theme="light"] a.site-home-tab-more-link {
 }
 html[data-theme="light"] a.site-home-tab-more-link:hover {
   color: var(--primary);
+}
+
+/* 홈 문의/리뷰 탭: 이동 안내 */
+.home-review-guide {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.home-review-guide ul {
+  margin-bottom: 0;
+  padding-left: 1.15rem;
+}
+.home-review-guide li {
+  margin-bottom: 0.35rem;
+}
+.home-review-guide li:last-child {
+  margin-bottom: 0;
+}
+.home-review-guide kbd,
+.home-review-guide .guide-kbd {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--label);
+}
+html[data-theme="dark"] .home-review-guide {
+  background: color-mix(in srgb, var(--primary) 22%, var(--surface2));
+}
+.home-review-tab-cta .btn {
+  font-weight: 600;
 }
 
 /* 공지/FAQ 목록·제목 마크다운(한 줄·짧은 블록) */
