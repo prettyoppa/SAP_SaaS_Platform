@@ -1,9 +1,11 @@
 import os
+from io import BytesIO
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from fastapi import APIRouter, Body, Depends, Request, Form, Query
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from openpyxl import Workbook
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
@@ -58,22 +60,15 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
 # ── 사용자 삭제 (테스트용: 동일 이메일 재가입) ───────────
 
-@router.get("/users", response_class=HTMLResponse)
-def admin_users(
-    request: Request,
-    db: Session = Depends(get_db),
-    deleted: str | None = None,
-    err: str | None = None,
-    q: str | None = Query(default=None),
-    verified: str = Query(default="all"),
-    pending: str = Query(default="all"),
-    user_kind: str = Query(default="all"),
-):
-    user = _require_admin(request, db)
-    if not user:
-        return RedirectResponse(url="/", status_code=302)
 
-    qq = (q or "").strip()
+def _admin_users_rows_and_summary(
+    db: Session,
+    qq: str,
+    verified: str,
+    pending: str,
+    user_kind: str,
+) -> tuple[list[dict], dict]:
+    """회원 현황 표와 동일 필터·집계로 rows / summary 생성."""
     q_users = db.query(models.User)
     if qq:
         like = f"%{qq}%"
@@ -225,6 +220,26 @@ def admin_users(
         "members_with_any_activity": int(members_with_any_activity),
         "visible_users": len(users),
     }
+    return rows, summary
+
+
+@router.get("/users", response_class=HTMLResponse)
+def admin_users(
+    request: Request,
+    db: Session = Depends(get_db),
+    deleted: str | None = None,
+    err: str | None = None,
+    q: str | None = Query(default=None),
+    verified: str = Query(default="all"),
+    pending: str = Query(default="all"),
+    user_kind: str = Query(default="all"),
+):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+
+    qq = (q or "").strip()
+    rows, summary = _admin_users_rows_and_summary(db, qq, verified, pending, user_kind)
 
     return templates.TemplateResponse(
         request,
@@ -241,6 +256,100 @@ def admin_users(
             "pending": pending,
             "user_kind": user_kind,
         },
+    )
+
+
+@router.get("/users/export.xlsx")
+def admin_users_export_xlsx(
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str | None = Query(default=None),
+    verified: str = Query(default="all"),
+    pending: str = Query(default="all"),
+    user_kind: str = Query(default="all"),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+
+    qq = (q or "").strip()
+    rows, _summary = _admin_users_rows_and_summary(db, qq, verified, pending, user_kind)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "users"
+    headers = [
+        "ID",
+        "이메일",
+        "이름",
+        "회사",
+        "관리자",
+        "컨설턴트",
+        "이메일인증",
+        "휴대폰",
+        "휴대폰인증",
+        "가입일(UTC)",
+        "구독플랜",
+        "탈퇴유예",
+        "RFP",
+        "RFP제출",
+        "RFP납품단계",
+        "유료활성RFP",
+        "연동",
+        "ABAP분석",
+        "총활동",
+        "컨설턴트프로필첨부",
+    ]
+    ws.append(headers)
+
+    for row in rows:
+        u = row["user"]
+        if u.is_admin:
+            cons = "관리자"
+        elif u.is_consultant:
+            cons = "Y"
+        elif getattr(u, "consultant_application_pending", False):
+            cons = "신청중"
+        else:
+            cons = "N"
+        created = u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else ""
+        plan = (getattr(u, "subscription_plan_code", None) or "") or ""
+        phone = (getattr(u, "phone_number", None) or "") or ""
+        phone_v = "Y" if getattr(u, "phone_verified", False) else "N"
+        has_prof = "Y" if getattr(u, "consultant_profile_file_path", None) else "N"
+        ws.append(
+            [
+                u.id,
+                u.email or "",
+                u.full_name or "",
+                u.company or "",
+                "Y" if u.is_admin else "N",
+                cons,
+                "Y" if u.email_verified else "N",
+                phone,
+                phone_v,
+                created,
+                plan,
+                "Y" if getattr(u, "pending_account_deletion", False) else "N",
+                row["rfp_count"],
+                row["rfp_submitted_count"],
+                row["rfp_delivery_count"],
+                row["rfp_paid_active_count"],
+                row["integration_count"],
+                row["abap_analysis_count"],
+                row["total_activity_count"],
+                has_prof,
+            ]
+        )
+
+    bio = BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    fname = f"users_export_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.xlsx"
+    return Response(
+        content=bio.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
 
 

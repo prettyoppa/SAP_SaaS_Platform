@@ -116,6 +116,12 @@
           <button type="submit" class="btn btn-warning w-100">적용</button>
           <a href="/admin/users" class="btn btn-outline-secondary">초기화</a>
         </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label small text-muted mb-1 d-block">&nbsp;</label>
+          <a class="btn btn-outline-success w-100" href="/admin/users/export.xlsx?q={{ (q or '')|urlquote }}&amp;verified={{ verified }}&amp;pending={{ pending }}&amp;user_kind={{ user_kind }}">
+            <i class="fa-solid fa-file-excel me-1"></i>엑셀 다운로드
+          </a>
+        </div>
       </form>
     </div>
 
