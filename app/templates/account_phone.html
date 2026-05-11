@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}휴대폰 인증·변경 – SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="dashboard-page account-profile-page py-4">
+  <div class="container account-profile-container">
+    <div class="mb-4">
+      <h2 class="mb-1 account-profile-title">
+        <span class="nav-ko">휴대폰 인증·변경</span>
+        <span class="nav-en" style="display:none">Phone verification / change</span>
+      </h2>
+      <p class="small mb-0 account-profile-lead">
+        <span class="nav-ko">국제 형식(+국가번호…)으로 입력한 뒤 인증번호를 받고, 문자로 온 6자리를 입력해 완료합니다. 번호가 바뀌면 SMS 수신 동의는 초기화됩니다.</span>
+        <span class="nav-en" style="display:none">Enter E.164 (+country…), request a code, then enter the 6-digit SMS code. If the number changes, SMS marketing/ops consent is reset.</span>
+      </p>
+    </div>
+
+    {% if not sms_ok %}
+    <div class="alert alert-warning small" role="alert">
+      <span class="nav-ko">SMS 웹훅이 설정되어 있지 않아 휴대폰 인증을 사용할 수 없습니다.</span>
+      <span class="nav-en" style="display:none">SMS is not configured on this server.</span>
+    </div>
+    {% endif %}
+
+    {% if sent_ok %}
+    <div class="alert alert-success small" role="alert">
+      <span class="nav-ko">인증번호를 발송했습니다. 문자를 확인해 주세요.</span>
+      <span class="nav-en" style="display:none">We sent a verification code. Check your SMS.</span>
+    </div>
+    {% endif %}
+
+    {% if error == 'sms_disabled' %}
+    <div class="alert alert-danger small">SMS 설정이 필요합니다.</div>
+    {% elif error == 'invalid_phone' %}
+    <div class="alert alert-danger small"><span class="nav-ko">유효한 국제번호 형식(+로 시작)이 아닙니다.</span><span class="nav-en" style="display:none">Invalid E.164 phone (+…).</span></div>
+    {% elif error == 'already_verified' %}
+    <div class="alert alert-info small"><span class="nav-ko">이미 이 번호로 인증되어 있습니다.</span><span class="nav-en" style="display:none">This number is already verified on your account.</span></div>
+    {% elif error == 'duplicate' %}
+    <div class="alert alert-danger small"><span class="nav-ko">다른 계정에서 사용 중인 번호입니다.</span><span class="nav-en" style="display:none">This number is used by another account.</span></div>
+    {% elif error == 'cooldown' %}
+    <div class="alert alert-warning small"><span class="nav-ko">너무 잦은 요청입니다. 잠시 후 다시 시도해 주세요.</span><span class="nav-en" style="display:none">Please wait before requesting another code.</span></div>
+    {% elif error == 'send_failed' %}
+    <div class="alert alert-danger small"><span class="nav-ko">문자 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.</span><span class="nav-en" style="display:none">SMS send failed. Try again later.</span></div>
+    {% elif error == 'invalid_code' %}
+    <div class="alert alert-danger small"><span class="nav-ko">인증번호는 숫자 6자리여야 합니다.</span><span class="nav-en" style="display:none">Code must be 6 digits.</span></div>
+    {% elif error == 'no_otp' %}
+    <div class="alert alert-warning small"><span class="nav-ko">먼저 인증번호 받기를 진행해 주세요.</span><span class="nav-en" style="display:none">Request a code first.</span></div>
+    {% elif error == 'phone_mismatch' %}
+    <div class="alert alert-danger small"><span class="nav-ko">인증번호를 받은 번호와 입력한 번호가 같아야 합니다.</span><span class="nav-en" style="display:none">Phone must match the number you requested a code for.</span></div>
+    {% elif error == 'expired' %}
+    <div class="alert alert-warning small"><span class="nav-ko">인증번호가 만료되었습니다. 다시 받아 주세요.</span><span class="nav-en" style="display:none">Code expired. Request a new one.</span></div>
+    {% elif error == 'locked' %}
+    <div class="alert alert-danger small"><span class="nav-ko">시도 횟수가 많습니다. 잠시 후 인증번호를 다시 받아 주세요.</span><span class="nav-en" style="display:none">Too many attempts. Request a new code later.</span></div>
+    {% elif error == 'bad_code' %}
+    <div class="alert alert-danger small"><span class="nav-ko">인증번호가 올바르지 않습니다.</span><span class="nav-en" style="display:none">Invalid verification code.</span></div>
+    {% endif %}
+
+    {% if pending_target %}
+    <div class="alert alert-info small mb-3">
+      <span class="nav-ko">진행 중인 인증 대상 번호: <strong>{{ pending_target }}</strong></span>
+      <span class="nav-en" style="display:none">Pending verification for: <strong>{{ pending_target }}</strong></span>
+    </div>
+    {% endif %}
+
+    <div class="card border shadow-sm account-profile-card mb-3">
+      <div class="card-body">
+        <h3 class="h6 mb-3"><span class="nav-ko">1. 인증번호 받기</span><span class="nav-en" style="display:none">1. Send code</span></h3>
+        <form method="post" action="/account/phone/send" class="account-profile-form">
+          <div class="mb-3">
+            <label class="form-label" for="acct-phone-input"><span class="nav-ko">휴대폰 (E.164)</span><span class="nav-en" style="display:none">Phone (E.164)</span></label>
+            <input type="text" class="form-control" id="acct-phone-input" name="phone_number" required
+                   autocomplete="tel" {% if not sms_ok %}disabled{% endif %}
+                   placeholder="+821012345678"
+                   value="{{ user.phone_number or '' }}"/>
+            <div class="form-text small">
+              <span class="nav-ko">예: 한국 +8210… / 해외 +1…</span>
+              <span class="nav-en" style="display:none">e.g. Korea +8210…, US +1…</span>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" {% if not sms_ok %}disabled{% endif %}>
+            <span class="nav-ko">인증번호 받기</span><span class="nav-en" style="display:none">Send code</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border shadow-sm account-profile-card">
+      <div class="card-body">
+        <h3 class="h6 mb-3"><span class="nav-ko">2. 인증 완료</span><span class="nav-en" style="display:none">2. Confirm</span></h3>
+        <form method="post" action="/account/phone/confirm" class="account-profile-form">
+          <div class="mb-3">
+            <label class="form-label" for="acct-phone-confirm-input"><span class="nav-ko">휴대폰 (동일 번호)</span><span class="nav-en" style="display:none">Phone (same as above)</span></label>
+            <input type="text" class="form-control" id="acct-phone-confirm-input" name="phone_number" required
+                   autocomplete="tel" {% if not sms_ok %}disabled{% endif %}
+                   placeholder="+821012345678"
+                   value="{% if pending_target %}{{ pending_target }}{% else %}{{ user.phone_number or '' }}{% endif %}"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="acct-phone-code"><span class="nav-ko">인증번호 6자리</span><span class="nav-en" style="display:none">6-digit code</span></label>
+            <input type="text" class="form-control" id="acct-phone-code" name="code" required maxlength="8"
+                   inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                   {% if not sms_ok %}disabled{% endif %} placeholder="123456"/>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary" {% if not sms_ok %}disabled{% endif %}>
+              <span class="nav-ko">인증하고 저장</span><span class="nav-en" style="display:none">Verify and save</span>
+            </button>
+            <a href="/account" class="btn btn-outline-secondary">
+              <span class="nav-ko">돌아가기</span><span class="nav-en" style="display:none">Back</span>
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

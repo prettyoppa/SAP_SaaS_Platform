@@ -65,6 +65,22 @@ class EmailChangePending(Base):
     user = relationship("User", foreign_keys=[user_id])
 
 
+class AccountPhoneOtp(Base):
+    """로그인 회원 휴대폰 등록·변경·재인증용 OTP(인증할 번호 1건)."""
+
+    __tablename__ = "account_phone_otps"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    target_phone = Column(String(32), nullable=False)
+    code_hash = Column(String(64), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    last_sent_at = Column(DateTime, nullable=True)
+    attempt_count = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+
+
 class RFP(Base):
     __tablename__ = "rfps"
 

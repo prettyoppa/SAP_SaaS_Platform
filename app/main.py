@@ -162,6 +162,10 @@ def _run_migrations():
         models.ReviewRating.__table__.create(bind=engine, checkfirst=True)
     except Exception:
         pass
+    try:
+        models.AccountPhoneOtp.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        pass
 
 
 DEFAULT_INTEGRATION_IMPL_DEVTYPES = [

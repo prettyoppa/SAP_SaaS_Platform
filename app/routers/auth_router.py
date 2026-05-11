@@ -30,7 +30,12 @@ from ..email_smtp import (
     send_password_reset_email,
 )
 from ..templates_config import templates
-from ..sms_sender import send_email_hint_otp_sms, send_registration_otp_sms, sms_enabled
+from ..sms_sender import (
+    send_account_phone_otp_sms,
+    send_email_hint_otp_sms,
+    send_registration_otp_sms,
+    sms_enabled,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -134,6 +139,18 @@ def _normalize_phone_e164(raw: str) -> str | None:
     if len(digits) < 8 or len(digits) > 15:
         return None
     return f"+{digits}"
+
+
+def _other_user_has_phone(db: Session, phone_e164: str, exclude_user_id: int) -> bool:
+    return (
+        db.query(models.User)
+        .filter(
+            models.User.id != exclude_user_id,
+            models.User.phone_number == phone_e164,
+        )
+        .first()
+        is not None
+    )
 
 
 def _form_bool(raw: str | None) -> bool:
@@ -1286,6 +1303,7 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
     profile_saved = request.query_params.get("profile_saved") == "1"
     password_saved = request.query_params.get("password_saved") == "1"
     email_changed_ok = request.query_params.get("email_changed") == "1"
+    phone_saved = request.query_params.get("phone_saved") == "1"
     pending_ec = (
         db.query(models.EmailChangePending)
         .filter(models.EmailChangePending.user_id == user.id)
@@ -1300,8 +1318,10 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
             "profile_saved": profile_saved,
             "password_saved": password_saved,
             "email_changed_ok": email_changed_ok,
+            "phone_saved": phone_saved,
             "pending_email_change": pending_ec,
             "mail_for_account_actions": email_verification_enabled(),
+            "sms_for_account_phone": sms_enabled(),
             "deletion_grace_days": deletion_grace_days(),
             **clabels,
         },
@@ -1644,6 +1664,147 @@ def account_password_post(
     db.add(user)
     db.commit()
     return RedirectResponse(url="/account?password_saved=1", status_code=302)
+
+
+@router.get("/account/phone", response_class=HTMLResponse)
+def account_phone_get(
+    request: Request,
+    db: Session = Depends(get_db),
+    sent: str | None = None,
+    err: str | None = None,
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/phone", status_code=302)
+    if getattr(user, "pending_account_deletion", False):
+        return RedirectResponse(url="/account", status_code=302)
+    now = datetime.utcnow()
+    row = db.query(models.AccountPhoneOtp).filter(models.AccountPhoneOtp.user_id == user.id).first()
+    pending_target = None
+    if row and row.expires_at >= now:
+        pending_target = row.target_phone
+    return templates.TemplateResponse(
+        request,
+        "account_phone.html",
+        {
+            "user": user,
+            "sent_ok": sent == "1",
+            "error": err,
+            "sms_ok": sms_enabled(),
+            "pending_target": pending_target,
+        },
+    )
+
+
+@router.post("/account/phone/send")
+def account_phone_send_post(
+    request: Request,
+    phone_number: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/phone", status_code=302)
+    if getattr(user, "pending_account_deletion", False):
+        return RedirectResponse(url="/account", status_code=302)
+    if not sms_enabled():
+        return RedirectResponse(url="/account/phone?err=sms_disabled", status_code=302)
+    phone_e164 = _normalize_phone_e164(phone_number)
+    if not phone_e164:
+        return RedirectResponse(url="/account/phone?err=invalid_phone", status_code=302)
+    cur = (getattr(user, "phone_number", None) or "").strip()
+    if phone_e164 == cur and getattr(user, "phone_verified", False):
+        return RedirectResponse(url="/account/phone?err=already_verified", status_code=302)
+    if _other_user_has_phone(db, phone_e164, user.id):
+        return RedirectResponse(url="/account/phone?err=duplicate", status_code=302)
+
+    now = datetime.utcnow()
+    row = db.query(models.AccountPhoneOtp).filter(models.AccountPhoneOtp.user_id == user.id).first()
+    if row and row.last_sent_at and (now - row.last_sent_at).total_seconds() < 60:
+        return RedirectResponse(url="/account/phone?err=cooldown", status_code=302)
+
+    code = auth.generate_registration_otp()
+    code_hash = auth.registration_code_hash(phone_e164, code)
+    expires = now + timedelta(minutes=auth.registration_otp_ttl_minutes())
+    try:
+        send_account_phone_otp_sms(phone_e164, code)
+    except Exception:
+        logger.exception("account_phone_send_sms failed")
+        return RedirectResponse(url="/account/phone?err=send_failed", status_code=302)
+
+    if row:
+        row.target_phone = phone_e164
+        row.code_hash = code_hash
+        row.expires_at = expires
+        row.last_sent_at = now
+        row.attempt_count = 0
+        db.add(row)
+    else:
+        db.add(
+            models.AccountPhoneOtp(
+                user_id=user.id,
+                target_phone=phone_e164,
+                code_hash=code_hash,
+                expires_at=expires,
+                last_sent_at=now,
+                attempt_count=0,
+            )
+        )
+    db.commit()
+    return RedirectResponse(url="/account/phone?sent=1", status_code=302)
+
+
+@router.post("/account/phone/confirm")
+def account_phone_confirm_post(
+    request: Request,
+    phone_number: str = Form(...),
+    code: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login?next=/account/phone", status_code=302)
+    if getattr(user, "pending_account_deletion", False):
+        return RedirectResponse(url="/account", status_code=302)
+    phone_e164 = _normalize_phone_e164(phone_number)
+    if not phone_e164:
+        return RedirectResponse(url="/account/phone?err=invalid_phone", status_code=302)
+    code_in = "".join(c for c in (code or "") if c.isdigit())
+    if len(code_in) != 6:
+        return RedirectResponse(url="/account/phone?err=invalid_code", status_code=302)
+
+    row = db.query(models.AccountPhoneOtp).filter(models.AccountPhoneOtp.user_id == user.id).first()
+    if not row:
+        return RedirectResponse(url="/account/phone?err=no_otp", status_code=302)
+    if phone_e164 != row.target_phone:
+        return RedirectResponse(url="/account/phone?err=phone_mismatch", status_code=302)
+    if datetime.utcnow() > row.expires_at:
+        return RedirectResponse(url="/account/phone?err=expired", status_code=302)
+    if int(row.attempt_count or 0) >= 5:
+        return RedirectResponse(url="/account/phone?err=locked", status_code=302)
+    if not auth.registration_codes_equal(phone_e164, code_in, row.code_hash):
+        row.attempt_count = int(row.attempt_count or 0) + 1
+        db.add(row)
+        db.commit()
+        return RedirectResponse(url="/account/phone?err=bad_code", status_code=302)
+
+    old = (getattr(user, "phone_number", None) or "").strip()
+    number_changed = old != phone_e164
+    user.phone_number = phone_e164
+    user.phone_verified = True
+    user.phone_verified_at = datetime.utcnow()
+    if number_changed:
+        user.ops_sms_opt_in = False
+        user.marketing_sms_opt_in = False
+        user.consent_updated_at = datetime.utcnow()
+    db.delete(row)
+    db.add(user)
+    db.commit()
+    from ..trial_service import maybe_grant_experience_trial
+
+    maybe_grant_experience_trial(db, user)
+    db.commit()
+    return RedirectResponse(url="/account?phone_saved=1", status_code=302)
 
 
 @router.get("/account/email", response_class=HTMLResponse)
