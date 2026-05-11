@@ -1,3 +1,4 @@
+import json
 import os
 from io import BytesIO
 from datetime import datetime
@@ -29,6 +30,7 @@ from ..subscription_catalog import (
 from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
 from ..i18n_overrides import build_admin_grouped, invalidate_en_overrides_cache, load_i18n_baseline
 from ..i18n_admin_suggest import suggest_ui_english
+from ..agent_playbook import ALL_STAGE_CHOICES, stages_json_from_list
 
 router = APIRouter(prefix="/admin")
 
@@ -56,6 +58,221 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse(request, "admin/dashboard.html", {"request": request, "user": user})
+
+
+# ── 에이전트 플레이북 (테스트 피드백·운영 규칙 누적) ───────
+
+
+@router.get("/agent-playbook", response_class=HTMLResponse)
+def admin_agent_playbook_list(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    rows = (
+        db.query(models.AgentPlaybookEntry)
+        .order_by(models.AgentPlaybookEntry.priority.desc(), models.AgentPlaybookEntry.id.desc())
+        .all()
+    )
+    return templates.TemplateResponse(
+        request,
+        "admin/agent_playbook_list.html",
+        {"request": request, "user": user, "rows": rows, "stage_choices": ALL_STAGE_CHOICES},
+    )
+
+
+@router.get("/agent-playbook/new", response_class=HTMLResponse)
+def admin_agent_playbook_new(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "admin/agent_playbook_form.html",
+        {
+            "request": request,
+            "user": user,
+            "entry": None,
+            "stage_choices": ALL_STAGE_CHOICES,
+            "selected_stages": [],
+            "err": None,
+        },
+    )
+
+
+@router.post("/agent-playbook/new")
+async def admin_agent_playbook_create(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    title = (form.get("title") or "").strip()
+    body = (form.get("body") or "").strip()
+    if not title or not body:
+        return templates.TemplateResponse(
+            request,
+            "admin/agent_playbook_form.html",
+            {
+                "request": request,
+                "user": user,
+                "entry": None,
+                "stage_choices": ALL_STAGE_CHOICES,
+                "err": "제목과 본문은 필수입니다.",
+                "form_title": title,
+                "form_body": body,
+                "form_entity": (form.get("match_entity") or "any"),
+                "form_origin": (form.get("match_workflow_origin") or "any"),
+                "form_priority": form.get("priority") or "0",
+                "form_active": form.get("active") == "1",
+                "selected_stages": list(form.getlist("stages")),
+            },
+            status_code=400,
+        )
+    stages = [str(x).strip() for x in form.getlist("stages") if str(x).strip()]
+    if not stages:
+        return templates.TemplateResponse(
+            request,
+            "admin/agent_playbook_form.html",
+            {
+                "request": request,
+                "user": user,
+                "entry": None,
+                "stage_choices": ALL_STAGE_CHOICES,
+                "err": "적용 단계를 하나 이상 선택하세요.",
+                "form_title": title,
+                "form_body": body,
+                "form_entity": (form.get("match_entity") or "any"),
+                "form_origin": (form.get("match_workflow_origin") or "any"),
+                "form_priority": form.get("priority") or "0",
+                "form_active": form.get("active") == "1",
+                "selected_stages": [],
+            },
+            status_code=400,
+        )
+    try:
+        pri = int((form.get("priority") or "0").strip() or "0")
+    except ValueError:
+        pri = 0
+    row = models.AgentPlaybookEntry(
+        created_by_user_id=user.id,
+        active=(form.get("active") == "1"),
+        priority=pri,
+        title=title[:512],
+        body=body,
+        match_entity=(form.get("match_entity") or "any").strip()[:32] or "any",
+        match_workflow_origin=(form.get("match_workflow_origin") or "any").strip()[:64] or "any",
+        match_stages_json=stages_json_from_list(stages),
+    )
+    db.add(row)
+    db.commit()
+    return RedirectResponse(url="/admin/agent-playbook", status_code=303)
+
+
+@router.get("/agent-playbook/{entry_id}/edit", response_class=HTMLResponse)
+def admin_agent_playbook_edit(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    row = db.query(models.AgentPlaybookEntry).filter(models.AgentPlaybookEntry.id == entry_id).first()
+    if not row:
+        return RedirectResponse(url="/admin/agent-playbook", status_code=302)
+    try:
+        selected_stages = json.loads(row.match_stages_json or "[]")
+        if not isinstance(selected_stages, list):
+            selected_stages = []
+    except Exception:
+        selected_stages = []
+    return templates.TemplateResponse(
+        request,
+        "admin/agent_playbook_form.html",
+        {
+            "request": request,
+            "user": user,
+            "entry": row,
+            "stage_choices": ALL_STAGE_CHOICES,
+            "selected_stages": [str(x).strip() for x in selected_stages if str(x).strip()],
+            "err": None,
+        },
+    )
+
+
+@router.post("/agent-playbook/{entry_id}/edit")
+async def admin_agent_playbook_save(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    row = db.query(models.AgentPlaybookEntry).filter(models.AgentPlaybookEntry.id == entry_id).first()
+    if not row:
+        return RedirectResponse(url="/admin/agent-playbook", status_code=302)
+    form = await request.form()
+    title = (form.get("title") or "").strip()
+    body = (form.get("body") or "").strip()
+    stages = [str(x).strip() for x in form.getlist("stages") if str(x).strip()]
+    if not title or not body or not stages:
+        cur_stages: list = []
+        try:
+            cur_stages = json.loads(row.match_stages_json or "[]")
+            if not isinstance(cur_stages, list):
+                cur_stages = []
+        except Exception:
+            cur_stages = []
+        return templates.TemplateResponse(
+            request,
+            "admin/agent_playbook_form.html",
+            {
+                "request": request,
+                "user": user,
+                "entry": row,
+                "stage_choices": ALL_STAGE_CHOICES,
+                "err": "제목·본문·적용 단계는 필수입니다.",
+                "form_title": title,
+                "form_body": body,
+                "form_entity": (form.get("match_entity") or "any"),
+                "form_origin": (form.get("match_workflow_origin") or "any"),
+                "form_priority": form.get("priority") or "0",
+                "form_active": form.get("active") == "1",
+                "selected_stages": stages or cur_stages,
+            },
+            status_code=400,
+        )
+    try:
+        pri = int((form.get("priority") or "0").strip() or "0")
+    except ValueError:
+        pri = 0
+    row.title = title[:512]
+    row.body = body
+    row.active = form.get("active") == "1"
+    row.priority = pri
+    row.match_entity = (form.get("match_entity") or "any").strip()[:32] or "any"
+    row.match_workflow_origin = (form.get("match_workflow_origin") or "any").strip()[:64] or "any"
+    row.match_stages_json = stages_json_from_list(stages)
+    row.updated_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse(url="/admin/agent-playbook", status_code=303)
+
+
+@router.post("/agent-playbook/{entry_id}/delete")
+def admin_agent_playbook_delete(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    row = db.query(models.AgentPlaybookEntry).filter(models.AgentPlaybookEntry.id == entry_id).first()
+    if row:
+        db.delete(row)
+        db.commit()
+    return RedirectResponse(url="/admin/agent-playbook", status_code=303)
+
+
+@router.post("/agent-playbook/{entry_id}/toggle")
+def admin_agent_playbook_toggle(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    row = db.query(models.AgentPlaybookEntry).filter(models.AgentPlaybookEntry.id == entry_id).first()
+    if row:
+        row.active = not bool(row.active)
+        row.updated_at = datetime.utcnow()
+        db.commit()
+    return RedirectResponse(url="/admin/agent-playbook", status_code=303)
 
 
 # ── 사용자 삭제 (테스트용: 동일 이메일 재가입) ───────────

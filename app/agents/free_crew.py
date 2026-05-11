@@ -21,6 +21,7 @@ from typing import Optional
 from crewai import Agent, Task, Crew, Process, LLM
 from dotenv import load_dotenv
 
+from ..agent_playbook import playbook_prompt_wrap
 from ..agent_display import agent_label_ko, agents_ai_source_ko
 from ..gemini_model import get_gemini_model_id
 from ..rfp_reference_code import REF_SLOT_MARKER
@@ -703,6 +704,7 @@ def generate_sequential_start(
     round_num: int,
     code_library_context: str = "",
     member_safe_output: bool = False,
+    playbook_addon: str = "",
 ) -> dict:
     """
     라운드의 첫 질문 1개 + (1라운드·라이브러리) 나머지 질문 풀.
@@ -771,6 +773,7 @@ def generate_sequential_start(
 """
     member_ref_block = _member_abap_block(member_ref)
     _ms_rule = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
+    _pb_wrap = playbook_prompt_wrap(playbook_addon)
     analyze_task = Task(
         description=f"""아래 RFP와 지금까지의 인터뷰 내용을 분석하세요.
 
@@ -790,7 +793,7 @@ def generate_sequential_start(
 
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
 {SAP_INTERVIEW_CREDIBILITY}
-※ 내부 유사 사례·회원 제출 ABAP 코드가 있으면 RFP·인터뷰를 최우선으로, 유사 사례는 힌트일 뿐.""",
+※ 내부 유사 사례·회원 제출 ABAP 코드가 있으면 RFP·인터뷰를 최우선으로, 유사 사례는 힌트일 뿐.{_pb_wrap}""",
         agent=f_analyst,
         expected_output="요구사항 현황 분석 결과 (텍스트)",
     )
@@ -924,6 +927,7 @@ def generate_sequential_followup(
 
     llm = _get_llm()
     f_analyst, f_questioner, _, _ = _make_agents(llm)
+    _pb_f = playbook_prompt_wrap(playbook_addon)
     analyze_task = Task(
         description=f"""RFP·이전 라운드·이번 라운드까지의 Q&A를 읽고, 질문을 더 둘 필요가 있으면 한 문장 이유(내부용).
 
@@ -937,7 +941,7 @@ RFP: {rfp_ctx}
 {anti_dup}
 {_fol_ms}
 {MIA_INTERVIEW_SCOPE_AND_STYLE}
-{SAP_INTERVIEW_CREDIBILITY}""",
+{SAP_INTERVIEW_CREDIBILITY}{_pb_f}""",
         agent=f_analyst,
         expected_output="질문을 더할지, 이미 충분한지(한 문장)",
     )
@@ -1055,6 +1059,7 @@ def generate_round_questions(
     round_num: int,
     code_library_context: str = "",
     member_safe_output: bool = False,
+    playbook_addon: str = "",
 ) -> dict:
     """
     (호환) 한 라운드의 첫 질문 1개 + 라이브러리 풀. 레거시 코드가 3문항을 기대할 경우
@@ -1066,6 +1071,7 @@ def generate_round_questions(
         round_num,
         code_library_context,
         member_safe_output=member_safe_output,
+        playbook_addon=playbook_addon,
     )
 
 
@@ -1074,6 +1080,7 @@ def generate_proposal(
     conversation: list[dict],
     code_library_context: str = "",
     member_safe_output: bool = False,
+    playbook_addon: str = "",
 ) -> str:
     """
     전체 인터뷰 내용으로 Development Proposal을 생성합니다.
@@ -1094,6 +1101,7 @@ def generate_proposal(
 """
     member_ref_block = _member_abap_block(member_ref)
     _prop_ms = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
+    _pb_prop = playbook_prompt_wrap(playbook_addon)
 
     # Task 1: Hannah – 최종 요구사항 명세
     final_analysis = Task(
@@ -1114,7 +1122,7 @@ def generate_proposal(
 5. 특이사항 및 제약조건
 6. 복잡도 평가 (Low/Medium/High) 및 근거
 
-※ 내부 유사 사례 요약·회원 제출 ABAP 코드가 있으면 화면·기술 패턴을 파악하는 데만 쓰고, 고객 RFP·인터뷰를 최우선으로 반영하세요.""",
+※ 내부 유사 사례 요약·회원 제출 ABAP 코드가 있으면 화면·기술 패턴을 파악하는 데만 쓰고, 고객 RFP·인터뷰를 최우선으로 반영하세요.{_pb_prop}""",
         agent=f_analyst,
         expected_output="구조화된 최종 요구사항 명세 (텍스트)",
     )

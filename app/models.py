@@ -667,6 +667,29 @@ class SubscriptionUsagePerRequest(Base):
     )
 
 
+class AgentPlaybookEntry(Base):
+    """테스트·운영 피드백을 누적해 에이전트 프롬프트에 주입하는 플레이북 항목."""
+
+    __tablename__ = "agent_playbook_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    active = Column(Boolean, default=True, nullable=False)
+    priority = Column(Integer, default=0, nullable=False)
+    title = Column(String(512), nullable=False, default="")
+    body = Column(Text, nullable=False, default="")
+    # any | rfp | abap_analysis | integration
+    match_entity = Column(String(32), nullable=False, default="any")
+    # any | direct | abap_analysis | integration | integration_native
+    match_workflow_origin = Column(String(64), nullable=False, default="any")
+    # JSON 배열 문자열, 예: ["interview","proposal"] — 비어 있으면 매칭 안 함
+    match_stages_json = Column(Text, nullable=False, default="[]")
+
+    creator = relationship("User", foreign_keys=[created_by_user_id])
+
+
 class TrialEligibilityConsumed(Base):
     """체험판(Experience→Junior 권한) 중복 방지: 이메일/휴대폰 식별자 해시."""
 

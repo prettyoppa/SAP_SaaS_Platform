@@ -15,6 +15,7 @@ from typing import Any, Callable
 from crewai import Agent, Crew, Process, Task
 from dotenv import load_dotenv
 
+from ..agent_playbook import playbook_prompt_wrap
 from .free_crew import (
     _MEMBER_FACING_NO_STORAGE_NAMES,
     _fmt_conv,
@@ -60,6 +61,7 @@ def generate_fs_markdown(
     *,
     code_library_context: str = "",
     member_safe_output: bool = False,
+    playbook_addon: str = "",
 ) -> str:
     """
     기능명세(FS) 설계: 요구(RFP)·질의응답·제안서(참고)를 교차 검토해 상세 FS 마크다운 작성.
@@ -98,6 +100,7 @@ def generate_fs_markdown(
 - 프로그램 ID: `{pid or "없음"}` — 있으면 문서 전체에서 **이 식별자만** 사용. 다른 Z/Y 이름을 임의로 만들지 않는다.
 - T-Code: `{tcode or "없음"}` — 있으면 실행/호출 진입점은 **이 코드만** 기술한다.
 """
+    _pb_fs = playbook_prompt_wrap(playbook_addon)
 
     task = Task(
         description=f"""아래 (1)(1b)(2)(3)을 **모두** 읽고 교차검증하라. 서로 모순되면 FS 끝에 **오픈 이슈**로 적시하라.
@@ -143,7 +146,7 @@ def generate_fs_markdown(
 ### 13. 오픈 이슈·고객 확인 필요
 
 규칙: 마케팅 문장 금지. 추정 사항은 "가정:" 표시.
-""",
+{_pb_fs}""",
         agent=fs_spec_agent,
         expected_output="완결된 기능명세서 마크다운 본문",
     )
@@ -347,6 +350,7 @@ def generate_delivered_abap_artifact(
     code_library_context: str = "",
     member_safe_output: bool = False,
     phase_log: Callable[[str], None] | None = None,
+    playbook_addon: str = "",
 ) -> tuple[dict[str, Any] | None, str]:
     """
     권장: JSON 슬롯 패키지 + 별도 구현 가이드 + 테스트 시나리오 마크다운.
@@ -412,6 +416,7 @@ def generate_delivered_abap_artifact(
         else "RFP에 프로그램 ID가 없다. 합리적인 Z/Y 이름을 정해 `program_id`와 슬롯 소스에 일관되게 쓴다."
     )
     tcode_rule = f"T-Code 고객 지정: `{tcode or '(없음)'}` — 없으면 임의 T-Code를 만들지 말 것."
+    _pb_del = playbook_prompt_wrap(playbook_addon)
 
     slot_task = Task(
         description=f"""기능명세서(FS)를 구현 근거로 삼아 **납품 ABAP 패키지**를 JSON으로만 출력하라.
@@ -465,7 +470,7 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
 - `filename`: 영문·숫자·언더스코어·점만, 확장자 `.abap` 권장.
 - ABAP 문자열 내 따옴표는 JSON 이스케이프를 반드시 지킨다.
 - **테스트 시나리오·구현 가이드는 JSON에 넣지 않는다.**
-""",
+{_pb_del}""",
         agent=json_coder,
         expected_output="유효한 JSON 한 덩어리",
     )
@@ -609,6 +614,7 @@ def generate_delivered_abap_markdown(
     code_library_context: str = "",
     member_safe_output: bool = False,
     phase_log: Callable[[str], None] | None = None,
+    playbook_addon: str = "",
 ) -> str:
     """하위 호환: 최종 레거시 마크다운 문자열만 필요할 때."""
     _pkg, md = generate_delivered_abap_artifact(
@@ -619,5 +625,6 @@ def generate_delivered_abap_markdown(
         code_library_context=code_library_context,
         member_safe_output=member_safe_output,
         phase_log=phase_log,
+        playbook_addon=playbook_addon,
     )
     return md

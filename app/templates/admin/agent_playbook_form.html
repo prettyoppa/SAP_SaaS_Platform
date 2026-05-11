@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{% if entry %}플레이북 편집{% else %}플레이북 추가{% endif %} – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="admin-page-header mb-4">
+    <div class="container">
+      {% include 'partials/nav_prev_screen.html' %}
+      <h3 class="mb-1"><i class="fa-solid fa-book me-2 text-warning"></i>{% if entry %}플레이북 편집 #{{ entry.id }}{% else %}플레이북 추가{% endif %}</h3>
+      <p class="text-muted mb-0"><a href="/admin/agent-playbook">목록으로</a></p>
+    </div>
+  </div>
+
+  <div class="container">
+    {% if err %}
+    <div class="alert alert-warning">{{ err }}</div>
+    {% endif %}
+
+    <div class="rfp-section">
+      <form method="post" action="{% if entry %}/admin/agent-playbook/{{ entry.id }}/edit{% else %}/admin/agent-playbook/new{% endif %}">
+        <div class="mb-3">
+          <label class="form-label">제목 <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="title" required maxlength="512"
+                 value="{{ (form_title if form_title is defined else (entry.title if entry else ''))|e }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">본문(규칙·금지·기대 출력) <span class="text-danger">*</span></label>
+          <textarea class="form-control font-monospace small" name="body" rows="14" required>{{ (form_body if form_body is defined else (entry.body if entry else ''))|e }}</textarea>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">대상 엔티티</label>
+            {% set ent = (form_entity if form_entity is defined else (entry.match_entity if entry else 'any')) %}
+            <select class="form-select" name="match_entity">
+              <option value="any" {% if ent == 'any' %}selected{% endif %}>any (전체)</option>
+              <option value="rfp" {% if ent == 'rfp' %}selected{% endif %}>rfp (신규·분석/연동 브리지 RFP)</option>
+              <option value="abap_analysis" {% if ent == 'abap_analysis' %}selected{% endif %}>abap_analysis</option>
+              <option value="integration" {% if ent == 'integration' %}selected{% endif %}>integration (연동 허브)</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">workflow_origin</label>
+            {% set org = (form_origin if form_origin is defined else (entry.match_workflow_origin if entry else 'any')) %}
+            <select class="form-select" name="match_workflow_origin">
+              <option value="any" {% if org == 'any' %}selected{% endif %}>any</option>
+              <option value="direct" {% if org == 'direct' %}selected{% endif %}>direct (일반 신규 RFP)</option>
+              <option value="abap_analysis" {% if org == 'abap_analysis' %}selected{% endif %}>abap_analysis</option>
+              <option value="integration" {% if org == 'integration' %}selected{% endif %}>integration (연동→RFP 브리지)</option>
+              <option value="integration_native" {% if org == 'integration_native' %}selected{% endif %}>integration_native (연동 네이티브 crew dict)</option>
+            </select>
+            <div class="form-text small">RFP가 아닌 연동 인터뷰·제안은 보통 <code>integration_native</code> + 엔티티 <code>integration</code>.</div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">우선순위</label>
+            {% set pri = (form_priority if form_priority is defined else (entry.priority|string if entry else '0')) %}
+            <input type="number" class="form-control" name="priority" value="{{ pri }}">
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <div class="form-check">
+              {% set act = (form_active if form_active is defined else (entry.active if entry else True)) %}
+              <input class="form-check-input" type="checkbox" name="active" value="1" id="pbActive" {% if act %}checked{% endif %}>
+              <label class="form-check-label" for="pbActive">활성</label>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">적용 단계 <span class="text-danger">*</span></label>
+          <div class="row g-2">
+            {% for code, label in stage_choices %}
+            <div class="col-md-6 col-lg-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="stages" value="{{ code }}" id="st_{{ code }}"
+                       {% if code in selected_stages %}checked{% endif %}>
+                <label class="form-check-label small" for="st_{{ code }}">{{ label }} (<code>{{ code }}</code>)</label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <button type="submit" class="btn btn-warning">저장</button>
+        <a href="/admin/agent-playbook" class="btn btn-outline-secondary">취소</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -15,6 +15,12 @@ from .integration_crew_adapter import integration_request_to_crew_rfp_dict, _mem
 from .integration_hub import integration_hub_url
 from .subscription_catalog import METRIC_DEV_PROPOSAL
 from .subscription_quota import try_consume_monthly
+from .agent_playbook import (
+    PlaybookContext,
+    STAGE_INTERVIEW,
+    STAGE_PROPOSAL,
+    build_playbook_addon,
+)
 from .routers.interview_router import (
     _answer_block_for_export,
     _cap_suggestions,
@@ -28,6 +34,13 @@ from .routers.interview_router import (
     _messages_to_list,
     _parse_intra,
 )
+
+
+def _playbook_addon_integration(db: Session, stage: str) -> str:
+    return build_playbook_addon(
+        db,
+        PlaybookContext(entity="integration", stage=stage, workflow_origin="integration_native"),
+    )
 
 
 def _ordered_interview_messages(ir: models.IntegrationRequest) -> list:
@@ -100,11 +113,13 @@ def _run_integration_proposal_background(integration_id: int):
                 rfp_dict.get("dev_types", []),
                 member_safe_output=ms,
             )
+            pb = _playbook_addon_integration(db, STAGE_PROPOSAL)
             proposal = _fc().generate_proposal(
                 rfp_dict,
                 conv,
                 code_library_context=code_ctx,
                 member_safe_output=ms,
+                playbook_addon=pb,
             )
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
@@ -227,12 +242,14 @@ def serve_integration_interview_workspace(
         member_safe_output=_ms,
     )
     try:
+        pb_iv = _playbook_addon_integration(db, STAGE_INTERVIEW)
         result = _fc().generate_sequential_start(
             rfp_data=rfp_dict,
             conversation=conv,
             round_num=next_round,
             code_library_context=code_ctx,
             member_safe_output=_ms,
+            playbook_addon=pb_iv,
         )
     except RuntimeError as e:
         wizard_ctx = {

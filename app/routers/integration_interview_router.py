@@ -23,6 +23,7 @@ from ..subscription_quota import try_consume_monthly, try_consume_per_request
 from ..integration_crew_adapter import integration_request_to_crew_rfp_dict, _member_safe_for_integration
 from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
+from ..agent_playbook import PlaybookContext, STAGE_INTERVIEW, build_playbook_addon
 from .interview_router import (
     _answer_block_for_export,
     _fc,
@@ -278,6 +279,10 @@ def integration_interview_answer_step(
         _finalize_message_row()
         return RedirectResponse(url=integration_hub_url(req_id, "interview"), status_code=302)
 
+    pb_f = build_playbook_addon(
+        db,
+        PlaybookContext(entity="integration", stage=STAGE_INTERVIEW, workflow_origin="integration_native"),
+    )
     fol = _fc().generate_sequential_followup(
         rfp_data=rfp_dict,
         conversation=conv,
@@ -286,6 +291,7 @@ def integration_interview_answer_step(
         code_library_context=code_ctx,
         library_pool=lib_pool,
         member_safe_output=_ms_ans,
+        playbook_addon=pb_f,
     )
     if bool(fol.get("round_complete")):
         _finalize_message_row()

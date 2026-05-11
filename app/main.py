@@ -171,6 +171,10 @@ def _run_migrations():
         models.AccountPhoneOtp.__table__.create(bind=engine, checkfirst=True)
     except Exception:
         pass
+    try:
+        models.AgentPlaybookEntry.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        pass
 
 
 DEFAULT_INTEGRATION_IMPL_DEVTYPES = [

@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy.orm import joinedload
 
 from . import models, r2_storage
+from .agent_playbook import PlaybookContext, STAGE_DELIVERED_ABAP, STAGE_FS_ABAP, build_playbook_addon
 from .agent_display import agent_label_ko
 from .agents.agent_tools import get_code_library_context
 from .agents.paid_crew import generate_delivered_abap_artifact, generate_fs_markdown
@@ -113,6 +114,8 @@ def run_fs_generation_job(rfp_id: int) -> None:
             "fs_job_log",
             f"{agent_label_ko('p_architect')}(Gemini) 호출 직전 · 수 분 걸릴 수 있음",
         )
+        wo = (getattr(rfp, "workflow_origin", None) or "direct").strip()
+        pb_fs = build_playbook_addon(db, PlaybookContext(entity="rfp", stage=STAGE_FS_ABAP, workflow_origin=wo))
         try:
             rfp.fs_text = generate_fs_markdown(
                 rfp_dict,
@@ -120,6 +123,7 @@ def run_fs_generation_job(rfp_id: int) -> None:
                 rfp.proposal_text or "",
                 code_library_context=code_ctx or "",
                 member_safe_output=ms,
+                playbook_addon=pb_fs,
             )
             rfp.fs_status = "ready"
             rfp.fs_generated_at = datetime.utcnow()
@@ -247,6 +251,10 @@ def run_delivered_code_job(rfp_id: int) -> None:
             rfp_dict.get("dev_types", []),
             member_safe_output=ms,
         )
+        wo_d = (getattr(rfp, "workflow_origin", None) or "direct").strip()
+        pb_del = build_playbook_addon(
+            db, PlaybookContext(entity="rfp", stage=STAGE_DELIVERED_ABAP, workflow_origin=wo_d)
+        )
         try:
             pkg, legacy_md = generate_delivered_abap_artifact(
                 rfp_dict,
@@ -256,6 +264,7 @@ def run_delivered_code_job(rfp_id: int) -> None:
                 code_library_context=code_ctx or "",
                 member_safe_output=ms,
                 phase_log=_phase_log_delivery,
+                playbook_addon=pb_del,
             )
             rfp.delivered_code_text = legacy_md
             rfp.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None

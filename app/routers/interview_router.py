@@ -19,8 +19,19 @@ from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_check
 from ..rfp_hub import rfp_hub_url
 from ..subscription_catalog import METRIC_DEV_PROPOSAL, METRIC_DEV_PROPOSAL_REGEN
 from ..subscription_quota import try_consume_monthly, try_consume_per_request
+from ..agent_playbook import (
+    PlaybookContext,
+    STAGE_INTERVIEW,
+    STAGE_PROPOSAL,
+    build_playbook_addon,
+)
 
 router = APIRouter()
+
+
+def _playbook_addon_for_rfp(db: Session, rfp: models.RFP, stage: str) -> str:
+    wo = (getattr(rfp, "workflow_origin", None) or "direct").strip()
+    return build_playbook_addon(db, PlaybookContext(entity="rfp", stage=stage, workflow_origin=wo))
 
 
 def _member_safe_for_rfp(db: Session, rfp: Optional[models.RFP]) -> bool:
@@ -315,11 +326,13 @@ def _run_proposal_background(rfp_id: int):
                 rfp_dict.get("dev_types", []),
                 member_safe_output=ms,
             )
+            pb = _playbook_addon_for_rfp(db, rfp, STAGE_PROPOSAL)
             proposal = _fc().generate_proposal(
                 rfp_dict,
                 conv,
                 code_library_context=code_ctx,
                 member_safe_output=ms,
+                playbook_addon=pb,
             )
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
@@ -454,12 +467,14 @@ def serve_interview_workspace(
         member_safe_output=_ms,
     )
     try:
+        pb_iv = _playbook_addon_for_rfp(db, rfp, STAGE_INTERVIEW)
         result = _fc().generate_sequential_start(
             rfp_data=rfp_dict,
             conversation=conv,
             round_num=next_round,
             code_library_context=code_ctx,
             member_safe_output=_ms,
+            playbook_addon=pb_iv,
         )
     except RuntimeError as e:
         wizard_ctx = {
@@ -766,6 +781,7 @@ def interview_answer_step(
         _finalize_message_row()
         return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
+    pb_f = _playbook_addon_for_rfp(db, rfp, STAGE_INTERVIEW)
     fol = _fc().generate_sequential_followup(
         rfp_data=rfp_dict,
         conversation=conv,
@@ -774,6 +790,7 @@ def interview_answer_step(
         code_library_context=code_ctx,
         library_pool=lib_pool,
         member_safe_output=_ms_ans,
+        playbook_addon=pb_f,
     )
     if bool(fol.get("round_complete")):
         _finalize_message_row()

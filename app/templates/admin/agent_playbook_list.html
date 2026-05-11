@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}에이전트 플레이북 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="admin-page-header mb-4">
+    <div class="container">
+      {% include 'partials/nav_prev_screen.html' %}
+      <h3 class="mb-1"><i class="fa-solid fa-book me-2 text-warning"></i>에이전트 플레이북</h3>
+      <p class="text-muted mb-0">
+        테스트·운영 중 발견한 규칙을 누적하면, 인터뷰·제안·FS·납품 등 해당 단계 LLM 프롬프트에 자동으로 붙습니다.
+        <strong>적용 단계</strong>를 반드시 지정하세요(비어 있으면 매칭되지 않음).
+      </p>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="mb-3">
+      <a href="/admin/agent-playbook/new" class="btn btn-warning"><i class="fa-solid fa-plus me-1"></i>새 항목</a>
+      <a href="/admin" class="btn btn-outline-secondary ms-2">Admin 홈</a>
+    </div>
+
+    <div class="rfp-section">
+      {% if rows %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle admin-table">
+          <thead>
+            <tr>
+              <th style="width:50px">ID</th>
+              <th style="width:70px">활성</th>
+              <th style="width:60px">우선</th>
+              <th>제목</th>
+              <th>엔티티</th>
+              <th>출처</th>
+              <th>단계(JSON)</th>
+              <th style="width:200px">액션</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr class="{% if not r.active %}opacity-50{% endif %}">
+              <td class="text-muted small">{{ r.id }}</td>
+              <td>{% if r.active %}<span class="badge text-bg-success">Y</span>{% else %}<span class="badge bg-secondary">N</span>{% endif %}</td>
+              <td>{{ r.priority }}</td>
+              <td>{{ r.title }}</td>
+              <td><code class="small">{{ r.match_entity }}</code></td>
+              <td><code class="small">{{ r.match_workflow_origin }}</code></td>
+              <td class="small text-muted font-monospace text-break" style="max-width:220px">{{ r.match_stages_json }}</td>
+              <td>
+                <a class="btn btn-sm btn-outline-primary" href="/admin/agent-playbook/{{ r.id }}/edit">편집</a>
+                <form method="post" action="/admin/agent-playbook/{{ r.id }}/toggle" class="d-inline">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">토글</button>
+                </form>
+                <form method="post" action="/admin/agent-playbook/{{ r.id }}/delete" class="d-inline"
+                      data-app-confirm="이 플레이북 항목을 삭제할까요?">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">삭제</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">등록된 항목이 없습니다. <a href="/admin/agent-playbook/new">새 항목</a>을 추가하세요.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
