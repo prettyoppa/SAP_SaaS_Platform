@@ -10,8 +10,8 @@
         <span class="nav-en" style="display:none">Phone verification / change</span>
       </h2>
       <p class="small mb-0 account-profile-lead">
-        <span class="nav-ko">국제 형식(+국가번호…)으로 입력한 뒤 인증번호를 받고, 문자로 온 6자리를 입력해 완료합니다. 번호가 바뀌면 SMS 수신 동의는 초기화됩니다.</span>
-        <span class="nav-en" style="display:none">Enter E.164 (+country…), request a code, then enter the 6-digit SMS code. If the number changes, SMS marketing/ops consent is reset.</span>
+        <span class="nav-ko">국제 형식(+국가번호…)으로 입력 후 <strong>인증번호 받기</strong>를 누르고, 문자로 온 6자리를 입력한 뒤 <strong>인증하고 저장</strong>을 누르세요. 번호가 바뀌면 SMS 수신 동의는 초기화됩니다.</span>
+        <span class="nav-en" style="display:none">Enter E.164 (+country…), tap <strong>Send code</strong>, enter the 6-digit SMS, then <strong>Verify and save</strong>. Changing the number resets SMS consent.</span>
       </p>
     </div>
 
@@ -46,7 +46,7 @@
     {% elif error == 'no_otp' %}
     <div class="alert alert-warning small"><span class="nav-ko">먼저 인증번호 받기를 진행해 주세요.</span><span class="nav-en" style="display:none">Request a code first.</span></div>
     {% elif error == 'phone_mismatch' %}
-    <div class="alert alert-danger small"><span class="nav-ko">인증번호를 받은 번호와 입력한 번호가 같아야 합니다.</span><span class="nav-en" style="display:none">Phone must match the number you requested a code for.</span></div>
+    <div class="alert alert-danger small"><span class="nav-ko">인증 대상 번호가 일치하지 않습니다. 인증번호를 다시 받아 주세요.</span><span class="nav-en" style="display:none">Phone mismatch. Request a new code.</span></div>
     {% elif error == 'expired' %}
     <div class="alert alert-warning small"><span class="nav-ko">인증번호가 만료되었습니다. 다시 받아 주세요.</span><span class="nav-en" style="display:none">Code expired. Request a new one.</span></div>
     {% elif error == 'locked' %}
@@ -55,17 +55,9 @@
     <div class="alert alert-danger small"><span class="nav-ko">인증번호가 올바르지 않습니다.</span><span class="nav-en" style="display:none">Invalid verification code.</span></div>
     {% endif %}
 
-    {% if pending_target %}
-    <div class="alert alert-info small mb-3">
-      <span class="nav-ko">진행 중인 인증 대상 번호: <strong>{{ pending_target }}</strong></span>
-      <span class="nav-en" style="display:none">Pending verification for: <strong>{{ pending_target }}</strong></span>
-    </div>
-    {% endif %}
-
-    <div class="card border shadow-sm account-profile-card mb-3">
+    <div class="card border shadow-sm account-profile-card">
       <div class="card-body">
-        <h3 class="h6 mb-3"><span class="nav-ko">1. 인증번호 받기</span><span class="nav-en" style="display:none">1. Send code</span></h3>
-        <form method="post" action="/account/phone/send" class="account-profile-form">
+        <form method="post" action="/account/phone/send" id="acct-phone-send-form" class="account-profile-form mb-0">
           <div class="mb-3">
             <label class="form-label" for="acct-phone-input"><span class="nav-ko">휴대폰 (E.164)</span><span class="nav-en" style="display:none">Phone (E.164)</span></label>
             <input type="text" class="form-control" id="acct-phone-input" name="phone_number" required
@@ -77,41 +69,54 @@
               <span class="nav-en" style="display:none">e.g. Korea +8210…, US +1…</span>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary" {% if not sms_ok %}disabled{% endif %}>
+          <button type="submit" class="btn btn-primary mb-3" {% if not sms_ok %}disabled{% endif %}>
             <span class="nav-ko">인증번호 받기</span><span class="nav-en" style="display:none">Send code</span>
           </button>
         </form>
-      </div>
-    </div>
 
-    <div class="card border shadow-sm account-profile-card">
-      <div class="card-body">
-        <h3 class="h6 mb-3"><span class="nav-ko">2. 인증 완료</span><span class="nav-en" style="display:none">2. Confirm</span></h3>
-        <form method="post" action="/account/phone/confirm" class="account-profile-form">
-          <div class="mb-3">
-            <label class="form-label" for="acct-phone-confirm-input"><span class="nav-ko">휴대폰 (동일 번호)</span><span class="nav-en" style="display:none">Phone (same as above)</span></label>
-            <input type="text" class="form-control" id="acct-phone-confirm-input" name="phone_number" required
-                   autocomplete="tel" {% if not sms_ok %}disabled{% endif %}
-                   placeholder="+821012345678"
-                   value="{% if pending_target %}{{ pending_target }}{% else %}{{ user.phone_number or '' }}{% endif %}"/>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="acct-phone-code"><span class="nav-ko">인증번호 6자리</span><span class="nav-en" style="display:none">6-digit code</span></label>
-            <input type="text" class="form-control" id="acct-phone-code" name="code" required maxlength="8"
-                   inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
-                   {% if not sms_ok %}disabled{% endif %} placeholder="123456"/>
-          </div>
-          <div class="d-flex flex-wrap gap-2">
-            <button type="submit" class="btn btn-primary" {% if not sms_ok %}disabled{% endif %}>
-              <span class="nav-ko">인증하고 저장</span><span class="nav-en" style="display:none">Verify and save</span>
-            </button>
-            <a href="/account" class="btn btn-outline-secondary">
-              <span class="nav-ko">돌아가기</span><span class="nav-en" style="display:none">Back</span>
-            </a>
-          </div>
-        </form>
+        <div id="acct-phone-verify-block" class="border-top pt-3 {% if not show_verify_block %}d-none{% endif %}">
+          {% if pending_target %}
+          <p class="small text-muted mb-2">
+            <span class="nav-ko">인증 진행 중인 번호: <strong class="text-body">{{ pending_target }}</strong></span>
+            <span class="nav-en" style="display:none">Verifying: <strong class="text-body">{{ pending_target }}</strong></span>
+          </p>
+          {% endif %}
+          <form method="post" action="/account/phone/confirm" id="acct-phone-confirm-form" class="account-profile-form">
+            <input type="hidden" name="phone_number" value="{{ pending_target or '' }}" id="acct-phone-confirm-hidden"/>
+            <div class="mb-3">
+              <label class="form-label" for="acct-phone-code"><span class="nav-ko">인증번호 6자리</span><span class="nav-en" style="display:none">6-digit code</span></label>
+              <input type="text" class="form-control" id="acct-phone-code" name="code"
+                     maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                     {% if not sms_ok %}disabled{% endif %} placeholder="123456"
+                     {% if show_verify_block %}required{% endif %}/>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="submit" class="btn btn-primary" {% if not sms_ok %}disabled{% endif %}>
+                <span class="nav-ko">인증하고 저장</span><span class="nav-en" style="display:none">Verify and save</span>
+              </button>
+              <a href="/account/edit" class="btn btn-outline-secondary">
+                <span class="nav-ko">프로필 수정으로</span><span class="nav-en" style="display:none">Back to profile</span>
+              </a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var cf = document.getElementById('acct-phone-confirm-form');
+  var hiddenPhone = document.getElementById('acct-phone-confirm-hidden');
+  var phoneInput = document.getElementById('acct-phone-input');
+  if (cf && hiddenPhone && phoneInput) {
+    cf.addEventListener('submit', function () {
+      if (!(hiddenPhone.value || '').trim()) hiddenPhone.value = (phoneInput.value || '').trim();
+    });
+  }
+})();
+</script>
 {% endblock %}

@@ -7,7 +7,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from urllib.parse import quote
-from zoneinfo import available_timezones
+from zoneinfo import ZoneInfo, available_timezones
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
@@ -327,6 +327,43 @@ def _parse_profile_timezone(raw: str | None) -> tuple[str | None, str | None]:
     if len(s) > _MAX_VIEWER_TZ_LEN or s not in available_timezones():
         return None, "timezone_invalid"
     return s, None
+
+
+def _format_tz_utc_offset_label(zone_name: str) -> str:
+    """예: Asia/Seoul  (UTC+09:00) — 현재 날짜 기준 오프셋(DST 반영)."""
+    try:
+        z = ZoneInfo(zone_name)
+        now = datetime.now(z)
+        off = now.utcoffset()
+        if off is None:
+            return zone_name
+        sec = int(off.total_seconds())
+        sign = "+" if sec >= 0 else "-"
+        sec = abs(sec)
+        h, m = sec // 3600, (sec % 3600) // 60
+        return f"{zone_name}  (UTC{sign}{h:02d}:{m:02d})"
+    except Exception:
+        return zone_name
+
+
+def _time_zone_choices() -> list[dict[str, str]]:
+    return [{"id": name, "label": _format_tz_utc_offset_label(name)} for name in sorted(available_timezones())]
+
+
+def _user_timezone_display_line(user: models.User) -> str | None:
+    tz = (getattr(user, "timezone", None) or "").strip()
+    if not tz:
+        return None
+    return _format_tz_utc_offset_label(tz)
+
+
+def _account_profile_edit_shared_context(user: models.User, *, tz_choices: list[dict[str, str]]) -> dict:
+    return {
+        "time_zone_choices": tz_choices,
+        "mail_for_account_actions": email_verification_enabled(),
+        "sms_for_account_phone": sms_enabled(),
+        **_consultant_profile_template_labels(user),
+    }
 
 
 def _parse_new_password(raw: str | None) -> tuple[str | None, str | None]:
@@ -1322,6 +1359,7 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
             "pending_email_change": pending_ec,
             "mail_for_account_actions": email_verification_enabled(),
             "sms_for_account_phone": sms_enabled(),
+            "user_timezone_display_line": _user_timezone_display_line(user),
             "deletion_grace_days": deletion_grace_days(),
             **clabels,
         },
@@ -1354,6 +1392,7 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login?next=/account/edit", status_code=302)
+    tzc = _time_zone_choices()
     return templates.TemplateResponse(
         request,
         "account_profile_edit.html",
@@ -1370,9 +1409,8 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
             if (getattr(user, "is_consultant", False) or getattr(user, "consultant_application_pending", False))
             else "member",
             "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
-            "time_zones": sorted(available_timezones()),
             "error": None,
-            **_consultant_profile_template_labels(user),
+            **_account_profile_edit_shared_context(user, tz_choices=tzc),
         },
     )
 
@@ -1396,7 +1434,7 @@ async def account_profile_edit_post(
     if not user:
         return RedirectResponse(url="/login?next=/account/edit", status_code=302)
 
-    tz_list = sorted(available_timezones())
+    tzc = _time_zone_choices()
     account_type_norm = (account_type or "member").strip().lower()
     if account_type_norm not in ("member", "consultant"):
         account_type_norm = "member"
@@ -1414,7 +1452,6 @@ async def account_profile_edit_post(
             "account_profile_edit.html",
             {
                 "user": user,
-                "time_zones": tz_list,
                 "full_name_value": (full_name or "").strip()[:_MAX_PROFILE_FULL_NAME],
                 "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                 "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
@@ -1425,7 +1462,7 @@ async def account_profile_edit_post(
                 "account_type_value": account_type_norm,
                 "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
                 "error": err,
-                **_consultant_profile_template_labels(user),
+                **_account_profile_edit_shared_context(user, tz_choices=tzc),
             },
             status_code=400,
         )
@@ -1436,7 +1473,6 @@ async def account_profile_edit_post(
             "account_profile_edit.html",
             {
                 "user": user,
-                "time_zones": tz_list,
                 "full_name_value": name_ok or "",
                 "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                 "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
@@ -1447,7 +1483,7 @@ async def account_profile_edit_post(
                 "account_type_value": account_type_norm,
                 "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
                 "error": tz_err,
-                **_consultant_profile_template_labels(user),
+                **_account_profile_edit_shared_context(user, tz_choices=tzc),
             },
             status_code=400,
         )
@@ -1459,7 +1495,6 @@ async def account_profile_edit_post(
             "account_profile_edit.html",
             {
                 "user": user,
-                "time_zones": tz_list,
                 "full_name_value": name_ok or "",
                 "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                 "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
@@ -1470,7 +1505,7 @@ async def account_profile_edit_post(
                 "account_type_value": account_type_norm,
                 "consultant_application_pending": was_p,
                 "error": err,
-                **_consultant_profile_template_labels(user),
+                **_account_profile_edit_shared_context(user, tz_choices=tzc),
             },
             status_code=400,
         )
@@ -1498,7 +1533,6 @@ async def account_profile_edit_post(
                 "account_profile_edit.html",
                 {
                     "user": user,
-                    "time_zones": tz_list,
                     "full_name_value": name_ok or "",
                     "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                     "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
@@ -1509,7 +1543,7 @@ async def account_profile_edit_post(
                     "account_type_value": account_type_norm,
                     "consultant_application_pending": was_pending,
                     "error": "consultant_profile_required",
-                    **_consultant_profile_template_labels(user),
+                    **_account_profile_edit_shared_context(user, tz_choices=tzc),
                 },
                 status_code=400,
             )
@@ -1525,7 +1559,6 @@ async def account_profile_edit_post(
                     "account_profile_edit.html",
                     {
                         "user": user,
-                        "time_zones": tz_list,
                         "full_name_value": name_ok or "",
                         "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                         "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
@@ -1536,7 +1569,7 @@ async def account_profile_edit_post(
                         "account_type_value": account_type_norm,
                         "consultant_application_pending": was_pending,
                         "error": "consultant_profile_too_large",
-                        **_consultant_profile_template_labels(user),
+                        **_account_profile_edit_shared_context(user, tz_choices=tzc),
                     },
                     status_code=400,
                 )
@@ -1546,7 +1579,6 @@ async def account_profile_edit_post(
                     "account_profile_edit.html",
                     {
                         "user": user,
-                        "time_zones": tz_list,
                         "full_name_value": name_ok or "",
                         "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                         "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
@@ -1557,7 +1589,7 @@ async def account_profile_edit_post(
                         "account_type_value": account_type_norm,
                         "consultant_application_pending": was_pending,
                         "error": "consultant_profile_upload_failed",
-                        **_consultant_profile_template_labels(user),
+                        **_account_profile_edit_shared_context(user, tz_choices=tzc),
                     },
                     status_code=400,
                 )
@@ -1573,7 +1605,6 @@ async def account_profile_edit_post(
                         "account_profile_edit.html",
                         {
                             "user": user,
-                            "time_zones": tz_list,
                             "full_name_value": name_ok or "",
                             "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
                             "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
@@ -1584,7 +1615,7 @@ async def account_profile_edit_post(
                             "account_type_value": account_type_norm,
                             "consultant_application_pending": was_pending,
                             "error": "consultant_profile_upload_failed",
-                            **_consultant_profile_template_labels(user),
+                            **_account_profile_edit_shared_context(user, tz_choices=tzc),
                         },
                         status_code=400,
                     )
@@ -1683,6 +1714,14 @@ def account_phone_get(
     pending_target = None
     if row and row.expires_at >= now:
         pending_target = row.target_phone
+    _verify_phase_errors = frozenset(
+        {"bad_code", "expired", "locked", "phone_mismatch", "invalid_code"}
+    )
+    show_verify_block = (
+        sent == "1"
+        or bool(pending_target)
+        or (err in _verify_phase_errors if err else False)
+    )
     return templates.TemplateResponse(
         request,
         "account_phone.html",
@@ -1692,6 +1731,7 @@ def account_phone_get(
             "error": err,
             "sms_ok": sms_enabled(),
             "pending_target": pending_target,
+            "show_verify_block": show_verify_block,
         },
     )
 
@@ -1757,7 +1797,7 @@ def account_phone_send_post(
 @router.post("/account/phone/confirm")
 def account_phone_confirm_post(
     request: Request,
-    phone_number: str = Form(...),
+    phone_number: str = Form(""),
     code: str = Form(...),
     db: Session = Depends(get_db),
 ):
@@ -1766,16 +1806,16 @@ def account_phone_confirm_post(
         return RedirectResponse(url="/login?next=/account/phone", status_code=302)
     if getattr(user, "pending_account_deletion", False):
         return RedirectResponse(url="/account", status_code=302)
-    phone_e164 = _normalize_phone_e164(phone_number)
+    row = db.query(models.AccountPhoneOtp).filter(models.AccountPhoneOtp.user_id == user.id).first()
+    if not row:
+        return RedirectResponse(url="/account/phone?err=no_otp", status_code=302)
+    phone_e164 = _normalize_phone_e164(phone_number) or row.target_phone
     if not phone_e164:
         return RedirectResponse(url="/account/phone?err=invalid_phone", status_code=302)
     code_in = "".join(c for c in (code or "") if c.isdigit())
     if len(code_in) != 6:
         return RedirectResponse(url="/account/phone?err=invalid_code", status_code=302)
 
-    row = db.query(models.AccountPhoneOtp).filter(models.AccountPhoneOtp.user_id == user.id).first()
-    if not row:
-        return RedirectResponse(url="/account/phone?err=no_otp", status_code=302)
     if phone_e164 != row.target_phone:
         return RedirectResponse(url="/account/phone?err=phone_mismatch", status_code=302)
     if datetime.utcnow() > row.expires_at:

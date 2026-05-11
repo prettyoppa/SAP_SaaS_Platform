@@ -19,3 +19,4 @@ pypdf>=5.0.0
 stripe>=11.1.0,<13
 markdown>=3.7
 markdownify>=0.13.1
+tzdata>=2024.1

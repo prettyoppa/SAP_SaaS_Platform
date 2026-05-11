@@ -50,18 +50,6 @@
         <i class="fa-solid fa-key me-1"></i>
         <span class="nav-ko">비밀번호 변경</span><span class="nav-en" style="display:none">Change password</span>
       </a>
-      {% if mail_for_account_actions %}
-      <a href="/account/email" class="btn btn-outline-secondary btn-sm">
-        <i class="fa-solid fa-at me-1"></i>
-        <span class="nav-ko">이메일 변경</span><span class="nav-en" style="display:none">Change email</span>
-      </a>
-      {% endif %}
-      {% if sms_for_account_phone %}
-      <a href="/account/phone" class="btn btn-outline-secondary btn-sm">
-        <i class="fa-solid fa-mobile-screen-button me-1"></i>
-        <span class="nav-ko">휴대폰 인증·변경</span><span class="nav-en" style="display:none">Phone verify / change</span>
-      </a>
-      {% endif %}
       {% if not user.pending_account_deletion %}
       <a href="/account/delete" class="btn btn-outline-danger btn-sm">
         <i class="fa-solid fa-user-xmark me-1"></i>
@@ -116,10 +104,10 @@
           {% endif %}
 
           <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
-            <span class="nav-ko">표시 타임존</span><span class="nav-en" style="display:none">Display time zone</span>
+            <span class="nav-ko">회원 타임존</span><span class="nav-en" style="display:none">Member time zone</span>
           </dt>
           <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
-            {% if user.timezone %}{{ user.timezone }}{% else %}
+            {% if user_timezone_display_line %}{{ user_timezone_display_line }}{% else %}
             <span class="nav-ko">브라우저 기본(자동)</span><span class="nav-en" style="display:none">Browser default</span>
             {% endif %}
           </dd>

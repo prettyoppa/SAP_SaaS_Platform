@@ -10,8 +10,8 @@
         <span class="nav-en" style="display:none">Edit profile</span>
       </h2>
       <p class="small mb-0 account-profile-lead">
-        <span class="nav-ko">이름·회사명·표시 타임존(날짜·시간 표시용)을 변경할 수 있습니다.</span>
-        <span class="nav-en" style="display:none">You can update your name, company, and display time zone.</span>
+        <span class="nav-ko">이름·회사명·회원 타임존(날짜·시간 표시용)을 변경할 수 있습니다. 로그인 이메일·휴대폰은 아래에서 <strong>변경</strong>을 눌러 수정합니다.</span>
+        <span class="nav-en" style="display:none">Update name, company, and member time zone. Use <strong>Change</strong> below for login email and phone.</span>
       </p>
     </div>
 
@@ -25,7 +25,7 @@
     </div>
     {% elif error == 'timezone_invalid' %}
     <div class="alert alert-danger small" role="alert">
-      <span class="nav-ko">표시 타임존 값이 올바르지 않습니다.</span><span class="nav-en" style="display:none">Invalid display time zone.</span>
+      <span class="nav-ko">회원 타임존 값이 올바르지 않습니다.</span><span class="nav-en" style="display:none">Invalid member time zone.</span>
     </div>
     {% elif error == 'consultant_profile_too_large' %}
     <div class="alert alert-danger small" role="alert">
@@ -51,6 +51,49 @@
 
     <div class="card border shadow-sm account-profile-card">
       <div class="card-body">
+        <div class="mb-4 pb-3 border-bottom account-profile-contact-strip">
+          <div class="row g-2 align-items-center mb-2">
+            <div class="col-12 col-sm-3 small text-muted">
+              <span class="nav-ko">로그인 이메일</span><span class="nav-en" style="display:none">Login email</span>
+            </div>
+            <div class="col-12 col-sm-6 small text-break">{{ user.email }}</div>
+            <div class="col-12 col-sm-3">
+              {% if mail_for_account_actions %}
+              <a href="/account/email" class="btn btn-sm btn-outline-secondary">
+                <span class="nav-ko">변경</span><span class="nav-en" style="display:none">Change</span>
+              </a>
+              {% else %}
+              <span class="small text-muted"><span class="nav-ko">변경 불가(메일 미설정)</span><span class="nav-en" style="display:none">Unavailable</span></span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="row g-2 align-items-center">
+            <div class="col-12 col-sm-3 small text-muted">
+              <span class="nav-ko">휴대폰</span><span class="nav-en" style="display:none">Phone</span>
+            </div>
+            <div class="col-12 col-sm-6 small">
+              {% if user.phone_number %}
+                <span class="text-break">{{ user.phone_number }}</span>
+                {% if user.phone_verified %}
+                  <span class="badge text-bg-success ms-1"><span class="nav-ko">인증됨</span><span class="nav-en" style="display:none">Verified</span></span>
+                {% else %}
+                  <span class="badge text-bg-warning ms-1"><span class="nav-ko">미인증</span><span class="nav-en" style="display:none">Unverified</span></span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </div>
+            <div class="col-12 col-sm-3">
+              {% if sms_for_account_phone %}
+              <a href="/account/phone" class="btn btn-sm btn-outline-secondary">
+                <span class="nav-ko">변경</span><span class="nav-en" style="display:none">Change</span>
+              </a>
+              {% else %}
+              <span class="small text-muted"><span class="nav-ko">변경 불가(SMS 미설정)</span><span class="nav-en" style="display:none">Unavailable</span></span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
         <form method="post" action="/account/edit" enctype="multipart/form-data" class="account-profile-form">
           {% if consultant_application_pending and account_type_value == 'consultant' %}
           <div class="alert alert-warning small" role="alert">
@@ -90,13 +133,15 @@
             </div>
           </div>
           <div class="mb-4">
-            <label class="form-label" for="pf-timezone">
-              <span class="nav-ko">표시 타임존</span><span class="nav-en" style="display:none">Display time zone</span>
+            <label class="form-label" for="pf-tz-search">
+              <span class="nav-ko">회원 타임존</span><span class="nav-en" style="display:none">Member time zone</span>
             </label>
+            <input type="search" class="form-control form-control-sm mb-2" id="pf-tz-search" autocomplete="off"
+                   placeholder="검색 (예: Seoul, Europe, New_York) · Search"/>
             <select class="form-select" id="pf-timezone" name="timezone" autocomplete="off">
               <option value="" {% if not timezone_value %}selected{% endif %}>브라우저 기본 · Browser default</option>
-              {% for z in time_zones %}
-              <option value="{{ z }}" {% if timezone_value == z %}selected{% endif %}>{{ z }}</option>
+              {% for z in time_zone_choices %}
+              <option value="{{ z.id }}" {% if timezone_value == z.id %}selected{% endif %}>{{ z.label }}</option>
               {% endfor %}
             </select>
             <div class="form-text account-profile-form-hint">
@@ -318,6 +363,25 @@
       }
     });
   }
+
+  (function tzSearch() {
+    const sel = document.getElementById('pf-timezone');
+    const qEl = document.getElementById('pf-tz-search');
+    if (!sel || !qEl) return;
+    function apply() {
+      const q = (qEl.value || '').trim().toLowerCase();
+      sel.querySelectorAll('option').forEach((opt) => {
+        if (!opt.value) {
+          opt.hidden = false;
+          return;
+        }
+        const hay = ((opt.value || '') + '\n' + (opt.textContent || '')).toLowerCase();
+        opt.hidden = !!q && !hay.includes(q);
+      });
+    }
+    qEl.addEventListener('input', apply);
+    qEl.addEventListener('search', apply);
+  })();
 })();
 </script>
 {% endblock %}
