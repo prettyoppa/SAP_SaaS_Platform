@@ -425,6 +425,27 @@ def healthz():
     return {"status": "ok"}
 
 
+def _dev_theme_preview_enabled() -> bool:
+    v = (os.environ.get("SAP_DEV_THEME_PREVIEW") or "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
+@app.get("/dev/theme-preview", response_class=HTMLResponse)
+def dev_theme_preview_page(request: Request):
+    """라이트 테마 제안 팔레트 미리보기. 로컬에서 SAP_DEV_THEME_PREVIEW=1 일 때만."""
+    if not _dev_theme_preview_enabled():
+        return HTMLResponse(
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>404</title></head>"
+            "<body><p>Not found.</p></body></html>",
+            status_code=404,
+        )
+    return templates.TemplateResponse(
+        request,
+        "dev/theme_preview.html",
+        {"request": request},
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
     """브라우저 폼 제출(text/html) 시 422 JSON 대신 안내 화면 또는 폼 재표시."""
@@ -620,6 +641,7 @@ def subscription_plans_page(request: Request):
         CONSULTANT_PLAN_PUBLIC_ORDER,
         MEMBER_PLAN_PUBLIC_ORDER,
         METRIC_ORDER,
+        METRIC_LABEL_EN,
         METRIC_LABEL_KO,
         SUBSCRIPTION_METRIC_HELP_KEY_PREFIX,
         format_monthly_krw_display,
@@ -678,6 +700,7 @@ def subscription_plans_page(request: Request):
             "subscription_notice_md_ko": (raw_settings.get("subscription_plans_notice_md_ko") or "").strip(),
             "subscription_notice_md_en": (raw_settings.get("subscription_plans_notice_md_en") or "").strip(),
             "metric_labels": METRIC_LABEL_KO,
+            "metric_labels_en": METRIC_LABEL_EN,
             "metric_help": metric_help,
             "plan_prices_member": plan_prices_member,
             "plan_prices_consultant": plan_prices_consultant,

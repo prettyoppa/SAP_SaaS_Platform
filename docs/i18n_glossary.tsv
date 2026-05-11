@@ -1,0 +1,444 @@
+key	ko	en
+analysis.fold.hypotheses	가설	Hypotheses
+analysis.fold.interpretation	요구사항 해석	Interpretation
+analysis.fold.mapping	코드와의 연관	Mapping to code
+analysis.fold.openQuestions	추가 확인 질문	Follow-up questions
+analysis.fold.suspected	살펴볼 만한 위치	Areas to inspect
+analysis.fold.verification	검증 제안	Verification ideas
+analysis.pageTitle	SAP ABAP 분석·개선	ABAP analysis · improvement
+analysis.refBodyMeta	줄	lines total
+analysis.refBodyTitle	분석에 사용된 ABAP 본문 (제출 코드에서 추출)	ABAP body used in this analysis
+analysis.reqLinkTitle	요구사항 연계 분석	Requirements ↔ code
+app.confirmCancel	취소	Cancel
+app.confirmCloseAria	닫기	Close
+app.confirmOk	확인	OK
+app.confirmTitle	확인	Confirm
+badge.active	진행	In progress
+badge.analysis	분석	Analysis
+badge.draft	임시저장	Draft
+badge.failed	실패	Failed
+badge.generating	생성 중	Generating
+badge.integration	연동	Integration
+badge.proposalShort	제안	Proposal
+badge.ready	준비됨	Ready
+badge.refPrefix	참조	ref.
+badge.rfp	RFP	RFP
+badge.rounds	라운드	rounds
+badge.waiting	대기	Waiting
+brand.name	SAP 개발 파트너	SAP Development Partner
+chat.abapContextHelp	같은 제출 코드·분석 결과를 맥락으로 답합니다.	Answers use your submitted code and this analysis as context.
+chat.abapHeaderTitle	이 분석에 대해 질문하기	Ask about this analysis
+chat.answer	응답	Answer
+chat.answerOnly	응답만 있음	Answer only (no question saved)
+chat.closeAria	채팅 패널 닫기	Close chat panel
+chat.closeTitle	닫기	Close
+chat.continueAsk	AI 에게 문의	Ask AI
+chat.formAiNeedCode	참고 코드에 ABAP 소스가 있으면 이 화면에서 AI에게 문의할 수 있습니다.	Add ABAP source in the reference code field to enable Ask the AI on this page.
+chat.formAiTeaserAbap	먼저 임시 저장한 뒤, 이어서 작성(수정) 화면에서 참고 ABAP이 있으면 AI에게 문의할 수 있습니다.	Save a draft first, then open the edit page to use Ask the AI once reference ABAP is available.
+chat.formAiTeaserInt	먼저 임시 저장한 뒤, 이어서 작성(수정) 화면에서 연동 요청을 맥락으로 AI에게 문의할 수 있습니다.	Save a draft first, then open the edit page to use Ask the AI with your integration request in context.
+chat.formAiTeaserRfp	먼저 임시 저장한 뒤, 이어서 작성(수정) 화면에서 요청 내용을 맥락으로 AI에게 문의할 수 있습니다.	Save a draft first, then open the edit page to use Ask the AI with your request in context.
+chat.intContextHelp	연동 요청 내용·첨부를 맥락으로 답합니다.	Answers use your integration request and attachments as context.
+chat.intHeaderTitle	이 연동 요청에 대해 질문하기	Ask about this integration request
+chat.limitReached	후속 질문 횟수에 도달했습니다.	You have reached the follow-up message limit.
+chat.messageLabel	메시지	Message
+chat.messagePlaceholder	추가로 궁금한 점을 입력하세요.	What else would you like to know?
+chat.noAnswerYet	응답이 아직 없습니다.	No answer yet.
+chat.noThreadsYet	아직 대화가 없습니다. 아래에서 질문을 보내 보세요.	No messages yet. Ask something below.
+chat.panelResizeAria	패널 크기 조절	Resize panel
+chat.panelResizeHint	왼쪽 위 모서리를 드래그하여 크기 조절	Drag the top-left corner to resize
+chat.panelResizeTitle	왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.	Drag the corner icon to resize the panel.
+chat.phaseImprove	2. 개선 제안 요청	2. Improvement request
+chat.question	질문	Question
+chat.refAbapHeading	첨부 ABAP 코드	Attached ABAP
+chat.rfpContextHelp	요청서 본문·신규 개발 단계의 AI 인터뷰(있을 경우)·제안서(있을 경우)를 맥락으로 답합니다.	Answers use your request text, the guided-development interview thread (if any), and the proposal (if any) as context.
+chat.rfpHeaderTitle	이 신규 개발 요청에 대해 질문하기	Ask about this new development request
+chat.send	보내기	Send
+chat.taResizeAria	입력 영역 크기 조절	Resize input area
+chat.taResizeTitle	오른쪽 위를 드래그하여 입력 창 크기 조절	Drag the corner to resize the input
+chat.thread	대화	Thread
+codelib.analyzed	분석완료	Analyzed
+codelib.emptyCta	첫 번째 코드 등록	Register your first program
+codelib.emptyDesc	실제 프로젝트에서 개발한 ABAP 소스를 등록하면 분석 결과가 인터뷰 질문 생성에 활용됩니다.	Register ABAP from your projects—analysis feeds interview questions.
+codelib.emptyTitle	등록된 코드가 없습니다	No code yet
+codelib.notAnalyzed	미분석	Not analyzed
+codelib.reset	초기화	Reset
+codelib.searchPlaceholder	프로그램명, 모듈로 검색…	Search by title, program ID, module…
+codelib.sectionList	등록된 코드	Registered programs
+codelib.statAnalyzed	분석 완료	Analyzed
+codelib.statDraft	임시 저장	Drafts
+codelib.statTotal	전체 코드	All code
+codelib.subtitle	실제 프로젝트 ABAP 소스를 등록하고 분석합니다.	Register real-project ABAP sources for AI analysis.
+codelib.title	ABAP 코드 갤러리	ABAP code gallery
+codelib.upload	코드 등록	Register code
+common.back	이전 화면	Back
+common.delete	삭제	Delete
+common.detail	상세	View
+common.duplicateRequest	요청복사	Duplicate
+common.edit	수정	Edit
+common.fileFallback	파일	File
+common.generating	생성 중…	Generating…
+common.itemsUnit	건	items
+common.newRequest	신규 요청	New request
+common.notLinked	미연결	Not linked
+common.save	저장	Save
+common.search	검색	Search
+common.submit	제출	Submit
+common.submitted	제출됨	Submitted
+common.workflowLinked	워크플로 연결	Workflow linked
+cta.btn	무료로 시작하기	Get Started Free
+cta.btn.integration	연동 요청	Integration request
+cta.btn.loggedin	신규 요청하기	New Request
+cta.btn.rfp	RFP 작성	New RFP
+cta.sub	무료 계정을 만들고 첫 번째 요구사항을 오늘 바로 제출해 보세요.	Create your free account and submit your first requirement today.
+cta.title	SAP 개발 자동화를 시작할 준비가 되셨나요?	Ready to automate your SAP development?
+dash.allKinds	전체 (RFP+연동)	All (RFP + integration)
+dash.clearFilters	필터 초기화	Clear filters
+dash.completed	완료	Completed
+dash.createdAt	제출일	Submitted
+dash.dateFrom	시작일	From
+dash.dateNow	현재	today
+dash.dateTo	종료일	To
+dash.editRfp	RFP 수정	Edit RFP
+dash.emptyBtn	첫 번째 요청 만들기	Create First Request
+dash.emptyBtnInt	연동 요청	Integration
+dash.emptyBtnRfp	RFP 작성	New RFP
+dash.emptyDesc	RFP 또는 연동 요청을 제출해 보세요.	Create an RFP or an integration request.
+dash.emptyTitle	아직 요청이 없습니다	No requests yet
+dash.filterActive	필터	Filters
+dash.filterAllKinds	전체 종류	All types
+dash.filterIntOnly	연동만	Integration only
+dash.filterReset	날짜 초기화	Reset dates
+dash.filterRfpOnly	RFP만	RFP only
+dash.inReview	검토 중	In Review
+dash.integrationOnly	연동 개발	Integration
+dash.myRequests	나의 요청	My requests
+dash.newIntegration	연동 요청	Integration
+dash.newRequest	신규 요청	New Request
+dash.newRfp	RFP(ABAP)	RFP (ABAP)
+dash.proposalAt	제안서	Proposal
+dash.rfpOnly	SAP ABAP (RFP)	SAP ABAP (RFP)
+dash.rfpTotal	RFP 전체	RFP total
+dash.sort	정렬	Sort
+dash.sortNewest	최신순	Newest
+dash.sortOldest	오래된순	Oldest
+dash.sortStatus	상태순	By status
+dash.submitted	제출됨	Submitted
+dash.totalRequests	전체	Total
+dash.welcome	환영합니다,	Welcome back,
+detail.abapTitle	SAP ABAP 분석·개선	ABAP analysis · improvement
+detail.analysisDone	분석 완료	Analysis complete
+detail.analysisErr	분석 오류	Analysis error
+detail.analysisErrBadge	오류	Error
+detail.analysisErrorPrefix	분석 오류:	Analysis error:
+detail.analysisOkBadge	분석 완료	Complete
+detail.analysisPending	분석 오류/미완료	Analysis incomplete / error
+detail.analysisTag	분석·개선	Analysis · improvement
+detail.attachments	첨부	Attachments
+detail.chatHintAnalysis	이 분석에 대해 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	Questions about this analysis: use the <strong>Ask AI</strong> button at the bottom right.
+detail.chatHintInt	이 연동 요청에 대해 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	Questions about this integration request: use the <strong>Ask AI</strong> button at the bottom right.
+detail.chatHintRfp	요청·인터뷰·제안서 내용에 대해 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	Questions about your request, guided interview, or proposal: use the <strong>Ask AI</strong> button at the bottom right.
+detail.continueInLinkedRfp	이후 인터뷰·제안서·신규 개발 단계는 연결된 RFP 허브에서 이어집니다. 위 버튼으로 이동하세요.	Interview, proposal, and later new-development steps continue in the linked RFP hub. Use the buttons above to open it.
+detail.continueWriting	계속 작성	Continue editing
+detail.deleteConfirmAbap	이 분석 요청을 삭제할까요? 첨부 파일과 분석 결과가 함께 삭제되며 되돌릴 수 없습니다.	Delete this analysis request? Attachments and results cannot be recovered.
+detail.deleteConfirmInt	이 연동 요청을 삭제할까요? 첨부·후속 대화가 삭제됩니다. (연결된 신규 개발 RFP는 삭제되지 않습니다.)	Delete this integration request? Attachments and chat will be removed. Linked RFPs are not deleted.
+detail.description	상세 설명	Description
+detail.draftHint	임시저장된 요청입니다. 계속 작성에서 제출 및 분석을 누르세요.	This request is a draft. Open edit and use <strong>Submit &amp; analyze</strong> to finish.
+detail.env	실행 환경	Runtime environment
+detail.implTypes	구현 형태	Implementation type
+detail.improveShort	개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)	Please enter more detail (at least 20 characters).
+detail.improveTitle	개선 제안 요청	Improvement / follow-on proposal
+detail.improveWorkflow	이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.	A workflow is already linked. Open the proposal below.
+detail.improveWorkflowExplain	제출하시면 동일 내용으로 <strong>신규 개발(RFP)</strong> 요청이 만들어지고, <strong>신규 개발 메뉴의 통합 상세</strong> 화면으로 이동합니다. 이후 단계(요청 확인 → AI 인터뷰 → 개발 제안서)는 그 화면에서 이어지며, 제출 직후에는 제안서가 자동으로 생성되지 않습니다.	When you submit, a <strong>new development (RFP)</strong> request is created with the same content and you are taken to the <strong>unified RFP detail</strong> in the New development section. Later steps (review the request → AI interview → development proposal) continue there; a proposal is <strong>not</strong> generated automatically right after submit.
+detail.integrationTag	연동 개발	Integration
+detail.integrationTitle	연동 요청	Integration request
+detail.linkedRfp	연결된 요청(RFP)	Linked RFP
+detail.newDevTag	신규 개발	New development
+detail.phaseAnalysis	2. 분석 결과	2. Analysis results
+detail.phaseImprove	4. 개선 제안 요청	4. Improvement request
+detail.phaseReqLink	3. 요구사항 연계 분석	3. Requirements linkage analysis
+detail.phaseRequest	1. 요청	1. Request
+detail.proposalGen	제안서 생성 중…	Proposal generating…
+detail.reanalyze	재분석	Re-run analysis
+detail.refAbap	첨부 ABAP 코드	Attached ABAP
+detail.reqLinkErrBadge	오류	Error
+detail.reqLinkErrorPrefix	요구사항 연계 분석 오류:	Requirements linkage error:
+detail.reqLinkOkBadge	준비됨	Ready
+detail.requirements	요구사항	Requirements
+detail.retryHint	재분석 버튼으로 다시 시도해 주세요.	Try again with the re-analyze button.
+detail.sapTouch	SAP 터치포인트	SAP touchpoints
+detail.security	보안·권한	Security &amp; authorizations
+detail.turnsPerSession	회당 최대	Max user turns per request
+detail.viewProposal	제안서 보기	View proposal
+dt.bapi	BAPI 호출	BAPI Call
+dt.dialog	다이얼로그 프로그램	Dialog Program
+dt.enh	BAdI / User Exit	BAdI / User Exit
+dt.fiori	Fiori / Web Dynpro	Fiori / Web Dynpro
+dt.fm	함수 모듈	Function Module
+dt.form	서식 (SmartForms/ADS)	Form (SmartForms/ADS)
+dt.interface	인터페이스 (IDoc/RFC)	Interface (IDoc/RFC)
+dt.report	Report / ALV	Report / ALV
+dt.upload	데이터 업로드 (BDC/LSMW)	Data Upload (BDC/LSMW)
+dt.workflow	워크플로우	Workflow
+footer.copy	© 2026 SAP Dev Hub. All rights reserved.	© 2026 SAP Dev Hub. All rights reserved.
+footer.tagline	AI 기반 SAP 개발 자동화 플랫폼	AI-Powered SAP Development Automation Platform
+form.writeGuide	작성 가이드	Writing guide
+form.writeGuideCancel	취소	Cancel
+form.writeGuideSave	저장	Save
+hero.badge	AI 기반 SAP 개발 자동화	AI-Assisted SAP Development
+hero.cta.dashboard	내 대시보드	My Dashboard
+hero.cta.features	서비스 둘러보기	Explore services
+hero.cta.how	이용 방법 보기	How it Works
+hero.cta.new	신규 요청하기	New Request
+hero.cta.newIntegration	연동 요청	Integration request
+hero.cta.newRfp	RFP 작성	New RFP
+hero.cta.plans	구독 플랜	Plans
+hero.cta.start	무료로 시작하기	Start Free
+hero.powerAgents	with 8 Power Agents	with 8 Power Agents
+hero.stat1	개발 제안서 무료	Development Proposal
+hero.stat2	납품 기간	Turnaround
+hero.stat3	SAP 전문가	Certified Experts
+hero.subtitle	개발 요구사항을 제출하면 전문 수준의 개발 제안서(Proposal)를 자동으로 받아보세요. SAP 전문 컨설턴트가 실제 운영 가능한 ABAP 코드를 납품해 드립니다.	Submit your SAP development requirements and receive a professional Development Proposal automatically. Expert consultants then deliver production-ready ABAP code.
+hero.title1	SAP 개발을	Transform Your
+hero.title2	AI로 혁신하세요	SAP Development
+hero.title3		with AI Power
+home.anonymous	익명	Anonymous
+home.faq.all	FAQ 전체 목록	All FAQs
+home.faq.empty	등록된 FAQ가 없습니다.	No FAQs yet.
+home.features.sub	이용 가이드, ABAP RFP, 연동 개발로 이동합니다.	User guide, ABAP RFP, or integration development.
+home.features.title	시작하기	Get started
+home.notice.all	공지사항 전체 목록	All notices
+home.notice.empty	등록된 공지사항이 없습니다.	No notices yet.
+home.noticeBadge	공지	Notice
+home.review.all	문의/리뷰 전체 목록	All inquiry / review posts
+home.review.empty	등록된 글이 없습니다.	No posts to show.
+home.review.login	로그인 후 작성	Login to Write
+home.review.write	후기 작성	Write a Review
+home.reviewsCaption	문의/리뷰	Inquiry / Review
+home.tab.notice	공지사항	Notices
+home.tab.review	문의/리뷰	Inquiry / Review
+home.tile.abapCta	자세히	Learn more
+home.tile.detail	상세 보기	Details
+home.tile.guideCta	PDF 열기	Open PDF
+home.tile.intCta	자세히	Learn more
+home.tile.totalLabel	전체	Total
+how.step1.a	SAP 모듈 & 개발 유형 선택	Select SAP Module & Dev Type
+how.step1.b	요구사항 자유 기술	Describe requirements freely
+how.step1.c	첨부 파일 (선택)	Attach files (optional)
+how.step1.desc	SAP 모듈과 개발 유형을 선택하고, 요구사항을 자유롭게 입력하고 첨부 파일을 더하세요.	Select SAP modules and development types, describe your requirements in plain language, and attach any supporting files.
+how.step1.tag	무료	FREE
+how.step1.title	RFP 제출	Submit Your RFP
+how.step2.a	「요구분석」 에이전트 – RFP·요구사항 정리	「Requirements」 Agent – RFP & requirements
+how.step2.b	「질의」 에이전트 – 3라운드 심층 인터뷰	「Q&A」 Agent – 3-round interview
+how.step2.c	「제안서」 에이전트 – 개발 제안서 초안	「Proposal」 Agent – development proposal
+how.step2.d	「제안검수」 에이전트 – 품질 검토·승인	「Review」 Agent – quality review & approval
+how.step2.desc	AI가 즉시 구조화된 개발 제안서를 생성합니다. 개요, 화면 흐름, 기능 명세, 전문가 체크포인트가 포함됩니다.	Our AI instantly generates a structured Development Proposal covering overview, screen flow, features, and expert checkpoints.
+how.step2.tag	무료	FREE
+how.step2.title	AI 제안서 수신	Receive AI Proposal
+how.step3.a	「FS설계」 에이전트 – 상세 기능 명세	「FS Design」 Agent – detailed functional spec
+how.step3.b	「ABAP」 에이전트 – 코드 생성	「ABAP」 Agent – code generation
+how.step3.c	「코드검수」 에이전트 – 리뷰·수정	「Code Review」 Agent – review & fixes
+how.step3.d	「테스트」 에이전트 – 단위 테스트 시나리오	「Test」 Agent – unit test scenarios
+how.step3.desc	전문 컨설턴트가 제안서를 검토·보완하고, 검증된 ABAP 코드와 현장 이행 서비스를 제공합니다.	Expert consultants review and refine the proposal, deliver production-ready ABAP code, and provide on-site implementation support.
+how.step3.tag	유료	PAID
+how.step3.title	최종 FS & 코드 수령	Get Final FS & Code
+how.subtitle	요구사항 접수부터 납품까지 3단계	From requirement to delivery in 3 simple steps
+how.title	이용 방법	How It Works
+hub.agentDelivered	납품 ABAP (에이전트 생성)	Delivered ABAP (agent)
+hub.badgeRounds	라운드	rounds
+hub.dcGen	납품 코드 생성 중	Delivery code generating
+hub.dcReady	납품 코드 준비됨	Delivery code ready
+hub.deleteRfpConfirm	첨부·코드·인터뷰·제안 기록이 함께 삭제되며 되돌릴 수 없습니다. 삭제 전 미리 다운로드 받으실 수 있습니다. 이 신규 개발 요청을 삭제할까요?	Attachments, code, interview, and proposal records will be removed together and cannot be recovered. You can download what you need before deleting. Delete this new development request?
+hub.fsFailed	실패	Failed
+hub.fsReady	준비됨	Ready
+hub.fsWait	대기	Waiting
+hub.inProgress	진행	In progress
+hub.ownerLabel	요청자	Requester
+hub.phaseDevCode	5. 개발코드	5. Dev code
+hub.phaseFs	4. 기능명세 (FS)	4. Functional spec (FS)
+hub.phaseInterview	2. 인터뷰	2. Interview
+hub.phaseProposal	3. 제안서	3. Proposal
+hub.phaseRequest	1. 요청	1. Request
+hub.proposalGen	제안서 생성 중	Generating proposal
+hub.proposalNone	제안서가 아직 없습니다. 인터뷰를 진행하면 생성할 수 있습니다.	No proposal yet. Complete the interview to generate one.
+hub.proposalReady	준비됨	Ready
+hub.refSections	참조 섹션	ref. sections
+hub.submittedAbap	참고로 제출한 ABAP	Submitted reference ABAP
+hub.subtitle	단계별 상세를 펼치거나 접을 수 있습니다.	Expand or collapse each stage.
+hub.titleSuffix	신규 개발	New development
+hub.wfAbapAssistantMsg	어시스턴트	Assistant
+hub.wfAbapFollowupLog	분석 폼 작성 중 AI 문의·응답 (신규 개발 인터뷰와 별개)	AI Q&A while filling the analysis form (not the RFP interview)
+hub.wfAbapMirrorTitle	분석·개선 단계 기록	ABAP analysis & improvement — saved steps
+hub.wfAbapOpenSource	원 분석 요청 열기	Open original analysis request
+hub.wfAbapTurns	턴	turns
+hub.wfAbapUserMsg	회원	Member
+hub.workflowFromAbap		Linked from ABAP analysis
+hub.workflowFromIntegration		Linked from integration analysis
+index.fallbackHeadlineEn		Reinvent SAP development with AI
+index.fallbackSubEn		Submit requirements and our AI agents run a deep interview—then you get a professional development proposal, free.
+integration.pageTitle	SAP 연동 개발	SAP integration development
+landing.abapLoginLine1	로그인하면 나의 분석 요청·진행 타일을 사용할 수 있습니다.	Sign in to open your analysis requests and progress tiles.
+landing.footerToAbap	SAP ABAP 개발 안내로	SAP ABAP services overview
+landing.intLoginLine1	로그인하면 연동 요청 목록과 진행 타일을 사용할 수 있습니다.	Sign in to open integration lists and progress tiles.
+landing.svcAbapLoginLine1	로그인하면 나의 RFP 목록·진행 현황판·단계별 카드가 표시됩니다.	Sign in to see your RFP list, progress board, and step cards.
+list.attachmentsTitle	첨부	Attachments
+list.created	제출일	Created
+list.ownerLine	요청자	Requester
+list.proposalAt	제안서	Proposal
+list.requestNum	요청	Request
+listView.aria	목록 표시 형식	List layout
+listView.list	목록	List
+listView.listTitle	목록 보기	Compact list layout
+listView.tile	타일	Tiles
+listView.tileTitle	타일 보기	Tile layout
+login.btn	로그인	Sign In
+login.email	이메일	Email
+login.error	이메일 또는 비밀번호가 올바르지 않습니다.	Invalid email or password.
+login.noAccount	계정이 없으신가요?	Don't have an account?
+login.password	비밀번호	Password
+login.signupLink	무료 회원가입	Sign up free
+login.sub	SAP Dev Hub 계정으로 로그인하세요	Sign in to your SAP Dev Hub account
+login.title	다시 오셨군요!	Welcome Back
+mod.Basis	Basis / 기술	Basis / Technical
+mod.CO	관리 회계	Controlling
+mod.EWM	확장 창고 관리	Ext. Warehouse Mgmt
+mod.FI	재무 회계	Financial Accounting
+mod.HCM	인사 관리	Human Capital Mgmt
+mod.MM	자재 관리	Materials Management
+mod.PM	설비 관리	Plant Maintenance
+mod.PP	생산 계획	Production Planning
+mod.PS	프로젝트 시스템	Project System
+mod.QM	품질 관리	Quality Management
+mod.SD	영업 및 유통	Sales & Distribution
+mod.WM	창고 관리	Warehouse Mgmt
+modules.title	지원 SAP 모듈	SAP Modules Supported
+nav.admin	관리자 메뉴	Admin
+nav.codelib	코드 라이브러리	Code Gallery
+nav.dashboard	대시보드	Dashboard
+nav.home	홈	Home
+nav.integration	연동 개발	Integration
+nav.login	로그인	Login
+nav.logout	로그아웃	Logout
+nav.newRfp	RFP	RFP
+nav.signup	회원가입	Sign Up
+phase.afterWorkflow	워크플로 연결 후 사용	Available once a workflow is linked
+phase.continueDraft	이어쓰기	Resume draft
+phase.delivery	납품 관리	Delivery
+phase.deliveryManage	납품 관리	Delivery management
+phase.deliveryTitle	FS·컨설턴트 수정본 업로드·납품 ABAP 생성 요청	Upload consultant FS and request delivery ABAP
+phase.deliveryTitleShort	납품 관리	Delivery console
+phase.devCode	개발코드	Dev code
+phase.fs	FS	FS
+phase.interview	인터뷰	Interview
+phase.interviewPending	인터뷰 단계는 아직 준비 중입니다.	Interview phase is not available yet.
+phase.interviewUnavailable	워크플로가 연결되면 인터뷰 단계로 이동할 수 있습니다.	Interview opens after a workflow is linked.
+phase.proposal	제안서	Proposal
+phase.request	요청	Request
+plans.accountTypeAria	계정 유형	Account type
+plans.currencyKrwTitle	원화 (KRW)	Korean Won (KRW)
+plans.currencyRowAria	표시 통화	Display currency
+plans.currencyUsdTitle	달러 (USD)	US Dollar (USD)
+register.and	 및 	 and 
+register.btn	계정 만들기	Create Account
+register.company	회사명	Company
+register.email	이메일	Email
+register.errorDuplicate	이미 가입된 이메일 주소입니다.	This email is already registered.
+register.hasAccount	이미 계정이 있으신가요?	Already have an account?
+register.loginLink	로그인	Sign in
+register.name	이름	Full Name
+register.optional	(선택)	(Optional)
+register.password	비밀번호	Password
+register.privacyLink	개인정보처리방침	Privacy Policy
+register.sub	SAP 개발 자동화를 지금 시작하세요	Start automating your SAP development today
+register.terms	다음에 동의합니다:	I agree to the
+register.termsLink	이용약관	 Terms of Service
+register.title	계정 만들기	Create Account
+reqPanel.attachments	첨부	Attachments
+reqPanel.devTypes	개발 유형	Development types
+reqPanel.edit	수정	Edit
+reqPanel.goEdit	요청 수정 페이지로 이동	Open full edit page
+reqPanel.modules	SAP 모듈	SAP modules
+reqPanel.programId	프로그램 ID	Program ID
+reqPanel.requestInfo	요청 정보	Request summary
+reqPanel.requirements	요구사항	Requirements
+reqPanel.submittedAt	제출 일시	Submitted at
+reqPanel.tcode	T-code	T-code
+reqPanel.workflowSummary	에이전트용 요약 본문	Agent summary text
+reqPanel.workflowSummaryToggle	펼쳐서 보기 (인터뷰·제안서 생성 시 참고)	Expand (used for interview & proposal)
+rfp.back	대시보드로 돌아가기	Back to Dashboard
+rfp.cancel	취소	Cancel
+rfp.changeFile	클릭하여 파일 변경	Click to change file
+rfp.chars	자	chars
+rfp.descHint	비즈니스 배경, 입출력 데이터, 제약 사항, 예외 처리 등을 기술해 주세요.	Describe business context, expected inputs/outputs, constraints, edge cases, etc.
+rfp.descPlaceholder		Example: We need a program to upload Sales Orders from an Excel file...
+rfp.devTypeLabel	개발 유형	Development Type
+rfp.devTypeSub	필요한 ABAP 개발 유형을 선택하세요. 복수 선택 가능합니다.	Select the type(s) of ABAP development required.
+rfp.dropSub	PDF, Excel, Word, 이미지, TXT · 최대 20MB	PDF, Excel, Word, images, TXT · Max 20MB
+rfp.dropTitle	클릭하거나 파일을 여기에 끌어다 놓으세요	Click or drag a file here
+rfp.errorFile	허용되지 않는 파일 형식입니다. 허용: PDF, Excel, Word, 이미지, TXT.	Invalid file type. Allowed: PDF, Excel, Word, images, TXT.
+rfp.freeNote	개발 제안서 생성은 <strong>완전 무료</strong>입니다. 인터뷰를 마친 뒤 이 사이트에서 제안서를 확인하실 수 있습니다.	Development Proposal generation is <strong>completely free</strong>. Follow the interview, then open the proposal on this site.
+rfp.moduleLabel	SAP 모듈	SAP Modules
+rfp.noFile	파일 없음	No file attached
+rfp.none	선택 없음	None selected
+rfp.prog1	모듈 & 유형	Modules & Type
+rfp.prog2	요구사항	Description
+rfp.prog3	파일첨부	Attachment
+rfp.prog4	참고 코드	ABAP code
+rfp.prog5	최종확인	Review
+rfp.reviewFile	첨부 파일:	Attachment:
+rfp.reviewModules	선택 모듈:	Selected Modules:
+rfp.reviewTypes	개발 유형:	Development Types:
+rfp.s1.sub	먼저 SAP 모듈·개발 유형을 선택한 뒤 프로그램 ID와 제목을 입력해 주세요.	Select SAP modules and dev types first, then program ID and title.
+rfp.s1.title	요청 제목 & SAP 모듈	Request Title & SAP Module
+rfp.s2.sub	최대한 자세히 작성할수록 더 정확한 제안서가 생성됩니다.	The more detail you provide, the more accurate your proposal will be.
+rfp.s2.title	요구사항 자유 기술	Describe Your Requirements
+rfp.s3.sub	엑셀 양식, 기존 리포트, 화면 캡처, 관련 문서 등을 첨부하세요.	Attach Excel specs, reports, screenshots, and related documents.
+rfp.s3.title	첨부 파일	Attachments
+rfp.s4.sub	요청이 검토되고 무료 개발 제안서가 생성됩니다.	Your request will be reviewed and a free Development Proposal will be generated.
+rfp.s4.title	검토 후 제출	Review & Submit
+rfp.sub	요구사항을 입력하면 무료 개발 제안서(Proposal)를 자동 생성해 드립니다.	Tell us what you need. Our AI will generate a free Development Proposal for you.
+rfp.submit	요청 제출	Submit Request
+rfp.submitBtn	제출	Submit
+rfp.tip1	관련 SAP T-Code 또는 프로세스를 언급해 주세요 (예: VA01, ME21N)	Mention the SAP T-Code or process this relates to (e.g., VA01, ME21N)
+rfp.tip2	데이터의 출처와 목적지를 설명해 주세요	Describe where data comes from and where it should go
+rfp.tip3	유효성 검사 규칙이나 오류 처리 기대 사항을 명시해 주세요	List any validation rules or error handling expectations
+rfp.tip4	출력 형태를 알려주세요 (ALV, PDF Form, 파일 Export 등)	Mention output format (ALV, PDF form, file export, etc.)
+rfp.tipTitle	더 좋은 제안서를 위한 작성 팁	Tips for a great proposal
+rfp.title	새 개발 요청	New Development Request
+rfp.titleEdit	개발 요청 수정	Edit development request
+rfp.titleLabel	요청 제목	Request Title
+rfp.titleNew	신규 요청	New request
+rfp.titlePlaceholder		
+status.completed	완료	Completed
+status.draft	초안	Draft
+status.in_review	검토 중	In Review
+status.submitted	제출됨	Submitted
+success.dashboard	목록으로	Back to list
+success.modules	SAP 모듈	SAP Modules
+success.newRequest	새 요청 만들기	New Request
+success.next1.desc	요구분석 에이전트가 RFP·첨부·참고 자료를 바탕으로 요구 맥락을 구조화합니다.	AI agents read your RFP and attachments to structure the requirement context.
+success.next1.title	요구 분석	Requirements analysis
+success.next2.desc	질의 에이전트가 라운드별 질문으로 범위와 세부 요건을 구체화합니다.	The interview agent asks a few rounds of questions so scope and details are clear before drafting.
+success.next2.title	AI 인터뷰	AI interview
+success.next3.desc	제안서·제안검수 에이전트가 Development Proposal을 작성·다듬으며, 완료되면 이 사이트에서 바로 확인합니다.	Proposal and review agents draft and refine your Development Proposal; you open it on this site when it is ready.
+success.next3.title	제안서 생성	Development Proposal
+success.nextTitle	다음 단계는 무엇인가요?	What happens next?
+success.status	상태	Status
+success.sub	개발 요청이 정상적으로 접수되었습니다. AI가 요구사항을 분석하고 있습니다.	Your development request has been received. Our AI is analyzing your requirements.
+success.title	요청이 접수되었습니다!	Request Submitted!
+success.title2	요청 제목	Request Title
+success.types	개발 유형	Dev Types
+svcAbap.btnSearch	검색	Search
+svcAbap.createdFrom	생성일	Created date
+svcAbap.deliveryNote	FS 작성부터 ABAP 최종 납품까지의 단계는 추후 서비스에 반영될 예정입니다.	Delivery stages from FS through final handoff will appear here in a future update.
+svcAbap.hintNoBucket	위에서 진행 상태 타일을 선택하면 목록이 표시됩니다.	Select a status tile above to load the list.
+svcAbap.loginLine1	로그인하면 나의 RFP 목록·진행 현황판·단계별 카드가 표시됩니다.	Sign in to see your RFP list, progress tiles, and step cards.
+svcAbap.loginLine2	회원가입	Sign up
+svcAbap.newRequest	신규 요청	New request
+svcAbap.noResults	조건에 맞는 요청이 없습니다.	No requests match your filters.
+svcAbap.pageTitle	SAP ABAP 개발	SAP ABAP development
+svcAbap.placeholderDate	YYYY/MM/DD	MM/DD/YYYY
+svcAbap.placeholderTitle	제목 검색…	Search by title…
+svcAbap.preparing	준비 중	Coming soon
+svcAbap.searchTitle	제목	Title
+theme.toggle	테마 전환	Theme: dark / light
+theme.toggleAria	밝은 테마 / 어두운 테마 전환	Switch light and dark theme

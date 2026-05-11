@@ -1,0 +1,94 @@
+/*
+ * 라이트 모드 "제안" 팔레트 — /dev/theme-preview 전용.
+ * 본 사이트 적용 시: html[data-theme="light"] 에 data-light-palette="refined" 를
+ * 켜거나, 이 블록의 변수를 style.css 의 라이트 섹션으로 옮기면 됩니다.
+ */
+html[data-theme="light"][data-light-palette="refined"] {
+  --primary: #5a58d0;
+  --primary-dark: #4543b0;
+  --primary-light: #706ee8;
+  --bg: #e9e6e1;
+  --surface: #f6f4f0;
+  --surface2: #eceae5;
+  --border: #d4cfc6;
+  --text: #1c1917;
+  --muted: #6b6560;
+  --label: #44403c;
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #b91c1c;
+  --info: #0369a1;
+  --shadow: 0 12px 42px rgba(28, 25, 23, 0.08);
+  --navbar-bg: rgba(246, 244, 240, 0.94);
+  --code-text: #292524;
+  --code-bg: #f0eeea;
+  --input-bg: #fdfcfa;
+  color-scheme: light;
+  --scrollbar-track: #dcd7cf;
+  --scrollbar-thumb: #78716c;
+  --scrollbar-thumb-hover: #57534e;
+  --abap-float-chat-surface: #ece8e2;
+  --abap-float-chat-surface2: #e2ddd6;
+  --abap-float-chat-border: #c9c2b8;
+  --review-star-outline: rgba(68, 64, 60, 0.62);
+  --review-star-outline-strong: rgba(28, 25, 23, 0.88);
+}
+
+/* 라이트에서 !important 로 박아 둔 보조색 — 제안 팔레트 톤에 맞춤 */
+html[data-theme="light"][data-light-palette="refined"] .text-muted,
+html[data-theme="light"][data-light-palette="refined"] .small.text-muted {
+  color: #6b6560 !important;
+}
+
+html[data-theme="light"][data-light-palette="refined"] .text-gradient {
+  background: linear-gradient(135deg, #5a58d0 0%, #7c6cf0 42%, #0d9488 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+html[data-theme="light"][data-light-palette="refined"] .hero-section {
+  background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(90, 88, 208, 0.1) 0%, transparent 72%);
+}
+html[data-theme="light"][data-light-palette="refined"] .auth-page {
+  background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(90, 88, 208, 0.07) 0%, transparent 62%);
+}
+html[data-theme="light"][data-light-palette="refined"] .cta-section {
+  background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(13, 148, 136, 0.07) 0%, transparent 72%);
+}
+
+html[data-theme="light"][data-light-palette="refined"] .code-body .kw {
+  color: #5a58d0;
+}
+html[data-theme="light"][data-light-palette="refined"] .code-body .str {
+  color: #15803d;
+}
+html[data-theme="light"][data-light-palette="refined"] .code-body .cm {
+  color: #8a8580;
+}
+
+html[data-theme="light"][data-light-palette="refined"] .rfp-list-card:hover,
+html[data-theme="light"][data-light-palette="refined"] .rfp-list-card-v2:hover {
+  box-shadow: 0 0 0 3px rgba(90, 88, 208, 0.09);
+}
+
+html[data-theme="light"][data-light-palette="refined"] .flow-step.paid-step {
+  background: rgba(90, 88, 208, 0.05);
+  border-color: rgba(90, 88, 208, 0.2);
+}
+html[data-theme="light"][data-light-palette="refined"] .highlight-step {
+  background: linear-gradient(135deg, rgba(90, 88, 208, 0.08), rgba(13, 148, 136, 0.06)) !important;
+  border-color: rgba(90, 88, 208, 0.24) !important;
+}
+
+html[data-theme="light"][data-light-palette="refined"] .lang-btn.active,
+html[data-theme="light"][data-light-palette="refined"] .lang-btn:hover {
+  background: rgba(90, 88, 208, 0.09);
+}
+
+html[data-theme="light"][data-light-palette="refined"] .theme-switch:hover {
+  background: rgba(90, 88, 208, 0.07);
+}
+html[data-theme="light"][data-light-palette="refined"] .theme-switch-icon-wrap--left {
+  color: #5a58d0;
+}

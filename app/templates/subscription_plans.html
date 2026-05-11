@@ -1,24 +1,23 @@
 {% extends "base.html" %}
 {% block title %}구독 플랜 · SAP 개발 파트너{% endblock %}
 
-{# t: u=무제한(check), n=사용불가, else=표시 문자열 #}
-{% macro pc(t) -%}
-{%- if t == 'u' -%}
-<span class="plan-compare-val plan-compare-val--ok" title="무제한"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
-{%- elif t == 'n' -%}
-<span class="plan-compare-val plan-compare-val--na" title="사용 불가"><i class="fa-solid fa-minus" aria-hidden="true"></i></span>
-{%- else -%}
-<span class="plan-compare-val plan-compare-val--txt">{{ t }}</span>
-{%- endif -%}
+{% macro pc_u() -%}
+<span class="plan-compare-val plan-compare-val--ok"><i class="fa-solid fa-check" aria-hidden="true"></i><span class="visually-hidden"><span class="nav-ko">무제한</span><span class="nav-en" style="display:none">Unlimited</span></span></span>
+{%- endmacro %}
+{% macro pc_n() -%}
+<span class="plan-compare-val plan-compare-val--na"><i class="fa-solid fa-minus" aria-hidden="true"></i><span class="visually-hidden"><span class="nav-ko">사용 불가</span><span class="nav-en" style="display:none">Not included</span></span></span>
+{%- endmacro %}
+{% macro pct(ko, en) -%}
+<span class="plan-compare-val plan-compare-val--txt"><span class="nav-ko">{{ ko }}</span><span class="nav-en" style="display:none">{{ en }}</span></span>
 {%- endmacro %}
 
 {% macro feature_label(mk) -%}
 <div class="plan-compare-feature plan-compare-feature--labeled d-flex align-items-center justify-content-between gap-1 flex-wrap" role="rowheader">
-  <span>{{ metric_labels.get(mk, mk) }}</span>
+  <span><span class="nav-ko">{{ metric_labels.get(mk, mk) }}</span><span class="nav-en" style="display:none">{{ metric_labels_en.get(mk, mk) }}</span></span>
   {%- if metric_help.get(mk) -%}
   <button type="button" class="btn btn-link plan-feature-help-btn text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" data-subscription-tooltip="1" title="{{ metric_help[mk] | replace('\n', ' ') | e }}">
     <i class="fa-solid fa-question plan-feature-help-q" aria-hidden="true"></i>
-    <span class="visually-hidden">기능 설명</span>
+    <span class="visually-hidden"><span class="nav-ko">기능 설명</span><span class="nav-en" style="display:none">Feature description</span></span>
   </button>
   {%- endif -%}
 </div>
@@ -33,14 +32,14 @@
     <div class="container py-4 py-lg-5">
       <nav aria-label="breadcrumb" class="subscription-plans-breadcrumb mb-3">
         <ol class="breadcrumb small mb-0">
-          <li class="breadcrumb-item"><a href="/" class="text-decoration-none">홈</a></li>
-          <li class="breadcrumb-item active" aria-current="page">구독 플랜</li>
+          <li class="breadcrumb-item"><a href="/" class="text-decoration-none"><span class="nav-ko">홈</span><span class="nav-en" style="display:none">Home</span></a></li>
+          <li class="breadcrumb-item active" aria-current="page"><span class="nav-ko">구독 플랜</span><span class="nav-en" style="display:none">Subscription plans</span></li>
         </ol>
       </nav>
 
       <header class="subscription-plans-header text-center mx-auto" style="max-width: 42rem;">
-        <p class="subscription-plans-eyebrow mb-2">Catch Lab · SAP 개발 파트너</p>
-        <h1 class="subscription-plans-title mb-3">구독 플랜</h1>
+        <p class="subscription-plans-eyebrow mb-2"><span class="nav-ko">Catch Lab · SAP 개발 파트너</span><span class="nav-en" style="display:none">Catch Lab · SAP development partner</span></p>
+        <h1 class="subscription-plans-title mb-3"><span class="nav-ko">구독 플랜</span><span class="nav-en" style="display:none">Subscription plans</span></h1>
         <p class="subscription-plans-lead text-muted mb-0">
           <span class="nav-ko">계정 유형에 맞는 플랜을 선택하세요. 월 정액으로 개발 요청·AI 문의·제안 등 핵심 기능을 이용할 수 있습니다.</span>
           <span class="nav-en" style="display:none">Pick a plan for your account type. Monthly plans unlock requests, AI Q&amp;A, proposals, and more.</span>
@@ -67,16 +66,16 @@
           <span class="small text-muted">
             <span class="nav-ko">표시 통화</span><span class="nav-en" style="display:none">Currency</span>
           </span>
-          <div class="btn-group subscription-plans-currency-toggle" role="group" aria-label="표시 통화">
-            <button type="button" class="btn btn-outline-secondary btn-sm active" id="sub-currency-krw" data-currency="krw" aria-pressed="true" title="원화">
+          <div class="btn-group subscription-plans-currency-toggle" role="group" data-i18n-aria-label="plans.currencyRowAria" aria-label="표시 통화">
+            <button type="button" class="btn btn-outline-secondary btn-sm active" id="sub-currency-krw" data-currency="krw" aria-pressed="true" data-i18n-title="plans.currencyKrwTitle" title="원화 (KRW)">
               <i class="fa-solid fa-won-sign" aria-hidden="true"></i><span class="d-none d-sm-inline ms-1">KRW</span>
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="sub-currency-usd" data-currency="usd" aria-pressed="false" title="US Dollar">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="sub-currency-usd" data-currency="usd" aria-pressed="false" data-i18n-title="plans.currencyUsdTitle" title="US Dollar (USD)">
               <i class="fa-solid fa-dollar-sign" aria-hidden="true"></i><span class="d-none d-sm-inline ms-1">USD</span>
             </button>
           </div>
         </div>
-        <div class="subscription-plans-segmented" role="tablist" aria-label="계정 유형">
+        <div class="subscription-plans-segmented" role="tablist" data-i18n-aria-label="plans.accountTypeAria" aria-label="계정 유형">
           <button class="subscription-plans-segment active" id="tab-member-btn" data-bs-toggle="tab" data-bs-target="#tab-member" type="button" role="tab" aria-selected="true" aria-controls="tab-member">
             <i class="fa-solid fa-user me-2" aria-hidden="true"></i><span class="nav-ko">일반 회원</span><span class="nav-en" style="display:none">Member</span>
           </button>
@@ -97,11 +96,11 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Experience</h3>
-                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_exp.fmt_krw }}" data-fmt-usd="{{ pm_exp.fmt_usd }}">{{ pm_exp.fmt_krw }}</span>{% if pm_exp.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
-                    <p class="plan-price-note text-muted small">문의·리뷰 무제한</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_exp.fmt_krw }}" data-fmt-usd="{{ pm_exp.fmt_usd }}">{{ pm_exp.fmt_krw }}</span>{% if pm_exp.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
+                    <p class="plan-price-note text-muted small"><span class="nav-ko">문의·리뷰 무제한</span><span class="nav-en" style="display:none">Unlimited inquiries &amp; reviews</span></p>
                     <ul class="plan-price-bullets small text-muted">
-                      <li>커뮤니티 중심</li>
-                      <li>개발 요청 단계적 이용</li>
+                      <li><span class="nav-ko">커뮤니티 중심</span><span class="nav-en" style="display:none">Community-first</span></li>
+                      <li><span class="nav-ko">개발 요청 단계적 이용</span><span class="nav-en" style="display:none">Gradual access to dev requests</span></li>
                     </ul>
                     <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
                       <span class="nav-ko">시작하기</span><span class="nav-en" style="display:none">Get started</span>
@@ -113,11 +112,11 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">End User</h3>
-                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_eu.fmt_krw }}" data-fmt-usd="{{ pm_eu.fmt_usd }}">{{ pm_eu.fmt_krw }}</span>{% if pm_eu.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
-                    <p class="plan-price-note text-muted small">개인·소규모 팀</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_eu.fmt_krw }}" data-fmt-usd="{{ pm_eu.fmt_usd }}">{{ pm_eu.fmt_krw }}</span>{% if pm_eu.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
+                    <p class="plan-price-note text-muted small"><span class="nav-ko">개인·소규모 팀</span><span class="nav-en" style="display:none">Individuals &amp; small teams</span></p>
                     <ul class="plan-price-bullets small text-muted">
-                      <li>월 3회 개발 요청</li>
-                      <li>AI 문의 건당 30회</li>
+                      <li><span class="nav-ko">월 3회 개발 요청</span><span class="nav-en" style="display:none">3 dev requests / month</span></li>
+                      <li><span class="nav-ko">AI 문의 건당 30회</span><span class="nav-en" style="display:none">30 AI Q&amp;A turns per request</span></li>
                     </ul>
                     <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
                       <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
@@ -130,11 +129,11 @@
                   <span class="plan-price-badge"><span class="nav-ko">추천</span><span class="nav-en" style="display:none">Popular</span></span>
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Power User</h3>
-                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_pu.fmt_krw }}" data-fmt-usd="{{ pm_pu.fmt_usd }}">{{ pm_pu.fmt_krw }}</span>{% if pm_pu.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
-                    <p class="plan-price-note text-muted small">많은 요청이 있는 경우</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_pu.fmt_krw }}" data-fmt-usd="{{ pm_pu.fmt_usd }}">{{ pm_pu.fmt_krw }}</span>{% if pm_pu.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
+                    <p class="plan-price-note text-muted small"><span class="nav-ko">많은 요청이 있는 경우</span><span class="nav-en" style="display:none">Higher request volume</span></p>
                     <ul class="plan-price-bullets small text-muted">
-                      <li>월 10회 개발 요청</li>
-                      <li>제안 재생성 건당 1회</li>
+                      <li><span class="nav-ko">월 10회 개발 요청</span><span class="nav-en" style="display:none">10 dev requests / month</span></li>
+                      <li><span class="nav-ko">제안 재생성 건당 1회</span><span class="nav-en" style="display:none">1 proposal refresh per request</span></li>
                     </ul>
                     <a href="{{ cta_href }}" class="btn btn-primary btn-sm w-100 mt-auto shadow-sm">
                       <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
@@ -146,11 +145,11 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Process Innovator</h3>
-                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_pi.fmt_krw }}" data-fmt-usd="{{ pm_pi.fmt_usd }}">{{ pm_pi.fmt_krw }}</span>{% if pm_pi.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
-                    <p class="plan-price-note text-muted small">최대 한도</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_pi.fmt_krw }}" data-fmt-usd="{{ pm_pi.fmt_usd }}">{{ pm_pi.fmt_krw }}</span>{% if pm_pi.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
+                    <p class="plan-price-note text-muted small"><span class="nav-ko">최대 한도</span><span class="nav-en" style="display:none">Highest included limits</span></p>
                     <ul class="plan-price-bullets small text-muted">
-                      <li>월 30회 개발 요청</li>
-                      <li>제안 재생성 건당 3회</li>
+                      <li><span class="nav-ko">월 30회 개발 요청</span><span class="nav-en" style="display:none">30 dev requests / month</span></li>
+                      <li><span class="nav-ko">제안 재생성 건당 3회</span><span class="nav-en" style="display:none">3 proposal refreshes per request</span></li>
                     </ul>
                     <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
                       <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
@@ -167,22 +166,22 @@
               </h2>
               <div class="plan-compare-table" role="table" aria-label="일반 회원 플랜 비교">
                 <div class="plan-compare-row plan-compare-row--head" role="row">
-                  <div class="plan-compare-feature" role="columnheader">기능</div>
+                  <div class="plan-compare-feature" role="columnheader"><span class="nav-ko">기능</span><span class="nav-en" style="display:none">Feature</span></div>
                   <div role="columnheader">Experience</div>
                   <div role="columnheader">End User</div>
                   <div role="columnheader">Power User</div>
                   <div role="columnheader">Process Innovator</div>
                 </div>
-                <div class="plan-compare-row" role="row">{{ feature_label('inquiry_review') }}<div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_request') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('request_duplicate') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('ai_inquiry') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 30회') }}</div><div>{{ pc('건당 60회') }}</div><div>{{ pc('건당 60회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('functional_spec') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('fs_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_code') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_code_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div><div>{{ pc('n') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('inquiry_review') }}<div>{{ pc_u() }}</div><div>{{ pc_u() }}</div><div>{{ pc_u() }}</div><div>{{ pc_u() }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_request') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('request_duplicate') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('ai_inquiry') }}<div>{{ pc_n() }}</div><div>{{ pct('건당 30회', '30 / req') }}</div><div>{{ pct('건당 60회', '60 / req') }}</div><div>{{ pct('건당 60회', '60 / req') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal_regenerate') }}<div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pct('건당 1회', '1 / req') }}</div><div>{{ pct('건당 3회', '3 / req') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('functional_spec') }}<div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pc_n() }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('fs_regenerate') }}<div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pc_n() }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_code') }}<div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pc_n() }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_code_regenerate') }}<div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pc_n() }}</div><div>{{ pc_n() }}</div></div>
               </div>
             </div>
           </div>
@@ -198,11 +197,11 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Experience</h3>
-                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_exp.fmt_krw }}" data-fmt-usd="{{ pc_exp.fmt_usd }}">{{ pc_exp.fmt_krw }}</span>{% if pc_exp.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
-                    <p class="plan-price-note text-muted small">문의·리뷰 무제한</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_exp.fmt_krw }}" data-fmt-usd="{{ pc_exp.fmt_usd }}">{{ pc_exp.fmt_krw }}</span>{% if pc_exp.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
+                    <p class="plan-price-note text-muted small"><span class="nav-ko">문의·리뷰 무제한</span><span class="nav-en" style="display:none">Unlimited inquiries &amp; reviews</span></p>
                     <ul class="plan-price-bullets small text-muted">
-                      <li>커뮤니티 중심</li>
-                      <li>오퍼·FS는 유료 플랜</li>
+                      <li><span class="nav-ko">커뮤니티 중심</span><span class="nav-en" style="display:none">Community-first</span></li>
+                      <li><span class="nav-ko">오퍼·FS는 유료 플랜</span><span class="nav-en" style="display:none">Offers &amp; FS on paid tiers</span></li>
                     </ul>
                     <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
                       <span class="nav-ko">시작하기</span><span class="nav-en" style="display:none">Get started</span>
@@ -214,11 +213,11 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Junior</h3>
-                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_ju.fmt_krw }}" data-fmt-usd="{{ pc_ju.fmt_usd }}">{{ pc_ju.fmt_krw }}</span>{% if pc_ju.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
-                    <p class="plan-price-note text-muted small">입문 컨설턴트</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_ju.fmt_krw }}" data-fmt-usd="{{ pc_ju.fmt_usd }}">{{ pc_ju.fmt_krw }}</span>{% if pc_ju.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
+                    <p class="plan-price-note text-muted small"><span class="nav-ko">입문 컨설턴트</span><span class="nav-en" style="display:none">Getting started as a consultant</span></p>
                     <ul class="plan-price-bullets small text-muted">
-                      <li>월 3회 오퍼·FS·코드</li>
-                      <li>재생성 건당 1회</li>
+                      <li><span class="nav-ko">월 3회 오퍼·FS·코드</span><span class="nav-en" style="display:none">3 offers, FS &amp; code deliveries / mo</span></li>
+                      <li><span class="nav-ko">재생성 건당 1회</span><span class="nav-en" style="display:none">1 regeneration per request</span></li>
                     </ul>
                     <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
                       <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
@@ -231,11 +230,11 @@
                   <span class="plan-price-badge"><span class="nav-ko">추천</span><span class="nav-en" style="display:none">Popular</span></span>
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Senior</h3>
-                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_se.fmt_krw }}" data-fmt-usd="{{ pc_se.fmt_usd }}">{{ pc_se.fmt_krw }}</span>{% if pc_se.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
-                    <p class="plan-price-note text-muted small">활동량이 많은 경우</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_se.fmt_krw }}" data-fmt-usd="{{ pc_se.fmt_usd }}">{{ pc_se.fmt_krw }}</span>{% if pc_se.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
+                    <p class="plan-price-note text-muted small"><span class="nav-ko">활동량이 많은 경우</span><span class="nav-en" style="display:none">Active consultants</span></p>
                     <ul class="plan-price-bullets small text-muted">
-                      <li>월 10회 오퍼·FS·코드</li>
-                      <li>AI 문의 건당 60회</li>
+                      <li><span class="nav-ko">월 10회 오퍼·FS·코드</span><span class="nav-en" style="display:none">10 offers, FS &amp; code / mo</span></li>
+                      <li><span class="nav-ko">AI 문의 건당 60회</span><span class="nav-en" style="display:none">60 AI Q&amp;A turns per request</span></li>
                     </ul>
                     <a href="{{ cta_href }}" class="btn btn-primary btn-sm w-100 mt-auto shadow-sm">
                       <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
@@ -247,11 +246,11 @@
                 <div class="plan-price-card h-100">
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Superior</h3>
-                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_su.fmt_krw }}" data-fmt-usd="{{ pc_su.fmt_usd }}">{{ pc_su.fmt_krw }}</span>{% if pc_su.show_period %}<span class="plan-price-period">/월</span>{% endif %}</p>
-                    <p class="plan-price-note text-muted small">최대 한도</p>
+                    <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_su.fmt_krw }}" data-fmt-usd="{{ pc_su.fmt_usd }}">{{ pc_su.fmt_krw }}</span>{% if pc_su.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
+                    <p class="plan-price-note text-muted small"><span class="nav-ko">최대 한도</span><span class="nav-en" style="display:none">Highest included limits</span></p>
                     <ul class="plan-price-bullets small text-muted">
-                      <li>월 30회 오퍼·FS·코드</li>
-                      <li>재생성 건당 3회</li>
+                      <li><span class="nav-ko">월 30회 오퍼·FS·코드</span><span class="nav-en" style="display:none">30 offers, FS &amp; code / mo</span></li>
+                      <li><span class="nav-ko">재생성 건당 3회</span><span class="nav-en" style="display:none">3 regenerations per request</span></li>
                     </ul>
                     <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
                       <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
@@ -268,23 +267,23 @@
               </h2>
               <div class="plan-compare-table" role="table" aria-label="컨설턴트 플랜 비교">
                 <div class="plan-compare-row plan-compare-row--head" role="row">
-                  <div class="plan-compare-feature" role="columnheader">기능</div>
+                  <div class="plan-compare-feature" role="columnheader"><span class="nav-ko">기능</span><span class="nav-en" style="display:none">Feature</span></div>
                   <div role="columnheader">Experience</div>
                   <div role="columnheader">Junior</div>
                   <div role="columnheader">Senior</div>
                   <div role="columnheader">Superior</div>
                 </div>
-                <div class="plan-compare-row" role="row">{{ feature_label('inquiry_review') }}<div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div><div>{{ pc('u') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_request') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('request_duplicate') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('ai_inquiry') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 30회') }}</div><div>{{ pc('건당 60회') }}</div><div>{{ pc('건당 60회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('offer') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('functional_spec') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('fs_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_code') }}<div>{{ pc('n') }}</div><div>{{ pc('월 3회') }}</div><div>{{ pc('월 10회') }}</div><div>{{ pc('월 30회') }}</div></div>
-                <div class="plan-compare-row" role="row">{{ feature_label('dev_code_regenerate') }}<div>{{ pc('n') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 1회') }}</div><div>{{ pc('건당 3회') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('inquiry_review') }}<div>{{ pc_u() }}</div><div>{{ pc_u() }}</div><div>{{ pc_u() }}</div><div>{{ pc_u() }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_request') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('request_duplicate') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('ai_inquiry') }}<div>{{ pc_n() }}</div><div>{{ pct('건당 30회', '30 / req') }}</div><div>{{ pct('건당 60회', '60 / req') }}</div><div>{{ pct('건당 60회', '60 / req') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_proposal_regenerate') }}<div>{{ pc_n() }}</div><div>{{ pct('건당 1회', '1 / req') }}</div><div>{{ pct('건당 1회', '1 / req') }}</div><div>{{ pct('건당 3회', '3 / req') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('offer') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('functional_spec') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('fs_regenerate') }}<div>{{ pc_n() }}</div><div>{{ pct('건당 1회', '1 / req') }}</div><div>{{ pct('건당 1회', '1 / req') }}</div><div>{{ pct('건당 3회', '3 / req') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_code') }}<div>{{ pc_n() }}</div><div>{{ pc('월 3회') }}</div><div>{{ pct('월 10회', '10 / mo') }}</div><div>{{ pct('월 30회', '30 / mo') }}</div></div>
+                <div class="plan-compare-row" role="row">{{ feature_label('dev_code_regenerate') }}<div>{{ pc_n() }}</div><div>{{ pct('건당 1회', '1 / req') }}</div><div>{{ pct('건당 1회', '1 / req') }}</div><div>{{ pct('건당 3회', '3 / req') }}</div></div>
               </div>
             </div>
           </div>

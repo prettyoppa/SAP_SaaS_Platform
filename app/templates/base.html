@@ -226,20 +226,20 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="background:var(--surface);border-color:var(--border);color:var(--text);">
       <div class="modal-header border-bottom" style="border-color:var(--border)!important;">
-        <h5 class="modal-title" id="appConfirmModalTitle">확인</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title" id="appConfirmModalTitle" data-i18n="app.confirmTitle">확인</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" data-i18n-aria-label="app.confirmCloseAria" aria-label="Close"></button>
       </div>
       <div class="modal-body" id="appConfirmModalBody"></div>
       <div class="modal-footer border-top" style="border-color:var(--border)!important;">
-        <button type="button" class="btn btn-outline-secondary" id="appConfirmModalCancel" data-bs-dismiss="modal">취소</button>
-        <button type="button" class="btn btn-primary" id="appConfirmModalOk">확인</button>
+        <button type="button" class="btn btn-outline-secondary" id="appConfirmModalCancel" data-bs-dismiss="modal" data-i18n="app.confirmCancel">취소</button>
+        <button type="button" class="btn btn-primary" id="appConfirmModalOk" data-i18n="app.confirmOk">확인</button>
       </div>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/i18n.js?v=20260509app-confirm"></script>
+<script src="/static/js/i18n.js?v=20260210i18n-glossary"></script>
 <script src="/static/js/main.js?v=20260509code-asset"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}

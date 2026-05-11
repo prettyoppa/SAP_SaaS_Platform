@@ -383,6 +383,14 @@ const TRANSLATIONS = {
     "form.writeGuideCancel": "Cancel",
     "common.fileFallback": "File",
     "home.tile.totalLabel": "Total",
+    "plans.currencyKrwTitle": "Korean Won (KRW)",
+    "plans.currencyUsdTitle": "US Dollar (USD)",
+    "plans.currencyRowAria": "Display currency",
+    "plans.accountTypeAria": "Account type",
+    "app.confirmTitle": "Confirm",
+    "app.confirmOk": "OK",
+    "app.confirmCancel": "Cancel",
+    "app.confirmCloseAria": "Close",
   },
 
   ko: {
@@ -762,6 +770,14 @@ const TRANSLATIONS = {
     "form.writeGuideCancel": "취소",
     "common.fileFallback": "파일",
     "home.tile.totalLabel": "전체",
+    "plans.currencyKrwTitle": "원화 (KRW)",
+    "plans.currencyUsdTitle": "달러 (USD)",
+    "plans.currencyRowAria": "표시 통화",
+    "plans.accountTypeAria": "계정 유형",
+    "app.confirmTitle": "확인",
+    "app.confirmOk": "확인",
+    "app.confirmCancel": "취소",
+    "app.confirmCloseAria": "닫기",
   }
 };
 

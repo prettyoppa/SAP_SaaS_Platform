@@ -1,0 +1,12 @@
+metric_key	ko (METRIC_LABEL_KO)	en (METRIC_LABEL_EN)
+inquiry_review	문의/리뷰 작성·조회·댓글	Inquiries, reviews & replies
+dev_request	개발 요청	Development requests
+request_duplicate	요청 복사 생성	Duplicate request (copy)
+ai_inquiry	AI 문의	AI Q&A (per request)
+dev_proposal	개발 제안	Development proposal
+dev_proposal_regenerate	개발 제안 재생성	Proposal regeneration
+offer	오퍼	Offers
+functional_spec	FS	Functional specification (FS)
+fs_regenerate	FS 재생성	FS regeneration
+dev_code	개발 코드	ABAP / dev code
+dev_code_regenerate	개발 코드 재생성	Code regeneration

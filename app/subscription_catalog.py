@@ -47,6 +47,21 @@ METRIC_LABEL_KO: dict[str, str] = {
     METRIC_DEV_CODE_REGEN: "개발 코드 재생성",
 }
 
+# 구독 비교 표·툴팁 라벨 (EN 모드). admin 편집 metric_help와 별개.
+METRIC_LABEL_EN: dict[str, str] = {
+    METRIC_INQUIRY_REVIEW: "Inquiries, reviews & replies",
+    METRIC_DEV_REQUEST: "Development requests",
+    METRIC_REQUEST_DUPLICATE: "Duplicate request (copy)",
+    METRIC_AI_INQUIRY: "AI Q&A (per request)",
+    METRIC_DEV_PROPOSAL: "Development proposal",
+    METRIC_DEV_PROPOSAL_REGEN: "Proposal regeneration",
+    METRIC_OFFER: "Offers",
+    METRIC_FS: "Functional specification (FS)",
+    METRIC_FS_REGEN: "FS regeneration",
+    METRIC_DEV_CODE: "ABAP / dev code",
+    METRIC_DEV_CODE_REGEN: "Code regeneration",
+}
+
 # SiteSettings 키: subscription_metric_help_<metric_key> — 구독 플랜 페이지 기능 설명(툴팁)
 SUBSCRIPTION_METRIC_HELP_KEY_PREFIX = "subscription_metric_help_"
 
