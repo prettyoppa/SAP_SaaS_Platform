@@ -131,7 +131,14 @@
           </dt>
           <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
             <div>업무 이메일: {{ "동의" if user.ops_email_opt_in else "미동의" }} / 마케팅 이메일: {{ "동의" if user.marketing_email_opt_in else "미동의" }}</div>
+            {% if sms_consent_eligible %}
             <div>업무 SMS: {{ "동의" if user.ops_sms_opt_in else "미동의" }} / 마케팅 SMS: {{ "동의" if user.marketing_sms_opt_in else "미동의" }}</div>
+            {% else %}
+            <div class="text-muted small mt-1">
+              <span class="nav-ko">SMS 수신 동의는 대한민국(+82) 휴대폰으로 인증된 경우에만 표시됩니다.</span>
+              <span class="nav-en" style="display:none">SMS consent is shown only when the verified phone is a Republic of Korea (+82) number.</span>
+            </div>
+            {% endif %}
           </dd>
 
           <dt class="col-sm-4 py-2 border-bottom account-profile-dt">

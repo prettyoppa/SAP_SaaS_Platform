@@ -277,20 +277,22 @@
                   이메일 마케팅/이벤트 수신 동의
                 </label>
               </div>
-              <div class="form-check mb-1">
-                <input class="form-check-input" type="checkbox" id="opsSmsOptIn" name="ops_sms_opt_in" disabled>
-                <label class="form-check-label small" for="opsSmsOptIn">
-                  SMS 업무 알림 수신 동의 (요청 진행/완료 등)
-                </label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="marketingSmsOptIn" name="marketing_sms_opt_in" disabled>
-                <label class="form-check-label small" for="marketingSmsOptIn">
-                  SMS 마케팅/이벤트 수신 동의
-                </label>
+              <div id="regSmsConsentRows" style="display:none">
+                <div class="form-check mb-1">
+                  <input class="form-check-input" type="checkbox" id="opsSmsOptIn" name="ops_sms_opt_in" disabled>
+                  <label class="form-check-label small" for="opsSmsOptIn">
+                    SMS 업무 알림 수신 동의 (요청 진행/완료 등)
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="marketingSmsOptIn" name="marketing_sms_opt_in" disabled>
+                  <label class="form-check-label small" for="marketingSmsOptIn">
+                    SMS 마케팅/이벤트 수신 동의
+                  </label>
+                </div>
               </div>
               <div class="form-text">
-                이메일 동의는 이메일 인증 완료 후, SMS 동의는 휴대폰 인증 완료 후 활성화됩니다.
+                이메일 동의는 이메일 인증 완료 후 활성화됩니다. SMS 동의는 번호가 <strong>+82</strong>(대한민국)로 시작하고 휴대폰 인증을 완료한 경우에만 표시·활성화됩니다.
               </div>
             </div>
 
@@ -570,11 +572,22 @@ const regConsentOptionalHint = document.getElementById('regConsentOptionalHint')
 const regConsentConsultantOpsHint = document.getElementById('regConsentConsultantOpsHint');
 const phoneOptionalLabel = document.getElementById('phoneOptionalLabel');
 const phoneConsultantLabel = document.getElementById('phoneConsultantLabel');
+const phoneInput = document.getElementById('phoneInput');
+const regSmsConsentRows = document.getElementById('regSmsConsentRows');
 function isRegConsultant() {
   return !!(accountTypeConsultant && accountTypeConsultant.checked);
 }
 function toggleConsentInputs() {
   const isConsultant = isRegConsultant();
+  const rawPhone = phoneInput ? (phoneInput.value || '').trim().replace(/[\s\-\(\)]/g, '') : '';
+  const smsKr82 = rawPhone.startsWith('+82');
+  if (regSmsConsentRows) {
+    regSmsConsentRows.style.display = smsKr82 ? '' : 'none';
+    if (!smsKr82) {
+      if (opsSmsOptIn) opsSmsOptIn.checked = false;
+      if (marketingSmsOptIn) marketingSmsOptIn.checked = false;
+    }
+  }
   if (regConsentOptionalHint) regConsentOptionalHint.style.display = isConsultant ? 'none' : '';
   if (regConsentConsultantOpsHint) regConsentConsultantOpsHint.style.display = isConsultant ? '' : 'none';
   if (opsEmailOptIn) {
@@ -586,12 +599,13 @@ function toggleConsentInputs() {
     marketingEmailOptIn.disabled = !emailCodeVerified;
     if (marketingEmailOptIn.disabled) marketingEmailOptIn.checked = false;
   }
+  const smsCanUse = phoneCodeVerified && smsKr82;
   if (opsSmsOptIn) {
-    opsSmsOptIn.disabled = !phoneCodeVerified;
+    opsSmsOptIn.disabled = !smsCanUse;
     if (opsSmsOptIn.disabled) opsSmsOptIn.checked = false;
   }
   if (marketingSmsOptIn) {
-    marketingSmsOptIn.disabled = !phoneCodeVerified;
+    marketingSmsOptIn.disabled = !smsCanUse;
     if (marketingSmsOptIn.disabled) marketingSmsOptIn.checked = false;
   }
 }
@@ -725,7 +739,6 @@ if (sendCodeBtn && verificationCodeWrap) {
 }
 
 // 휴대폰 인증
-const phoneInput = document.getElementById('phoneInput');
 const phoneCodeWrap = document.getElementById('phoneCodeWrap');
 const phoneCodeInput = document.getElementById('phoneCodeInput');
 const sendPhoneCodeBtn = document.getElementById('sendPhoneCodeBtn');

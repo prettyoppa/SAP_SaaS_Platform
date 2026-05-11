@@ -357,11 +357,18 @@ def _user_timezone_display_line(user: models.User) -> str | None:
     return _format_tz_utc_offset_label(tz)
 
 
+def _user_phone_allows_sms_consent(user: models.User) -> bool:
+    """SMS 수신 동의는 +82(한국) 번호로 인증된 경우에만 의미가 있음."""
+    p = (getattr(user, "phone_number", None) or "").strip()
+    return p.startswith("+82")
+
+
 def _account_profile_edit_shared_context(user: models.User, *, tz_choices: list[dict[str, str]]) -> dict:
     return {
         "time_zone_choices": tz_choices,
         "mail_for_account_actions": email_verification_enabled(),
         "sms_for_account_phone": sms_enabled(),
+        "sms_consent_eligible": _user_phone_allows_sms_consent(user),
         **_consultant_profile_template_labels(user),
     }
 
@@ -1155,8 +1162,12 @@ async def register(
     consent_at = datetime.utcnow()
     ops_email = email_verified and _form_bool(ops_email_opt_in)
     marketing_email = email_verified and _form_bool(marketing_email_opt_in)
-    ops_sms = phone_verified and _form_bool(ops_sms_opt_in)
-    marketing_sms = phone_verified and _form_bool(marketing_sms_opt_in)
+    if phone_e164 and phone_e164.startswith("+82"):
+        ops_sms = phone_verified and _form_bool(ops_sms_opt_in)
+        marketing_sms = phone_verified and _form_bool(marketing_sms_opt_in)
+    else:
+        ops_sms = False
+        marketing_sms = False
 
     new_user = models.User(
         email=email_norm,
@@ -1359,6 +1370,7 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
             "pending_email_change": pending_ec,
             "mail_for_account_actions": email_verification_enabled(),
             "sms_for_account_phone": sms_enabled(),
+            "sms_consent_eligible": _user_phone_allows_sms_consent(user),
             "user_timezone_display_line": _user_timezone_display_line(user),
             "deletion_grace_days": deletion_grace_days(),
             **clabels,
@@ -1442,6 +1454,9 @@ async def account_profile_edit_post(
     marketing_email_opt_in_value = _form_bool(marketing_email_opt_in)
     ops_sms_opt_in_value = _form_bool(ops_sms_opt_in)
     marketing_sms_opt_in_value = _form_bool(marketing_sms_opt_in)
+    if not _user_phone_allows_sms_consent(user):
+        ops_sms_opt_in_value = False
+        marketing_sms_opt_in_value = False
     name_ok, err = _parse_profile_full_name(full_name)
     company_ok = _parse_profile_company(company)
     tz_ok, tz_err = _parse_profile_timezone(timezone)
@@ -1632,8 +1647,16 @@ async def account_profile_edit_post(
     user.timezone = tz_ok
     user.ops_email_opt_in = bool(getattr(user, "email_verified", False)) and ops_email_opt_in_value
     user.marketing_email_opt_in = bool(getattr(user, "email_verified", False)) and marketing_email_opt_in_value
-    user.ops_sms_opt_in = bool(getattr(user, "phone_verified", False)) and ops_sms_opt_in_value
-    user.marketing_sms_opt_in = bool(getattr(user, "phone_verified", False)) and marketing_sms_opt_in_value
+    user.ops_sms_opt_in = (
+        _user_phone_allows_sms_consent(user)
+        and bool(getattr(user, "phone_verified", False))
+        and ops_sms_opt_in_value
+    )
+    user.marketing_sms_opt_in = (
+        _user_phone_allows_sms_consent(user)
+        and bool(getattr(user, "phone_verified", False))
+        and marketing_sms_opt_in_value
+    )
     user.consent_updated_at = datetime.utcnow()
     user.consultant_profile_file_path = new_profile_path
     user.consultant_profile_file_name = new_profile_name
@@ -1834,6 +1857,10 @@ def account_phone_confirm_post(
     user.phone_verified = True
     user.phone_verified_at = datetime.utcnow()
     if number_changed:
+        user.ops_sms_opt_in = False
+        user.marketing_sms_opt_in = False
+        user.consent_updated_at = datetime.utcnow()
+    if not phone_e164.startswith("+82"):
         user.ops_sms_opt_in = False
         user.marketing_sms_opt_in = False
         user.consent_updated_at = datetime.utcnow()
