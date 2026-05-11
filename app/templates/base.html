@@ -239,7 +239,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/i18n.js?v=20260210i18n-glossary"></script>
+<script>window.__I18nEnOverrides = {{ request.state.i18n_en_overrides | tojson }};</script>
+<script src="/static/js/i18n.js?v=20260509i18n-admin-override"></script>
 <script src="/static/js/main.js?v=20260509code-asset"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}

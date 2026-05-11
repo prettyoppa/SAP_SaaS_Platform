@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}한국어 vs EN – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="container-fluid px-3" style="max-width: 1600px;">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+      <div>
+        <h3 class="mb-1"><i class="fa-solid fa-language me-2 text-primary"></i>한국어 vs EN (data-i18n)</h3>
+        <p class="text-muted small mb-0">
+          <code>i18n.js</code>에 정의된 키만 표시합니다. EN(저장값)을 입력하고 저장하면 EN 모드에 반영됩니다(최대 약 1분 캐시 후 전 페이지 적용).
+          비우고 저장하면 기본 영어로 되돌아갑니다. <strong>nav-ko / nav-en</strong> 이중 문구는 여기에 없습니다.
+        </p>
+      </div>
+      <a href="/admin" class="btn btn-outline-secondary btn-sm">← 관리자 메뉴</a>
+    </div>
+
+    {% for g in groups %}
+    <div class="card border shadow-sm mb-4">
+      <div class="card-header py-2 bg-body-secondary">
+        <strong>{{ g.group_title }}</strong>
+        <span class="text-muted small ms-2">{{ g.group_blurb }}</span>
+        <span class="badge bg-secondary ms-2">{{ g.rows|length }} keys</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0 align-middle" style="font-size: 0.8rem;">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 14%;">키</th>
+                <th style="width: 22%;">한국어 (기준)</th>
+                <th style="width: 18%;">영어 (기본)</th>
+                <th style="width: 18%;">영어 (저장·적용)</th>
+                <th style="width: 8%;" class="text-nowrap">저장</th>
+                <th style="width: 8%;" class="text-nowrap">AI 제안</th>
+                <th style="width: 12%;">AI 제안 결과</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in g.rows %}
+              <tr data-i18n-row="{{ row.key }}">
+                <td><code class="small text-break">{{ row.key }}</code></td>
+                <td><textarea class="form-control form-control-sm font-monospace" rows="2" readonly>{{ row.ko }}</textarea></td>
+                <td><textarea class="form-control form-control-sm font-monospace en-built" rows="2" readonly data-en-builtin="{{ row.key }}">{{ row.en_builtin }}</textarea></td>
+                <td><textarea class="form-control form-control-sm font-monospace en-override" rows="2" data-key="{{ row.key }}">{{ row.en_override }}</textarea></td>
+                <td>
+                  <button type="button" class="btn btn-primary btn-sm w-100 btn-save-i18n" data-key="{{ row.key }}">저장</button>
+                </td>
+                <td>
+                  <button type="button" class="btn btn-outline-info btn-sm w-100 btn-ai-i18n" data-key="{{ row.key }}"
+                          data-group-title="{{ g.group_title|e }}" data-group-blurb="{{ g.group_blurb|e }}">AI</button>
+                </td>
+                <td><textarea class="form-control form-control-sm ai-out font-monospace" rows="2" readonly data-ai-out="{{ row.key }}" placeholder="—"></textarea></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+(function () {
+  function rowFor(key) {
+    return document.querySelector('tr[data-i18n-row="' + key.replace(/"/g, '\\"') + '"]');
+  }
+  function taOverride(key) {
+    var r = rowFor(key);
+    return r ? r.querySelector('textarea.en-override') : null;
+  }
+  function taBuiltin(key) {
+    var r = rowFor(key);
+    return r ? r.querySelector('textarea.en-built') : null;
+  }
+  function taKo(key) {
+    var r = rowFor(key);
+    if (!r) return null;
+    var tas = r.querySelectorAll('textarea');
+    return tas.length ? tas[0] : null;
+  }
+  function taAiOut(key) {
+    var r = rowFor(key);
+    return r ? r.querySelector('textarea[data-ai-out]') : null;
+  }
+
+  document.querySelectorAll('.btn-save-i18n').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-key');
+      var ta = taOverride(key);
+      if (!ta) return;
+      btn.disabled = true;
+      fetch('/admin/i18n/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ key: key, en_text: ta.value })
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (res.ok && res.j && res.j.ok) {
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-success');
+            setTimeout(function () { btn.classList.remove('btn-success'); btn.classList.add('btn-primary'); }, 900);
+          } else {
+            btn.classList.add('btn-danger');
+            alert((res.j && res.j.error) ? res.j.error : '저장 실패');
+          }
+        })
+        .catch(function () {
+          btn.disabled = false;
+          alert('네트워크 오류');
+        });
+    });
+  });
+
+  document.querySelectorAll('.btn-ai-i18n').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-key');
+      var taK = taKo(key);
+      var taO = taOverride(key);
+      var taB = taBuiltin(key);
+      var out = taAiOut(key);
+      if (!taO || !out) return;
+      btn.disabled = true;
+      fetch('/admin/i18n/ai-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          key: key,
+          ko: taK ? taK.value : '',
+          en_builtin: taB ? taB.value : '',
+          en_override: taO.value,
+          group_title: btn.getAttribute('data-group-title') || '',
+          group_blurb: btn.getAttribute('data-group-blurb') || ''
+        })
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (res.ok && res.j && res.j.ok && res.j.text) {
+            out.value = res.j.text;
+          } else {
+            var err = (res.j && res.j.error) ? res.j.error : 'AI 실패';
+            out.value = '';
+            alert(err);
+          }
+        })
+        .catch(function () {
+          btn.disabled = false;
+          alert('네트워크 오류');
+        });
+    });
+  });
+})();
+</script>
+{% endblock %}

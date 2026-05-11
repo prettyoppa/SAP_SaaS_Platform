@@ -672,3 +672,14 @@ class TrialEligibilityConsumed(Base):
     kind = Column(String(16), nullable=False, index=True)  # email | phone
     identity_hash = Column(String(64), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class UiI18nEnOverride(Base):
+    """data-i18n 키별 EN 문구 오버라이드(관리자 UI에서 편집). 빈 값이면 행 삭제로 기본 i18n.js 값 사용."""
+
+    __tablename__ = "ui_i18n_en_overrides"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(256), nullable=False, unique=True, index=True)
+    en_text = Column(Text, nullable=False, default="")
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)

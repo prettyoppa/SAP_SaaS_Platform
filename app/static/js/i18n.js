@@ -781,11 +781,25 @@ const TRANSLATIONS = {
   }
 };
 
+/** 관리자가 DB에 저장한 EN 오버라이드(base.html에서 주입). */
+function mergeI18nEnOverrides() {
+  try {
+    const o = window.__I18nEnOverrides;
+    if (!o || typeof o !== 'object') return;
+    Object.keys(o).forEach(function (k) {
+      const v = o[k];
+      if (v != null && String(v).length) TRANSLATIONS.en[k] = String(v);
+    });
+  } catch (e) { /* ignore */ }
+}
+window.mergeI18nEnOverrides = mergeI18nEnOverrides;
+
 let currentLang = localStorage.getItem('lang') || 'ko';
 
 function setLang(lang) {
   currentLang = lang;
   localStorage.setItem('lang', lang);
+  mergeI18nEnOverrides();
 
   // .nav-ko/.nav-en, .brand-ko/.brand-en 직접 토글
   const isKo = (lang === 'ko');

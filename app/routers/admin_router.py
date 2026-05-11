@@ -4,6 +4,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from fastapi import APIRouter, Body, Depends, Request, Form, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -24,6 +25,8 @@ from ..subscription_catalog import (
     format_monthly_usd_display,
 )
 from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
+from ..i18n_overrides import build_admin_grouped, invalidate_en_overrides_cache, load_i18n_baseline
+from ..i18n_admin_suggest import suggest_ui_english
 
 router = APIRouter(prefix="/admin")
 
@@ -1197,3 +1200,106 @@ def admin_subscription_plans_seed_catalog(request: Request, db: Session = Depend
     if after > before:
         return RedirectResponse(url="/admin/subscription-plans?seeded=1", status_code=302)
     return RedirectResponse(url="/admin/subscription-plans?seed_skipped=1", status_code=302)
+
+
+# ── UI i18n (data-i18n 키) EN 오버라이드 ─────────────────
+
+
+class AdminI18nSavePayload(BaseModel):
+    key: str = Field(default="", max_length=256)
+    en_text: str = Field(default="", max_length=16000)
+
+
+class AdminI18nSuggestPayload(BaseModel):
+    key: str = Field(default="", max_length=256)
+    ko: str = Field(default="", max_length=16000)
+    en_builtin: str = Field(default="", max_length=16000)
+    en_override: str = Field(default="", max_length=16000)
+    group_title: str = Field(default="", max_length=200)
+    group_blurb: str = Field(default="", max_length=500)
+
+
+@router.get("/i18n", response_class=HTMLResponse)
+def admin_i18n_strings(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    groups = build_admin_grouped(db)
+    return templates.TemplateResponse(
+        request,
+        "admin/i18n_strings.html",
+        {"user": user, "groups": groups},
+    )
+
+
+@router.post("/i18n/save")
+async def admin_i18n_save(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
+    try:
+        payload = AdminI18nSavePayload.model_validate(await request.json())
+    except Exception:
+        return JSONResponse({"ok": False, "error": "bad_json"}, status_code=400)
+    key = (payload.key or "").strip()
+    if not key:
+        return JSONResponse({"ok": False, "error": "empty_key"}, status_code=400)
+    baseline = load_i18n_baseline()
+    allowed = set((baseline.get("en") or {}).keys()) | set((baseline.get("ko") or {}).keys())
+    if key not in allowed:
+        return JSONResponse({"ok": False, "error": "unknown_key"}, status_code=400)
+    text = (payload.en_text or "").strip()
+    if not text:
+        db.query(models.UiI18nEnOverride).filter(models.UiI18nEnOverride.key == key).delete()
+        db.commit()
+        invalidate_en_overrides_cache()
+        return JSONResponse({"ok": True, "cleared": True})
+    row = db.query(models.UiI18nEnOverride).filter(models.UiI18nEnOverride.key == key).first()
+    if row:
+        row.en_text = text
+        row.updated_at = datetime.utcnow()
+    else:
+        db.add(models.UiI18nEnOverride(key=key, en_text=text, updated_at=datetime.utcnow()))
+    db.commit()
+    invalidate_en_overrides_cache()
+    return JSONResponse({"ok": True})
+
+
+@router.post("/i18n/ai-suggest")
+async def admin_i18n_ai_suggest(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
+    try:
+        payload = AdminI18nSuggestPayload.model_validate(await request.json())
+    except Exception:
+        return JSONResponse({"ok": False, "error": "bad_json"}, status_code=400)
+    key = (payload.key or "").strip()
+    baseline = load_i18n_baseline()
+    allowed = set((baseline.get("en") or {}).keys()) | set((baseline.get("ko") or {}).keys())
+    if not key or key not in allowed:
+        return JSONResponse({"ok": False, "error": "unknown_key"}, status_code=400)
+    ko = (payload.ko or "").strip() or ((baseline.get("ko") or {}).get(key, "") or "").strip()
+    if not ko:
+        return JSONResponse({"ok": False, "error": "empty_korean"}, status_code=400)
+    en_b = ((baseline.get("en") or {}).get(key, "") or "").strip()
+    en_cur = (payload.en_builtin or en_b).strip()
+    if (payload.en_override or "").strip():
+        en_cur = (payload.en_override or "").strip()
+    try:
+        suggestion = suggest_ui_english(
+            i18n_key=key,
+            korean_ui=ko,
+            english_current=en_cur,
+            screen_title_ko=(payload.group_title or "").strip() or key,
+            screen_purpose_ko=(payload.group_blurb or "").strip(),
+        )
+    except RuntimeError as e:
+        if "GOOGLE_API_KEY" in str(e):
+            return JSONResponse({"ok": False, "error": "no_api_key"}, status_code=503)
+        return JSONResponse({"ok": False, "error": "model_failed"}, status_code=503)
+    except ValueError:
+        return JSONResponse({"ok": False, "error": "empty_korean"}, status_code=400)
+    except Exception:
+        return JSONResponse({"ok": False, "error": "model_failed"}, status_code=503)
+    return JSONResponse({"ok": True, "text": suggestion})

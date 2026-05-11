@@ -28,6 +28,7 @@ from .offer_inquiry_service import (
     pending_inquiry_reply_offer_ids_all,
 )
 from .home_counts import home_tile_counts
+from .i18n_overrides import get_en_overrides_for_client
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import site_content_router
@@ -530,6 +531,17 @@ async def nav_proposal_offer_badges_middleware(request: Request, call_next):
             db.close()
     request.state.nav_proposal_offer_badges = badges
     request.state.nav_console_pending_inquiry = nav_console_pending_inquiry
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def i18n_en_overrides_middleware(request: Request, call_next):
+    """data-i18n EN 문구 오버라이드(관리자 저장) — base.html에서 window.__I18nEnOverrides 로 전달."""
+    try:
+        request.state.i18n_en_overrides = get_en_overrides_for_client()
+    except Exception:
+        _log.exception("i18n_en_overrides_middleware failed")
+        request.state.i18n_en_overrides = {}
     return await call_next(request)
 
 
