@@ -50,7 +50,8 @@
             <td class="small text-muted">{{ row.num }}</td>
             <td>
               <a href="/faqs/{{ row.faq.id }}" class="text-reset text-decoration-none site-list-title-link">
-                <span class="site-md-title-inline markdown-body">{{ row.title_html|safe }}</span>
+                <span class="site-md-title-inline markdown-body i18n-ko">{{ row.title_html|safe }}</span>
+                <span class="site-md-title-inline markdown-body i18n-en" style="display:none">{{ row.title_en_html|safe }}</span>
               </a>
             </td>
             <td class="small text-muted text-end text-nowrap">{{ row.faq.created_at|local_dt_span('date') }}</td>

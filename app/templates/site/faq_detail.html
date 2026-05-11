@@ -20,14 +20,16 @@
         <header class="site-article-header border-bottom pb-3 mb-4">
           <div class="d-flex align-items-start gap-3">
             <span class="site-faq-q-icon flex-shrink-0 rounded-circle d-inline-flex align-items-center justify-content-center" aria-hidden="true">Q</span>
-            <div class="h4 mb-0 fw-semibold flex-grow-1 site-md-title-inline markdown-body">{{ question_html|safe }}</div>
+            <div class="h4 mb-0 fw-semibold flex-grow-1 site-md-title-inline markdown-body">
+              <span class="i18n-ko d-block">{{ question_html|safe }}</span>
+              <span class="i18n-en d-block" style="display:none">{{ question_html_en|safe }}</span>
+            </div>
           </div>
         </header>
         <div class="site-faq-answer">
           <div class="site-faq-a-label small text-muted text-uppercase mb-2">Answer</div>
-          <div class="site-article-body markdown-body text-break">
-            {{ answer_html|safe }}
-          </div>
+          <div class="site-article-body markdown-body text-break i18n-ko">{{ answer_html|safe }}</div>
+          <div class="site-article-body markdown-body text-break i18n-en" style="display:none">{{ answer_html_en|safe }}</div>
         </div>
       </div>
     </article>

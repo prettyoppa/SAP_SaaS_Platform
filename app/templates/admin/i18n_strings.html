@@ -8,15 +8,23 @@
       <div>
         <h3 class="mb-1"><i class="fa-solid fa-language me-2 text-primary"></i>한국어 vs EN (data-i18n)</h3>
         <p class="text-muted small mb-0">
-          <code>i18n.js</code>에 정의된 키만 표시합니다. EN(저장값)을 입력하고 저장하면 EN 모드에 반영됩니다(최대 약 1분 캐시 후 전 페이지 적용).
-          비우고 저장하면 기본 영어로 되돌아갑니다. <strong>nav-ko / nav-en</strong> 이중 문구는 여기에 없습니다.
+          <code>i18n.js</code>의 <code>data-i18n</code> 키만 표시합니다. 그룹은 키 접두사·예외 매핑으로 나뉩니다. 상단 메인 메뉴(홈·Console·신규 개발 등)는 <strong>topnav</strong> 그룹에 모여 있습니다.
+          EN(저장값) 저장 후 최대 약 1분 캐시 뒤 전역 반영. 비우고 저장 시 기본 영어로 복귀.
         </p>
       </div>
       <a href="/admin" class="btn btn-outline-secondary btn-sm">← 관리자 메뉴</a>
     </div>
 
+    <div class="card border shadow-sm mb-3">
+      <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+        <label for="i18n-admin-filter" class="small mb-0 text-nowrap fw-semibold">검색</label>
+        <input type="search" id="i18n-admin-filter" class="form-control form-control-sm flex-grow-1" style="max-width:28rem" placeholder="키, 한국어, 기본 영어, 저장값… (행 전체 텍스트)" autocomplete="off"/>
+        <span class="small text-muted" id="i18n-admin-filter-count"></span>
+      </div>
+    </div>
+
     {% for g in groups %}
-    <div class="card border shadow-sm mb-4">
+    <div class="card border shadow-sm mb-4 i18n-admin-group-card" data-group-slug="{{ g.group_slug }}">
       <div class="card-header py-2 bg-body-secondary">
         <strong>{{ g.group_title }}</strong>
         <span class="text-muted small ms-2">{{ g.group_blurb }}</span>
@@ -24,7 +32,7 @@
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table table-sm table-bordered mb-0 align-middle" style="font-size: 0.8rem;">
+          <table class="table table-sm table-bordered mb-0 align-middle i18n-admin-group-table" style="font-size: 0.8rem;">
             <thead class="table-light">
               <tr>
                 <th style="width: 14%;">키</th>
@@ -64,6 +72,38 @@
 
 <script>
 (function () {
+  var filterInput = document.getElementById('i18n-admin-filter');
+  var filterCount = document.getElementById('i18n-admin-filter-count');
+
+  function applyI18nAdminFilter() {
+    if (!filterInput) return;
+    var q = (filterInput.value || '').trim().toLowerCase();
+    var visibleRows = 0;
+    var totalRows = 0;
+    document.querySelectorAll('tr[data-i18n-row]').forEach(function (tr) {
+      totalRows++;
+      var show = !q || (tr.innerText || '').toLowerCase().indexOf(q) >= 0;
+      tr.style.display = show ? '' : 'none';
+      if (show) visibleRows++;
+    });
+    document.querySelectorAll('.i18n-admin-group-card').forEach(function (card) {
+      var tbl = card.querySelector('.i18n-admin-group-table tbody');
+      if (!tbl) return;
+      var any = false;
+      tbl.querySelectorAll('tr[data-i18n-row]').forEach(function (tr) {
+        if (tr.style.display !== 'none') any = true;
+      });
+      card.style.display = any ? '' : 'none';
+    });
+    if (filterCount) {
+      filterCount.textContent = q ? visibleRows + ' / ' + totalRows + ' 행' : '';
+    }
+  }
+  if (filterInput) {
+    filterInput.addEventListener('input', applyI18nAdminFilter);
+    applyI18nAdminFilter();
+  }
+
   function rowFor(key) {
     return document.querySelector('tr[data-i18n-row="' + key.replace(/"/g, '\\"') + '"]');
   }

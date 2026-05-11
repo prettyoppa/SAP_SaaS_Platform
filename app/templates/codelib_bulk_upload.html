@@ -94,7 +94,7 @@
                 <label class="chip-label">
                   <input type="checkbox" name="sap_modules" value="{{ mod.code }}" class="chip-input"
                     {% if mod.code in (selected_modules or []) %}checked{% endif %}/>
-                  <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
+                  <span class="chip">{{ mod.code }}<small class="d-block mt-0"><span class="i18n-ko">{{ mod.label_ko }}</span><span class="i18n-en" style="display:none">{{ mod.label_en }}</span></small></span>
                 </label>
                 {% endfor %}
               </div>
@@ -107,7 +107,7 @@
                 <label class="chip-label">
                   <input type="checkbox" name="dev_types" value="{{ dt.code }}" class="chip-input"
                     {% if dt.code in (selected_devtypes or []) %}checked{% endif %}/>
-                  <span class="chip">{{ dt.label_ko }}</span>
+                  <span class="chip"><span class="i18n-ko">{{ dt.label_ko }}</span><span class="i18n-en" style="display:none">{{ dt.label_en }}</span></span>
                 </label>
                 {% endfor %}
               </div>

@@ -403,7 +403,10 @@ class Notice(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(Text, nullable=False)
+    # EN 모드 표시용(비우면 title/content 로 폴백)
+    title_en = Column(Text, nullable=True)
     content = Column(Text, nullable=True)
+    content_en = Column(Text, nullable=True)
     sort_order = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -416,7 +419,9 @@ class FAQ(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     question = Column(Text, nullable=False)
+    question_en = Column(Text, nullable=True)
     answer = Column(Text, nullable=False)
+    answer_en = Column(Text, nullable=True)
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)

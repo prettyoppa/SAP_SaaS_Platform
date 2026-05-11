@@ -22,11 +22,13 @@
             <span class="badge rounded-pill bg-primary bg-opacity-75">공지</span>
             {% if notice.created_at %}<time class="text-muted small">{{ notice.created_at|local_dt_span('date_dots') }}</time>{% endif %}
           </div>
-          <h1 class="h3 mb-0 fw-semibold site-md-title-inline markdown-body">{{ title_html|safe }}</h1>
+          <h1 class="h3 mb-0 fw-semibold site-md-title-inline markdown-body">
+            <span class="i18n-ko d-block">{{ title_html|safe }}</span>
+            <span class="i18n-en d-block" style="display:none">{{ title_html_en|safe }}</span>
+          </h1>
         </header>
-        <div class="site-article-body markdown-body text-break">
-          {{ body_html|safe }}
-        </div>
+        <div class="site-article-body markdown-body text-break i18n-ko">{{ body_html|safe }}</div>
+        <div class="site-article-body markdown-body text-break i18n-en" style="display:none">{{ body_html_en|safe }}</div>
       </div>
     </article>
   </div>

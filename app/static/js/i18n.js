@@ -8,6 +8,11 @@ const TRANSLATIONS = {
     /* Nav */
     "nav.home": "Home", "nav.dashboard": "Dashboard", "nav.newRfp": "RFP",
     "nav.integration": "Integration",
+    "nav.menuRequestConsole": "Request Console",
+    "nav.menuRequestConsoleHint": "Member requests you did not create are listed here.",
+    "nav.menuNewDevelopment": "New Development",
+    "nav.menuAnalysisImprove": "Analyze · Improve",
+    "nav.menuIntegration": "Integration",
     "nav.codelib": "Code Gallery", "nav.admin": "Admin",
     "nav.login": "Login", "nav.signup": "Sign Up", "nav.logout": "Logout",
     /* Footer */
@@ -399,6 +404,11 @@ const TRANSLATIONS = {
     /* Nav */
     "nav.home": "홈", "nav.dashboard": "대시보드", "nav.newRfp": "RFP",
     "nav.integration": "연동 개발",
+    "nav.menuRequestConsole": "요청 Console",
+    "nav.menuRequestConsoleHint": "본인 외 회원 요청정보는 여기서 확인하세요.",
+    "nav.menuNewDevelopment": "신규 개발",
+    "nav.menuAnalysisImprove": "분석·개선",
+    "nav.menuIntegration": "연동 개발",
     "nav.codelib": "코드 라이브러리", "nav.admin": "관리자 메뉴",
     "nav.login": "로그인", "nav.signup": "회원가입", "nav.logout": "로그아웃",
     /* Footer */
@@ -806,6 +816,8 @@ function setLang(lang) {
   document.documentElement.lang = isKo ? 'ko' : 'en';
   document.querySelectorAll('.nav-ko, .brand-ko').forEach(el => el.style.display = isKo ? '' : 'none');
   document.querySelectorAll('.nav-en, .brand-en').forEach(el => el.style.display = isKo ? 'none' : '');
+  document.querySelectorAll('.i18n-ko').forEach(el => { el.style.display = isKo ? '' : 'none'; });
+  document.querySelectorAll('.i18n-en').forEach(el => { el.style.display = isKo ? 'none' : ''; });
 
   applyTranslations();
 

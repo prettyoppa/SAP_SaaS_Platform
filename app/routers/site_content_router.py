@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import models, auth
@@ -56,7 +57,10 @@ def notice_public_list(
 
     base = db.query(models.Notice).filter(models.Notice.is_active == True)
     if term:
-        base = base.filter(models.Notice.title.ilike(f"%{term}%"))
+        like = f"%{term}%"
+        base = base.filter(
+            or_(models.Notice.title.ilike(like), models.Notice.title_en.ilike(like))
+        )
 
     total = base.count()
     total_pages = max(1, math.ceil(total / PER_PAGE)) if total else 1
@@ -74,11 +78,15 @@ def notice_public_list(
     list_rows: list[dict[str, Any]] = []
     for i, n in enumerate(rows):
         display_num = total - offset - i
+        title_ko_html = _markdown_to_html(n.title or "")
+        title_en_md = (getattr(n, "title_en", None) or "").strip() or (n.title or "")
+        title_en_html = _markdown_to_html(title_en_md)
         list_rows.append(
             {
                 "notice": n,
                 "num": display_num,
-                "title_html": _markdown_to_html(n.title or ""),
+                "title_html": title_ko_html,
+                "title_en_html": title_en_html,
             }
         )
 
@@ -112,7 +120,10 @@ def faq_public_list(
 
     base = db.query(models.FAQ).filter(models.FAQ.is_active == True)
     if term:
-        base = base.filter(models.FAQ.question.ilike(f"%{term}%"))
+        like = f"%{term}%"
+        base = base.filter(
+            or_(models.FAQ.question.ilike(like), models.FAQ.question_en.ilike(like))
+        )
 
     total = base.count()
     total_pages = max(1, math.ceil(total / PER_PAGE)) if total else 1
@@ -130,11 +141,15 @@ def faq_public_list(
     list_rows = []
     for i, f in enumerate(rows):
         display_num = total - offset - i
+        q_ko_html = _markdown_to_html(f.question or "")
+        q_en_md = (getattr(f, "question_en", None) or "").strip() or (f.question or "")
+        q_en_html = _markdown_to_html(q_en_md)
         list_rows.append(
             {
                 "faq": f,
                 "num": display_num,
-                "title_html": _markdown_to_html(f.question or ""),
+                "title_html": q_ko_html,
+                "title_en_html": q_en_html,
             }
         )
 
@@ -176,7 +191,11 @@ def notice_public_detail(notice_id: int, request: Request, db: Session = Depends
             status_code=404,
         )
     title_html = _markdown_to_html(n.title or "")
+    title_en_md = (getattr(n, "title_en", None) or "").strip() or (n.title or "")
+    title_html_en = _markdown_to_html(title_en_md)
     body_html = _markdown_to_html(n.content or "")
+    body_en_md = (getattr(n, "content_en", None) or "").strip() or (n.content or "")
+    body_html_en = _markdown_to_html(body_en_md)
     meta_title = _meta_title_from_markdown(n.title, "공지")
     return templates.TemplateResponse(
         request,
@@ -186,7 +205,9 @@ def notice_public_detail(notice_id: int, request: Request, db: Session = Depends
             "user": user,
             "notice": n,
             "title_html": title_html,
+            "title_html_en": title_html_en,
             "body_html": body_html,
+            "body_html_en": body_html_en,
             "meta_title": meta_title,
         },
     )
@@ -204,7 +225,11 @@ def faq_public_detail(faq_id: int, request: Request, db: Session = Depends(get_d
             status_code=404,
         )
     question_html = _markdown_to_html(f.question or "")
+    q_en_md = (getattr(f, "question_en", None) or "").strip() or (f.question or "")
+    question_html_en = _markdown_to_html(q_en_md)
     answer_html = _markdown_to_html(f.answer or "")
+    a_en_md = (getattr(f, "answer_en", None) or "").strip() or (f.answer or "")
+    answer_html_en = _markdown_to_html(a_en_md)
     meta_title = _meta_title_from_markdown(f.question, "FAQ")
     return templates.TemplateResponse(
         request,
@@ -214,7 +239,9 @@ def faq_public_detail(faq_id: int, request: Request, db: Session = Depends(get_d
             "user": user,
             "faq": f,
             "question_html": question_html,
+            "question_html_en": question_html_en,
             "answer_html": answer_html,
+            "answer_html_en": answer_html_en,
             "meta_title": meta_title,
         },
     )

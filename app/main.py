@@ -133,6 +133,10 @@ def _run_migrations():
         ("users", "experience_trial_ends_at", "DATETIME", "TIMESTAMP"),
         ("subscription_plans", "price_monthly_krw", "INTEGER", "INTEGER"),
         ("subscription_plans", "price_monthly_usd_cents", "INTEGER", "INTEGER"),
+        ("notices", "title_en", "TEXT", "TEXT"),
+        ("notices", "content_en", "TEXT", "TEXT"),
+        ("faqs", "question_en", "TEXT", "TEXT"),
+        ("faqs", "answer_en", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

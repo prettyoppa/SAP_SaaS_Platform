@@ -54,8 +54,7 @@
     <a class="navbar-brand d-flex align-items-center" href="/">
       <img src="/static/img/catch_lab_sap_dev_hub_logo.png?v=20260428cat" alt="" class="navbar-brand-logo brand-logo-light-only me-2" height="44" decoding="async" />
       <img src="/static/img/catch_lab_sap_dev_hub_logo_dark.png?v=20260428cat" alt="" class="navbar-brand-logo brand-logo-dark-only me-2" height="44" decoding="async" />
-      <span class="brand-ko">SAP 개발 파트너</span>
-      <span class="brand-en" style="display:none">SAP Development Partner</span>
+      <span data-i18n="brand.name">SAP 개발 파트너</span>
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
@@ -65,7 +64,7 @@
         {% set path = request.url.path %}
         <li class="nav-item">
           <a class="nav-link {% if path == '/' %}active{% endif %}" href="/">
-            <span class="nav-ko">홈</span><span class="nav-en" style="display:none">Home</span>
+            <span data-i18n="nav.home">홈</span>
           </a>
         </li>
         {% if user %}
@@ -74,34 +73,31 @@
         <li class="nav-item nav-item-request-console position-relative">
           <div class="nav-request-console-link-wrap position-relative">
             <a class="nav-link nav-link-request-console {% if path.startswith('/request-console') %}active{% endif %}" href="/request-console">
-              <span class="nav-ko">요청 Console</span><span class="nav-en" style="display:none">Request Console</span>
+              <span data-i18n="nav.menuRequestConsole">요청 Console</span>
             </a>
             {% if nav_console_pending %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
           </div>
-          <div class="nav-request-console-hint nav-ko">
-            <span class="nav-request-console-bubble">본인 외 회원 요청정보는 여기서 확인하세요.</span>
-          </div>
-          <div class="nav-request-console-hint nav-en" style="display:none">
-            <span class="nav-request-console-bubble">Member requests you did not create are listed here.</span>
+          <div class="nav-request-console-hint">
+            <span class="nav-request-console-bubble" data-i18n="nav.menuRequestConsoleHint">본인 외 회원 요청정보는 여기서 확인하세요.</span>
           </div>
         </li>
         {% endif %}
         {% set nav_offer = request.state.nav_proposal_offer_badges %}
         <li class="nav-item position-relative">
           <a class="nav-link {% if path.startswith('/services/abap') or path.startswith('/rfp') %}active{% endif %}" href="/services/abap">
-            <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">New Development</span>
+            <span data-i18n="nav.menuNewDevelopment">신규 개발</span>
           </a>
           {% if nav_offer.rfp %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
         <li class="nav-item position-relative">
           <a class="nav-link {% if path.startswith('/abap-analysis') %}active{% endif %}" href="/abap-analysis">
-            <span class="nav-ko">분석·개선</span><span class="nav-en" style="display:none">Analyze · Improve</span>
+            <span data-i18n="nav.menuAnalysisImprove">분석·개선</span>
           </a>
           {% if nav_offer.analysis %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
         <li class="nav-item position-relative">
           <a class="nav-link {% if '/integration' in path %}active{% endif %}" href="/integration">
-            <span class="nav-ko">연동 개발</span><span class="nav-en" style="display:none">Integration</span>
+            <span data-i18n="nav.menuIntegration">연동 개발</span>
           </a>
           {% if nav_offer.integration %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
@@ -109,7 +105,7 @@
         <li class="nav-item">
           <a class="nav-link nav-link-admin {% if '/admin' in path or '/codelib' in path %}active{% endif %}" href="/admin">
             <i class="fa-solid fa-gear me-1"></i>
-            <span class="nav-ko">Admin</span><span class="nav-en" style="display:none">Admin</span>
+            <span data-i18n="nav.admin">Admin</span>
           </a>
         </li>
         {% endif %}
@@ -240,7 +236,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>window.__I18nEnOverrides = {{ request.state.i18n_en_overrides | tojson }};</script>
-<script src="/static/js/i18n.js?v=20260509i18n-admin-override"></script>
+<script src="/static/js/i18n.js?v=20260509i18n-topnav-bilingual"></script>
 <script src="/static/js/main.js?v=20260509code-asset"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}

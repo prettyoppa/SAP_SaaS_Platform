@@ -48,6 +48,15 @@
               <label class="form-label small">내용 (Markdown)</label>
               <textarea name="content" class="form-control font-monospace small admin-compact-md" placeholder="## 소제목&#10;- 목록"></textarea>
             </div>
+            <div class="col-md-8">
+              <label class="form-label small">제목 (English, Markdown·선택)</label>
+              <textarea name="title_en" class="form-control font-monospace small admin-compact-md admin-compact-md--title" placeholder="비우면 한국어 제목으로 EN에서도 표시"></textarea>
+            </div>
+            <div class="col-md-4"></div>
+            <div class="col-12">
+              <label class="form-label small">내용 (English, Markdown·선택)</label>
+              <textarea name="content_en" class="form-control font-monospace small admin-compact-md" placeholder="비우면 한국어 본문으로 EN에서도 표시"></textarea>
+            </div>
             <div class="col-12">
               <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>추가</button>
             </div>
@@ -75,6 +84,14 @@
               <div class="col-12">
                 <label class="form-label small">내용 (Markdown)</label>
                 <textarea name="content_{{ i }}" class="form-control font-monospace small admin-compact-md" placeholder="선택"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">제목 EN (선택)</label>
+                <textarea name="title_en_{{ i }}" class="form-control font-monospace small admin-compact-md admin-compact-md--title" placeholder="선택"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">내용 EN (선택)</label>
+                <textarea name="content_en_{{ i }}" class="form-control font-monospace small admin-compact-md" placeholder="선택"></textarea>
               </div>
             </div>
           </div>
@@ -122,6 +139,15 @@
             <div class="col-12">
               <label class="form-label small">내용 (Markdown)</label>
               <textarea name="content" class="form-control font-monospace small admin-compact-md">{{ n.content or '' }}</textarea>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small">제목 (English, 선택)</label>
+              <textarea name="title_en" class="form-control font-monospace small admin-compact-md admin-compact-md--title">{{ n.title_en or '' }}</textarea>
+            </div>
+            <div class="col-md-4"></div>
+            <div class="col-12">
+              <label class="form-label small">내용 (English, 선택)</label>
+              <textarea name="content_en" class="form-control font-monospace small admin-compact-md">{{ n.content_en or '' }}</textarea>
             </div>
             <div class="col-12">
               <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>저장</button>

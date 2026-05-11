@@ -698,17 +698,23 @@ def admin_notices(request: Request, db: Session = Depends(get_db)):
 def admin_notice_add(
     request: Request,
     title: str = Form(...),
+    title_en: str = Form(""),
     content: str = Form(""),
+    content_en: str = Form(""),
     sort_order: int = Form(0),
     db: Session = Depends(get_db),
 ):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
+    te = (title_en or "").strip() or None
+    ce = (content_en or "").strip() or None
     db.add(
         models.Notice(
             title=title.strip(),
+            title_en=te,
             content=(content or "").strip(),
+            content_en=ce,
             sort_order=max(0, int(sort_order)),
         )
     )
@@ -732,10 +738,14 @@ async def admin_notice_add_bulk(request: Request, db: Session = Depends(get_db))
             so = int(form.get(f"sort_order_{i}") or 0)
         except (TypeError, ValueError):
             so = 0
+        te = (form.get(f"title_en_{i}") or "").strip() or None
+        ce = (form.get(f"content_en_{i}") or "").strip() or None
         db.add(
             models.Notice(
                 title=title,
+                title_en=te,
                 content=content,
+                content_en=ce,
                 sort_order=max(0, so),
             )
         )
@@ -750,7 +760,9 @@ def admin_notice_update(
     notice_id: int,
     request: Request,
     title: str = Form(...),
+    title_en: str = Form(""),
     content: str = Form(""),
+    content_en: str = Form(""),
     sort_order: int = Form(0),
     db: Session = Depends(get_db),
 ):
@@ -760,7 +772,9 @@ def admin_notice_update(
     n = db.query(models.Notice).filter(models.Notice.id == notice_id).first()
     if n:
         n.title = title.strip()
+        n.title_en = (title_en or "").strip() or None
         n.content = (content or "").strip()
+        n.content_en = (content_en or "").strip() or None
         n.sort_order = max(0, int(sort_order))
         db.commit()
     return RedirectResponse(url="/admin/notices", status_code=302)
@@ -811,17 +825,23 @@ def admin_faqs(request: Request, db: Session = Depends(get_db)):
 def admin_faq_add(
     request: Request,
     question: str = Form(...),
+    question_en: str = Form(""),
     answer: str = Form(...),
+    answer_en: str = Form(""),
     sort_order: int = Form(0),
     db: Session = Depends(get_db),
 ):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
+    qe = (question_en or "").strip() or None
+    ae = (answer_en or "").strip() or None
     db.add(
         models.FAQ(
             question=question.strip(),
+            question_en=qe,
             answer=(answer or "").strip(),
+            answer_en=ae,
             sort_order=max(0, int(sort_order)),
         )
     )
@@ -845,10 +865,14 @@ async def admin_faq_add_bulk(request: Request, db: Session = Depends(get_db)):
             so = int(form.get(f"sort_order_{i}") or 0)
         except (TypeError, ValueError):
             so = 0
+        qe = (form.get(f"question_en_{i}") or "").strip() or None
+        ae = (form.get(f"answer_en_{i}") or "").strip() or None
         db.add(
             models.FAQ(
                 question=question,
+                question_en=qe,
                 answer=answer,
+                answer_en=ae,
                 sort_order=max(0, so),
             )
         )
@@ -863,7 +887,9 @@ def admin_faq_update(
     faq_id: int,
     request: Request,
     question: str = Form(...),
+    question_en: str = Form(""),
     answer: str = Form(...),
+    answer_en: str = Form(""),
     sort_order: int = Form(0),
     db: Session = Depends(get_db),
 ):
@@ -873,7 +899,9 @@ def admin_faq_update(
     f = db.query(models.FAQ).filter(models.FAQ.id == faq_id).first()
     if f:
         f.question = question.strip()
+        f.question_en = (question_en or "").strip() or None
         f.answer = (answer or "").strip()
+        f.answer_en = (answer_en or "").strip() or None
         f.sort_order = max(0, int(sort_order))
         db.commit()
     return RedirectResponse(url="/admin/faqs", status_code=302)

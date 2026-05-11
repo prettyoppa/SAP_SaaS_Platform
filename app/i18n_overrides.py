@@ -78,9 +78,28 @@ def load_i18n_baseline() -> dict[str, dict[str, str]]:
 
 _GROUP_RULES_LONGEST_FIRST = sorted(_GROUP_RULES, key=lambda t: len(t[0]), reverse=True)
 
+# base.html 상단 바와 직접 연결되는 키는 접두사와 무관하게 한 그룹으로 묶음
+_TOPNAV_GROUP = (
+    "topnav",
+    "상단 메인 메뉴 (base.html)",
+    "홈·요청 Console·신규 개발·분석·연동·Admin 링크와 브랜드명. 이전에는 HTML에만 있어 i18n 목록에 안 나왔음.",
+)
+_MANUAL_KEY_GROUP: dict[str, tuple[str, str, str]] = {
+    "brand.name": _TOPNAV_GROUP,
+    "nav.home": _TOPNAV_GROUP,
+    "nav.menuRequestConsole": _TOPNAV_GROUP,
+    "nav.menuRequestConsoleHint": _TOPNAV_GROUP,
+    "nav.menuNewDevelopment": _TOPNAV_GROUP,
+    "nav.menuAnalysisImprove": _TOPNAV_GROUP,
+    "nav.menuIntegration": _TOPNAV_GROUP,
+    "nav.admin": _TOPNAV_GROUP,
+}
+
 
 def admin_group_for_key(key: str) -> tuple[str, str, str]:
     """(group_slug, group_title_ko, ai_blurb_ko)"""
+    if key in _MANUAL_KEY_GROUP:
+        return _MANUAL_KEY_GROUP[key]
     for prefix, slug, title, blurb in _GROUP_RULES_LONGEST_FIRST:
         if key.startswith(prefix):
             return slug, title, blurb

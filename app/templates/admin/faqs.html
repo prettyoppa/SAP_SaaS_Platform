@@ -48,6 +48,15 @@
               <label class="form-label small">답변 (Markdown)</label>
               <textarea name="answer" class="form-control font-monospace small admin-compact-md" required placeholder="## 답변"></textarea>
             </div>
+            <div class="col-md-8">
+              <label class="form-label small">질문 (English, 선택)</label>
+              <textarea name="question_en" class="form-control font-monospace small admin-compact-md admin-compact-md--title" placeholder="비우면 한국어 질문으로 EN 표시"></textarea>
+            </div>
+            <div class="col-md-4"></div>
+            <div class="col-12">
+              <label class="form-label small">답변 (English, 선택)</label>
+              <textarea name="answer_en" class="form-control font-monospace small admin-compact-md" placeholder="비우면 한국어 답변으로 EN 표시"></textarea>
+            </div>
             <div class="col-12">
               <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>추가</button>
             </div>
@@ -75,6 +84,14 @@
               <div class="col-12">
                 <label class="form-label small">답변 (Markdown)</label>
                 <textarea name="answer_{{ i }}" class="form-control font-monospace small admin-compact-md" placeholder="질문과 함께 채워야 저장"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">질문 EN (선택)</label>
+                <textarea name="question_en_{{ i }}" class="form-control font-monospace small admin-compact-md admin-compact-md--title"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">답변 EN (선택)</label>
+                <textarea name="answer_en_{{ i }}" class="form-control font-monospace small admin-compact-md"></textarea>
               </div>
             </div>
           </div>
@@ -122,6 +139,15 @@
             <div class="col-12">
               <label class="form-label small">답변 (Markdown)</label>
               <textarea name="answer" class="form-control font-monospace small admin-compact-md">{{ f.answer }}</textarea>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small">질문 (English, 선택)</label>
+              <textarea name="question_en" class="form-control font-monospace small admin-compact-md admin-compact-md--title">{{ f.question_en or '' }}</textarea>
+            </div>
+            <div class="col-md-4"></div>
+            <div class="col-12">
+              <label class="form-label small">답변 (English, 선택)</label>
+              <textarea name="answer_en" class="form-control font-monospace small admin-compact-md">{{ f.answer_en or '' }}</textarea>
             </div>
             <div class="col-12">
               <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>저장</button>

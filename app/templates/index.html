@@ -58,7 +58,8 @@
                 {% for n in notices %}
                 <a href="/notices/{{ n.id }}" class="notice-item notice-item-link text-decoration-none d-block text-reset">
                   <span class="notice-badge" data-i18n="home.noticeBadge">공지</span>
-                  <span class="notice-title site-md-title-inline markdown-body">{{ n.title|md_html }}</span>
+                  <span class="notice-title site-md-title-inline markdown-body i18n-ko">{{ n.title|md_html }}</span>
+                  <span class="notice-title site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((n.title_en or n.title) or '')|md_html }}</span>
                   <span class="notice-date text-muted small">{{ n.created_at|local_dt_span('date_dots') }}</span>
                 </a>
                 {% endfor %}
@@ -78,7 +79,8 @@
                 {% for faq in faqs %}
                 <a href="/faqs/{{ faq.id }}" class="home-faq-row d-flex align-items-center gap-2 text-decoration-none text-reset py-2">
                   <i class="fa-solid fa-chevron-right fa-xs text-muted flex-shrink-0"></i>
-                  <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body">{{ faq.question|md_html }}</span>
+                  <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-ko">{{ faq.question|md_html }}</span>
+                  <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((faq.question_en or faq.question) or '')|md_html }}</span>
                 </a>
                 {% endfor %}
               </div>

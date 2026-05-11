@@ -97,8 +97,9 @@
                   <input type="checkbox" name="impl_types" value="{{ dt.code }}"
                          class="chip-input int-impl-type"
                          data-label="{{ dt.label_ko }}"
+                         data-label-en="{{ dt.label_en }}"
                          {% if form and dt.code in form.impl_types %}checked{% endif %}/>
-                  <span class="chip">{{ dt.label_ko }}</span>
+                  <span class="chip"><span class="i18n-ko">{{ dt.label_ko }}</span><span class="i18n-en" style="display:none">{{ dt.label_en }}</span></span>
                 </label>
                 {% endfor %}
               </div>
@@ -262,7 +263,7 @@
                           {% for mod in modules %}
                           <label class="chip-label">
                             <input type="checkbox" value="{{ mod.code }}" class="chip-input ref-mod-{{ rs }}"/>
-                            <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
+                            <span class="chip">{{ mod.code }}<small class="d-block mt-0"><span class="i18n-ko">{{ mod.label_ko }}</span><span class="i18n-en" style="display:none">{{ mod.label_en }}</span></small></span>
                           </label>
                           {% endfor %}
                         </div>
@@ -273,7 +274,7 @@
                           {% for dt in devtypes %}
                           <label class="chip-label">
                             <input type="checkbox" value="{{ dt.code }}" class="chip-input ref-dt-{{ rs }}"/>
-                            <span class="chip">{{ dt.label_ko }}</span>
+                            <span class="chip"><span class="i18n-ko">{{ dt.label_ko }}</span><span class="i18n-en" style="display:none">{{ dt.label_en }}</span></span>
                           </label>
                           {% endfor %}
                         </div>

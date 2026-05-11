@@ -80,7 +80,7 @@
           <input type="checkbox" name="sap_modules" value="{{ mod.code }}"
                  class="chip-input module-chip"
                  {% if form and mod.code in (form.get('sap_modules') or []) %}checked{% elif resource and resource.sap_modules and mod.code in (resource.sap_modules or '').split(',') %}checked{% endif %}/>
-          <span class="chip">{{ mod.code }}<small class="d-block mt-0">{{ mod.label_ko }}</small></span>
+          <span class="chip">{{ mod.code }}<small class="d-block mt-0"><span class="i18n-ko">{{ mod.label_ko }}</span><span class="i18n-en" style="display:none">{{ mod.label_en }}</span></small></span>
         </label>
         {% endfor %}
       </div>
@@ -101,7 +101,7 @@
           <input type="checkbox" name="dev_types" value="{{ dt.code }}"
                  class="chip-input devtype-chip"
                  {% if form and dt.code in (form.get('dev_types') or []) %}checked{% elif resource and resource.dev_types and dt.code in (resource.dev_types or '').split(',') %}checked{% endif %}/>
-          <span class="chip">{{ dt.label_ko }}</span>
+          <span class="chip"><span class="i18n-ko">{{ dt.label_ko }}</span><span class="i18n-en" style="display:none">{{ dt.label_en }}</span></span>
         </label>
         {% endfor %}
       </div>
