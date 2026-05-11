@@ -399,6 +399,11 @@ document.addEventListener('DOMContentLoaded', () => {
         /* 첨부 다운로드(/…/attachment): 같은 탭에서 파일만 받거나 R2 프리사인으로 나가도
            전체 네비게이션이 없어 pageshow 가 없고 오버레이가 꺼지지 않음 */
         if (u.pathname.endsWith('/attachment')) return;
+        /* 파일 다운로드(xlsx/pdf 등) 또는 /download 라우트는 네비게이션 없이 내려받을 수 있어
+           오버레이가 영구적으로 남을 수 있음 */
+        const p = (u.pathname || '').toLowerCase();
+        if (p.endsWith('.xlsx') || p.endsWith('.csv') || p.endsWith('.pdf') || p.endsWith('.zip')) return;
+        if (p.endsWith('/download') || p.includes('/download/')) return;
       } catch (_) {
         return;
       }
