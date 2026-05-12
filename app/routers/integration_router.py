@@ -1565,12 +1565,7 @@ async def integration_edit_submit(
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
-        ref_init = None
-        if (reference_code_json or "").strip():
-            try:
-                ref_init = json.loads(reference_code_json)
-            except Exception:
-                ref_init = None
+        # 용량 초과 시 전체 JSON을 다시 파싱하면 메모리·시간 부담으로 500이 날 수 있음 — 폼에는 비워 둠.
         return templates.TemplateResponse(
             request,
             "integration_form.html",
@@ -1583,7 +1578,7 @@ async def integration_edit_submit(
                 "error": "reference_code_too_large",
                 "form": _form_dict(),
                 "edit_ir": ir,
-                "integration_ref_code_initial": ref_init,
+                "integration_ref_code_initial": None,
                 "attachment_entries": _attachment_entries(ir),
             },
             status_code=400,

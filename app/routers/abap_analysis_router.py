@@ -56,6 +56,7 @@ from ..code_asset_access import user_may_copy_download_request_assets
 from ..request_hub_access import consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_reference_code import (
+    MAX_REFERENCE_CODE_BYTES,
     abap_source_only_from_reference_payload,
     normalize_reference_code_payload,
     reference_code_program_groups_for_tabs,
@@ -127,8 +128,11 @@ def _abap_form_dict_from_row(row: models.AbapAnalysisRequest) -> dict:
 def _ref_initial_from_raw(reference_code_json: str) -> Optional[dict]:
     if not reference_code_json or not str(reference_code_json).strip():
         return None
+    s = str(reference_code_json).strip()
+    if len(s.encode("utf-8")) > MAX_REFERENCE_CODE_BYTES:
+        return None
     try:
-        data = json.loads(reference_code_json)
+        data = json.loads(s)
         return data if isinstance(data, dict) else None
     except Exception:
         return None

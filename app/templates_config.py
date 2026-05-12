@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote_plus
 
+from fastapi.encoders import jsonable_encoder
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
@@ -19,7 +20,10 @@ templates.env.filters["from_json"] = _json.loads
 
 
 def _tojson_filter(v) -> Markup:
-    s = _json.dumps(v, ensure_ascii=False)
+    try:
+        s = _json.dumps(v, ensure_ascii=False)
+    except TypeError:
+        s = _json.dumps(jsonable_encoder(v), ensure_ascii=False)
     s = s.replace("<", "\\u003c").replace(">", "\\u003e")
     return Markup(s)
 
