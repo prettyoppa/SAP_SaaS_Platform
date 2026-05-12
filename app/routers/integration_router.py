@@ -26,6 +26,7 @@ from ..subscription_quota import (
 from .abap_analysis_router import _pair_abap_followup_turns as _pair_integration_followup_turns
 from ..attachment_context import build_attachment_llm_digest
 from ..database import get_db
+from ..followup_messages_util import followup_created_at_sort_key
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..menu_landing import (
     DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO,
@@ -1456,7 +1457,10 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
             ref_init = None
     follow_msgs = sorted(
         list(ir.followup_messages or []),
-        key=lambda m: (m.created_at or ir.created_at),
+        key=lambda m: (
+            followup_created_at_sort_key(m, fallback=ir.created_at),
+            getattr(m, "id", 0) or 0,
+        ),
     )
     followup_turns = _pair_integration_followup_turns(follow_msgs)
     chat_err = (request.query_params.get("chat_err") or "").strip() or None
@@ -1801,7 +1805,10 @@ def _collect_integration_unified_hub_ctx(
     else:
         follow_msgs = sorted(
             list(ir.followup_messages or []),
-            key=lambda m: (m.created_at or ir.created_at),
+            key=lambda m: (
+                followup_created_at_sort_key(m, fallback=ir.created_at),
+                getattr(m, "id", 0) or 0,
+            ),
         )
         followup_turns = _pair_integration_followup_turns(follow_msgs)
         snap_hub = ai_inquiry_snapshot(db, user, "integration", ir.id)

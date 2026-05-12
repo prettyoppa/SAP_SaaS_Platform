@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import models
 from .code_asset_access import user_may_copy_download_request_assets
+from .followup_messages_util import followup_created_at_sort_key
 from .rfp_reference_code import reference_code_program_groups_for_tabs
 
 
@@ -75,7 +76,10 @@ def load_workflow_abap_mirror_context(db: Session, user: models.User, rfp: model
             analysis = {}
     msgs = sorted(
         list(row.followup_messages or []),
-        key=lambda m: (m.created_at or m.id or 0),
+        key=lambda m: (
+            followup_created_at_sort_key(m, fallback=row.created_at),
+            getattr(m, "id", 0) or 0,
+        ),
     )
     followup_turns = pair_abap_followup_turns(msgs)
     att = abap_row_attachment_entries(row)

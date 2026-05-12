@@ -14,6 +14,7 @@ from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
 from ..agent_display import wrap_unbracketed_agent_names
+from ..followup_messages_util import followup_created_at_sort_key
 from ..delivered_code_package import (
     delivered_package_has_body,
     parse_delivered_code_payload,
@@ -912,7 +913,10 @@ def _collect_rfp_unified_hub_ctx(
     else:
         follow_msgs = sorted(
             list(rfp.followup_messages or []),
-            key=lambda m: (m.created_at or rfp.created_at),
+            key=lambda m: (
+                followup_created_at_sort_key(m, fallback=rfp.created_at),
+                getattr(m, "id", 0) or 0,
+            ),
         )
         followup_turns = pair_followup_turn_messages(follow_msgs)
         snap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)
@@ -1464,7 +1468,10 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/", status_code=302)
     follow_msgs = sorted(
         list(rfp_w.followup_messages or []),
-        key=lambda m: (m.created_at or rfp_w.created_at),
+        key=lambda m: (
+            followup_created_at_sort_key(m, fallback=rfp_w.created_at),
+            getattr(m, "id", 0) or 0,
+        ),
     )
     followup_turns = pair_followup_turn_messages(follow_msgs)
     chat_err = (request.query_params.get("chat_err") or "").strip() or None

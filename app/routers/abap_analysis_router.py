@@ -32,6 +32,7 @@ from ..subscription_quota import (
     try_consume_monthly,
 )
 from ..database import get_db
+from ..followup_messages_util import followup_created_at_sort_key
 from ..menu_landing import (
     DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO,
     TILE_ORDER_WITH_ALL,
@@ -353,7 +354,10 @@ def _form_template_response(
         if row_w:
             follow_msgs = sorted(
                 list(row_w.followup_messages or []),
-                key=lambda m: (m.created_at or row_w.created_at),
+                key=lambda m: (
+                    followup_created_at_sort_key(m, fallback=row_w.created_at),
+                    getattr(m, "id", 0) or 0,
+                ),
             )
             turns = _pair_abap_followup_turns(follow_msgs)
             eff = _effective_abap_source(row_w).strip()
@@ -1012,7 +1016,10 @@ def _prepare_abap_analysis_detail_ctx(
 
     followup_messages = sorted(
         list(row.followup_messages or []),
-        key=lambda m: (m.created_at or row.created_at),
+        key=lambda m: (
+            followup_created_at_sort_key(m, fallback=row.created_at),
+            getattr(m, "id", 0) or 0,
+        ),
     )
     followup_turns = _pair_abap_followup_turns(followup_messages)
     chat_enabled = (not row.is_draft) and bool(eff_src.strip())
