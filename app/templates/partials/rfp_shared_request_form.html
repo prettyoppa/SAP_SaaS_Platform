@@ -263,11 +263,6 @@
     </div>
     <div class="d-flex gap-3 justify-content-end flex-wrap">
       <a href="{{ cancel_url }}" class="btn btn-outline-secondary px-4">취소</a>
-      {% if show_draft_button %}
-      <button type="submit" name="save_action" value="draft" class="btn btn-outline-warning px-4" id="draft-btn">
-        <i class="fa-solid fa-floppy-disk me-2"></i>임시저장
-      </button>
-      {% endif %}
       <button type="submit" name="save_action" value="submit" class="btn btn-primary btn-lg px-5" id="submit-btn">
         <i class="fa-solid fa-paper-plane me-2"></i>
         <span {% if form_scope == 'rfp' %}data-i18n="rfp.submitBtn"{% endif %}>{% if form_scope == 'rfp' %}제출{% else %}{{ submit_button_label }}{% endif %}</span>
@@ -275,3 +270,12 @@
     </div>
   </div>
 </form>
+{% if show_draft_button %}
+<div class="draft-float-launcher">
+  <button type="submit" form="{{ form_id }}" name="save_action" value="draft" class="btn btn-outline-warning draft-float-btn" id="draft-btn-float" title="임시저장">
+    <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+    <span class="draft-float-btn-label nav-ko">임시저장</span>
+    <span class="draft-float-btn-label nav-en" style="display:none">Save draft</span>
+  </button>
+</div>
+{% endif %}

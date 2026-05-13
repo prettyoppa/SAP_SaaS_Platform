@@ -318,7 +318,50 @@ function formatLocalDateTimes() {
   });
 }
 
+/** AI 후속 질문: 전역 busy 대신 패널 안 로컬 오버레이 + 제출 후 패널 유지(sessionStorage). */
+const _KEEP_AI_LAUNCHER_KEY = 'keepAiPanelOpenLauncher';
+
+document.addEventListener(
+  'submit',
+  (e) => {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (!form.classList.contains('abap-followup-form')) return;
+    if (form.dataset.noBusy !== 'true' && form.dataset.noBusy !== '') return;
+    const panel = form.closest('.abap-float-chat-panel');
+    const busy = panel && panel.querySelector('.abap-float-chat-local-busy');
+    if (busy) busy.removeAttribute('hidden');
+    const root = panel && panel.closest('.abap-float-chat');
+    const launcher = root && root.querySelector('.abap-float-chat-launcher');
+    if (launcher && launcher.id) {
+      try {
+        sessionStorage.setItem(_KEEP_AI_LAUNCHER_KEY, launcher.id);
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  },
+  true,
+);
+
 document.addEventListener('DOMContentLoaded', () => {
+  try {
+    const lid = sessionStorage.getItem(_KEEP_AI_LAUNCHER_KEY);
+    if (lid) {
+      sessionStorage.removeItem(_KEEP_AI_LAUNCHER_KEY);
+      const launcher = document.getElementById(lid);
+      const cid = launcher && launcher.getAttribute('aria-controls');
+      const panel = cid ? document.getElementById(cid) : null;
+      if (launcher && panel && panel.hasAttribute('hidden')) {
+        panel.removeAttribute('hidden');
+        launcher.setAttribute('aria-expanded', 'true');
+        window.dispatchEvent(new Event('resize'));
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
+
   document.addEventListener(
     'submit',
     (e) => {
@@ -415,6 +458,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('pageshow', (ev) => {
     if (ev.persisted) hideGlobalBusy();
+    document.querySelectorAll('.abap-float-chat-local-busy').forEach((el) => {
+      el.setAttribute('hidden', '');
+    });
   });
 });
 

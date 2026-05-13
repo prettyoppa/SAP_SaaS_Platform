@@ -1,0 +1,8 @@
+{# 평행 사선 두 줄 — 코너 리사이즈 핸들(“물결”형 참고) #}
+{% macro grip_svg(size) -%}
+{% set dim = 32 if size == 'lg' else 28 %}
+<svg class="abap-resize-grip-svg" width="{{ dim }}" height="{{ dim }}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+  <line x1="4.5" y1="19.5" x2="12.5" y2="11.5" stroke="currentColor" stroke-width="2.35" stroke-linecap="round"/>
+  <line x1="9" y1="19.5" x2="17" y2="11.5" stroke="currentColor" stroke-width="2.35" stroke-linecap="round"/>
+</svg>
+{%- endmacro %}

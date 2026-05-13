@@ -243,10 +243,6 @@
           <div class="rfp-section rfp-section-last">
             <div class="d-flex gap-3 justify-content-end">
               <a href="/codelib" class="btn btn-outline-secondary px-4">취소</a>
-              <button type="submit" name="is_draft_btn" value="0" class="btn btn-outline-secondary px-4" id="draft-btn"
-                      onclick="document.getElementById('is-draft-field').value='1'">
-                <i class="fa-solid fa-floppy-disk me-2"></i>임시 저장
-              </button>
               <button type="submit" class="btn btn-primary btn-lg px-5" id="submit-btn">
                 <i class="fa-solid fa-upload me-2"></i>{% if edit_code %}저장 후 분석 실행{% else %}등록 &amp; 분석 시작{% endif %}
               </button>
@@ -255,6 +251,14 @@
           </div>
 
         </form>
+        <div class="draft-float-launcher">
+          <button type="submit" form="upload-form" name="is_draft_btn" value="0" class="btn btn-outline-secondary draft-float-btn" id="draft-btn-float"
+                  onclick="document.getElementById('is-draft-field').value='1'" title="임시 저장">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+            <span class="draft-float-btn-label nav-ko">임시 저장</span>
+            <span class="draft-float-btn-label nav-en" style="display:none">Save draft</span>
+          </button>
+        </div>
 
         {% if edit_code %}
         <div class="mt-4 pt-3 border-top" style="border-color:var(--border)!important;">
