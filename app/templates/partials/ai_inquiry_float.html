@@ -1,5 +1,4 @@
 {# ai_inquiry: mode teaser|live, float_id, post_url?, return_to?, followup_turns?, chat_error?, chat_limit_reached?, max_turns?, header_i18n, context_i18n, size_key #}
-{% import 'macros/abap_resize_grip.html' as rg %}
 {% if ai_inquiry and ai_inquiry.mode == 'teaser' %}
 <div id="{{ ai_inquiry.float_id }}" class="abap-float-chat" aria-live="polite">
   <div id="{{ ai_inquiry.float_id }}Panel" class="abap-float-chat-panel" hidden>
@@ -37,7 +36,7 @@
        data-i18n-title="chat.panelResizeTitle" title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
     {% include 'partials/abap_float_chat_local_busy.html' %}
     <button type="button" class="abap-float-chat-resize" id="{{ ai_inquiry.float_id }}Resize" data-i18n-aria-label="chat.panelResizeAria" data-i18n-title="chat.panelResizeHint" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
-      <span class="abap-resize-svg-wrap" aria-hidden="true">{{ rg.grip_svg('lg') }}</span>
+      <i class="fa-solid fa-up-right-and-down-left-from-center abap-resize-fa abap-resize-fa--panel" aria-hidden="true"></i>
     </button>
     <div class="abap-float-chat-header">
       <span class="abap-float-chat-header-title" data-i18n="{{ ai_inquiry.header_i18n }}">AI 문의</span>
@@ -103,7 +102,7 @@
         <div class="abap-followup-ta-wrap">
           <textarea id="{{ ai_inquiry.float_id }}Msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required data-i18n-placeholder="chat.messagePlaceholder" placeholder="추가로 궁금한 점을 입력하세요."></textarea>
           <button type="button" class="abap-followup-ta-resize" id="{{ ai_inquiry.float_id }}TaResize" data-i18n-aria-label="chat.taResizeAria" data-i18n-title="chat.taResizeTitle" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
-            <span class="abap-resize-svg-wrap abap-resize-svg-wrap--sm" aria-hidden="true">{{ rg.grip_svg('sm') }}</span>
+            <i class="fa-solid fa-up-right-and-down-left-from-center abap-resize-fa abap-resize-fa--ta" aria-hidden="true"></i>
           </button>
         </div>
         <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">
