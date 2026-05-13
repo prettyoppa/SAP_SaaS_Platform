@@ -870,6 +870,7 @@ def generate_sequential_followup(
     code_library_context: str = "",
     library_pool: Optional[list] = None,
     member_safe_output: bool = False,
+    playbook_addon: str = "",
 ) -> dict:
     """
     이번 라운드: 조기 완료(round_complete) 또는 다음 질문 1개.
