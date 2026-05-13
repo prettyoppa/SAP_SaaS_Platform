@@ -1,0 +1,29 @@
+{# Context: followup_turns — pair_followup_turns 결과 (question/answer ORM 객체) #}
+{% if followup_turns and followup_turns|length > 0 %}
+<div class="abap-msg-stream abap-msg-stream--float mb-0" role="log" aria-label="대화">
+  {% for turn in followup_turns %}
+    {% if turn.question %}
+    <div class="abap-msg-row abap-msg-row--me">
+      <div class="abap-msg-stack">
+        <div class="abap-msg-meta text-muted small text-end">{{ turn.question.created_at|local_dt_span }}</div>
+        <div class="abap-msg-bubble abap-msg-bubble--me chat-md-body">{{ turn.question.content|md_html }}</div>
+      </div>
+    </div>
+    {% endif %}
+    {% if turn.answer %}
+    <div class="abap-msg-row abap-msg-row--them">
+      <div class="abap-msg-stack">
+        <div class="abap-msg-meta text-muted small">{{ turn.answer.created_at|local_dt_span }}</div>
+        <div class="abap-msg-bubble abap-msg-bubble--them chat-md-body">{{ turn.answer.content|md_html }}</div>
+      </div>
+    </div>
+    {% elif turn.question %}
+    <div class="abap-msg-row abap-msg-row--them">
+      <div class="abap-msg-stack">
+        <div class="abap-msg-bubble abap-msg-bubble--them abap-msg-bubble--muted small" data-i18n="chat.noAnswerYet">응답이 아직 없습니다.</div>
+      </div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}

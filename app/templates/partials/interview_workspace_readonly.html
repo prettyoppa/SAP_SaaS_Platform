@@ -12,10 +12,29 @@
   {% for msg in interview_summary_messages %}
   <div class="mb-3 pb-3 border-bottom" style="border-color:var(--border)!important;">
     <div class="fw-semibold small mb-2">{{ msg.round_number }}라운드</div>
-    <div class="d-flex align-items-start gap-2">
-      <i class="fa-solid fa-user text-success small mt-1"></i>
-      <div class="flex-grow-1 small interview-qa-content" style="white-space:pre-wrap;">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
+    {% set pairs = (msg.answers_text or '')|interview_qa_pairs %}
+    {% if pairs %}
+    <div class="abap-msg-stream interview-msg-stream">
+      {% for pair in pairs %}
+        {% if pair.q %}
+        <div class="abap-msg-row abap-msg-row--them">
+          <div class="abap-msg-stack">
+            <div class="abap-msg-bubble abap-msg-bubble--them chat-md-body">{{ pair.q|md_html }}</div>
+          </div>
+        </div>
+        {% endif %}
+        {% if pair.a %}
+        <div class="abap-msg-row abap-msg-row--me">
+          <div class="abap-msg-stack">
+            <div class="abap-msg-bubble abap-msg-bubble--me chat-md-body">{{ pair.a|md_html }}</div>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
     </div>
+    {% else %}
+    <p class="text-muted small mb-0">(답변 없음)</p>
+    {% endif %}
   </div>
   {% endfor %}
   {% endif %}

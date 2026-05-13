@@ -48,29 +48,14 @@
               <p class="text-muted mb-0 small">{% if iv_submit_base is defined %}연동·비 ABAP 범위를 중심으로{% else %}SAP 컨설턴트 AI가{% endif %} 요구사항을 분석하고 있습니다</p>
             </div>
             </div>
-            {% if (current_message is defined and current_message and interview_sequential|default(true)) or (can_request_proposal is defined and can_request_proposal) %}
-            <div class="d-flex align-items-center gap-2 flex-shrink-0">
-            {% if current_message is defined and current_message and interview_sequential|default(true) %}
-            <form method="post" action="{{ ivb }}/interview/answer-step" class="d-inline" id="save-exit-form"
-                  data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
-                  data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">
-              <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
-              <input type="hidden" name="action" value="save_exit"/>
-              <input type="hidden" name="current_answer" id="save-exit-answer" value=""/>
-              <input type="hidden" name="answer_payload" id="save-exit-payload" value=""/>
-              <button type="submit" class="btn btn-outline-secondary btn-sm">
-                <i class="fa-solid fa-floppy-disk me-1"></i> 임시저장하고 나가기
-              </button>
-            </form>
-            {% endif %}
             {% if can_request_proposal is defined and can_request_proposal %}
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
             <form method="post" action="{{ ivb }}/interview/request-proposal-now" class="d-inline"
                   data-busy-agents='[{"agentKo":"「요구분석」","doingKo":"지금까지의 인터뷰 답변을 구조화해 반영하고 있습니다","agentEn":"「Requirements」","doingEn":"structuring your interview answers for downstream use"},{"agentKo":"「제안서」","doingKo":"Development Proposal 초안을 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"drafting the Development Proposal"},{"agentKo":"「제안검수」","doingKo":"제안서 품질을 검토하고 있습니다","agentEn":"「Review」","doingEn":"reviewing proposal quality"}]'>
               <button type="submit" class="btn btn-outline-primary btn-sm" title="지금까지 제출·저장한 답을 반영한 제안서를 만듭니다(인터뷰를 끝내지 않아도 시도할 수 있음)">
                 <i class="fa-solid fa-file-contract me-1"></i> 지금까지로 제안서 생성
               </button>
             </form>
-            {% endif %}
             </div>
             {% endif %}
           </div>
@@ -135,7 +120,7 @@
         {% if request.query_params.get('ans') == 'empty' %}
         <div class="alert alert-warning mb-4">
           <i class="fa-solid fa-circle-exclamation me-2"></i>
-          <strong>좋아요/싫어요</strong>로 선택하거나, 보충·답 란에 2자 이상 입력하세요. 임시저장은 <strong>임시저장하고 나가기</strong>를 누르세요.
+          <strong>좋아요/싫어요</strong>로 선택하거나, 보충·답 란에 2자 이상 입력하세요. 임시저장은 화면 <strong>왼쪽 아래</strong> <strong>임시저장</strong>을 누르세요.
         </div>
         {% endif %}
         {% if request.query_params.get('err') == 'proposal' %}
@@ -164,10 +149,28 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
               </div>
               <div class="modal-body">
-                {% if msg.answers_text %}
-                <div class="interview-answer-block interview-qa-raw">{{ msg.answers_text|interview_bold }}</div>
+                {% set pairs = msg.answers_text|interview_qa_pairs %}
+                {% if pairs %}
+                <div class="abap-msg-stream interview-msg-stream">
+                  {% for pair in pairs %}
+                    {% if pair.q %}
+                    <div class="abap-msg-row abap-msg-row--them">
+                      <div class="abap-msg-stack">
+                        <div class="abap-msg-bubble abap-msg-bubble--them chat-md-body">{{ pair.q|md_html }}</div>
+                      </div>
+                    </div>
+                    {% endif %}
+                    {% if pair.a %}
+                    <div class="abap-msg-row abap-msg-row--me">
+                      <div class="abap-msg-stack">
+                        <div class="abap-msg-bubble abap-msg-bubble--me chat-md-body">{{ pair.a|md_html }}</div>
+                      </div>
+                    </div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
                 {% else %}
-                <p class="text-muted small">(답변이 없습니다.)</p>
+                <p class="text-muted small mb-0">(답변이 없습니다.)</p>
                 {% endif %}
               </div>
             </div>
@@ -184,7 +187,10 @@
               <i class="fa-solid fa-robot"></i>
             </div>
             <div>
-              <div class="fw-semibold">SAP 컨설턴트 AI</div>
+              <div class="fw-semibold">
+                <span class="nav-ko">인터뷰 질의 AI 에이전트</span>
+                <span class="nav-en" style="display:none">Interview Q&amp;A AI agent</span>
+              </div>
               <div class="text-muted small">
                 {{ current_round }}라운드
                 — 이 라운드 질문 {{ interview_step_index|default(1) }} / 최대 {{ interview_max_questions|default(3) }}
@@ -216,14 +222,26 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
                 </div>
                 <div class="modal-body">
-                  {% for row in prior_in_round %}
-                  <div class="mb-3 pb-3 border-bottom" style="border-color: var(--border) !important;">
-                    <div class="text-muted small mb-1">Q{{ loop.index }}</div>
-                    <div class="mb-2">{{ row.q|interview_bold }}</div>
-                    <div class="text-muted small mb-1">답</div>
-                    <div class="text-success interview-answer-block">{{ row.a }}</div>
+                  <div class="abap-msg-stream interview-msg-stream">
+                    {% for row in prior_in_round %}
+                      {% if row.q %}
+                      <div class="abap-msg-row abap-msg-row--them">
+                        <div class="abap-msg-stack">
+                          <div class="abap-msg-meta text-muted small"><span data-i18n="chat.question">질문</span></div>
+                          <div class="abap-msg-bubble abap-msg-bubble--them chat-md-body">{{ row.q|md_html }}</div>
+                        </div>
+                      </div>
+                      {% endif %}
+                      {% if row.a %}
+                      <div class="abap-msg-row abap-msg-row--me">
+                        <div class="abap-msg-stack">
+                          <div class="abap-msg-meta text-muted small text-end"><span data-i18n="chat.answer">답</span></div>
+                          <div class="abap-msg-bubble abap-msg-bubble--me chat-md-body">{{ row.a|md_html }}</div>
+                        </div>
+                      </div>
+                      {% endif %}
+                    {% endfor %}
                   </div>
-                  {% endfor %}
                 </div>
               </div>
             </div>
@@ -320,6 +338,26 @@
             SAP T-Code, 필드명, 수치 등을 포함하면 더욱 좋습니다.
           </span>
         </div>
+
+        {% if current_message is defined and current_message and interview_sequential|default(true) and not error %}
+        <form method="post" action="{{ ivb }}/interview/answer-step" class="d-none" aria-hidden="true" id="save-exit-form"
+              data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
+              data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">
+          <input type="hidden" name="message_id" value="{{ current_message.id }}"/>
+          <input type="hidden" name="action" value="save_exit"/>
+          <input type="hidden" name="current_answer" id="save-exit-answer" value=""/>
+          <input type="hidden" name="answer_payload" id="save-exit-payload" value=""/>
+          <button type="submit" class="d-none" tabindex="-1" aria-hidden="true">submit</button>
+        </form>
+        <div class="draft-float-launcher" role="region" aria-label="임시저장">
+          <button type="button" class="btn btn-outline-warning draft-float-btn" id="interview-draft-save-float"
+                  title="임시저장 (입력 내용을 서버에 저장한 뒤 이 화면에서 계속할 수 있습니다)">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+            <span class="draft-float-btn-label nav-ko">임시저장</span>
+            <span class="draft-float-btn-label nav-en" style="display:none">Save draft</span>
+          </button>
+        </div>
+        {% endif %}
 
       </div>
     </div>

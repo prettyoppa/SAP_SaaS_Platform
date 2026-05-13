@@ -48,6 +48,25 @@
       }
     });
   }
+  var floatSave = document.getElementById('interview-draft-save-float');
+  if (floatSave && saveExitForm) {
+    floatSave.addEventListener('click', function () {
+      var h = document.getElementById('save-exit-answer');
+      var hp = document.getElementById('save-exit-payload');
+      var ta = document.getElementById('seq-answer-input');
+      syncHiddenPayload();
+      if (h) h.value = ta ? (ta.value || '').trim() : '';
+      if (hp) {
+        var ap = document.getElementById('answer-payload-json');
+        hp.value = ap ? ap.value : JSON.stringify(buildPayload());
+      }
+      if (typeof saveExitForm.requestSubmit === 'function') {
+        saveExitForm.requestSubmit();
+      } else {
+        saveExitForm.submit();
+      }
+    });
+  }
 
   const seqForm = document.getElementById('iv-seq-form');
   const seqBtn = document.getElementById('seq-next-btn');
@@ -132,7 +151,7 @@
       var p = buildPayload();
       if (!isPayloadValid(p)) {
         e.preventDefault();
-        alert('좋아요·싫어요로 선택하거나, 보충/추가 란에 답을 입력해 주세요. (임시저장은 위쪽 버튼)');
+        alert('좋아요·싫어요로 선택하거나, 보충/추가 란에 답을 입력해 주세요. (임시저장은 왼쪽 아래 버튼)');
         return;
       }
       seqBtn.disabled = true;

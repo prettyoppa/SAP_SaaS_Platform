@@ -282,24 +282,12 @@
     </span>
   </summary>
   <div class="rfp-hub-phase-body pt-2{% if not wf_code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
-    {% for turn in wf_followup_turns %}
-    <div class="proposal-card mb-3 mb-md-2">
+    <div class="proposal-card mb-0">
       <div class="proposal-body small">
-        {% if turn.question %}
-        <div class="mb-2">
-          <span class="text-muted text-uppercase fw-semibold" style="font-size:.68rem" data-i18n="hub.wfAbapUserMsg">회원</span>
-          <div class="border rounded p-2 mt-1" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ turn.question.content or '' }}</div>
-        </div>
-        {% endif %}
-        {% if turn.answer %}
-        <div>
-          <span class="text-muted text-uppercase fw-semibold" style="font-size:.68rem" data-i18n="hub.wfAbapAssistantMsg">어시스턴트</span>
-          <div class="border rounded p-2 mt-1" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ turn.answer.content or '' }}</div>
-        </div>
-        {% endif %}
+        {% set followup_turns = wf_followup_turns %}
+        {% include 'partials/abap_followup_messenger_log.html' %}
       </div>
     </div>
-    {% endfor %}
   </div>
 </details>
 {% endif %}

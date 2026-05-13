@@ -61,8 +61,13 @@
           {% elif (is_offer_staff and inq_list|length > 0) or can_reply_as_consultant %}
           <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
                   data-bs-toggle="collapse" data-bs-target="#offer-inq-body-{{ of.id }}"
-                  aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
-            <i class="fa-solid fa-comments" aria-hidden="true"></i>{% if can_reply_as_consultant %}문의 / 답변{% else %}문의 내역{% endif %}
+                  aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}"
+                  {% if can_reply_as_consultant %}title="요청자 문의에 답변이 필요합니다"{% endif %}>
+            <i class="fa-solid fa-comments" aria-hidden="true"></i>
+            {% if can_reply_as_consultant %}
+            <span class="console-mail-pending-dot flex-shrink-0" title="요청자 문의에 답변이 필요합니다" aria-hidden="true"></span>
+            {% endif %}
+            {% if can_reply_as_consultant %}문의 / 답변{% else %}문의 내역{% endif %}
           </button>
           {% endif %}
           {% if request_offer_profile_url_builder is defined %}

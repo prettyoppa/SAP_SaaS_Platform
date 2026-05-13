@@ -153,10 +153,36 @@
                   </button>
                 </div>
                 <div class="round-qa">
-                  <!-- 읽기 모드: questions_json 반복은 answers_text( Qn/An )와 중복이므로 생략 -->
-                  <div class="d-flex align-items-start gap-2 view-mode interview-qa-row" id="view-{{ loop.index }}">
-                    <i class="fa-solid fa-user text-success small mt-1"></i>
-                    <div class="interview-qa-content flex-grow-1">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
+                  <!-- 읽기 모드: Q/A 블록을 인터뷰 보기와 동일한 메신저 스트림으로 표시 -->
+                  <div class="view-mode interview-qa-row w-100" id="view-{{ loop.index }}">
+                    {% set pairs = (msg.answers_text or '')|interview_qa_pairs %}
+                    {% if pairs %}
+                    <div class="abap-msg-stream interview-msg-stream w-100">
+                      {% for pair in pairs %}
+                        {% if pair.q %}
+                        <div class="abap-msg-row abap-msg-row--them">
+                          <div class="abap-msg-stack">
+                            <div class="abap-msg-meta text-muted small"><span data-i18n="chat.question">질문</span></div>
+                            <div class="abap-msg-bubble abap-msg-bubble--them chat-md-body">{{ pair.q|md_html }}</div>
+                          </div>
+                        </div>
+                        {% endif %}
+                        {% if pair.a %}
+                        <div class="abap-msg-row abap-msg-row--me">
+                          <div class="abap-msg-stack">
+                            <div class="abap-msg-meta text-muted small text-end"><span data-i18n="chat.answer">답</span></div>
+                            <div class="abap-msg-bubble abap-msg-bubble--me chat-md-body">{{ pair.a|md_html }}</div>
+                          </div>
+                        </div>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="d-flex align-items-start gap-2 w-100">
+                      <i class="fa-solid fa-user text-success small mt-1"></i>
+                      <div class="interview-qa-content flex-grow-1">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
+                    </div>
+                    {% endif %}
                   </div>
 
                   <!-- 편집 모드 -->

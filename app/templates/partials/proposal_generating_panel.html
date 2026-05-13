@@ -1,6 +1,6 @@
 {% set gen_status_url = proposal_status_url if proposal_status_url is defined else ('/rfp/' ~ (rfp.id|string) ~ '/proposal/status') %}
 {% set gen_done_url = proposal_done_redirect_url if proposal_done_redirect_url is defined else ('/rfp/' ~ (rfp.id|string) ~ '?phase=proposal') %}
-<div class="container py-5" style="max-width:640px">
+<div class="container py-5 proposal-generating-wait" style="max-width:640px">
   <div class="text-center py-5">
 
     <!-- 스피너 -->
@@ -16,7 +16,7 @@
     </div>
 
     <h3 class="mb-2">Development Proposal 작성 중</h3>
-    <p class="text-muted mb-1">
+    <p class="text-muted mb-1 proposal-gen-agents-line">
       <strong>{{ 'f_analyst'|agent_label }}</strong>가 요구사항을 분석하고,
       <strong>{{ 'f_writer'|agent_label }}</strong>가 제안서를 작성하며,
       <strong>{{ 'f_reviewer'|agent_label }}</strong>가 품질을 검토하고 있습니다.
@@ -55,7 +55,7 @@
 .generating-step { opacity: 0.35; transition: opacity 0.5s; }
 .generating-step.active { opacity: 1; }
 .step-icon { font-size: 2rem; margin-bottom: 4px; }
-.step-label { color: var(--bs-body-color); }
+.proposal-generating-wait .step-label { color: var(--text, var(--bs-body-color)); }
 </style>
 
 <script>

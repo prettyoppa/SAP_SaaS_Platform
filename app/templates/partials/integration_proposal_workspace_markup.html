@@ -98,9 +98,35 @@
                   </button>
                 </div>
                 <div class="round-qa">
-                  <div class="d-flex align-items-start gap-2 view-mode interview-qa-row" id="view-{{ loop.index }}">
-                    <i class="fa-solid fa-user text-success small mt-1"></i>
-                    <div class="interview-qa-content flex-grow-1">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
+                  <div class="view-mode interview-qa-row w-100" id="view-{{ loop.index }}">
+                    {% set pairs = (msg.answers_text or '')|interview_qa_pairs %}
+                    {% if pairs %}
+                    <div class="abap-msg-stream interview-msg-stream w-100">
+                      {% for pair in pairs %}
+                        {% if pair.q %}
+                        <div class="abap-msg-row abap-msg-row--them">
+                          <div class="abap-msg-stack">
+                            <div class="abap-msg-meta text-muted small"><span data-i18n="chat.question">질문</span></div>
+                            <div class="abap-msg-bubble abap-msg-bubble--them chat-md-body">{{ pair.q|md_html }}</div>
+                          </div>
+                        </div>
+                        {% endif %}
+                        {% if pair.a %}
+                        <div class="abap-msg-row abap-msg-row--me">
+                          <div class="abap-msg-stack">
+                            <div class="abap-msg-meta text-muted small text-end"><span data-i18n="chat.answer">답</span></div>
+                            <div class="abap-msg-bubble abap-msg-bubble--me chat-md-body">{{ pair.a|md_html }}</div>
+                          </div>
+                        </div>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="d-flex align-items-start gap-2 w-100">
+                      <i class="fa-solid fa-user text-success small mt-1"></i>
+                      <div class="interview-qa-content flex-grow-1">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
+                    </div>
+                    {% endif %}
                   </div>
                   <form method="post" action="{{ ivb }}/interview/edit-answer"
                         class="edit-mode d-none mt-2" id="edit-{{ loop.index }}"

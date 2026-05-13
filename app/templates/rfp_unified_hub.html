@@ -301,38 +301,9 @@
       <div class="alert alert-warning py-2 small mb-3">{{ rfp_chat_error }}</div>
       {% endif %}
       {% if rfp_followup_turns and rfp_followup_turns|length > 0 %}
+      {% set followup_turns = rfp_followup_turns %}
       <div class="abap-chat-log abap-chat-log-panel mb-0">
-        {% for turn in rfp_followup_turns %}
-        <details class="analysis-fold mb-2 abap-followup-turn" {% if loop.last %}open{% endif %}>
-          <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2 w-100">
-            <span class="fw-semibold text-nowrap"><span data-i18n="chat.thread">대화</span> {{ loop.index }}</span>
-            {% if turn.question %}
-            <span class="small text-muted text-nowrap">{{ turn.question.created_at|local_dt_span }}</span>
-            <span class="small text-muted flex-grow-1 text-truncate" style="min-width:100px;" title="{{ turn.question.content }}">
-              {{ turn.question.content[:80] }}{% if turn.question.content|length > 80 %}…{% endif %}
-            </span>
-            {% else %}
-            <span class="small text-muted" data-i18n="chat.answerOnly">응답만 있음</span>
-            {% endif %}
-          </summary>
-          <div class="analysis-fold-body pt-1">
-            {% if turn.question %}
-            <div class="mb-2">
-              <div class="small fw-semibold text-muted mb-1" data-i18n="chat.question">질문</div>
-              <div class="abap-followup-q">{{ turn.question.content }}</div>
-            </div>
-            {% endif %}
-            {% if turn.answer %}
-            <div>
-              <div class="small fw-semibold text-muted mb-1" data-i18n="chat.answer">응답</div>
-              <div class="abap-followup-a">{{ turn.answer.content }}</div>
-            </div>
-            {% elif turn.question %}
-            <p class="small text-muted mb-0" data-i18n="chat.noAnswerYet">응답이 아직 없습니다.</p>
-            {% endif %}
-          </div>
-        </details>
-        {% endfor %}
+        {% include 'partials/abap_followup_messenger_log.html' %}
       </div>
       {% else %}
       <p class="small text-muted fst-italic mb-0" data-i18n="chat.noThreadsYet">아직 대화가 없습니다. 아래에서 질문을 보내 보세요.</p>
@@ -493,6 +464,12 @@
       var rect = panel.getBoundingClientRect();
       var w0 = rect.width;
       var h0 = rect.height;
+      var ta = panel.querySelector('.abap-followup-msg-input');
+      var wrap = ta && ta.closest ? ta.closest('.abap-followup-ta-wrap') : null;
+      var taMinH = 56, taMaxH = 420, taMinW = 120;
+      var panelH0 = h0, panelW0 = w0;
+      var taH0 = ta ? ta.offsetHeight : 0;
+      var taW0 = ta ? ta.offsetWidth : 0;
       function move(ev) {
         if (!desktopOnly()) return;
         var dw = startX - ev.clientX;
@@ -502,6 +479,21 @@
         var nh = clamp(Math.round(h0 + dh), b.minH, b.maxH);
         panel.style.width = nw + 'px';
         panel.style.height = nh + 'px';
+        if (ta) {
+          var dHp = nh - panelH0;
+          var dWp = nw - panelW0;
+          ta.style.height = clamp(Math.round(taH0 + dHp), taMinH, taMaxH) + 'px';
+          ta.style.minHeight = taMinH + 'px';
+          if (wrap) {
+            var maxInnerW = Math.max(taMinW, wrap.clientWidth);
+            if (ta.style.width && String(ta.style.width).indexOf('%') === -1) {
+              ta.style.width = clamp(Math.round(taW0 + dWp), taMinW, maxInnerW) + 'px';
+            } else {
+              ta.style.width = '';
+            }
+            ta.style.maxWidth = '100%';
+          }
+        }
       }
       function up(ev) {
         try {

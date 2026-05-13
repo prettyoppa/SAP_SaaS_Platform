@@ -121,6 +121,36 @@ def _md_html_filter(s) -> Markup:
 
 
 templates.env.filters["md_html"] = _md_html_filter
+
+
+def _interview_answers_text_to_qa_pairs(text) -> list[dict[str, str]]:
+    """인터뷰 라운드 answers_text(Q1:/A1: 블록) → 메신저용 Q/A 쌍."""
+    import re
+
+    s = (text or "").strip()
+    if not s:
+        return []
+    parts = re.split(r"\n\n(?=Q\d+:)", s)
+    out: list[dict[str, str]] = []
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        m = re.match(r"^Q(\d+):\s*\n?(.*)\n\nA\1:\s*\n?(.*)$", part, re.DOTALL)
+        if m:
+            out.append({"q": m.group(2).strip(), "a": m.group(3).strip()})
+        else:
+            out.append({"q": "", "a": part})
+    if not out and s:
+        return [{"q": "", "a": s}]
+    return out
+
+
+def _interview_qa_pairs_filter(text) -> list[dict[str, str]]:
+    return _interview_answers_text_to_qa_pairs(text)
+
+
+templates.env.filters["interview_qa_pairs"] = _interview_qa_pairs_filter
 templates.env.filters["urlquote"] = lambda s: quote_plus(str(s or ""))
 
 
