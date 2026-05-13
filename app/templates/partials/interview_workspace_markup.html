@@ -303,9 +303,10 @@
 
         {% elif not error %}
         <div class="loading-card text-center py-5">
-          <div class="busy-spinner-ring" aria-hidden="true">
+          <div class="busy-spinner-ring busy-spinner-ring--agents-mascot" aria-hidden="true">
             <div class="spinner-border text-primary" role="status"></div>
-            <i class="fa-solid fa-cat busy-spinner-icon" aria-hidden="true"></i>
+            <i class="fa-solid fa-cat busy-spinner-icon busy-spinner-mascot busy-spinner-mascot--default" aria-hidden="true"></i>
+            <i class="fa-solid fa-robot busy-spinner-icon busy-spinner-mascot busy-spinner-mascot--agent" aria-hidden="true"></i>
           </div>
           <p class="fw-semibold">AI가 다음 질문을 생성하고 있습니다...</p>
           <p class="text-muted small">잠시만 기다려 주세요</p>

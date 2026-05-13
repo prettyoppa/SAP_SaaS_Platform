@@ -2133,6 +2133,16 @@ html[data-theme="light"] .codelib-source-tabs .nav-link.active {
 html[data-theme="light"] .busy-spinner-ring .busy-spinner-icon {
   color: var(--primary, #0d6efd);
 }
+/* 진행 중 링: 에이전트 작업(data-busy-agents 등)일 때 로봇, 그 외 고양이 */
+.busy-spinner-ring .busy-spinner-mascot--agent {
+  display: none;
+}
+.busy-spinner-ring--agents-mascot .busy-spinner-mascot--default {
+  display: none;
+}
+.busy-spinner-ring--agents-mascot .busy-spinner-mascot--agent {
+  display: block;
+}
 
 /* ── 전역 처리 중 오버레이 ─────────────────────────────────── */
 .global-busy-overlay {

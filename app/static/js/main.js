@@ -67,9 +67,12 @@ function showGlobalBusy(meta) {
   if (!el) return;
   const d = _busyDefaults();
   _clearAgentLines();
+  const ring = el.querySelector('.busy-spinner-ring');
+  if (ring) ring.classList.remove('busy-spinner-ring--agents-mascot');
   const agents = meta && Array.isArray(meta.agents) && meta.agents.length ? meta.agents : null;
 
   if (agents) {
+    if (ring) ring.classList.add('busy-spinner-ring--agents-mascot');
     const listKo = document.getElementById('global-busy-agent-lines-ko');
     const listEn = document.getElementById('global-busy-agent-lines-en');
     const card = document.getElementById('global-busy-card');
@@ -109,7 +112,11 @@ function showGlobalBusy(meta) {
 
 function hideGlobalBusy() {
   const el = _busyOverlay();
-  if (el) el.setAttribute('hidden', '');
+  if (el) {
+    const ring = el.querySelector('.busy-spinner-ring');
+    if (ring) ring.classList.remove('busy-spinner-ring--agents-mascot');
+    el.setAttribute('hidden', '');
+  }
   const d = _busyDefaults();
   _setBusyTitles(d.titleKo, d.titleEn);
   _setBusyHints(d.hintKo, d.hintEn);
