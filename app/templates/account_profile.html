@@ -83,11 +83,23 @@
           </dt>
           <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
             {% if user.is_consultant %}
+              {% if subscription_plan_display_ko %}
+              <span class="nav-ko">컨설턴트 ({{ subscription_plan_display_ko }})</span><span class="nav-en" style="display:none">Consultant ({{ subscription_plan_display_en or subscription_plan_display_ko }})</span>
+              {% else %}
               <span class="nav-ko">컨설턴트</span><span class="nav-en" style="display:none">Consultant</span>
+              {% endif %}
             {% elif user.consultant_application_pending %}
+              {% if subscription_plan_display_ko %}
+              <span class="nav-ko">컨설턴트 승인 대기 ({{ subscription_plan_display_ko }})</span><span class="nav-en" style="display:none">Consultant (pending approval) ({{ subscription_plan_display_en or subscription_plan_display_ko }})</span>
+              {% else %}
               <span class="nav-ko">컨설턴트 승인 대기</span><span class="nav-en" style="display:none">Consultant (pending approval)</span>
+              {% endif %}
             {% else %}
+              {% if subscription_plan_display_ko %}
+              <span class="nav-ko">일반회원 ({{ subscription_plan_display_ko }})</span><span class="nav-en" style="display:none">Member ({{ subscription_plan_display_en or subscription_plan_display_ko }})</span>
+              {% else %}
               <span class="nav-ko">일반회원</span><span class="nav-en" style="display:none">Member</span>
+              {% endif %}
             {% endif %}
           </dd>
 

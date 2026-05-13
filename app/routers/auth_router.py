@@ -30,6 +30,7 @@ from ..email_smtp import (
     send_password_reset_email,
 )
 from ..templates_config import templates
+from ..subscription_quota import user_subscription_plan_display_names
 from ..sms_sender import (
     send_account_phone_otp_sms,
     send_email_hint_otp_sms,
@@ -1358,6 +1359,7 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
         .first()
     )
     clabels = _consultant_profile_template_labels(user)
+    sp_ko, sp_en = user_subscription_plan_display_names(db, user)
     return templates.TemplateResponse(
         request,
         "account_profile.html",
@@ -1373,6 +1375,8 @@ def account_profile(request: Request, db: Session = Depends(get_db)):
             "sms_consent_eligible": _user_phone_allows_sms_consent(user),
             "user_timezone_display_line": _user_timezone_display_line(user),
             "deletion_grace_days": deletion_grace_days(),
+            "subscription_plan_display_ko": sp_ko,
+            "subscription_plan_display_en": sp_en,
             **clabels,
         },
     )

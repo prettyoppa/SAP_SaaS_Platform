@@ -29,6 +29,7 @@ from .offer_inquiry_service import (
 )
 from .home_counts import home_tile_counts
 from .i18n_overrides import get_en_overrides_for_client
+from .subscription_quota import plan_row_for_entitlements, user_subscription_plan_display_names
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import site_content_router
@@ -524,6 +525,8 @@ async def nav_proposal_offer_badges_middleware(request: Request, call_next):
     """상단 메뉴(신규·분석·연동) 오퍼 알림 점용 — 제안 버킷에 미매칭 오퍼가 있으면 True."""
     badges = {"rfp": False, "analysis": False, "integration": False}
     nav_console_pending_inquiry = False
+    request.state.subscription_plan_display_ko = None
+    request.state.subscription_plan_display_en = None
     token = request.cookies.get("access_token")
     if token:
         db = SessionLocal()
@@ -535,6 +538,9 @@ async def nav_proposal_offer_badges_middleware(request: Request, call_next):
                     nav_console_pending_inquiry = bool(pending_inquiry_reply_offer_ids_all(db))
                 elif getattr(u, "is_consultant", False):
                     nav_console_pending_inquiry = consultant_has_any_pending_inquiry_reply(db, u.id)
+                sp_ko, sp_en = user_subscription_plan_display_names(db, u)
+                request.state.subscription_plan_display_ko = sp_ko
+                request.state.subscription_plan_display_en = sp_en
         finally:
             db.close()
     request.state.nav_proposal_offer_badges = badges
@@ -678,6 +684,8 @@ def subscription_plans_page(request: Request):
     user = None
     plan_prices_member: dict[str, dict[str, str]] = {}
     plan_prices_consultant: dict[str, dict[str, str]] = {}
+    subscription_current_plan_kind: str | None = None
+    subscription_current_plan_code: str | None = None
     try:
         user = auth.get_current_user(request, _db)
         raw_settings = {s.key: s.value for s in _db.query(models.SiteSettings).all()}
@@ -707,6 +715,11 @@ def subscription_plans_page(request: Request):
                 "fmt_usd": format_monthly_usd_display(usdc),
                 "show_period": not (krw == 0 and usdc == 0),
             }
+        if user and not getattr(user, "is_admin", False):
+            prow = plan_row_for_entitlements(_db, user)
+            if prow:
+                subscription_current_plan_kind = prow.account_kind
+                subscription_current_plan_code = prow.code
     finally:
         _db.close()
     metric_help: dict[str, str] = {}
@@ -728,5 +741,7 @@ def subscription_plans_page(request: Request):
             "metric_help": metric_help,
             "plan_prices_member": plan_prices_member,
             "plan_prices_consultant": plan_prices_consultant,
+            "subscription_current_plan_kind": subscription_current_plan_kind,
+            "subscription_current_plan_code": subscription_current_plan_code,
         },
     )

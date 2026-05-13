@@ -94,6 +94,9 @@
             <div class="row g-3 g-lg-4 justify-content-center subscription-plans-cards">
               <div class="col-6 col-lg-3">
                 <div class="plan-price-card h-100">
+                  {% if user and subscription_current_plan_kind == 'member' and subscription_current_plan_code == 'experience' %}
+                  <span class="plan-price-badge plan-price-badge--current"><span class="nav-ko">현재</span><span class="nav-en" style="display:none">Current</span></span>
+                  {% endif %}
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Experience</h3>
                     <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_exp.fmt_krw }}" data-fmt-usd="{{ pm_exp.fmt_usd }}">{{ pm_exp.fmt_krw }}</span>{% if pm_exp.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
@@ -110,6 +113,9 @@
               </div>
               <div class="col-6 col-lg-3">
                 <div class="plan-price-card h-100">
+                  {% if user and subscription_current_plan_kind == 'member' and subscription_current_plan_code == 'end_user' %}
+                  <span class="plan-price-badge plan-price-badge--current"><span class="nav-ko">현재</span><span class="nav-en" style="display:none">Current</span></span>
+                  {% endif %}
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">End User</h3>
                     <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_eu.fmt_krw }}" data-fmt-usd="{{ pm_eu.fmt_usd }}">{{ pm_eu.fmt_krw }}</span>{% if pm_eu.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
@@ -125,8 +131,10 @@
                 </div>
               </div>
               <div class="col-6 col-lg-3">
-                <div class="plan-price-card plan-price-card--featured h-100">
-                  <span class="plan-price-badge"><span class="nav-ko">추천</span><span class="nav-en" style="display:none">Popular</span></span>
+                <div class="plan-price-card h-100">
+                  {% if user and subscription_current_plan_kind == 'member' and subscription_current_plan_code == 'power_user' %}
+                  <span class="plan-price-badge plan-price-badge--current"><span class="nav-ko">현재</span><span class="nav-en" style="display:none">Current</span></span>
+                  {% endif %}
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Power User</h3>
                     <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_pu.fmt_krw }}" data-fmt-usd="{{ pm_pu.fmt_usd }}">{{ pm_pu.fmt_krw }}</span>{% if pm_pu.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
@@ -135,7 +143,7 @@
                       <li><span class="nav-ko">월 10회 개발 요청</span><span class="nav-en" style="display:none">10 dev requests / month</span></li>
                       <li><span class="nav-ko">제안 재생성 건당 1회</span><span class="nav-en" style="display:none">1 proposal refresh per request</span></li>
                     </ul>
-                    <a href="{{ cta_href }}" class="btn btn-primary btn-sm w-100 mt-auto shadow-sm">
+                    <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
                       <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
                     </a>
                   </div>
@@ -143,6 +151,9 @@
               </div>
               <div class="col-6 col-lg-3">
                 <div class="plan-price-card h-100">
+                  {% if user and subscription_current_plan_kind == 'member' and subscription_current_plan_code == 'process_innovator' %}
+                  <span class="plan-price-badge plan-price-badge--current"><span class="nav-ko">현재</span><span class="nav-en" style="display:none">Current</span></span>
+                  {% endif %}
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Process Innovator</h3>
                     <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pm_pi.fmt_krw }}" data-fmt-usd="{{ pm_pi.fmt_usd }}">{{ pm_pi.fmt_krw }}</span>{% if pm_pi.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
@@ -195,6 +206,9 @@
             <div class="row g-3 g-lg-4 justify-content-center subscription-plans-cards">
               <div class="col-6 col-lg-3">
                 <div class="plan-price-card h-100">
+                  {% if user and subscription_current_plan_kind == 'consultant' and subscription_current_plan_code == 'experience' %}
+                  <span class="plan-price-badge plan-price-badge--current"><span class="nav-ko">현재</span><span class="nav-en" style="display:none">Current</span></span>
+                  {% endif %}
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Experience</h3>
                     <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_exp.fmt_krw }}" data-fmt-usd="{{ pc_exp.fmt_usd }}">{{ pc_exp.fmt_krw }}</span>{% if pc_exp.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
@@ -211,6 +225,9 @@
               </div>
               <div class="col-6 col-lg-3">
                 <div class="plan-price-card h-100">
+                  {% if user and subscription_current_plan_kind == 'consultant' and subscription_current_plan_code == 'junior' %}
+                  <span class="plan-price-badge plan-price-badge--current"><span class="nav-ko">현재</span><span class="nav-en" style="display:none">Current</span></span>
+                  {% endif %}
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Junior</h3>
                     <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_ju.fmt_krw }}" data-fmt-usd="{{ pc_ju.fmt_usd }}">{{ pc_ju.fmt_krw }}</span>{% if pc_ju.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
@@ -226,8 +243,10 @@
                 </div>
               </div>
               <div class="col-6 col-lg-3">
-                <div class="plan-price-card plan-price-card--featured h-100">
-                  <span class="plan-price-badge"><span class="nav-ko">추천</span><span class="nav-en" style="display:none">Popular</span></span>
+                <div class="plan-price-card h-100">
+                  {% if user and subscription_current_plan_kind == 'consultant' and subscription_current_plan_code == 'senior' %}
+                  <span class="plan-price-badge plan-price-badge--current"><span class="nav-ko">현재</span><span class="nav-en" style="display:none">Current</span></span>
+                  {% endif %}
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Senior</h3>
                     <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_se.fmt_krw }}" data-fmt-usd="{{ pc_se.fmt_usd }}">{{ pc_se.fmt_krw }}</span>{% if pc_se.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>
@@ -236,7 +255,7 @@
                       <li><span class="nav-ko">월 10회 오퍼·FS·코드</span><span class="nav-en" style="display:none">10 offers, FS &amp; code / mo</span></li>
                       <li><span class="nav-ko">AI 문의 건당 60회</span><span class="nav-en" style="display:none">60 AI Q&amp;A turns per request</span></li>
                     </ul>
-                    <a href="{{ cta_href }}" class="btn btn-primary btn-sm w-100 mt-auto shadow-sm">
+                    <a href="{{ cta_href }}" class="btn btn-outline-primary btn-sm w-100 mt-auto">
                       <span class="nav-ko">선택하기</span><span class="nav-en" style="display:none">Choose</span>
                     </a>
                   </div>
@@ -244,6 +263,9 @@
               </div>
               <div class="col-6 col-lg-3">
                 <div class="plan-price-card h-100">
+                  {% if user and subscription_current_plan_kind == 'consultant' and subscription_current_plan_code == 'superior' %}
+                  <span class="plan-price-badge plan-price-badge--current"><span class="nav-ko">현재</span><span class="nav-en" style="display:none">Current</span></span>
+                  {% endif %}
                   <div class="plan-price-card-inner">
                     <h3 class="plan-price-name">Superior</h3>
                     <p class="plan-price-amount mb-0"><span class="plan-price-amount-display" data-fmt-krw="{{ pc_su.fmt_krw }}" data-fmt-usd="{{ pc_su.fmt_usd }}">{{ pc_su.fmt_krw }}</span>{% if pc_su.show_period %}<span class="plan-price-period"><span class="nav-ko">/월</span><span class="nav-en" style="display:none">/mo</span></span>{% endif %}</p>

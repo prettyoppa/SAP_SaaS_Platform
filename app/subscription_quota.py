@@ -86,6 +86,34 @@ def get_user_subscription_plan(db: Session, user: models.User) -> models.Subscri
     return plan_row_for_entitlements(db, user)
 
 
+# 카드/메뉴 영문 라벨 — DB display_name_en 미사용 시 entitlement 플랜 코드 기준
+_PLAN_DISPLAY_EN_FALLBACK: dict[tuple[str, str], str] = {
+    ("member", "experience"): "Experience",
+    ("member", "end_user"): "End User",
+    ("member", "power_user"): "Power User",
+    ("member", "process_innovator"): "Process Innovator",
+    ("consultant", "experience"): "Experience",
+    ("consultant", "junior"): "Junior",
+    ("consultant", "senior"): "Senior",
+    ("consultant", "superior"): "Superior",
+}
+
+
+def user_subscription_plan_display_names(
+    db: Session, user: models.User | None
+) -> tuple[str | None, str | None]:
+    """네비·프로필용 (ko, en). 관리자·미로그인·플랜 행 없음 → (None, None)."""
+    if not user or getattr(user, "is_admin", False):
+        return None, None
+    plan = plan_row_for_entitlements(db, user)
+    if not plan:
+        return None, None
+    ko = (getattr(plan, "display_name_ko", None) or "").strip() or None
+    key = (plan.account_kind, plan.code)
+    en = _PLAN_DISPLAY_EN_FALLBACK.get(key) or ko
+    return ko, en
+
+
 def get_entitlement(
     db: Session, plan: models.SubscriptionPlan, metric_key: str
 ) -> models.PlanEntitlement | None:

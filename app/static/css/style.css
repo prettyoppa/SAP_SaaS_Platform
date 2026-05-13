@@ -3352,6 +3352,13 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
   color: #1a1008;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
+.plan-price-badge--current {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--success) 75%, #14532d));
+  color: #f0fdf4;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--success) 35%, transparent);
+}
 .plan-price-card-inner {
   padding: 1.15rem 1rem 1rem;
   min-height: 100%;
