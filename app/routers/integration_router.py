@@ -119,6 +119,33 @@ def _set_attachments(ir: models.IntegrationRequest, entries: list[dict]) -> None
     ir.attachments_json = json.dumps(entries, ensure_ascii=False)
 
 
+def _integration_hub_request_edit_unlocked(db: Session, ir: models.IntegrationRequest) -> bool:
+    """통합 허브 `hub_request_edit_locked` 와 동일 — 인터뷰 답·제안이 있으면 False."""
+    if (ir.interview_status or "").strip().lower() == "generating_proposal":
+        return False
+    if (ir.interview_status or "").strip().lower() == "completed" and (ir.proposal_text or "").strip():
+        return False
+    answered = (
+        db.query(models.IntegrationInterviewMessage)
+        .filter(
+            models.IntegrationInterviewMessage.integration_request_id == ir.id,
+            models.IntegrationInterviewMessage.is_answered.is_(True),
+        )
+        .count()
+    )
+    return int(answered) == 0
+
+
+def _integration_may_open_request_edit_form(db: Session, ir: models.IntegrationRequest) -> bool:
+    """초안은 항상 허용. 제출됨은 허브와 같이 인터뷰·제안 전에만 요청 수정 폼 허용."""
+    st = (ir.status or "").strip().lower()
+    if st == "draft":
+        return True
+    if st != "submitted":
+        return False
+    return _integration_hub_request_edit_unlocked(db, ir)
+
+
 def _integration_offer_rows(db: Session, req_id: int) -> list[models.RequestOffer]:
     return (
         db.query(models.RequestOffer)
@@ -1351,7 +1378,7 @@ async def integration_new_submit(
     db.refresh(ir)
     if is_draft_save:
         return RedirectResponse(url=f"/integration/{ir.id}/edit", status_code=302)
-    return RedirectResponse(url=f"/integration/{ir.id}", status_code=302)
+    return RedirectResponse(url=integration_hub_url(ir.id, "interview"), status_code=302)
 
 
 @router.post("/integration/{req_id}/duplicate-request")
@@ -1433,8 +1460,10 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
         .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
         .first()
     )
-    if not ir or (ir.status or "").strip().lower() != "draft":
+    if not ir:
         return RedirectResponse(url="/integration", status_code=302)
+    if not _integration_may_open_request_edit_form(db, ir):
+        return RedirectResponse(url=f"/integration/{req_id}", status_code=302)
     modules, devtypes = _get_modules_devtypes(db)
     ents = _attachment_entries(ir)
     notes: list[str] = []
@@ -1525,12 +1554,16 @@ async def integration_edit_submit(
         .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
         .first()
     )
-    if not ir or (ir.status or "").strip().lower() != "draft":
+    if not ir:
         return RedirectResponse(url="/integration", status_code=302)
+    if not _integration_may_open_request_edit_form(db, ir):
+        return RedirectResponse(url=f"/integration/{req_id}", status_code=302)
 
     modules, devtypes = _get_modules_devtypes(db)
     notes_in = [note_0, note_1, note_2, note_3, note_4]
     is_draft_save = (save_action or "").strip().lower() == "draft"
+    if (ir.status or "").strip().lower() != "draft":
+        is_draft_save = False
 
     def _form_dict():
         return {
@@ -1682,7 +1715,7 @@ async def integration_edit_submit(
     db.commit()
     if is_draft_save:
         return RedirectResponse(url=f"/integration/{ir.id}/edit", status_code=302)
-    return RedirectResponse(url=f"/integration/{ir.id}", status_code=302)
+    return RedirectResponse(url=integration_hub_url(ir.id, "interview"), status_code=302)
 
 
 def _collect_integration_unified_hub_ctx(
@@ -2010,7 +2043,7 @@ def integration_chat_post(
     chat_base = (
         f"/integration/{req_id}/edit"
         if st == "draft"
-        else f"/integration/{req_id}?phase=request"
+        else integration_hub_url(req_id, "interview")
     )
 
     msg, verr = validate_integration_user_message(message)
