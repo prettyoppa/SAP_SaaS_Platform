@@ -48,7 +48,8 @@ def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> di
     a_draft = sum(1 for a in analyses if abap_analysis_menu_bucket(a) == "draft")
 
     ir_q = db.query(models.IntegrationRequest).options(
-        joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages)
+        joinedload(models.IntegrationRequest.interview_messages),
+        joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
     )
     if not is_admin:
         ir_q = ir_q.filter(models.IntegrationRequest.user_id == uid)

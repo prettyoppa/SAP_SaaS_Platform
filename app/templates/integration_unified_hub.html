@@ -205,7 +205,7 @@
       </div>
     </details>
 
-    {% if user.id == ir.user_id %}
+    {% if hub_int_ai_chat_enabled|default(false) %}
     <p class="small text-muted mb-0 mt-2">
       <i class="fa-solid fa-comments me-1 text-primary-light"></i>
       <span data-i18n="detail.chatHintInt">이 연동 요청에 대해 궁금한 점은 화면 <strong>오른쪽 아래</strong> <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.</span>
@@ -221,6 +221,7 @@
   </div>
 </div>
 
+{% if hub_int_ai_chat_enabled|default(false) %}
 <div id="integration-followup-chat" class="abap-float-chat" aria-live="polite">
   <div id="integrationFloatChatPanel" class="abap-float-chat-panel" hidden
        data-i18n-title="chat.panelResizeTitle" title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
@@ -278,6 +279,7 @@
     {% endif %}
   </button>
 </div>
+{% endif %}
 
 <script>
 (function () {
@@ -301,7 +303,7 @@
 {% include 'partials/proposal_workspace_scripts.html' %}
 {% endif %}
 {% include 'partials/integration_hub_gen_poll_script.html' %}
-{% if user.id == ir.user_id %}
+{% if hub_int_ai_chat_enabled|default(false) %}
 <script>
 (function () {
   var root = document.getElementById('integration-followup-chat');

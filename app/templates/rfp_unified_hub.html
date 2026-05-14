@@ -279,7 +279,7 @@
   </div>
 </div>
 
-{% if user.id == rfp.user_id %}
+{% if hub_rfp_ai_chat_enabled|default(false) %}
 <div id="rfp-followup-chat" class="abap-float-chat" aria-live="polite">
   <div id="rfpFloatChatPanel" class="abap-float-chat-panel" hidden
        data-i18n-title="chat.panelResizeTitle" title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
@@ -368,7 +368,7 @@
 {% include 'partials/proposal_workspace_scripts.html' %}
 {% endif %}
 {% include 'partials/rfp_hub_gen_poll_script.html' %}
-{% if user.id == rfp.user_id %}
+{% if hub_rfp_ai_chat_enabled|default(false) %}
 <script>
 (function () {
   var root = document.getElementById('rfp-followup-chat');

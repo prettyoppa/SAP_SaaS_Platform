@@ -1,10 +1,13 @@
-{# 개발코드 / FS / 납품관리 / 제안서 / 인터뷰 / 요청 — workflow_rfp 가 있으면 신규 개발과 동일 링크 #}
+{# 개발코드 / FS / 납품관리 / 제안서 / 인터뷰 / 요청 #}
 {% set wf = workflow_rfp if workflow_rfp is defined and workflow_rfp else none %}
-{% if wf %}
+{% set int_ir = integration_list_ir if integration_list_ir is defined and integration_list_ir else none %}
+{% if int_ir %}
+{% set ph = int_ir|integration_phase_gates(user if user is defined else none) %}
+{% elif wf %}
 {% set ph = wf|phase_gates(user if user is defined else none) %}
 {% endif %}
 <div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
-  {% if wf %}
+  {% if ph is defined %}
   {% if ph.has_dev_code and ph.dev_code_href %}
   <a href="{{ ph.dev_code_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.devCode">개발코드</span></a>
   {% else %}
@@ -16,9 +19,15 @@
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.fs">FS</span></span>
   {% endif %}
   {% if user is defined and user.is_admin %}
+  {% if int_ir %}
+  <a href="/integration/{{ int_ir.id }}?phase=fs" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="납품 관리">
+    <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
+  </a>
+  {% elif wf %}
   <a href="/admin/rfp/{{ wf.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="납품 관리">
     <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
+  {% endif %}
   {% endif %}
   {% if ph.has_proposal and ph.proposal_href %}
   <a href="{{ ph.proposal_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.proposal">제안서</span></a>
@@ -33,8 +42,7 @@
   {% endif %}
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.proposal">제안서</span></span>
   {% endif %}
-  {# 인터뷰: 신규(RFP) 허브와 연결된 경우에만 허브 인터뷰로 이동. 분석·연동 단독 건은 후속 채팅(AI 문의)과 연결하지 않음 #}
-  {% if wf %}
+  {% if ph is defined %}
   {% if ph.has_interview and ph.interview_href %}
   <a href="{{ ph.interview_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.interview">인터뷰</span></a>
   {% else %}

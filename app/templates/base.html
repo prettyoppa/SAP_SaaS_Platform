@@ -78,9 +78,11 @@
             </a>
             {% if nav_console_pending %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
           </div>
+          {% if not path.startswith('/request-console') %}
           <div class="nav-request-console-hint">
             <span class="nav-request-console-bubble" data-i18n="nav.menuRequestConsoleHint">본인 외 회원 요청정보는 여기서 확인하세요.</span>
           </div>
+          {% endif %}
         </li>
         {% endif %}
         {% set nav_offer = request.state.nav_proposal_offer_badges %}
@@ -246,7 +248,7 @@
 <script src="/static/vendor/bootstrap-5.3.3/js/bootstrap.bundle.min.js?v=20260512"></script>
 <script>window.__I18nEnOverrides = {{ request.state.i18n_en_overrides | tojson }};</script>
 <script src="/static/js/i18n.js?v=20260509i18n-topnav-bilingual"></script>
-<script src="/static/js/main.js?v=20260512busy-mascot-ring"></script>
+<script src="/static/js/main.js?v=20260512offer-inquiry"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}
 </body>

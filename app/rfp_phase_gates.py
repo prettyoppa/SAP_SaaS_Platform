@@ -8,6 +8,7 @@ from typing import Any, Optional
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
+from .integration_hub import integration_hub_url
 from .request_hub_access import consultant_has_request_offer
 from .paid_tier import PAID_ACTIVE
 from .rfp_hub import rfp_hub_url
@@ -95,6 +96,80 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
         dev_code_href = rfp_hub_url(rid, "devcode")
     elif has_ref_dev:
         dev_code_href = rfp_hub_url(rid, "devcode")
+    else:
+        dev_code_href = None
+
+    has_dev_code = dc_started or has_ref_dev
+
+    return {
+        "has_dev_code": has_dev_code,
+        "dev_code_href": dev_code_href,
+        "has_fs": has_fs,
+        "fs_href": fs_href,
+        "has_proposal": has_proposal,
+        "proposal_href": proposal_href,
+        "has_interview": has_interview,
+        "interview_href": interview_href,
+        "request_href": request_href,
+    }
+
+
+def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] = None) -> dict[str, Any]:
+    """
+    연동 개발(IntegrationRequest) 리스트용 — FS·개발코드·제안·인터뷰는 IR 레코드·연동 허브 URL 기준.
+    (과거 workflow_rfp 연결이 있어도 연동 허브에서 진행한 단계를 반영한다.)
+    """
+    iid = int(ir.id)
+    fs_s = (getattr(ir, "fs_status", None) or "none").strip()
+    dc_s = (getattr(ir, "delivered_code_status", None) or "none").strip()
+    pipeline = fs_s != "none" or dc_s != "none"
+    is_operator = bool(
+        user and (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
+    )
+    has_fs = pipeline or is_operator
+    fs_href = integration_hub_url(iid, "fs") if has_fs else None
+
+    st = (getattr(ir, "status", None) or "").strip().lower()
+    iv = (getattr(ir, "interview_status", None) or "").strip()
+    prop = (getattr(ir, "proposal_text", None) or "").strip()
+    nmsg = len(getattr(ir, "interview_messages", None) or [])
+
+    has_proposal = bool(prop) or iv == "generating_proposal"
+    if iv == "generating_proposal":
+        proposal_href = integration_hub_url(iid, "proposal")
+    elif prop:
+        proposal_href = integration_hub_url(iid, "proposal")
+    else:
+        proposal_href = None
+
+    has_interview = False
+    interview_href: str | None = None
+    if st != "draft":
+        if iv == "generating_proposal":
+            has_interview = True
+            interview_href = integration_hub_url(iid, "interview", view_summary=True)
+        elif iv == "in_progress":
+            has_interview = True
+            interview_href = integration_hub_url(iid, "interview")
+        elif iv == "completed":
+            has_interview = True
+            interview_href = integration_hub_url(iid, "interview", view_summary=True)
+        elif nmsg > 0:
+            has_interview = True
+            interview_href = integration_hub_url(iid, "interview", view_summary=True)
+        elif st == "submitted" and iv == "pending":
+            has_interview = True
+            interview_href = integration_hub_url(iid, "interview")
+
+    request_href = integration_hub_url(iid, "request")
+
+    dc_started = dc_s != "none"
+    has_ref_dev = _reference_code_has_content(ir)
+
+    if dc_started:
+        dev_code_href = integration_hub_url(iid, "devcode")
+    elif has_ref_dev:
+        dev_code_href = integration_hub_url(iid, "devcode")
     else:
         dev_code_href = None
 

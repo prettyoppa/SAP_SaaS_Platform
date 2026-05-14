@@ -38,6 +38,7 @@ from ..menu_landing import (
     TILE_ORDER_WITH_ALL,
     VALID_URL_BUCKETS,
     abap_analysis_menu_aggregate,
+    abap_analysis_menu_bucket,
     filtered_abap_analysis_menu_rows,
     menu_landing_preset_params,
     menu_landing_url,
@@ -48,7 +49,9 @@ from ..menu_landing import (
 from ..attachment_context import build_attachment_llm_digest
 from ..offer_inquiry_service import (
     inquiries_by_offer_id,
+    notify_consultant_request_matched,
     public_request_url,
+    sanitize_console_readonly_return_url,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
 )
@@ -974,6 +977,12 @@ def _prepare_abap_analysis_detail_ctx(
             }
         ]
 
+    bucket = abap_analysis_menu_bucket(row)
+    ro_suffix = "#abap-phase-offers" if bucket in ("proposal", "delivery") else ""
+    hub_readonly_return_url = (
+        f"/abap-analysis/{row.id}/console-readonly{ro_suffix}" if readonly_console else None
+    )
+
     vis_offers = visible_request_offers_for_viewer(
         _analysis_offer_rows(db, row.id),
         viewer=user,
@@ -1000,6 +1009,7 @@ def _prepare_abap_analysis_detail_ctx(
         "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
         "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
         "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
+        "hub_readonly_return_url": hub_readonly_return_url,
     }
 
     if readonly_console:
@@ -1224,6 +1234,7 @@ def abap_analysis_offer_match(
         return RedirectResponse(url="/abap-analysis", status_code=302)
     offer = (
         db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
         .filter(
             models.RequestOffer.id == offer_id,
             models.RequestOffer.request_kind == "analysis",
@@ -1236,17 +1247,32 @@ def abap_analysis_offer_match(
     if (offer.status or "") == "matched":
         offer.status = "offered"
         offer.matched_at = None
+        offer.match_notice_pending = False
         db.add(offer)
         db.commit()
         return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
     db.query(models.RequestOffer).filter(
         models.RequestOffer.request_kind == "analysis",
         models.RequestOffer.request_id == req_id,
-    ).update({"status": "offered", "matched_at": None}, synchronize_session=False)
+    ).update(
+        {"status": "offered", "matched_at": None, "match_notice_pending": False},
+        synchronize_session=False,
+    )
     offer.status = "matched"
     offer.matched_at = datetime.utcnow()
+    offer.match_notice_pending = True
     db.add(offer)
     db.commit()
+    title = (row.title or "").strip() or f"분석 #{req_id}"
+    c = offer.consultant
+    if c:
+        notify_consultant_request_matched(
+            request=request,
+            consultant=c,
+            request_kind="analysis",
+            request_id=req_id,
+            request_title=title,
+        )
     return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
 
 
@@ -1278,6 +1304,7 @@ def abap_analysis_offer_inquiry_post(
     detail = public_request_url(request, f"/abap-analysis/{req_id}#abap-phase-offers")
     err, _row = send_offer_inquiry_from_owner(
         db,
+        request=request,
         author=user,
         offer=offer,
         consultant=offer.consultant,
@@ -1299,6 +1326,7 @@ def abap_analysis_offer_inquiry_reply_post(
     offer_id: int,
     request: Request,
     body: str = Form(""),
+    return_hub: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
@@ -1326,6 +1354,7 @@ def abap_analysis_offer_inquiry_reply_post(
     detail = public_request_url(request, f"/abap-analysis/{req_id}#abap-phase-offers")
     err, _row = send_consultant_offer_inquiry_reply(
         db,
+        request=request,
         consultant=user,
         offer=offer,
         owner=owner,
@@ -1333,12 +1362,23 @@ def abap_analysis_offer_inquiry_reply_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    base = f"/abap-analysis/{req_id}"
-    sep = "&" if "?" in base else "?"
-    suffix = "#abap-phase-offers"
-    if err:
-        return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}{suffix}", status_code=303)
-    return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_ok=1{suffix}", status_code=303)
+    safe = sanitize_console_readonly_return_url(return_hub)
+    frag = "#abap-phase-offers"
+    qerr = f"offer_inquiry_reply_err={quote(err)}"
+    qok = "offer_inquiry_reply_ok=1"
+    q = qerr if err else qok
+    if safe:
+        if "#" in safe:
+            path_part, hash_part = safe.split("#", 1)
+            sep = "&" if "?" in path_part else "?"
+            url = f"{path_part}{sep}{q}#{hash_part}"
+        else:
+            sep = "&" if "?" in safe else "?"
+            url = f"{safe}{sep}{q}{frag}"
+    else:
+        base = f"/abap-analysis/{req_id}"
+        url = f"{base}?{q}{frag}"
+    return RedirectResponse(url=url, status_code=303)
 
 
 @router.get("/{req_id}/offers/{offer_id}/profile")

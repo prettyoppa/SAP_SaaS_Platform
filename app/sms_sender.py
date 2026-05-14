@@ -23,18 +23,18 @@ def _registration_otp_ttl_minutes() -> int:
         return 10
 
 
-def send_offer_inquiry_sms(phone_e164: str, body: str) -> None:
-    """컨설턴트에게 요청 문의 SMS (웹훅 경유)."""
+def send_offer_inquiry_sms(phone_e164: str, body: str, *, sms_type: str = "offer_inquiry") -> None:
+    """문의·오퍼·매칭 등 트랜잭션 SMS (웹훅 경유)."""
     phone = (phone_e164 or "").strip()
     webhook = (os.environ.get("SMS_WEBHOOK_URL") or "").strip()
     if not webhook:
-        print(f"[SMS MOCK offer_inquiry] to={phone} body={body[:200]}...")
+        print(f"[SMS MOCK {sms_type}] to={phone} body={body[:200]}...")
         return
     route = "domestic_kr_sens" if phone.startswith("+82") else "global_twilio"
     payload = {
         "to": phone,
         "text": body,
-        "type": "offer_inquiry",
+        "type": sms_type,
         "route_hint": route,
         "country_hint": "KR" if phone.startswith("+82") else "GLOBAL",
     }

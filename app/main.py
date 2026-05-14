@@ -125,6 +125,9 @@ def _run_migrations():
         ("users", "consultant_profile_file_path", "TEXT", "TEXT"),
         ("users", "consultant_profile_file_name", "VARCHAR(512)", "VARCHAR(512)"),
         ("request_offer_inquiries", "parent_inquiry_id", "INTEGER", "INTEGER"),
+        ("rfp_followup_messages", "thread_user_id", "INTEGER", "INTEGER"),
+        ("integration_followup_messages", "thread_user_id", "INTEGER", "INTEGER"),
+        ("request_offers", "match_notice_pending", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("notices", "sort_order", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
         ("reviews", "admin_suppressed", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("reviews", "display_name", "VARCHAR(200)", "VARCHAR(200)"),
@@ -159,6 +162,26 @@ def _run_migrations():
                 text(
                     "UPDATE dev_types SET usage = 'abap' "
                     "WHERE usage IS NULL OR TRIM(COALESCE(usage, '')) = ''"
+                )
+            )
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "UPDATE rfp_followup_messages SET thread_user_id = "
+                    "(SELECT user_id FROM rfps WHERE rfps.id = rfp_followup_messages.rfp_id) "
+                    "WHERE thread_user_id IS NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "UPDATE integration_followup_messages SET thread_user_id = "
+                    "(SELECT user_id FROM integration_requests WHERE integration_requests.id = "
+                    "integration_followup_messages.request_id) "
+                    "WHERE thread_user_id IS NULL"
                 )
             )
             conn.commit()

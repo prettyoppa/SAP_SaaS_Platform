@@ -3,7 +3,8 @@
   <i class="fa-solid fa-eye me-1"></i><span data-i18n="common.detail">상세</span>
 </a>
 {% else %}
+{% set integration_list_ir = ir %}
 {% set workflow_rfp = ir.workflow_rfp %}
-{% set request_href = '/integration/' ~ ir.id ~ '#integration-request-block' %}
+{% set request_href = '/integration/' ~ ir.id ~ '?phase=request' %}
 {% include "partials/workflow_phase_nav.html" %}
 {% endif %}

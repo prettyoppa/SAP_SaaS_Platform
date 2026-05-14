@@ -9,6 +9,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
+from .delivered_code_package import rfp_delivered_body_ready
 from .rfp_landing import (
     BUCKET_ORDER,
     TILE_ORDER_WITH_ALL,
@@ -99,21 +100,45 @@ def abap_analysis_menu_bucket(row: models.AbapAnalysisRequest) -> str:
     return "analysis"
 
 
+def _integration_request_landing_bucket(ir: models.IntegrationRequest) -> str:
+    """연동 요청(IntegrationRequest) 본문 필드만으로 단계 분류 — rfp_landing_bucket과 동일 우선순위."""
+    fs_s = ((getattr(ir, "fs_status", None) or "none").strip().lower() or "none")
+    dc_s = ((getattr(ir, "delivered_code_status", None) or "none").strip().lower() or "none")
+    dc_ok = rfp_delivered_body_ready(ir)
+    fs_ok = fs_s == "ready" and (getattr(ir, "fs_text", None) or "").strip()
+    if dc_ok or fs_ok:
+        return "delivery"
+    if fs_s == "generating" or dc_s == "generating":
+        return "delivery"
+    if (getattr(ir, "proposal_text", None) or "").strip():
+        return "proposal"
+    if (getattr(ir, "status", None) or "").lower() == "draft":
+        return "draft"
+    if (getattr(ir, "interview_status", None) or "") == "generating_proposal":
+        return "analysis"
+    msgs = getattr(ir, "interview_messages", None) or []
+    if msgs and len(msgs) > 0:
+        return "analysis"
+    return "in_progress"
+
+
+def _max_landing_bucket(a: str, b: str) -> str:
+    """BUCKET_ORDER 앞쪽이 더 진행된 단계(delivery가 가장 우선)."""
+    ia = BUCKET_ORDER.index(a) if a in BUCKET_ORDER else len(BUCKET_ORDER)
+    ib = BUCKET_ORDER.index(b) if b in BUCKET_ORDER else len(BUCKET_ORDER)
+    return a if ia <= ib else b
+
+
 def integration_menu_bucket(ir: models.IntegrationRequest) -> str:
     """
     연동 요청 버킷(RFP 타일 라벨과 동일 이름).
-    제안서 존재 → proposal, 초안 → draft, 생성 중(generating)→ analysis, 나머지 제출건 → in_progress.
+    FS·납품 코드는 연동 요청 레코드에 저장되므로, 과거 RFP 연결이 있어도 IR 단계와 병합한다.
     """
+    b_ir = _integration_request_landing_bucket(ir)
     wr = getattr(ir, "workflow_rfp", None)
     if wr is not None:
-        return rfp_landing_bucket(wr)
-    if (ir.proposal_text or "").strip():
-        return "proposal"
-    if (ir.status or "").lower() == "draft":
-        return "draft"
-    if (ir.interview_status or "") == "generating_proposal":
-        return "analysis"
-    return "in_progress"
+        return _max_landing_bucket(b_ir, rfp_landing_bucket(wr))
+    return b_ir
 
 
 def _abap_analysis_base_query(db: Session, *, admin: bool, user_id: int):
@@ -184,6 +209,7 @@ def _integration_base_query(db: Session, *, admin: bool, user_id: int):
         db.query(models.IntegrationRequest)
         .options(
             joinedload(models.IntegrationRequest.owner),
+            joinedload(models.IntegrationRequest.interview_messages),
             joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
         )
     )

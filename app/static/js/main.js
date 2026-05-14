@@ -333,6 +333,17 @@ document.addEventListener(
   (e) => {
     const form = e.target;
     if (!(form instanceof HTMLFormElement)) return;
+    if (form.classList.contains('offer-inquiry-form')) {
+      const msg =
+        (form.dataset && form.dataset.offerInquiryBusyKo) ||
+        '전송 중입니다…';
+      const prog = form.querySelector('.offer-inquiry-progress');
+      if (prog) {
+        prog.textContent = msg;
+        prog.classList.remove('d-none');
+      }
+      return;
+    }
     if (!form.classList.contains('abap-followup-form')) return;
     if (form.dataset.noBusy !== 'true' && form.dataset.noBusy !== '') return;
     const panel = form.closest('.abap-float-chat-panel');

@@ -321,6 +321,7 @@ def count_ai_inquiry_user_turns(
             .filter(
                 models.RfpFollowupMessage.rfp_id == int(request_id),
                 models.RfpFollowupMessage.role == "user",
+                models.RfpFollowupMessage.thread_user_id == int(user_id),
             )
             .count()
         )
@@ -339,6 +340,7 @@ def count_ai_inquiry_user_turns(
             .filter(
                 models.IntegrationFollowupMessage.request_id == int(request_id),
                 models.IntegrationFollowupMessage.role == "user",
+                models.IntegrationFollowupMessage.thread_user_id == int(user_id),
             )
             .count()
         )

@@ -170,6 +170,8 @@ class RfpFollowupMessage(Base):
     role = Column(String(16), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # 대화 스레드 소유(요청자 user_id 또는 매칭 컨설턴트 id). NULL은 마이그레이션 전 레거시(요청자 스레드).
+    thread_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     rfp = relationship("RFP", back_populates="followup_messages")
 
@@ -282,6 +284,7 @@ class IntegrationFollowupMessage(Base):
     role = Column(String(16), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    thread_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     request = relationship("IntegrationRequest", back_populates="followup_messages")
 
@@ -560,6 +563,8 @@ class RequestOffer(Base):
     status = Column(String(16), nullable=False, default="offered", index=True)  # offered | matched
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     matched_at = Column(DateTime, nullable=True)
+    # 컨설턴트가 요청 Console에서 매칭 탭을 열기 전까지 표시할 빨간점용
+    match_notice_pending = Column(Boolean, default=False, nullable=False)
 
     consultant = relationship("User", foreign_keys=[consultant_user_id])
     inquiries = relationship(

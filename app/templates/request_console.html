@@ -269,6 +269,9 @@ html[data-theme="dark"] .btn-console-offer:hover {
                 <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
                 <span>매칭</span>
                 <span class="text-muted">({{ counts_by_kind['matching']['all'] }})</span>
+                {% if console_matching_notice_pending is defined and console_matching_notice_pending %}
+                <span class="console-tree-pending-dot" title="새 매칭 알림" aria-hidden="true"></span>
+                {% endif %}
               </span>
             </a>
           </summary>
@@ -319,6 +322,9 @@ html[data-theme="dark"] .btn-console-offer:hover {
               <span class="text-truncate">{{ r.title }}</span>
               {% if r.pending_inquiry_reply %}
               <span class="console-mail-pending-dot flex-shrink-0" title="답변 대기 문의"></span>
+              {% endif %}
+              {% if r.pending_match_notice|default(false) %}
+              <span class="console-mail-pending-dot flex-shrink-0" title="새 매칭" aria-hidden="true"></span>
               {% endif %}
             </div>
             <div class="small text-muted text-nowrap">{{ r.created_at|local_dt_span }}</div>
@@ -462,26 +468,43 @@ html[data-theme="dark"] .btn-console-offer:hover {
         return;
       }
       ev.preventDefault();
-      const msg = '선택한 요청건에 대해 요청자에게 프로필과 알람이 전송됩니다.';
+      const msg =
+        '선택한 요청에 오퍼가 등록됩니다. 수신에 동의한 요청자에게는 이메일·SMS로 알림이 전송되며, 프로필은 본문 텍스트로만 안내합니다(첨부 파일 없음).';
       const proceed = () => {
         offerForm.dataset.consoleOfferSubmitting = '1';
+        if (typeof showGlobalBusy === 'function') {
+          showGlobalBusy({
+            titleKo: '오퍼를 등록하고 있습니다…',
+            titleEn: 'Registering your offer…',
+            hintKo: '요청자에게 알림을 보내는 중입니다. 잠시만 기다려 주세요.',
+            hintEn: 'Sending notifications to the requester. Please wait.',
+          });
+        } else {
+          showInlineLoading(ev);
+        }
         if (typeof offerForm.requestSubmit === 'function') offerForm.requestSubmit();
         else offerForm.submit();
       };
       if (typeof window.appConfirm === 'function') {
         window.appConfirm(msg).then((ok) => {
           if (!ok) return;
-          showInlineLoading(ev);
           proceed();
         });
       } else if (window.confirm(msg)) {
-        showInlineLoading(ev);
         proceed();
       }
     });
   }
   document.querySelectorAll('.console-nav-link').forEach((a) => {
     a.addEventListener('click', (ev) => showInlineLoading(ev));
+  });
+  window.addEventListener('pageshow', () => {
+    if (inlineLoading) inlineLoading.hidden = true;
+    if (typeof hideGlobalBusy === 'function') hideGlobalBusy();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && inlineLoading) inlineLoading.hidden = true;
+    if (document.visibilityState === 'visible' && typeof hideGlobalBusy === 'function') hideGlobalBusy();
   });
   if (!shell) return;
 

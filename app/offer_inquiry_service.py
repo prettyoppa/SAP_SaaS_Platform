@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from types import SimpleNamespace
 from typing import Any
 
 from sqlalchemy.orm import Session, joinedload
@@ -41,6 +42,208 @@ def public_request_url(request: Any, path: str) -> str:
     if env:
         return env + p
     return str(request.base_url).rstrip("/") + p
+
+
+def site_public_origin(request: Any) -> str:
+    """사이트 루트 URL (스킴+호스트)."""
+    env = (os.environ.get("PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if env:
+        return env
+    return str(getattr(request, "base_url", "") or "").rstrip("/")
+
+
+def sanitize_console_readonly_return_url(raw: str | None) -> str | None:
+    """오퍼 문의 답변 후 요청 Console iframe으로 복귀할 안전한 상대 경로."""
+    s = (raw or "").strip()
+    if not s.startswith("/") or ".." in s or "\n" in s or "\r" in s:
+        return None
+    if "console-readonly" not in s:
+        return None
+    for prefix in ("/rfp/", "/integration/", "/abap-analysis/"):
+        if s.startswith(prefix):
+            return s
+    return None
+
+
+def owner_hub_proposal_public_url(request: Any, request_kind: str, request_id: int) -> str:
+    k = (request_kind or "").strip().lower()
+    rid = int(request_id)
+    if k == "rfp":
+        return public_request_url(request, f"/rfp/{rid}?phase=proposal")
+    if k == "analysis":
+        return public_request_url(request, f"/abap-analysis/{rid}#abap-phase-offers")
+    if k == "integration":
+        return public_request_url(request, f"/integration/{rid}?phase=proposal")
+    return public_request_url(request, "/request-console")
+
+
+def format_reply_via_console_ko(request: Any) -> str:
+    return f"문의 내용에 대한 답변은 {site_public_origin(request)} 의 요청 Console 메뉴에서 가능합니다."
+
+
+def format_owner_reply_followup_ko(request: Any) -> str:
+    return f"답변 내용은 {site_public_origin(request)} 에서도 확인 가능하며 추가 문의도 가능합니다."
+
+
+def consultant_profile_email_lines(consultant: models.User) -> str:
+    """첨부 없이 본문에 넣는 프로필 요약(텍스트만)."""
+    name = (getattr(consultant, "full_name", None) or "").strip()
+    company = (getattr(consultant, "company", None) or "").strip()
+    lines = [
+        "[프로필 안내] 첨부 파일은 보내지 않습니다. 아래는 텍스트 요약이며, 상세는 사이트에서 확인해 주세요.",
+    ]
+    if name:
+        lines.append(f"표시 이름: {name}")
+    if company:
+        lines.append(f"소속: {company}")
+    lines.append("전체 프로필·첨부 자료는 요청 상세(제안서 단계) 오퍼 목록에서 확인할 수 있습니다.")
+    return "\n".join(lines)
+
+
+def _member_ops_sms_target(user: models.User) -> tuple[bool, str | None]:
+    sms_ok = bool(
+        getattr(user, "ops_sms_opt_in", False)
+        and getattr(user, "phone_verified", False)
+        and phone_e164_for_sms(getattr(user, "phone_number", None))
+    )
+    phone = phone_e164_for_sms(getattr(user, "phone_number", None)) if sms_ok else None
+    return sms_ok, phone
+
+
+def notify_request_owner_new_console_offer(
+    *,
+    request: Any,
+    owner: models.User,
+    consultant: models.User,
+    request_kind: str,
+    request_id: int,
+    request_title: str,
+) -> None:
+    """요청 Console에서 새 오퍼 등록 시 요청자에게 이메일·SMS(수신 동의 시)."""
+    email_ok = bool(getattr(owner, "ops_email_opt_in", False))
+    sms_ok, phone_e164 = _member_ops_sms_target(owner)
+    to_email = (owner.email or "").strip()
+    if email_ok and not to_email:
+        email_ok = False
+    if not email_ok and not (sms_ok and phone_e164):
+        logger.info(
+            "new offer notify skipped (no owner channel) owner_id=%s kind=%s rid=%s",
+            getattr(owner, "id", None),
+            request_kind,
+            request_id,
+        )
+        return
+    hub = owner_hub_proposal_public_url(request, request_kind, request_id)
+    label = inquiry_request_label(
+        SimpleNamespace(request_kind=request_kind, request_id=request_id, id=0)
+    )
+    subject = f"[SAP Dev Hub] 새 오퍼 알림 — {request_title[:60]}"
+    body_email = (
+        "안녕하세요.\n\n"
+        "컨설턴트가 귀하의 요청에 오퍼했습니다.\n\n"
+        f"요청 ID: {label}\n"
+        f"요청 제목: {request_title}\n\n"
+        f"{consultant_profile_email_lines(consultant)}\n\n"
+        f"요청·오퍼 확인:\n{hub}\n"
+    )
+    try:
+        if email_ok and to_email:
+            send_plain_notification_email(to_email, subject, body_email)
+        if sms_ok and phone_e164:
+            sms_body = (
+                f"[SAP Dev Hub 오퍼]\n"
+                f"{request_title[:50]}\n"
+                f"컨설턴트가 오퍼했습니다.\n"
+                f"{hub}"
+            )
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="new_offer")
+    except Exception:
+        logger.exception(
+            "notify_request_owner_new_console_offer failed owner_id=%s kind=%s rid=%s",
+            getattr(owner, "id", None),
+            request_kind,
+            request_id,
+        )
+
+
+def notify_consultant_request_matched(
+    *,
+    request: Any,
+    consultant: models.User,
+    request_kind: str,
+    request_id: int,
+    request_title: str,
+) -> None:
+    """요청자가 매칭했을 때 매칭된 컨설턴트에게 이메일·SMS(수신 동의 시)."""
+    email_ok = bool(getattr(consultant, "ops_email_opt_in", False))
+    sms_ok, phone_e164 = _member_ops_sms_target(consultant)
+    to_email = (consultant.email or "").strip()
+    if email_ok and not to_email:
+        email_ok = False
+    if not email_ok and not (sms_ok and phone_e164):
+        logger.info(
+            "match notify skipped (no consultant channel) consultant_id=%s kind=%s rid=%s",
+            getattr(consultant, "id", None),
+            request_kind,
+            request_id,
+        )
+        return
+    label = inquiry_request_label(
+        SimpleNamespace(request_kind=request_kind, request_id=request_id, id=0)
+    )
+    console_url = public_request_url(request, "/request-console?kind=matching")
+    hub = owner_hub_proposal_public_url(request, request_kind, request_id)
+    subject = f"[SAP Dev Hub] 요청 매칭 — {request_title[:60]}"
+    body_email = (
+        "안녕하세요.\n\n"
+        "요청자가 귀하의 오퍼로 매칭했습니다.\n\n"
+        f"요청 ID: {label}\n"
+        f"요청 제목: {request_title}\n\n"
+        f"요청 Console(매칭)에서 확인:\n{console_url}\n\n"
+        f"요청 상세:\n{hub}\n"
+    )
+    try:
+        if email_ok and to_email:
+            send_plain_notification_email(to_email, subject, body_email)
+        if sms_ok and phone_e164:
+            sms_body = (
+                f"[SAP Dev Hub 매칭]\n"
+                f"{request_title[:45]}\n"
+                f"요청자가 매칭했습니다.\n"
+                f"{console_url}"
+            )
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="offer_match")
+    except Exception:
+        logger.exception(
+            "notify_consultant_request_matched failed consultant_id=%s kind=%s rid=%s",
+            getattr(consultant, "id", None),
+            request_kind,
+            request_id,
+        )
+
+
+def consultant_has_pending_match_notice(db: Session, consultant_user_id: int) -> bool:
+    q = (
+        db.query(models.RequestOffer.id)
+        .filter(
+            models.RequestOffer.consultant_user_id == int(consultant_user_id),
+            models.RequestOffer.status == "matched",
+            models.RequestOffer.match_notice_pending.is_(True),
+        )
+        .first()
+    )
+    return q is not None
+
+
+def clear_match_notice_pending_for_consultant(db: Session, consultant_user_id: int) -> None:
+    (
+        db.query(models.RequestOffer)
+        .filter(
+            models.RequestOffer.consultant_user_id == int(consultant_user_id),
+            models.RequestOffer.match_notice_pending.is_(True),
+        )
+        .update({"match_notice_pending": False}, synchronize_session=False)
+    )
 
 
 def phone_e164_for_sms(raw: str | None) -> str | None:
@@ -137,6 +340,7 @@ def inquiries_by_offer_id(db: Session, offer_ids: list[int]) -> dict[int, list[m
 def send_offer_inquiry_from_owner(
     db: Session,
     *,
+    request: Any,
     author: models.User,
     offer: models.RequestOffer,
     consultant: models.User,
@@ -170,21 +374,20 @@ def send_offer_inquiry_from_owner(
         return "컨설턴트 이메일이 없어 이메일로 보낼 수 없습니다.", None
 
     subject = f"[SAP Dev Hub] 요청 문의 — {request_title[:80]}"
-    # 이메일은 Catch Lab 발신이나, 본문에 요청자 로그인 이메일은 포함하지 않음(개인정보 최소화).
-    owner_line = f"요청자: {author.full_name}"
+    console_line = format_reply_via_console_ko(request)
     body_email = (
-        f"{owner_line}\n"
         f"요청 ID: {inquiry_request_label(offer)}\n"
-        f"요청: {request_title}\n"
-        f"링크: {request_detail_url}\n\n"
+        f"요청: {request_title}\n\n"
+        f"{console_line}\n\n"
         f"문의 내용:\n{body}\n"
     )
 
     phone_e164 = phone_e164_for_sms(getattr(consultant, "phone_number", None)) if sms_ok else None
     sms_body = (
-        f"[SAP Dev Hub 문의] {request_title[:40]}\n"
-        f"{author.full_name}: {body[:300]}{'…' if len(body) > 300 else ''}\n"
-        f"{request_detail_url}"
+        f"[SAP Dev Hub 문의]\n"
+        f"{request_title[:40]}\n"
+        f"{body[:300]}{'…' if len(body) > 300 else ''}\n"
+        f"{site_public_origin(request)}"
     )
 
     email_sent = False
@@ -194,7 +397,7 @@ def send_offer_inquiry_from_owner(
             send_plain_notification_email(to_email, subject, body_email)
             email_sent = True
         if sms_ok and phone_e164:
-            send_offer_inquiry_sms(phone_e164, sms_body)
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="offer_inquiry")
             sms_sent = True
     except Exception as ex:
         return (str(ex) or "전송에 실패했습니다."), None
@@ -215,6 +418,7 @@ def send_offer_inquiry_from_owner(
 def send_consultant_matched_first_inquiry_to_owner(
     db: Session,
     *,
+    request: Any,
     consultant: models.User,
     offer: models.RequestOffer,
     owner: models.User,
@@ -242,15 +446,20 @@ def send_consultant_matched_first_inquiry_to_owner(
         return f"문의 내용은 {MAX_INQUIRY_BODY_LEN}자 이하로 입력해 주세요.", None
 
     owner_email = (owner.email or "").strip()
-    if not owner_email:
-        return "요청자 이메일이 등록되어 있지 않아 알림을 보낼 수 없습니다.", None
+    email_channel = bool(getattr(owner, "ops_email_opt_in", False)) and bool(owner_email)
+    sms_ok, phone_e164 = _member_ops_sms_target(owner)
+    if not email_channel and not (sms_ok and phone_e164):
+        return (
+            "요청자는 업무 이메일·SMS 수신에 동의하지 않았거나 휴대폰이 인증되지 않아 전송할 수 없습니다.",
+            None,
+        )
 
     subject = f"[SAP Dev Hub] 컨설턴트 문의 — {request_title[:80]}"
+    follow_line = format_owner_reply_followup_ko(request)
     body_email = (
-        f"컨설턴트: {consultant.full_name}\n"
         f"요청 ID: {inquiry_request_label(offer)}\n"
-        f"요청: {request_title}\n"
-        f"링크: {request_detail_url}\n\n"
+        f"요청: {request_title}\n\n"
+        f"{follow_line}\n\n"
         f"문의 내용:\n{body}\n"
     )
 
@@ -265,18 +474,29 @@ def send_consultant_matched_first_inquiry_to_owner(
     db.commit()
     db.refresh(row)
     try:
-        send_plain_notification_email(owner_email, subject, body_email)
-        row.email_sent = True
+        if email_channel:
+            send_plain_notification_email(owner_email, subject, body_email)
+            row.email_sent = True
+        if sms_ok and phone_e164:
+            sms_body = (
+                f"[SAP Dev Hub]\n"
+                f"매칭된 요청에 컨설턴트 문의가 도착했습니다.\n"
+                f"{request_title[:40]}\n"
+                f"{site_public_origin(request)}"
+            )
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="consultant_first_inquiry")
+            row.sms_sent = True
         db.add(row)
         db.commit()
     except Exception:
-        logger.exception("consultant first inquiry email failed offer_id=%s", offer.id)
+        logger.exception("consultant first inquiry notify failed offer_id=%s", offer.id)
     return None, row
 
 
 def send_consultant_offer_inquiry_reply(
     db: Session,
     *,
+    request: Any,
     consultant: models.User,
     offer: models.RequestOffer,
     owner: models.User,
@@ -306,12 +526,14 @@ def send_consultant_offer_inquiry_reply(
         return "요청자 문의에 대한 답변이 이미 반영된 상태입니다.", None
 
     owner_email = (owner.email or "").strip()
+    email_channel = bool(getattr(owner, "ops_email_opt_in", False)) and bool(owner_email)
+    sms_ok, phone_e164 = _member_ops_sms_target(owner)
     subject = f"[SAP Dev Hub] 문의 답변 — {request_title[:80]}"
+    follow_line = format_owner_reply_followup_ko(request)
     body_email = (
-        f"컨설턴트: {consultant.full_name}\n"
         f"요청 ID: {inquiry_request_label(offer)}\n"
-        f"요청: {request_title}\n"
-        f"링크: {request_detail_url}\n\n"
+        f"요청: {request_title}\n\n"
+        f"{follow_line}\n\n"
         f"답변:\n{body}\n"
     )
 
@@ -326,12 +548,21 @@ def send_consultant_offer_inquiry_reply(
     db.add(row)
     db.commit()
     db.refresh(row)
-    if owner_email:
-        try:
+    try:
+        if email_channel:
             send_plain_notification_email(owner_email, subject, body_email)
             row.email_sent = True
-            db.add(row)
-            db.commit()
-        except Exception:
-            logger.exception("consultant inquiry reply email failed offer_id=%s", offer.id)
+        if sms_ok and phone_e164:
+            sms_body = (
+                f"[SAP Dev Hub 문의 답변]\n"
+                f"{request_title[:40]}\n"
+                f"{body[:200]}{'…' if len(body) > 200 else ''}\n"
+                f"{site_public_origin(request)}"
+            )
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="offer_inquiry_reply")
+            row.sms_sent = True
+        db.add(row)
+        db.commit()
+    except Exception:
+        logger.exception("consultant inquiry reply notify failed offer_id=%s", offer.id)
     return None, row

@@ -1,19 +1,35 @@
 {# context: ir (IntegrationRequest), show_request_owner, user, impl_labels, integration_simple_actions (optional) #}
+{% set ir_fs = (ir.fs_status or 'none')|lower %}
+{% set ir_dc = (ir.delivered_code_status or 'none')|lower %}
+{% set ir_fs_ok = ir_fs == 'ready' and (ir.fs_text or '')|trim %}
+{% set ir_dc_ok = ir_dc == 'ready' and (ir.delivered_code_text or '')|trim %}
+{% set ir_delivery_busy = ir_fs == 'generating' or ir_dc == 'generating' %}
+{% set ir_delivery_done = ir_fs_ok or ir_dc_ok %}
+{% set ir_deliveryish = ir_delivery_busy or ir_delivery_done %}
+{% set ir_prop = (ir.proposal_text or '')|trim %}
+{% set wr_prop = (ir.workflow_rfp and (ir.workflow_rfp.proposal_text or '')|trim) %}
+{% set has_prop = ir_prop or wr_prop %}
+{% set gen_prop = ir.interview_status == 'generating_proposal' or (ir.workflow_rfp and ir.workflow_rfp.interview_status == 'generating_proposal') %}
+{% set iv_rounds = (ir.interview_messages|default([]))|length %}
 <div class="menu-list-card{% if ir.pulse_offer_bg|default(false) %} menu-list-card--proposal-offer-pulse{% endif %}">
 <div class="rfp-list-surface-tile">
 <div class="rfp-list-card rfp-list-card-v2">
   <div class="rfp-list-left">
     <div class="rfp-list-status
       {% if (ir.status or '')|lower == 'draft' %}status-draft
-      {% elif ir.workflow_rfp and (ir.workflow_rfp.proposal_text or '').strip() %}status-completed
-      {% elif ir.workflow_rfp and ir.workflow_rfp.interview_status == 'generating_proposal' %}status-in_review
-      {% elif ir.interview_status == 'generating_proposal' %}status-in_review
+      {% elif ir_delivery_busy %}status-in_review
+      {% elif ir_delivery_done %}status-completed
+      {% elif has_prop %}status-completed
+      {% elif gen_prop %}status-in_review
+      {% elif iv_rounds > 0 %}status-in_review
       {% else %}status-submitted{% endif %}">
       <i class="fa-solid
         {% if (ir.status or '')|lower == 'draft' %}fa-floppy-disk
-        {% elif ir.workflow_rfp and (ir.workflow_rfp.proposal_text or '').strip() %}fa-circle-check
-        {% elif ir.workflow_rfp and ir.workflow_rfp.interview_status == 'generating_proposal' %}fa-spinner
-        {% elif ir.interview_status == 'generating_proposal' %}fa-spinner
+        {% elif ir_delivery_busy %}fa-spinner
+        {% elif ir_delivery_done %}fa-truck
+        {% elif has_prop %}fa-circle-check
+        {% elif gen_prop %}fa-spinner
+        {% elif iv_rounds > 0 %}fa-magnifying-glass-chart
         {% else %}fa-link{% endif %}"></i>
     </div>
     <div class="rfp-list-info flex-grow-1 min-w-0">
@@ -22,12 +38,16 @@
         <span class="badge bg-dark-subtle text-dark border me-2 small font-monospace">{{ ir.id|request_no('INT') }}</span>
         <a href="{% if (ir.status or '')|lower == 'draft' %}/integration/{{ ir.id }}/edit{% else %}/integration/{{ ir.id }}{% endif %}" class="text-reset fw-semibold text-decoration-none">{{ ir.title }}</a>
         <span class="badge bg-secondary ms-2 small">#{{ ir.id }}</span>
-        {% if ir.workflow_rfp and (ir.workflow_rfp.proposal_text or '').strip() %}
+        {% if ir_delivery_busy %}
+        <span class="badge text-dark ms-1" style="background:rgba(148,163,184,.28)">납품 생성</span>
+        {% elif ir_delivery_done %}
+        <span class="badge ms-1" style="background:rgba(148,163,184,.35);color:#334155">납품</span>
+        {% elif has_prop %}
         <span class="badge bg-success ms-1">제안</span>
-        {% elif ir.workflow_rfp and ir.workflow_rfp.interview_status == 'generating_proposal' %}
+        {% elif gen_prop %}
         <span class="badge text-dark ms-1" style="background:rgba(99,102,241,.22)">생성 중</span>
-        {% elif ir.interview_status == 'generating_proposal' %}
-        <span class="badge text-dark ms-1" style="background:rgba(99,102,241,.22)">생성 중</span>
+        {% elif iv_rounds > 0 %}
+        <span class="badge text-dark ms-1" style="background:rgba(99,102,241,.22)">인터뷰</span>
         {% else %}
         <span class="badge bg-warning text-dark ms-1">진행</span>
         {% endif %}
@@ -75,12 +95,16 @@
     <a href="{% if (ir.status or '')|lower == 'draft' %}/integration/{{ ir.id }}/edit{% else %}/integration/{{ ir.id }}{% endif %}" class="text-truncate fw-semibold text-reset text-decoration-none">{{ ir.title }}</a>
   </div>
   <div class="rfp-list-compact-actions d-flex flex-wrap align-items-center gap-1 justify-content-end">
-    {% if ir.workflow_rfp and (ir.workflow_rfp.proposal_text or '').strip() %}
+    {% if ir_delivery_busy %}
+    <span class="badge text-dark" style="background:rgba(148,163,184,.28)">납품 생성</span>
+    {% elif ir_delivery_done %}
+    <span class="badge" style="background:rgba(148,163,184,.35);color:#334155">납품</span>
+    {% elif has_prop %}
     <span class="badge bg-success" data-i18n="badge.proposalShort">제안</span>
-    {% elif ir.workflow_rfp and ir.workflow_rfp.interview_status == 'generating_proposal' %}
+    {% elif gen_prop %}
     <span class="badge text-dark" style="background:rgba(99,102,241,.22)" data-i18n="common.generating">생성 중</span>
-    {% elif ir.interview_status == 'generating_proposal' %}
-    <span class="badge text-dark" style="background:rgba(99,102,241,.22)" data-i18n="common.generating">생성 중</span>
+    {% elif iv_rounds > 0 %}
+    <span class="badge text-dark" style="background:rgba(99,102,241,.22)">인터뷰</span>
     {% else %}
     <span class="badge bg-warning text-dark" data-i18n="badge.active">진행</span>
     {% endif %}

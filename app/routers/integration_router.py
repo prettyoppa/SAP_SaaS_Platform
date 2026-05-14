@@ -26,6 +26,7 @@ from ..subscription_quota import (
 from .abap_analysis_router import _pair_abap_followup_turns as _pair_integration_followup_turns
 from ..attachment_context import build_attachment_llm_digest
 from ..database import get_db
+from ..followup_thread_scope import filter_followup_messages_for_viewer
 from ..followup_messages_util import followup_created_at_sort_key
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..menu_landing import (
@@ -56,16 +57,25 @@ from ..devtype_catalog import (
     integration_impl_labels_map,
 )
 from ..offer_inquiry_service import (
+    clear_match_notice_pending_for_consultant,
+    consultant_has_pending_match_notice,
     inquiries_by_offer_id,
+    notify_consultant_request_matched,
+    notify_request_owner_new_console_offer,
     pending_inquiry_reply_offer_ids_all,
     pending_inquiry_reply_offer_ids_for_consultant,
     public_request_url,
+    sanitize_console_readonly_return_url,
     send_consultant_matched_first_inquiry_to_owner,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
 )
 from ..code_asset_access import user_may_copy_download_request_assets
-from ..request_hub_access import apply_integration_hub_read_access, consultant_has_request_offer
+from ..request_hub_access import (
+    apply_integration_hub_read_access,
+    consultant_has_request_offer,
+    consultant_is_matched_on_request,
+)
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
@@ -184,7 +194,9 @@ def _console_abap_preview_suffix(bucket: str) -> str:
     return ""
 
 
-def _console_row_for_offer_target(db: Session, kind: str, req_id: int) -> dict[str, Any] | None:
+def _console_row_for_offer_target(
+    db: Session, kind: str, req_id: int, viewer
+) -> dict[str, Any] | None:
     k = (kind or "").strip().lower()
     if k == "rfp":
         row = (
@@ -195,7 +207,7 @@ def _console_row_for_offer_target(db: Session, kind: str, req_id: int) -> dict[s
         )
         if not row:
             return None
-        return _console_row_from_rfp(row)
+        return _console_row_from_rfp(row, viewer)
     if k == "analysis":
         row = (
             db.query(models.AbapAnalysisRequest)
@@ -205,7 +217,7 @@ def _console_row_for_offer_target(db: Session, kind: str, req_id: int) -> dict[s
         )
         if not row:
             return None
-        return _console_row_from_analysis(row)
+        return _console_row_from_analysis(row, viewer)
     if k == "integration":
         row = (
             db.query(models.IntegrationRequest)
@@ -215,12 +227,12 @@ def _console_row_for_offer_target(db: Session, kind: str, req_id: int) -> dict[s
         )
         if not row:
             return None
-        return _console_row_from_integration(row)
+        return _console_row_from_integration(row, viewer)
     return None
 
 
 def _console_rows_from_offers(
-    db: Session, consultant_user_id: int | None, *, matched_only: bool
+    db: Session, consultant_user_id: int | None, *, matched_only: bool, viewer
 ) -> list[dict[str, Any]]:
     """consultant_user_id가 None이면 전체 컨설턴트의 오퍼/매칭(관리자 Console)."""
     st = "matched" if matched_only else "offered"
@@ -234,7 +246,7 @@ def _console_rows_from_offers(
     offers = q.order_by(models.RequestOffer.created_at.desc()).all()
     out: list[dict[str, Any]] = []
     for of in offers:
-        row = _console_row_for_offer_target(db, of.request_kind, of.request_id)
+        row = _console_row_for_offer_target(db, of.request_kind, of.request_id, viewer)
         if not row:
             continue
         row["offer_status"] = of.status
@@ -517,7 +529,16 @@ def _console_request_title_and_owner(
     return None, ""
 
 
-def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
+def _console_row_from_rfp(r: models.RFP, user) -> dict[str, Any]:
+    bucket = rfp_landing_bucket(r)
+    ph = _console_unified_hub_embed_phase(bucket)
+    preview_href = f"/rfp/{r.id}/console-readonly?embed=1&phase={ph}"
+    if getattr(user, "is_admin", False):
+        detail_href = f"/rfp/{r.id}?phase={ph}"
+    elif getattr(user, "is_consultant", False):
+        detail_href = f"/rfp/{r.id}/console-readonly?phase={ph}"
+    else:
+        detail_href = f"/rfp/{r.id}?phase={ph}"
     return {
         "sel_key": f"rfp:{r.id}",
         "entity_id": r.id,
@@ -525,19 +546,26 @@ def _console_row_from_rfp(r: models.RFP) -> dict[str, Any]:
         "kind_ko": "신규개발",
         "request_no": _request_no("RFP", r.id),
         "title": (r.title or "").strip() or f"요청 {_request_no('RFP', r.id)}",
-        "bucket": rfp_landing_bucket(r),
+        "bucket": bucket,
         "created_at": r.created_at,
         "owner_name": getattr(getattr(r, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(r, "owner", None), "company", "") or "",
-        "detail_href": f"/rfp/{r.id}",
-        "preview_href": (
-            f"/rfp/{r.id}/console-readonly?embed=1&phase={_console_unified_hub_embed_phase(rfp_landing_bucket(r))}"
-        ),
+        "detail_href": detail_href,
+        "preview_href": preview_href,
         "summary": (r.description or "").strip(),
     }
 
 
-def _console_row_from_analysis(row: models.AbapAnalysisRequest) -> dict[str, Any]:
+def _console_row_from_analysis(row: models.AbapAnalysisRequest, user) -> dict[str, Any]:
+    bucket = abap_analysis_menu_bucket(row)
+    suf = _console_abap_preview_suffix(bucket)
+    preview_href = f"/abap-analysis/{row.id}/console-readonly?embed=1{suf}"
+    if getattr(user, "is_admin", False):
+        detail_href = f"/abap-analysis/{row.id}{suf}"
+    elif getattr(user, "is_consultant", False):
+        detail_href = f"/abap-analysis/{row.id}/console-readonly{suf}"
+    else:
+        detail_href = f"/abap-analysis/{row.id}{suf}"
     return {
         "sel_key": f"ana:{row.id}",
         "entity_id": row.id,
@@ -545,19 +573,26 @@ def _console_row_from_analysis(row: models.AbapAnalysisRequest) -> dict[str, Any
         "kind_ko": "분석개선",
         "request_no": _request_no("ANA", row.id),
         "title": (row.title or "").strip() or f"요청 {_request_no('ANA', row.id)}",
-        "bucket": abap_analysis_menu_bucket(row),
+        "bucket": bucket,
         "created_at": row.created_at,
         "owner_name": getattr(getattr(row, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(row, "owner", None), "company", "") or "",
-        "detail_href": f"/abap-analysis/{row.id}",
-        "preview_href": (
-            f"/abap-analysis/{row.id}/console-readonly?embed=1{_console_abap_preview_suffix(abap_analysis_menu_bucket(row))}"
-        ),
+        "detail_href": detail_href,
+        "preview_href": preview_href,
         "summary": (row.requirement_text or "").strip(),
     }
 
 
-def _console_row_from_integration(ir: models.IntegrationRequest) -> dict[str, Any]:
+def _console_row_from_integration(ir: models.IntegrationRequest, user) -> dict[str, Any]:
+    bucket = integration_menu_bucket(ir)
+    ph = _console_unified_hub_embed_phase(bucket)
+    preview_href = f"/integration/{ir.id}/console-readonly?embed=1&phase={ph}"
+    if getattr(user, "is_admin", False):
+        detail_href = f"/integration/{ir.id}?phase={ph}"
+    elif getattr(user, "is_consultant", False):
+        detail_href = f"/integration/{ir.id}/console-readonly?phase={ph}"
+    else:
+        detail_href = f"/integration/{ir.id}?phase={ph}"
     return {
         "sel_key": f"int:{ir.id}",
         "entity_id": ir.id,
@@ -565,14 +600,12 @@ def _console_row_from_integration(ir: models.IntegrationRequest) -> dict[str, An
         "kind_ko": "연동개발",
         "request_no": _request_no("INT", ir.id),
         "title": (ir.title or "").strip() or f"요청 {_request_no('INT', ir.id)}",
-        "bucket": integration_menu_bucket(ir),
+        "bucket": bucket,
         "created_at": ir.created_at,
         "owner_name": getattr(getattr(ir, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(ir, "owner", None), "company", "") or "",
-        "detail_href": f"/integration/{ir.id}",
-        "preview_href": (
-            f"/integration/{ir.id}/console-readonly?embed=1&phase={_console_unified_hub_embed_phase(integration_menu_bucket(ir))}"
-        ),
+        "detail_href": detail_href,
+        "preview_href": preview_href,
         "summary": (ir.description or "").strip(),
     }
 
@@ -615,8 +648,8 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
         for k in _REQ_CONSOLE_BUCKETS
     }
     offer_scope_uid: int | None = None if getattr(user, "is_admin", False) else user.id
-    offered_rows = _console_rows_from_offers(db, offer_scope_uid, matched_only=False)
-    matched_rows = _console_rows_from_offers(db, offer_scope_uid, matched_only=True)
+    offered_rows = _console_rows_from_offers(db, offer_scope_uid, matched_only=False, viewer=user)
+    matched_rows = _console_rows_from_offers(db, offer_scope_uid, matched_only=True, viewer=user)
     counts_by_kind["offer"] = _count_pack(
         {
             "delivery": sum(1 for r in offered_rows if r.get("bucket") == "delivery"),
@@ -647,7 +680,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             date_from=date_from_dt,
             date_to=date_to_dt,
         )
-        rows.extend(_console_row_from_rfp(r) for r in rfps)
+        rows.extend(_console_row_from_rfp(r, user) for r in rfps)
     if kind in ("all", "analysis"):
         analyses = filtered_abap_analysis_menu_rows(
             db,
@@ -658,7 +691,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             date_from=date_from_dt,
             date_to=date_to_dt,
         )
-        rows.extend(_console_row_from_analysis(r) for r in analyses)
+        rows.extend(_console_row_from_analysis(r, user) for r in analyses)
     if kind in ("all", "integration"):
         irs = filtered_integration_menu_rows(
             db,
@@ -669,7 +702,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             date_from=date_from_dt,
             date_to=date_to_dt,
         )
-        rows.extend(_console_row_from_integration(r) for r in irs)
+        rows.extend(_console_row_from_integration(r, user) for r in irs)
     if kind == "offer":
         rows = offered_rows
     elif kind == "matching":
@@ -689,6 +722,30 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
         ]
 
     rows.sort(key=lambda x: x.get("created_at") or 0, reverse=True)
+
+    console_matching_notice_pending = False
+    if getattr(user, "is_consultant", False):
+        console_matching_notice_pending = consultant_has_pending_match_notice(db, user.id)
+
+    if kind == "matching" and getattr(user, "is_consultant", False):
+        pend = {
+            int(oid)
+            for (oid,) in (
+                db.query(models.RequestOffer.id)
+                .filter(
+                    models.RequestOffer.consultant_user_id == user.id,
+                    models.RequestOffer.status == "matched",
+                    models.RequestOffer.match_notice_pending.is_(True),
+                )
+                .all()
+            )
+        }
+        for row in rows:
+            oid = row.get("offer_id")
+            row["pending_match_notice"] = bool(oid is not None and int(oid) in pend)
+        clear_match_notice_pending_for_consultant(db, user.id)
+        db.commit()
+
     active_offer_keys = _consultant_active_offer_sel_keys(db, user.id)
     for row in rows:
         row["consultant_has_offered"] = row.get("sel_key") in active_offer_keys
@@ -838,6 +895,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "console_consultant_inquiry_ok": (request.query_params.get("console_consultant_inquiry_ok") or "").strip()
             == "1",
             "console_pending_inquiry_rows": console_pending_inquiry_rows,
+            "console_matching_notice_pending": console_matching_notice_pending,
         },
     )
 
@@ -915,6 +973,7 @@ def request_console_consultant_inquiry_submit(
     detail = _console_public_detail_url(request, req_kind, req_id)
     err, _row = send_consultant_matched_first_inquiry_to_owner(
         db,
+        request=request,
         consultant=user,
         offer=offer,
         owner=owner,
@@ -974,6 +1033,7 @@ def request_console_offer_submit(
         )
         .first()
     )
+    created_new = False
     if not exists:
         db.add(
             models.RequestOffer(
@@ -985,6 +1045,22 @@ def request_console_offer_submit(
             )
         )
         db.commit()
+        created_new = True
+
+    if created_new:
+        owner, title = _console_request_title_and_owner(db, req_kind, req_id)
+        if owner:
+            try:
+                notify_request_owner_new_console_offer(
+                    request=request,
+                    owner=owner,
+                    consultant=user,
+                    request_kind=req_kind,
+                    request_id=req_id,
+                    request_title=title,
+                )
+            except Exception:
+                pass
 
     loc = _request_console_return_location(
         return_kind=return_kind,
@@ -1831,12 +1907,18 @@ def _collect_integration_unified_hub_ctx(
         int_ai_unlimited = snap_hub_ro["unlimited"]
         int_followup_cap = snap_hub_ro["cap"]
     else:
-        follow_msgs = sorted(
+        follow_raw = sorted(
             list(ir.followup_messages or []),
             key=lambda m: (
                 followup_created_at_sort_key(m, fallback=ir.created_at),
                 getattr(m, "id", 0) or 0,
             ),
+        )
+        follow_msgs = filter_followup_messages_for_viewer(
+            follow_raw,
+            request_owner_id=int(ir.user_id),
+            viewer_user_id=int(user.id),
+            viewer_is_admin=bool(getattr(user, "is_admin", False)),
         )
         followup_turns = _pair_integration_followup_turns(follow_msgs)
         snap_hub = ai_inquiry_snapshot(db, user, "integration", ir.id)
@@ -1877,6 +1959,19 @@ def _collect_integration_unified_hub_ctx(
         request_id=req_id,
         owner_user_id=int(ir.user_id),
     )
+
+    hub_int_ai_chat_enabled = False
+    if not readonly_console:
+        hub_int_ai_chat_enabled = (
+            int(user.id) == int(ir.user_id)
+            or getattr(user, "is_admin", False)
+            or (
+                getattr(user, "is_consultant", False)
+                and consultant_is_matched_on_request(
+                    db, consultant_user_id=user.id, request_kind="integration", request_id=int(req_id)
+                )
+            )
+        )
 
     ctx: dict[str, Any] = {
         "request": request,
@@ -1930,6 +2025,10 @@ def _collect_integration_unified_hub_ctx(
         "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
         "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
         "request_offer_inquiry_reply_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/inquiry-reply",
+        "hub_int_ai_chat_enabled": hub_int_ai_chat_enabled,
+        "hub_readonly_return_url": (
+            f"/integration/{ir.id}/console-readonly?phase={display_phase}" if readonly_console else None
+        ),
     }
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
@@ -2028,21 +2127,27 @@ def integration_chat_post(
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    ir = (
-        db.query(models.IntegrationRequest)
-        .filter(
-            models.IntegrationRequest.id == req_id,
-            models.IntegrationRequest.user_id == user.id,
-        )
-        .first()
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
+        console_embed=False,
     )
+    ir = q.first()
     if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    allowed = int(user.id) == int(ir.user_id) or getattr(user, "is_admin", False) or (
+        getattr(user, "is_consultant", False)
+        and consultant_is_matched_on_request(
+            db, consultant_user_id=user.id, request_kind="integration", request_id=int(req_id)
+        )
+    )
+    if not allowed:
         return RedirectResponse(url="/integration", status_code=302)
 
     st = (ir.status or "").strip().lower()
     chat_base = (
         f"/integration/{req_id}/edit"
-        if st == "draft"
+        if st == "draft" and int(user.id) == int(ir.user_id)
         else integration_hub_url(req_id, "interview")
     )
 
@@ -2061,11 +2166,17 @@ def integration_chat_post(
             status_code=303,
         )
 
-    prior = (
+    prior_all = (
         db.query(models.IntegrationFollowupMessage)
         .filter(models.IntegrationFollowupMessage.request_id == ir.id)
         .order_by(models.IntegrationFollowupMessage.created_at.asc())
         .all()
+    )
+    prior = filter_followup_messages_for_viewer(
+        prior_all,
+        request_owner_id=int(ir.user_id),
+        viewer_user_id=int(user.id),
+        viewer_is_admin=bool(getattr(user, "is_admin", False)),
     )
 
     try:
@@ -2079,11 +2190,13 @@ def integration_chat_post(
     except Exception:
         reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 
+    tid = int(user.id)
     db.add(
         models.IntegrationFollowupMessage(
             request_id=ir.id,
             role="user",
             content=msg,
+            thread_user_id=tid,
         )
     )
     db.add(
@@ -2091,6 +2204,7 @@ def integration_chat_post(
             request_id=ir.id,
             role="assistant",
             content=reply,
+            thread_user_id=tid,
         )
     )
     if not getattr(user, "is_admin", False):
@@ -2118,6 +2232,7 @@ def integration_offer_match(
         return RedirectResponse(url="/integration", status_code=302)
     offer = (
         db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
         .filter(
             models.RequestOffer.id == offer_id,
             models.RequestOffer.request_kind == "integration",
@@ -2130,17 +2245,32 @@ def integration_offer_match(
     if (offer.status or "") == "matched":
         offer.status = "offered"
         offer.matched_at = None
+        offer.match_notice_pending = False
         db.add(offer)
         db.commit()
         return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
     db.query(models.RequestOffer).filter(
         models.RequestOffer.request_kind == "integration",
         models.RequestOffer.request_id == req_id,
-    ).update({"status": "offered", "matched_at": None}, synchronize_session=False)
+    ).update(
+        {"status": "offered", "matched_at": None, "match_notice_pending": False},
+        synchronize_session=False,
+    )
     offer.status = "matched"
     offer.matched_at = datetime.utcnow()
+    offer.match_notice_pending = True
     db.add(offer)
     db.commit()
+    title = (ir.title or "").strip() or f"연동 #{req_id}"
+    c = offer.consultant
+    if c:
+        notify_consultant_request_matched(
+            request=request,
+            consultant=c,
+            request_kind="integration",
+            request_id=req_id,
+            request_title=title,
+        )
     return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
 
 
@@ -2178,6 +2308,7 @@ def integration_offer_inquiry_post(
     detail = public_request_url(request, f"/integration/{req_id}?phase=proposal")
     err, _row = send_offer_inquiry_from_owner(
         db,
+        request=request,
         author=user,
         offer=offer,
         consultant=offer.consultant,
@@ -2198,6 +2329,7 @@ def integration_offer_inquiry_reply_post(
     offer_id: int,
     request: Request,
     body: str = Form(""),
+    return_hub: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -2227,6 +2359,7 @@ def integration_offer_inquiry_reply_post(
     detail = public_request_url(request, f"/integration/{req_id}?phase=proposal")
     err, _row = send_consultant_offer_inquiry_reply(
         db,
+        request=request,
         consultant=user,
         offer=offer,
         owner=owner,
@@ -2234,7 +2367,8 @@ def integration_offer_inquiry_reply_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    base = integration_hub_url(req_id, "proposal")
+    safe = sanitize_console_readonly_return_url(return_hub)
+    base = safe if safe else integration_hub_url(req_id, "proposal")
     sep = "&" if "?" in base else "?"
     if err:
         return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}", status_code=303)

@@ -23,6 +23,23 @@ def consultant_has_request_offer(
     )
 
 
+def consultant_is_matched_on_request(
+    db: Session, *, consultant_user_id: int, request_kind: str, request_id: int
+) -> bool:
+    """해당 요청에 이 컨설턴트가 매칭된 오퍼가 있으면 True."""
+    return (
+        db.query(models.RequestOffer.id)
+        .filter(
+            models.RequestOffer.consultant_user_id == int(consultant_user_id),
+            models.RequestOffer.request_kind == (request_kind or "").strip().lower(),
+            models.RequestOffer.request_id == int(request_id),
+            models.RequestOffer.status == "matched",
+        )
+        .first()
+        is not None
+    )
+
+
 def apply_integration_hub_read_access(q: Query, user, *, console_embed: bool = False) -> Query:
     """Narrows an IntegrationRequest query to rows the user may read (hub, embed, status, attachments).
 

@@ -14,6 +14,7 @@ from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
 from ..agent_display import wrap_unbracketed_agent_names
+from ..followup_thread_scope import filter_followup_messages_for_viewer
 from ..followup_messages_util import followup_created_at_sort_key
 from ..delivered_code_package import (
     delivered_package_has_body,
@@ -22,13 +23,15 @@ from ..delivered_code_package import (
 )
 from ..offer_inquiry_service import (
     inquiries_by_offer_id,
+    notify_consultant_request_matched,
     public_request_url,
+    sanitize_console_readonly_return_url,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
 )
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..code_asset_access import user_may_copy_download_request_assets
-from ..request_hub_access import consultant_has_request_offer
+from ..request_hub_access import consultant_has_request_offer, consultant_is_matched_on_request
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..paid_tier import (
     paid_engagement_is_active,
@@ -842,6 +845,19 @@ def _collect_rfp_unified_hub_ctx(
         owner_user_id=int(rfp.user_id),
     )
 
+    hub_rfp_ai_chat_enabled = False
+    if not readonly_console:
+        hub_rfp_ai_chat_enabled = (
+            int(user.id) == int(rfp.user_id)
+            or getattr(user, "is_admin", False)
+            or (
+                getattr(user, "is_consultant", False)
+                and consultant_is_matched_on_request(
+                    db, consultant_user_id=user.id, request_kind="rfp", request_id=int(rfp.id)
+                )
+            )
+        )
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
@@ -888,6 +904,10 @@ def _collect_rfp_unified_hub_ctx(
         "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
         "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
         "request_offer_inquiry_reply_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/inquiry-reply",
+        "hub_rfp_ai_chat_enabled": hub_rfp_ai_chat_enabled,
+        "hub_readonly_return_url": (
+            f"/rfp/{rfp.id}/console-readonly?phase={display_phase}" if readonly_console else None
+        ),
     }
     ctx.update(delivered_fields)
 
@@ -911,12 +931,18 @@ def _collect_rfp_unified_hub_ctx(
             }
         )
     else:
-        follow_msgs = sorted(
+        follow_raw = sorted(
             list(rfp.followup_messages or []),
             key=lambda m: (
                 followup_created_at_sort_key(m, fallback=rfp.created_at),
                 getattr(m, "id", 0) or 0,
             ),
+        )
+        follow_msgs = filter_followup_messages_for_viewer(
+            follow_raw,
+            request_owner_id=int(rfp.user_id),
+            viewer_user_id=int(user.id),
+            viewer_is_admin=bool(getattr(user, "is_admin", False)),
         )
         followup_turns = pair_followup_turn_messages(follow_msgs)
         snap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)
@@ -1008,6 +1034,7 @@ def rfp_offer_match(
         return RedirectResponse(url="/rfp", status_code=302)
     offer = (
         db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
         .filter(
             models.RequestOffer.id == offer_id,
             models.RequestOffer.request_kind == "rfp",
@@ -1020,17 +1047,32 @@ def rfp_offer_match(
     if (offer.status or "") == "matched":
         offer.status = "offered"
         offer.matched_at = None
+        offer.match_notice_pending = False
         db.add(offer)
         db.commit()
         return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
     db.query(models.RequestOffer).filter(
         models.RequestOffer.request_kind == "rfp",
         models.RequestOffer.request_id == rfp_id,
-    ).update({"status": "offered", "matched_at": None}, synchronize_session=False)
+    ).update(
+        {"status": "offered", "matched_at": None, "match_notice_pending": False},
+        synchronize_session=False,
+    )
     offer.status = "matched"
     offer.matched_at = datetime.utcnow()
+    offer.match_notice_pending = True
     db.add(offer)
     db.commit()
+    title = (rfp.title or "").strip() or f"RFP #{rfp_id}"
+    c = offer.consultant
+    if c:
+        notify_consultant_request_matched(
+            request=request,
+            consultant=c,
+            request_kind="rfp",
+            request_id=rfp_id,
+            request_title=title,
+        )
     return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
 
 
@@ -1064,6 +1106,7 @@ def rfp_offer_inquiry_post(
     detail = public_request_url(request, f"/rfp/{rfp_id}?phase=proposal")
     err, _row = send_offer_inquiry_from_owner(
         db,
+        request=request,
         author=user,
         offer=offer,
         consultant=offer.consultant,
@@ -1084,6 +1127,7 @@ def rfp_offer_inquiry_reply_post(
     offer_id: int,
     request: Request,
     body: str = Form(""),
+    return_hub: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -1113,6 +1157,7 @@ def rfp_offer_inquiry_reply_post(
     detail = public_request_url(request, f"/rfp/{rfp_id}?phase=proposal")
     err, _row = send_consultant_offer_inquiry_reply(
         db,
+        request=request,
         consultant=user,
         offer=offer,
         owner=owner,
@@ -1120,7 +1165,8 @@ def rfp_offer_inquiry_reply_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    base = rfp_hub_url(rfp_id, "proposal")
+    safe = sanitize_console_readonly_return_url(return_hub)
+    base = safe if safe else rfp_hub_url(rfp_id, "proposal")
     sep = "&" if "?" in base else "?"
     if err:
         return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}", status_code=303)
@@ -1179,6 +1225,23 @@ def rfp_hub_chat_post(
         return RedirectResponse(url="/login", status_code=302)
     rfp = rfp_owned_only(db, user_id=user.id, rfp_id=rfp_id)
     if not rfp:
+        rfp = rfp_for_owner_or_admin(
+            db,
+            user=user,
+            rfp_id=rfp_id,
+            load_messages=False,
+            load_fs_supplements=False,
+            load_followup_messages=False,
+        )
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    allowed = int(user.id) == int(rfp.user_id) or getattr(user, "is_admin", False) or (
+        getattr(user, "is_consultant", False)
+        and consultant_is_matched_on_request(
+            db, consultant_user_id=user.id, request_kind="rfp", request_id=int(rfp_id)
+        )
+    )
+    if not allowed:
         return RedirectResponse(url="/", status_code=302)
 
     msg, verr = validate_rfp_user_message(message)
@@ -1196,17 +1259,23 @@ def rfp_hub_chat_post(
             status_code=303,
         )
 
-    prior = (
+    prior_all = (
         db.query(models.RfpFollowupMessage)
         .filter(models.RfpFollowupMessage.rfp_id == rfp.id)
         .order_by(models.RfpFollowupMessage.created_at.asc())
         .all()
     )
+    prior = filter_followup_messages_for_viewer(
+        prior_all,
+        request_owner_id=int(rfp.user_id),
+        viewer_user_id=int(user.id),
+        viewer_is_admin=bool(getattr(user, "is_admin", False)),
+    )
 
     rfp_ctx = (
         db.query(models.RFP)
         .options(joinedload(models.RFP.messages))
-        .filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id)
+        .filter(models.RFP.id == rfp_id, models.RFP.user_id == rfp.user_id)
         .first()
     )
     if not rfp_ctx:
@@ -1226,8 +1295,11 @@ def rfp_hub_chat_post(
     except Exception:
         reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 
-    db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="user", content=msg))
-    db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="assistant", content=reply))
+    tid = int(user.id)
+    db.add(models.RfpFollowupMessage(rfp_id=rfp.id, role="user", content=msg, thread_user_id=tid))
+    db.add(
+        models.RfpFollowupMessage(rfp_id=rfp.id, role="assistant", content=reply, thread_user_id=tid)
+    )
     if not getattr(user, "is_admin", False):
         record_ai_inquiry_user_turn(db, user.id, "rfp", rfp.id, ledger_after=used_ai + 1)
     db.commit()
