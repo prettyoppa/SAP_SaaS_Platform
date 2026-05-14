@@ -1,12 +1,16 @@
-{% if fs_stat == 'failed' %}
-<div class="alert alert-danger small mb-3">
-  <div class="fw-semibold mb-1">FS 생성 실패</div>
-  <pre class="mb-0 small text-wrap" style="white-space:pre-wrap;">{{ ir.fs_error or '알 수 없는 오류' }}</pre>
+<div class="interview-summary-body pt-0">
+  {% if fs_stat == 'failed' %}
+  <div class="alert alert-danger small mb-3">
+    <div class="fw-semibold mb-1">FS 생성 실패</div>
+    <pre class="mb-0 small text-wrap" style="white-space:pre-wrap;">{{ ir.fs_error or '알 수 없는 오류' }}</pre>
+  </div>
+  {% elif fs_busy %}
+  <p class="text-muted small mb-3"><span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>FS 생성 중입니다. 다른 화면으로 이동해도 서버에서 계속되며, 완료 후 새로고침하면 표시됩니다.</p>
+  {% elif fs_html %}
+  <div class="proposal-body proposal-prose border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;">
+    {{ fs_html | safe }}
+  </div>
+  {% else %}
+  <p class="text-muted small mb-0">FS가 아직 없습니다. 제안서가 준비된 뒤 관리자가 FS 생성을 시작할 수 있습니다.</p>
+  {% endif %}
 </div>
-{% elif fs_html %}
-<div class="proposal-body proposal-prose border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;">
-  {{ fs_html | safe }}
-</div>
-{% else %}
-<p class="text-muted small mb-0">FS가 아직 없습니다. 제안서가 준비된 뒤 관리자가 FS 생성을 시작할 수 있습니다.</p>
-{% endif %}
