@@ -149,37 +149,98 @@ def legacy_markdown_from_package(pkg: dict[str, Any]) -> str:
     return "\n".join(lines).strip()
 
 
-def extract_json_object_from_llm_text(text: str) -> dict[str, Any] | None:
-    """펜스·전후 잡음에서 JSON object 추출."""
-    t = (text or "").strip()
-    if not t:
+def _find_json_object_end_brace_aware(s: str, start: int) -> int | None:
+    """
+    s[start] == '{' 일 때, JSON 문자열 내부의 { } 는 무시하고 짝이 맞는 닫는 } 인덱스.
+    (연동 납품 slots[].source 안에 파이썬 코드의 중괄호가 있어도 잘리지 않게 함)
+    """
+    if start < 0 or start >= len(s) or s[start] != "{":
         return None
-    m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", t, re.IGNORECASE)
-    if m:
-        t = m.group(1).strip()
-    try:
-        obj = json.loads(t)
-        return obj if isinstance(obj, dict) else None
-    except Exception:
-        pass
-    start = t.find("{")
-    if start < 0:
-        return None
-    depth = 0
-    for i in range(start, len(t)):
-        c = t[i]
-        if c == "{":
+    depth = 1
+    i = start + 1
+    in_string = False
+    escape = False
+    n = len(s)
+    while i < n:
+        c = s[i]
+        if escape:
+            escape = False
+            i += 1
+            continue
+        if in_string:
+            if c == "\\":
+                escape = True
+            elif c == '"':
+                in_string = False
+            i += 1
+            continue
+        if c == '"':
+            in_string = True
+        elif c == "{":
             depth += 1
         elif c == "}":
             depth -= 1
             if depth == 0:
-                chunk = t[start : i + 1]
-                try:
-                    obj = json.loads(chunk)
-                    return obj if isinstance(obj, dict) else None
-                except Exception:
-                    return None
+                return i
+        i += 1
     return None
+
+
+def extract_json_object_from_llm_text(text: str) -> dict[str, Any] | None:
+    """펜스·전후 잡음에서 JSON object 추출. 슬롯 source 내 중괄호·후행 잡음에 견고함."""
+    raw = (text or "").strip()
+    if not raw:
+        return None
+
+    def _try_parse(blob: str) -> dict[str, Any] | None:
+        b = (blob or "").strip()
+        if not b:
+            return None
+        decoder = json.JSONDecoder()
+        # 후행 설명 문장이 붙은 경우 첫 JSON 객체만 파싱
+        try:
+            obj, _end = decoder.raw_decode(b)
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            pass
+        try:
+            obj = json.loads(b)
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            pass
+        st = b.find("{")
+        if st < 0:
+            return None
+        end = _find_json_object_end_brace_aware(b, st)
+        if end is None or end <= st:
+            return None
+        chunk = b[st : end + 1]
+        try:
+            obj = json.loads(chunk)
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            return None
+
+    # 1) ```json ... ``` 펜스 안을 우선
+    m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw, re.IGNORECASE)
+    if m:
+        got = _try_parse(m.group(1))
+        if got:
+            return got
+
+    # 2) 본문 전체
+    got = _try_parse(raw)
+    if got:
+        return got
+
+    # 3) 첫 '{'부터 문자열-인식 괄호 매칭으로 한 번 더
+    st = raw.find("{")
+    if st < 0:
+        return None
+    end = _find_json_object_end_brace_aware(raw, st)
+    if end is None:
+        return None
+    return _try_parse(raw[st : end + 1])
 
 
 def merge_slots_json_with_extras(

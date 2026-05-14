@@ -232,6 +232,10 @@ requirements, manifest, test, doc, other
 
     data = extract_json_object_from_llm_text(out_rev)
     if not data:
+        data = extract_json_object_from_llm_text(out_slots)
+        if data:
+            _ph("검수본 JSON 파싱 실패 — 코더 초안 JSON으로 복구")
+    if not data:
         _ph("연동 JSON 파싱 실패 — 단일 마크다운 폴백")
         return None, _monolithic_integration_markdown(
             fs_body=fs_text,
