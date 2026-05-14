@@ -1,14 +1,17 @@
 """SAP 연동 개발 요청 라우터 (VBA, Python, 배치, API 등)."""
 from __future__ import annotations
 
+import io
 import json
 import os
+import zipfile
 from datetime import datetime
 from types import SimpleNamespace
+from typing import Any
 from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -71,12 +74,18 @@ from ..offer_inquiry_service import (
     send_offer_inquiry_from_owner,
 )
 from ..code_asset_access import user_may_copy_download_request_assets
+from ..delivered_code_package import (
+    integration_delivered_body_ready,
+    integration_delivered_package_has_body,
+    parse_integration_delivered_payload,
+)
 from ..request_hub_access import (
     apply_integration_hub_read_access,
     consultant_has_request_offer,
     consultant_is_matched_on_request,
 )
 from ..request_offer_visibility import visible_request_offers_for_viewer
+from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
 from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from ..paid_tier import user_can_operate_delivery
@@ -99,6 +108,31 @@ from .rfp_router import (
 )
 
 router = APIRouter()
+
+
+def _hub_integration_delivered_fields(ir: models.IntegrationRequest) -> dict[str, Any]:
+    """통합 허브: 연동 납품 JSON 슬롯 또는 레거시 단일 마크다운 미리보기."""
+    raw_pkg = parse_integration_delivered_payload(getattr(ir, "delivered_code_payload", None))
+    has_pkg = bool(raw_pkg and integration_delivered_package_has_body(raw_pkg))
+    dc_ready = (getattr(ir, "delivered_code_status", None) or "").strip() == "ready"
+    txt = (getattr(ir, "delivered_code_text", None) or "").strip()
+    delivered_package = raw_pkg if has_pkg else None
+    delivered_code_html = ""
+    if dc_ready and txt and not has_pkg:
+        delivered_code_html = _markdown_to_html(ir.delivered_code_text or "")
+    impl_html = ""
+    test_html = ""
+    if delivered_package:
+        impl_html = _markdown_to_html(delivered_package.get("implementation_guide_md") or "")
+        test_html = _markdown_to_html(delivered_package.get("test_scenarios_md") or "")
+    has_delivered_preview = bool(dc_ready and (has_pkg or bool(txt)))
+    return {
+        "delivered_package": delivered_package,
+        "delivered_code_html": delivered_code_html,
+        "delivered_impl_guide_html": impl_html,
+        "delivered_test_scenarios_html": test_html,
+        "has_delivered_preview": has_delivered_preview,
+    }
 
 
 def _integration_impl_ui_ctx(db: Session) -> dict:
@@ -1881,9 +1915,8 @@ def _collect_integration_unified_hub_ctx(
     fs_html = ""
     if fs_stat == "ready" and (getattr(ir, "fs_text", None) or "").strip():
         fs_html = _markdown_to_html(ir.fs_text)
-    delivered_code_html = ""
-    if dc_stat == "ready" and (getattr(ir, "delivered_code_text", None) or "").strip():
-        delivered_code_html = _markdown_to_html(ir.delivered_code_text)
+
+    dc_hub = _hub_integration_delivered_fields(ir)
 
     fs_busy = fs_stat == "generating"
     dc_busy = dc_stat == "generating"
@@ -1995,7 +2028,7 @@ def _collect_integration_unified_hub_ctx(
         "hub_proposal_generating": hub_proposal_generating,
         "proposal_html": proposal_html,
         "fs_html": fs_html,
-        "delivered_code_html": delivered_code_html,
+        **dc_hub,
         "fs_stat": fs_stat,
         "dc_stat": dc_stat,
         "fs_busy": fs_busy,
@@ -2064,6 +2097,70 @@ def integration_generation_status(req_id: int, request: Request, db: Session = D
             "delivered_code_error": getattr(ir, "delivered_code_error", None) or "",
         },
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/integration/{req_id}/delivered-code/download")
+def integration_delivered_code_download(req_id: int, request: Request, db: Session = Depends(get_db)):
+    """연동 납품: JSON 슬롯이면 ZIP, 레거시면 단일 텍스트."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
+    )
+    ir = q.first()
+    if not ir:
+        return RedirectResponse(url="/", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="integration",
+        request_id=req_id,
+        owner_user_id=int(ir.user_id),
+    ):
+        return RedirectResponse(url="/", status_code=302)
+    if not integration_delivered_body_ready(ir):
+        return RedirectResponse(url=integration_hub_url(req_id, "devcode"), status_code=302)
+    pkg = parse_integration_delivered_payload(getattr(ir, "delivered_code_payload", None))
+    if pkg and integration_delivered_package_has_body(pkg):
+        buf = io.BytesIO()
+        used_names: set[str] = set()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(
+                "IMPLEMENTATION_GUIDE.md",
+                (pkg.get("implementation_guide_md") or "").encode("utf-8"),
+            )
+            zf.writestr(
+                "TEST_SCENARIOS.md",
+                (pkg.get("test_scenarios_md") or "").encode("utf-8"),
+            )
+            for idx, sl in enumerate(pkg.get("slots") or []):
+                if not isinstance(sl, dict):
+                    continue
+                base_fn = (str(sl.get("filename") or f"slot_{idx + 1}.txt")).strip() or f"slot_{idx + 1}.txt"
+                fn = base_fn
+                if fn in used_names:
+                    stem = base_fn.rsplit(".", 1)[0] if "." in base_fn else base_fn
+                    ext = base_fn.rsplit(".", 1)[-1] if "." in base_fn else "txt"
+                    fn = f"{idx + 1:02d}_{stem}.{ext}"
+                used_names.add(fn)
+                zf.writestr(fn, (sl.get("source") or "").encode("utf-8"))
+        body = buf.getvalue()
+        fname = delivered_code_zip_basename(None, getattr(ir, "title", None))
+        return Response(
+            content=body,
+            media_type="application/zip",
+            headers={"Content-Disposition": content_disposition_attachment(fname)},
+        )
+    body = (ir.delivered_code_text or "").encode("utf-8")
+    tit = sanitize_path_component((ir.title or "integration")[:80], 80)
+    fname = f"INT_DELIVERED_{tit}.md"
+    return Response(
+        content=body,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
 
 

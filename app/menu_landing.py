@@ -9,7 +9,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
-from .delivered_code_package import rfp_delivered_body_ready
+from .delivered_code_package import integration_delivered_body_ready
 from .rfp_landing import (
     BUCKET_ORDER,
     TILE_ORDER_WITH_ALL,
@@ -104,7 +104,7 @@ def _integration_request_landing_bucket(ir: models.IntegrationRequest) -> str:
     """연동 요청(IntegrationRequest) 본문 필드만으로 단계 분류 — rfp_landing_bucket과 동일 우선순위."""
     fs_s = ((getattr(ir, "fs_status", None) or "none").strip().lower() or "none")
     dc_s = ((getattr(ir, "delivered_code_status", None) or "none").strip().lower() or "none")
-    dc_ok = rfp_delivered_body_ready(ir)
+    dc_ok = integration_delivered_body_ready(ir)
     fs_ok = fs_s == "ready" and (getattr(ir, "fs_text", None) or "").strip()
     if dc_ok or fs_ok:
         return "delivery"

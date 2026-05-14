@@ -219,6 +219,7 @@ class IntegrationRequest(Base):
     fs_job_log = Column(Text, nullable=True)
     delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
     delivered_code_text = Column(Text, nullable=True)
+    delivered_code_payload = Column(Text, nullable=True)  # JSON: 파일 슬롯 + 가이드·테스트 (연동 납품)
     delivered_code_generated_at = Column(DateTime, nullable=True)
     delivered_code_error = Column(Text, nullable=True)
     delivered_job_log = Column(Text, nullable=True)

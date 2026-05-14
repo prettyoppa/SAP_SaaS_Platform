@@ -115,6 +115,7 @@ def _run_migrations():
         ("integration_requests", "fs_job_log", "TEXT", "TEXT"),
         ("integration_requests", "delivered_code_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
         ("integration_requests", "delivered_code_text", "TEXT", "TEXT"),
+        ("integration_requests", "delivered_code_payload", "TEXT", "TEXT"),
         ("integration_requests", "delivered_code_generated_at", "DATETIME", "TIMESTAMP"),
         ("integration_requests", "delivered_code_error", "TEXT", "TEXT"),
         ("integration_requests", "delivered_job_log", "TEXT", "TEXT"),

@@ -1,12 +1,80 @@
-{% if dc_stat == 'failed' %}
-<div class="alert alert-danger small mb-3">
-  <div class="fw-semibold mb-1">구현 산출물 생성 실패</div>
-  <pre class="mb-0 small text-wrap" style="white-space:pre-wrap;">{{ ir.delivered_code_error or '알 수 없는 오류' }}</pre>
+<div class="interview-summary-body pt-0">
+  {% if dc_stat == 'failed' %}
+  <div class="alert alert-danger small mb-3">
+    <div class="fw-semibold mb-1">구현 산출물 생성 실패</div>
+    <pre class="mb-0 small text-wrap" style="white-space:pre-wrap;">{{ ir.delivered_code_error or '알 수 없는 오류' }}</pre>
+  </div>
+  {% endif %}
+
+  {% if dc_busy %}
+  <p class="text-muted small mb-3"><span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>개발코드 생성 중입니다. 다른 화면으로 이동해도 서버에서 계속되며, 완료 후 새로고침하면 표시됩니다.</p>
+  {% endif %}
+
+  {% if delivered_package and delivered_package.slots %}
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · 파일별 산출</h5>
+    {% if code_asset_unlocked|default(false) %}
+    <a href="/integration/{{ ir.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
+       download data-no-busy="true">
+      <i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)
+    </a>
+    {% else %}
+    <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)</span>
+    {% endif %}
+  </div>
+  <p class="small text-muted mb-3">스크립트·모듈·설정이 슬롯(파일) 단위로 분리되어 있습니다. 납품 전 반드시 검수·보안 점검을 수행하세요.</p>
+
+  {% for sl in delivered_package.slots %}
+  <div class="reference-code-program-box border rounded {% if not loop.last %}mb-3{% endif %} overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
+       style="border-color:var(--border)!important;background:var(--surface2);">
+    <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
+         style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
+      <span class="badge rounded-pill bg-secondary" style="font-size:.72rem;">{{ sl.role or 'other' }}</span>
+      <span class="fw-semibold font-monospace small">{{ sl.filename or '—' }}</span>
+      {% if sl.title_ko %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ sl.title_ko }}</span>{% endif %}
+    </div>
+    <div class="p-0">
+      <pre class="small mb-0 p-3 font-monospace text-wrap" style="max-height:28rem;overflow:auto;background:var(--surface);white-space:pre-wrap;">{{ sl.source or '' }}</pre>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if delivered_impl_guide_html %}
+  <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">
+    <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">구현·운영 가이드</summary>
+    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
+      {{ delivered_impl_guide_html | safe }}
+    </div>
+  </details>
+  {% endif %}
+
+  {% if delivered_test_scenarios_html %}
+  <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">
+    <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">테스트 시나리오</summary>
+    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
+      {{ delivered_test_scenarios_html | safe }}
+    </div>
+  </details>
+  {% endif %}
+
+  {% elif delivered_code_html %}
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · Markdown</h5>
+    {% if code_asset_unlocked|default(false) %}
+    <a href="/integration/{{ ir.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
+       download data-no-busy="true">
+      <i class="fa-solid fa-download me-1"></i>납품 다운로드
+    </a>
+    {% else %}
+    <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-download me-1"></i>납품 다운로드</span>
+    {% endif %}
+  </div>
+  <div class="proposal-card mb-0">
+    <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ delivered_code_html | safe }}</div>
+  </div>
+  {% elif fs_stat == 'ready' and not dc_busy %}
+  <p class="text-muted small mb-0">구현 산출물은 FS 준비 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>
+  {% elif fs_stat != 'ready' and not dc_busy %}
+  <p class="text-muted small mb-0">기능명세(FS)가 준비된 뒤 개발코드를 생성할 수 있습니다.</p>
+  {% endif %}
 </div>
-{% elif delivered_code_html %}
-<div class="proposal-body proposal-prose border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;">
-  {{ delivered_code_html | safe }}
-</div>
-{% else %}
-<p class="text-muted small mb-0">구현 가이드(마크다운)가 아직 없습니다. FS가 준비되면 관리자가 생성을 시작할 수 있습니다.</p>
-{% endif %}
