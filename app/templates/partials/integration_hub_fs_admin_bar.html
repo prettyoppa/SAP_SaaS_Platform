@@ -10,7 +10,7 @@
     <form method="post" action="/admin/integration/{{ ir.id }}/delivery/code-start" class="d-inline"
           data-busy-agents='[{"agentKo":"「구현」","doingKo":"FS를 바탕으로 구현 가이드·스켈레톤을 작성하고 있습니다","agentEn":"「Implementation」","doingEn":"drafting implementation guide from the FS"}]'>
       <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
-        {% if delivered_code_html %}구현 산출물 재생성{% else %}구현 산출물 생성 시작{% endif %}
+        {% if has_delivered_preview|default(false) %}구현 산출물 재생성{% else %}구현 산출물 생성 시작{% endif %}
       </button>
     </form>
   </div>

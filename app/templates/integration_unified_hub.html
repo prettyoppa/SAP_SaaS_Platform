@@ -194,7 +194,7 @@
         <span class="small text-muted">(구현 가이드·스켈레톤)</span>
         {% if dc_busy %}
         <span class="badge bg-info text-dark ms-1" data-i18n="hub.dcGen">생성 중</span>
-        {% elif delivered_code_html %}
+        {% elif has_delivered_preview|default(false) %}
         <span class="badge bg-success ms-1" data-i18n="hub.dcReady">준비됨</span>
         {% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>

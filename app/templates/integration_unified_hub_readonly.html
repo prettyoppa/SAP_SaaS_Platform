@@ -95,6 +95,8 @@
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
       <div class="rfp-hub-phase-body">
+        {# 콘솔·임베드 읽기 전용이어도 납품 운영자(관리자·컨설턴트)는 FS/구현 산출물 생성·재생성과 동일 UI 필요 #}
+        {% include 'partials/integration_hub_fs_admin_bar.html' %}
         {% include 'partials/integration_hub_fs_body_flat.html' %}
       </div>
     </details>
