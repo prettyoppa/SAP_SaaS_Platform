@@ -702,3 +702,12 @@ def build_integration_delivered_zip_bytes(pkg: dict[str, Any], *, impl_codes: li
         for path, raw in iter_integration_delivered_zip_members(pkg, impl_codes=impl_codes):
             zf.writestr(path.replace("\\", "/"), raw)
     return buf.getvalue()
+
+
+def build_integration_legacy_delivered_zip_bytes(*, folder_name: str, markdown_body: str) -> bytes:
+    """JSON 슬롯 없이 단일 마크다운(폴백 납품)만 있을 때 — DELIVERED.md 하나를 폴더로 묶은 ZIP."""
+    root = sanitize_path_component(folder_name, 48) or "integration_delivery"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"{root}/DELIVERED.md", (markdown_body or "").encode("utf-8"))
+    return buf.getvalue()

@@ -59,16 +59,17 @@
 
   {% elif delivered_code_html %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-    <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · Markdown</h5>
+    <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · Markdown (ZIP)</h5>
     {% if code_asset_unlocked|default(false) %}
     <a href="/integration/{{ ir.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">
-      <i class="fa-solid fa-download me-1"></i>납품 다운로드
+      <i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)
     </a>
     {% else %}
-    <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-download me-1"></i>납품 다운로드</span>
+    <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)</span>
     {% endif %}
   </div>
+  <p class="small text-muted mb-2">JSON 슬롯 생성이 아닌 단일 문서로 납품된 경우입니다. ZIP 안의 <code class="small">DELIVERED.md</code>를 확인하세요.</p>
   <div class="proposal-card mb-0">
     <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ delivered_code_html | safe }}</div>
   </div>

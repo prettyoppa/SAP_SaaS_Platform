@@ -74,6 +74,7 @@ from ..offer_inquiry_service import (
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..delivered_code_package import (
     build_integration_delivered_zip_bytes,
+    build_integration_legacy_delivered_zip_bytes,
     integration_delivered_body_ready,
     integration_delivered_package_has_body,
     parse_integration_delivered_payload,
@@ -2101,7 +2102,7 @@ def integration_generation_status(req_id: int, request: Request, db: Session = D
 
 @router.get("/integration/{req_id}/delivered-code/download")
 def integration_delivered_code_download(req_id: int, request: Request, db: Session = Depends(get_db)):
-    """연동 납품: JSON 슬롯이면 ZIP, 레거시면 단일 텍스트."""
+    """연동 납품: JSON 슬롯이면 전체 ZIP, 레거시(단일 마크다운)도 DELIVERED.md 를 담은 ZIP."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -2132,14 +2133,25 @@ def integration_delivered_code_download(req_id: int, request: Request, db: Sessi
             media_type="application/zip",
             headers={"Content-Disposition": content_disposition_attachment(fname)},
         )
-    body = (ir.delivered_code_text or "").encode("utf-8")
-    tit = sanitize_path_component((ir.title or "integration")[:80], 80)
-    fname = f"INT_DELIVERED_{tit}.md"
-    return Response(
-        content=body,
-        media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": content_disposition_attachment(fname)},
-    )
+    md = (ir.delivered_code_text or "").strip()
+    if md:
+        pid = ""
+        if isinstance(pkg, dict):
+            raw_pid = pkg.get("program_id")
+            if raw_pid is not None:
+                pid = str(raw_pid).strip()
+        folder = pid or (ir.title or "integration")[:120]
+        body = build_integration_legacy_delivered_zip_bytes(folder_name=folder, markdown_body=md)
+        fname = delivered_code_zip_basename(
+            pid if pid else None,
+            getattr(ir, "title", None),
+        )
+        return Response(
+            content=body,
+            media_type="application/zip",
+            headers={"Content-Disposition": content_disposition_attachment(fname)},
+        )
+    return RedirectResponse(url=integration_hub_url(req_id, "devcode"), status_code=302)
 
 
 @router.get("/integration/{req_id}/console-readonly", response_class=HTMLResponse)
