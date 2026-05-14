@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import io
 import json
 import re
+import zipfile
 from typing import Any
+
+from .rfp_download_names import sanitize_path_component
 
 PACKAGE_VERSION = 1
 
@@ -251,13 +255,20 @@ _INTEGRATION_EXT = (
 
 
 def _safe_filename_integration(name: str, idx: int) -> str:
-    raw = (name or "").strip() or f"artifact_{idx + 1}.py"
+    tail = (name or "").strip().replace("\\", "/").split("/")[-1] or f"artifact_{idx + 1}.py"
+    # strip("._") 은 ".env.example", "__init__.py" 를 망가뜨리므로 알려진 이름은 별도 처리
+    if tail in (".env.example", ".env.sample", "__init__.py"):
+        raw = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", tail)
+        if len(raw) > 120:
+            raw = raw[:120]
+        return raw or f"artifact_{idx + 1}.py"
+    raw = tail or f"artifact_{idx + 1}.py"
     raw = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", raw)
-    raw = re.sub(r"\s+", "_", raw).strip("._") or f"artifact_{idx + 1}.py"
+    raw = re.sub(r"\s+", "_", raw).strip() or f"artifact_{idx + 1}.py"
     if len(raw) > 120:
         if "." in raw:
             stem, ext = raw.rsplit(".", 1)
-            raw = stem[:110].rstrip("._") + "." + ext[:8]
+            raw = stem[:110].rstrip(".") + "." + ext[:8]
         else:
             raw = raw[:120]
     lower = raw.lower()
@@ -423,3 +434,271 @@ def merge_integration_slots_json_with_extras(
     base["implementation_guide_md"] = (implementation_guide_md or "").strip()
     base["test_scenarios_md"] = sanitize_test_scenarios_markdown(test_scenarios_md or "")
     return normalize_integration_delivered_package(base)
+
+
+# --- Python 스크립트 연동 납품: 슬롯 보강 + ZIP 프로젝트 레이아웃 ---
+
+INTEGRATION_IMPL_PYTHON_SCRIPT = "python_script"
+
+
+def integration_impl_codes_include_python(impl_codes: list[str] | None) -> bool:
+    if not impl_codes:
+        return False
+    return any((c or "").strip().lower() == INTEGRATION_IMPL_PYTHON_SCRIPT for c in impl_codes)
+
+
+def _integration_slot_filenames_lower(slots: list[Any]) -> set[str]:
+    out: set[str] = set()
+    for sl in slots or []:
+        if not isinstance(sl, dict):
+            continue
+        fn = (str(sl.get("filename") or "")).strip().lower()
+        if not fn:
+            continue
+        out.add(fn)
+        out.add(fn.replace("\\", "/").split("/")[-1])
+    return out
+
+
+def _default_python_readme_ko(*, request_title: str, program_id: str) -> str:
+    t = (request_title or "").strip() or "연동 개발 요청"
+    pid = (program_id or "").strip() or "project"
+    return (
+        f"# {t}\n\n"
+        "이 폴더는 **Catchy(연동 개발)** 납품 자동생성 결과입니다. "
+        f"(`program_id`: `{pid}`)\n\n"
+        "## 사전 요구 사항\n\n"
+        "- **OS:** Windows 권장 (SAP GUI Scripting / `pywin32` 기준).\n"
+        "- **Python:** 3.10 이상 (3.11·3.12 호환 권장).\n"
+        "- **SAP GUI for Windows** 설치 및, 고객사 정책에 따른 Scripting 활성화.\n"
+        "- 64비트 Python과 64비트 SAP GUI 조합을 맞추세요.\n\n"
+        "## 설치\n\n"
+        "1. 이 ZIP을 원하는 경로에 풉니다.\n"
+        "2. 가상환경(선택, 권장):\n\n"
+        "```text\n"
+        "python -m venv .venv\n"
+        ".venv/Scripts/activate\n"
+        "```\n\n"
+        "3. 의존성 설치:\n\n"
+        "```text\n"
+        "pip install -r requirements.txt\n"
+        "```\n\n"
+        "4. 환경 변수: `.env.example`을 참고해 **`.env`** 파일을 만들고 값을 채웁니다. "
+        "(저장소에 **비밀번호를 커밋하지 마세요**.)\n\n"
+        "## 실행\n\n"
+        "진입 스크립트는 보통 `src` 아래의 `main.py` 등입니다. 예:\n\n"
+        "```text\n"
+        "python -m src.main\n"
+        "```\n\n"
+        "또는 `docs/IMPLEMENTATION_GUIDE.md`에 적힌 명령을 따르세요.\n\n"
+        "## 배치·주기 실행\n\n"
+        "- **Windows 작업 스케줄러:** `python` 경로·스크립트·시작 위치(작업 폴더)를 지정합니다.\n"
+        "- **Linux:** `cron` 등록 시 해당 OS에서의 SAP 연동 방식(GUI 유무)을 별도 검토합니다.\n\n"
+        "## SAP Script / GUI 자동화\n\n"
+        "- 로그온·트랜잭션·변형(Variant)·다운로드는 고객사에서 허용한 방식을 따릅니다.\n"
+        "- **Script Recording** 산출물은 보안 정책에 맞게 별도 보관하고, 코드에서는 경로·로딩 방식만 다루는 것을 권장합니다.\n"
+        "- 미결 사항은 `docs/IMPLEMENTATION_GUIDE.md`의 오픈 이슈를 확인하세요.\n"
+    )
+
+
+def _default_python_requirements_txt() -> str:
+    return (
+        "# Catchy 연동 납품(파이썬) — 예시 의존성. FS 및 구현 가이드에 맞게 추가·삭제하세요.\n"
+        "# SAP GUI Windows 자동화에 흔히 사용됩니다.\n"
+        'pywin32>=306; platform_system=="Windows"\n'
+    )
+
+
+def _default_python_env_example() -> str:
+    return (
+        "# SAP 로그온 (예시 — 실제 비밀은 .env에만 두고 Git에 올리지 마세요)\n"
+        "SAP_CLIENT=100\n"
+        "SAP_USER=\n"
+        "SAP_PASSWORD=\n"
+        "\n"
+        "# 예: 리포트 변형(Variant)\n"
+        "SAP_REPORT_VARIANT=\n"
+        "\n"
+        "# 출력 디렉터리 (다운로드 파일 등)\n"
+        "OUTPUT_DIR=./out\n"
+    )
+
+
+def ensure_python_script_delivery_package(
+    pkg: dict[str, Any],
+    *,
+    request_title: str,
+    impl_codes: list[str] | None,
+) -> dict[str, Any]:
+    """
+    python_script 구현 형태일 때 README / requirements.txt / .env.example 슬롯을 보강한다.
+    동일 파일명이 이미 있으면 덮어쓰지 않는다.
+    """
+    if not pkg or not isinstance(pkg, dict):
+        return pkg
+    if (pkg.get("package_kind") or "").strip().lower() != "integration":
+        return pkg
+    if not integration_impl_codes_include_python(impl_codes):
+        return pkg
+
+    slots_in = pkg.get("slots")
+    if not isinstance(slots_in, list):
+        return pkg
+    slots: list[dict[str, str]] = [dict(s) for s in slots_in if isinstance(s, dict)]  # type: ignore[arg-type]
+
+    names = _integration_slot_filenames_lower(slots)
+
+    def _has(*candidates: str) -> bool:
+        for c in candidates:
+            if c.lower() in names:
+                return True
+        return False
+
+    if not _has("readme.md"):
+        slots.insert(
+            0,
+            {
+                "role": "doc",
+                "filename": "README.md",
+                "title_ko": "프로젝트 안내 및 실행 방법",
+                "source": _default_python_readme_ko(
+                    request_title=request_title,
+                    program_id=str(pkg.get("program_id") or ""),
+                ),
+            },
+        )
+        names = _integration_slot_filenames_lower(slots)
+
+    if not _has("requirements.txt"):
+        slots.append(
+            {
+                "role": "requirements",
+                "filename": "requirements.txt",
+                "title_ko": "의존성 목록",
+                "source": _default_python_requirements_txt(),
+            }
+        )
+        names = _integration_slot_filenames_lower(slots)
+
+    if not _has(".env.example", "env.example"):
+        slots.append(
+            {
+                "role": "env_sample",
+                "filename": ".env.example",
+                "title_ko": "환경 변수 예시",
+                "source": _default_python_env_example(),
+            }
+        )
+
+    has_pkg_init = any(
+        (str(s.get("filename") or "").replace("\\", "/").lower().endswith("__init__.py"))
+        for s in slots
+    )
+    if not has_pkg_init:
+        slots.append(
+            {
+                "role": "package_init",
+                "filename": "__init__.py",
+                "title_ko": "패키지 초기화",
+                "source": '"""Generated delivery package (src is a Python package)."""\n',
+            }
+        )
+
+    base = dict(pkg)
+    base["slots"] = slots
+    normalized = normalize_integration_delivered_package(base)
+    return normalized if normalized is not None else pkg
+
+
+def _zip_inner_path_for_python_project(root: str, role: str, filename: str) -> str:
+    """납품 ZIP 내 상대 경로 (항상 / 구분)."""
+    r = (root or "").strip().strip("/\\") or "python_project"
+    fn = (filename or "").strip().replace("\\", "/").lstrip("/")
+    if not fn:
+        fn = "artifact.py"
+    role_l = (role or "other").strip().lower()
+    if fn.lower().startswith("src/"):
+        return f"{r}/{fn}"
+
+    base_name = fn.split("/")[-1]
+    if base_name.lower() == "readme.md":
+        return f"{r}/README.md"
+    if base_name.lower() == "requirements.txt":
+        return f"{r}/requirements.txt"
+    if base_name.lower() in (".env.example", "env.example"):
+        return f"{r}/.env.example"
+
+    if role_l == "requirements":
+        return f"{r}/requirements.txt"
+    if role_l == "env_sample":
+        return f"{r}/.env.example"
+    if role_l == "doc":
+        if base_name.lower() == "readme.md":
+            return f"{r}/README.md"
+        return f"{r}/docs/{base_name}"
+    if role_l in ("entry_script", "module", "library", "package_init", "main_script"):
+        return f"{r}/src/{base_name}"
+    if role_l in ("config", "manifest"):
+        return f"{r}/config/{base_name}"
+    if role_l == "shell":
+        return f"{r}/scripts/{base_name}"
+    if role_l == "sql":
+        return f"{r}/sql/{base_name}"
+    if role_l == "test":
+        return f"{r}/tests/{base_name}"
+    return f"{r}/{base_name}"
+
+
+def iter_integration_delivered_zip_members(
+    pkg: dict[str, Any],
+    *,
+    impl_codes: list[str] | None,
+) -> list[tuple[str, bytes]]:
+    """
+    ZIP에 넣을 (아카이브 내 경로, UTF-8 bytes) 목록.
+    python_script 포함 시 `{program_id}/` 프로젝트 트리; 그 외는 기존 평면 구조.
+    """
+    out: list[tuple[str, bytes]] = []
+    ig = (pkg.get("implementation_guide_md") or "").encode("utf-8")
+    ts = (pkg.get("test_scenarios_md") or "").encode("utf-8")
+    slots = [s for s in (pkg.get("slots") or []) if isinstance(s, dict)]
+
+    if integration_impl_codes_include_python(impl_codes):
+        root = sanitize_path_component(str(pkg.get("program_id") or "python_project"), 48) or "python_project"
+        out.append((f"{root}/docs/IMPLEMENTATION_GUIDE.md", ig))
+        out.append((f"{root}/docs/TEST_SCENARIOS.md", ts))
+        used: set[str] = set()
+        for idx, sl in enumerate(slots):
+            role = str(sl.get("role") or "other")
+            base_fn = (str(sl.get("filename") or f"slot_{idx + 1}.txt")).strip() or f"slot_{idx + 1}.txt"
+            inner = _zip_inner_path_for_python_project(root, role, base_fn)
+            if inner in used:
+                stem = base_fn.rsplit(".", 1)[0] if "." in base_fn else base_fn
+                ext = base_fn.rsplit(".", 1)[-1] if "." in base_fn else "txt"
+                inner = f"{root}/src/{idx + 1:02d}_{stem}.{ext}"
+            used.add(inner)
+            out.append((inner, (str(sl.get("source") or "")).encode("utf-8")))
+        return out
+
+    out.append(("IMPLEMENTATION_GUIDE.md", ig))
+    out.append(("TEST_SCENARIOS.md", ts))
+    used_names: set[str] = set()
+    for idx, sl in enumerate(slots):
+        base_fn = (str(sl.get("filename") or f"slot_{idx + 1}.txt")).strip() or f"slot_{idx + 1}.txt"
+        fn = base_fn
+        if fn in used_names:
+            stem = base_fn.rsplit(".", 1)[0] if "." in base_fn else base_fn
+            ext = base_fn.rsplit(".", 1)[-1] if "." in base_fn else "txt"
+            fn = f"{idx + 1:02d}_{stem}.{ext}"
+        used_names.add(fn)
+        out.append((fn, (str(sl.get("source") or "")).encode("utf-8")))
+    return out
+
+
+def build_integration_delivered_zip_bytes(pkg: dict[str, Any], *, impl_codes: list[str] | None) -> bytes:
+    """연동 납품 패키지 dict → ZIP 바이트."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path, raw in iter_integration_delivered_zip_members(pkg, impl_codes=impl_codes):
+            zf.writestr(path.replace("\\", "/"), raw)
+    return buf.getvalue()

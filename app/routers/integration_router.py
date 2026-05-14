@@ -1,10 +1,8 @@
 """SAP 연동 개발 요청 라우터 (VBA, Python, 배치, API 등)."""
 from __future__ import annotations
 
-import io
 import json
 import os
-import zipfile
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
@@ -75,6 +73,7 @@ from ..offer_inquiry_service import (
 )
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..delivered_code_package import (
+    build_integration_delivered_zip_bytes,
     integration_delivered_body_ready,
     integration_delivered_package_has_body,
     parse_integration_delivered_payload,
@@ -2125,30 +2124,9 @@ def integration_delivered_code_download(req_id: int, request: Request, db: Sessi
         return RedirectResponse(url=integration_hub_url(req_id, "devcode"), status_code=302)
     pkg = parse_integration_delivered_payload(getattr(ir, "delivered_code_payload", None))
     if pkg and integration_delivered_package_has_body(pkg):
-        buf = io.BytesIO()
-        used_names: set[str] = set()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr(
-                "IMPLEMENTATION_GUIDE.md",
-                (pkg.get("implementation_guide_md") or "").encode("utf-8"),
-            )
-            zf.writestr(
-                "TEST_SCENARIOS.md",
-                (pkg.get("test_scenarios_md") or "").encode("utf-8"),
-            )
-            for idx, sl in enumerate(pkg.get("slots") or []):
-                if not isinstance(sl, dict):
-                    continue
-                base_fn = (str(sl.get("filename") or f"slot_{idx + 1}.txt")).strip() or f"slot_{idx + 1}.txt"
-                fn = base_fn
-                if fn in used_names:
-                    stem = base_fn.rsplit(".", 1)[0] if "." in base_fn else base_fn
-                    ext = base_fn.rsplit(".", 1)[-1] if "." in base_fn else "txt"
-                    fn = f"{idx + 1:02d}_{stem}.{ext}"
-                used_names.add(fn)
-                zf.writestr(fn, (sl.get("source") or "").encode("utf-8"))
-        body = buf.getvalue()
-        fname = delivered_code_zip_basename(None, getattr(ir, "title", None))
+        impl_codes = [x.strip() for x in (getattr(ir, "impl_types", None) or "").split(",") if x.strip()]
+        body = build_integration_delivered_zip_bytes(pkg, impl_codes=impl_codes)
+        fname = delivered_code_zip_basename(pkg.get("program_id"), getattr(ir, "title", None))
         return Response(
             content=body,
             media_type="application/zip",

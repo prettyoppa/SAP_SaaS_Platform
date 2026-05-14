@@ -17,6 +17,7 @@ from .agent_playbook import (
     playbook_prompt_wrap,
 )
 from .database import SessionLocal
+from .delivered_code_package import ensure_python_script_delivery_package, legacy_markdown_from_integration_package
 from .devtype_catalog import format_integration_impl_types_for_llm
 from .integration_crew_adapter import integration_request_to_crew_rfp_dict
 from .routers.interview_router import _conversation_list_for_llm
@@ -184,6 +185,7 @@ def run_integration_deliverable_job(ir_id: int) -> None:
 
         from .agents.integration_deliverable_crew import generate_integration_deliverable_artifact
 
+        impl_codes = [x.strip() for x in (ir.impl_types or "").split(",") if x.strip()]
         pkg, legacy_md = generate_integration_deliverable_artifact(
             rfp_dict,
             fs_body,
@@ -192,7 +194,15 @@ def run_integration_deliverable_job(ir_id: int) -> None:
             impl,
             playbook_addon=_pb_g,
             phase_log=lambda m: append_integration_job_log(ir_id, "delivered_job_log", m),
+            impl_type_codes=impl_codes,
         )
+        if pkg:
+            pkg = ensure_python_script_delivery_package(
+                pkg,
+                request_title=(ir.title or "").strip(),
+                impl_codes=impl_codes,
+            )
+            legacy_md = legacy_markdown_from_integration_package(pkg)
         ir.delivered_code_text = (legacy_md or "").strip()
         ir.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None
         ir.delivered_code_status = "ready"

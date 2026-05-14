@@ -73,6 +73,7 @@ def generate_integration_deliverable_artifact(
     *,
     playbook_addon: str = "",
     phase_log: Callable[[str], None] | None = None,
+    impl_type_codes: list[str] | None = None,
 ) -> tuple[dict[str, Any] | None, str]:
     """
     연동 납품: JSON 슬롯 패키지 + 구현 가이드 + 테스트 (실패 시 단일 마크다운).
@@ -90,6 +91,18 @@ def generate_integration_deliverable_artifact(
     desc_snip = _truncate((rfp_dict.get("description") or ""), 12000)
     ref_snip = _truncate((rfp_dict.get("reference_code_for_agents") or ""), 8000)
     _pb = playbook_prompt_wrap(playbook_addon)
+
+    impl_lc = [x.strip().lower() for x in (impl_type_codes or []) if x.strip()]
+    py_addon = ""
+    if "python_script" in impl_lc:
+        py_addon = """
+### Python 스크립트 납품(구현 형태에 **python_script** 포함 — 추가 준수)
+- **README.md** (**doc** 슬롯, 한국어): ZIP 해제 위치, `python -m venv`, `pip install -r requirements.txt`, 환경 변수 로딩, **실행 명령 한 줄**, Windows 작업 스케줄러·배치 실행 시 주의사항.
+- **requirements.txt** (**requirements** 슬롯): FS에 맞는 패키지·최소 버전. SAP GUI 자동화(Windows) 시 `pywin32` 등이 필요할 수 있음을 반영.
+- **.env.example** (**env_sample** 슬롯): `SAP_CLIENT`, `SAP_USER` 등 **키만** 두고 비밀 값은 비우거나 placeholder.
+- **진입점**: `main.py` 등 **entry_script** 1개 이상. SAP Script Recording 적용·세션 제어·리포트 실행·파일 저장 로직은 **module** 슬롯으로 분리.
+- 고객 비밀번호·내부 URL·절대 경로를 소스에 하드코딩하지 말 것. FS·인터뷰의 프로그램명·변형·경로와 일치시킬 것.
+"""
 
     json_coder = Agent(
         role="비 ABAP 연동 시니어 개발자",
@@ -176,6 +189,7 @@ requirements, manifest, test, doc, other
 `filename`: 영문·숫자·언더스코어·점·하이픈; **실제 확장자** (.py .ps1 .sql .json .yaml .sh .md 등).
 `source`: 해당 파일 **전체** 내용(UTF-8 텍스트). JSON 문자열 이스케이프 준수.
 **구현 가이드·테스트 시나리오는 JSON에 넣지 않는다.**
+{py_addon}
 {_pb}""",
         agent=json_coder,
         expected_output="유효한 JSON 한 덩어리",
@@ -201,6 +215,12 @@ requirements, manifest, test, doc, other
 6. **한 슬롯에 여러 논리 파일을 합친 거대 문자열이 있으면** 역할별로 슬롯을 분할한다.
 7. 줄바꿈은 JSON 문자열 안에서 \\n 이스케이프.
 """
+            + (
+                "8. 구현 형태에 python_script가 있으면: README.md(doc), requirements.txt(requirements), "
+                ".env.example(env_sample) 슬롯이 있는지 확인하고, entry_script와 SAP GUI 자동화 로직(module) 분리를 유지한다.\n"
+                if "python_script" in impl_lc
+                else ""
+            )
         ),
         agent=json_reviewer,
         expected_output="파싱 가능한 JSON 한 덩어리",
