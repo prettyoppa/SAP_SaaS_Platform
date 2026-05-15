@@ -109,11 +109,12 @@
     if (!richEl) return;
     richEl.querySelectorAll('img').forEach(function (img) {
       var src = (img.getAttribute('src') || '').trim();
-      if (!src || src === 'about:blank') {
-        img.remove();
-        return;
-      }
-      if (src.indexOf('file:') === 0) {
+      if (
+        !src ||
+        src === 'about:blank' ||
+        src.indexOf('file:') === 0 ||
+        src.indexOf('blob:') === 0
+      ) {
         img.remove();
       }
     });
@@ -166,8 +167,22 @@
     );
 
     var range = pasteInsertRange;
-    range.deleteContents();
-    range.insertNode(img);
+    var inserted = false;
+    try {
+      if (
+        range &&
+        richEl.contains(range.commonAncestorContainer)
+      ) {
+        range.deleteContents();
+        range.insertNode(img);
+        inserted = true;
+      }
+    } catch (err) {
+      inserted = false;
+    }
+    if (!inserted) {
+      richEl.appendChild(img);
+    }
 
     var spacer = document.createElement('br');
     if (img.nextSibling) {
@@ -176,12 +191,21 @@
       img.parentNode.appendChild(spacer);
     }
 
-    range.setStartAfter(spacer);
-    range.collapse(true);
-    pasteInsertRange = range.cloneRange();
+    if (range && inserted) {
+      try {
+        range.setStartAfter(spacer);
+        range.collapse(true);
+        pasteInsertRange = range.cloneRange();
+      } catch (err2) {
+        pasteInsertRange = null;
+        capturePasteInsertRange();
+      }
+    } else {
+      capturePasteInsertRange();
+    }
 
     var sel = window.getSelection();
-    if (sel) {
+    if (sel && pasteInsertRange) {
       sel.removeAllRanges();
       sel.addRange(pasteInsertRange.cloneRange());
     }
@@ -189,19 +213,21 @@
 
   function collectImageBlobs(cd) {
     var blobs = [];
-    var seen = new Set();
+    var seen = new WeakSet();
 
     function pushFile(f) {
       if (!f || !f.type || f.type.indexOf('image/') !== 0) return;
-      var key = [f.name, f.size, f.lastModified, f.type].join('|');
-      if (seen.has(key)) return;
-      seen.add(key);
+      if (seen.has(f)) return;
+      seen.add(f);
       blobs.push(f);
     }
 
     if (cd.items) {
       for (var i = 0; i < cd.items.length; i++) {
-        pushFile(cd.items[i].getAsFile());
+        var item = cd.items[i];
+        if (item.kind === 'file') {
+          pushFile(item.getAsFile());
+        }
       }
     }
     if (cd.files && cd.files.length) {
@@ -283,16 +309,21 @@
     if (!blobs.length) return;
 
     e.preventDefault();
+    e.stopPropagation();
     hideAlert();
-    pasteInsertRange = null;
     capturePasteInsertRange();
+    removeBrokenImages();
 
-    processImageBlobsSequential(blobs).catch(function () {
-      showAlert('이미지를 붙여넣지 못했습니다.');
-      pasteInsertRange = null;
-      removeBrokenImages();
-      syncHidden();
-    });
+    processImageBlobsSequential(blobs)
+      .then(function () {
+        requestAnimationFrame(removeBrokenImages);
+      })
+      .catch(function () {
+        showAlert('이미지를 붙여넣지 못했습니다.');
+        pasteInsertRange = null;
+        removeBrokenImages();
+        syncHidden();
+      });
   }
 
   if (modeRich) modeRich.addEventListener('change', function () { if (modeRich.checked) setMode('html'); });
@@ -310,7 +341,7 @@
   }
 
   if (richEl) {
-    richEl.addEventListener('paste', onPaste);
+    richEl.addEventListener('paste', onPaste, true);
     richEl.addEventListener('input', function () {
       updateCharCount();
       syncHidden();

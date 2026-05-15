@@ -155,6 +155,12 @@ def _requirement_plain(row: models.AbapAnalysisRequest) -> str:
     return raw.strip()
 
 
+def _has_requirement_context(row: models.AbapAnalysisRequest) -> bool:
+    if _requirement_plain(row).strip():
+        return True
+    return any(e.get("inline_id") for e in _screenshot_entries(row))
+
+
 def _apply_requirement_body(
     row: models.AbapAnalysisRequest,
     user: models.User,
@@ -435,6 +441,7 @@ def _form_template_response(
     attachment_entries: Optional[list[dict]] = None,
     status_code: int = 200,
     form_chat_err: Optional[str] = None,
+    draft_saved: bool = False,
 ):
     modules = (
         db.query(models.SAPModule)
@@ -481,7 +488,7 @@ def _form_template_response(
                 "max_turns": snap_f["max_turns_display"],
                 "header_i18n": "chat.abapHeaderTitle",
                 "context_i18n": "chat.abapContextHelp",
-                "form_ready": bool(eff),
+                "form_ready": bool(eff) or _has_requirement_context(row_w),
             }
     else:
         ai_inquiry = {
@@ -506,6 +513,7 @@ def _form_template_response(
             "writing_tip": writing_tip,
             "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
             "ai_inquiry": ai_inquiry,
+            "draft_saved": draft_saved,
         },
         status_code=status_code,
     )
@@ -782,7 +790,10 @@ async def abap_analysis_create(
         raise
     db.refresh(row)
     if is_draft_save:
-        return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
+        return RedirectResponse(
+            url=f"/abap-analysis/{row.id}/edit?draft_saved=1",
+            status_code=302,
+        )
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
 
 
@@ -829,7 +840,10 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
     db.add(new_row)
     db.commit()
     db.refresh(new_row)
-    return RedirectResponse(url=f"/abap-analysis/{new_row.id}/edit", status_code=302)
+    return RedirectResponse(
+        url=f"/abap-analysis/{new_row.id}/edit?draft_saved=1",
+        status_code=302,
+    )
 
 
 @router.get("/{req_id}/edit", response_class=HTMLResponse)
@@ -839,6 +853,7 @@ def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends
     if not row or not row.is_draft:
         return RedirectResponse(url="/abap-analysis", status_code=302)
     chat_err = (request.query_params.get("chat_err") or "").strip() or None
+    draft_saved = (request.query_params.get("draft_saved") or "").strip() == "1"
     return _form_template_response(
         request,
         user,
@@ -847,6 +862,7 @@ def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends
         form=_abap_form_dict_from_row(row),
         ref_code_initial=_ref_initial_from_row(row),
         edit_row=row,
+        draft_saved=draft_saved,
         attachment_entries=_attachment_entries(row),
         form_chat_err=chat_err,
     )
@@ -1038,7 +1054,10 @@ async def abap_analysis_edit_save(
     db.add(row)
     db.commit()
     if is_draft_save:
-        return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
+        return RedirectResponse(
+            url=f"/abap-analysis/{row.id}/edit?draft_saved=1",
+            status_code=302,
+        )
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
 
 
@@ -1280,9 +1299,9 @@ def abap_analysis_chat_post(
         return RedirectResponse(url="/abap-analysis", status_code=303)
     chat_base = f"/abap-analysis/{req_id}/edit" if row.is_draft else f"/abap-analysis/{req_id}"
     eff_src = _effective_abap_source(row)
-    if not eff_src.strip():
+    if not eff_src.strip() and not _has_requirement_context(row):
         return RedirectResponse(
-            url=f"{chat_base}?chat_err={quote('코드가 없어 AI 문의를 시작할 수 없습니다.')}",
+            url=f"{chat_base}?chat_err={quote('요구사항 또는 ABAP 코드가 없어 AI 문의를 시작할 수 없습니다.')}",
             status_code=303,
         )
 
@@ -1575,7 +1594,10 @@ def abap_analysis_requirement_inline_image(
     if kind == "r2":
         if not r2_storage.is_configured():
             return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-        return RedirectResponse(url=r2_storage.presigned_get_url(ref, fname), status_code=302)
+        return RedirectResponse(
+            url=r2_storage.presigned_get_url(ref, fname, inline=True),
+            status_code=302,
+        )
     if not os.path.isfile(ref):
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     media = "image/png"
@@ -1584,7 +1606,7 @@ def abap_analysis_requirement_inline_image(
         media = "image/jpeg"
     elif low.endswith(".webp"):
         media = "image/webp"
-    return FileResponse(ref, media_type=media, filename=fname)
+    return FileResponse(ref, media_type=media, filename=fname, content_disposition_type="inline")
 
 
 @router.get("/{req_id}/requirement-screenshot")

@@ -8,7 +8,12 @@ function hoistDraftFloatLaunchers() {
 
     const chat = document.querySelector('.abap-float-chat');
     if (chat) {
-      chat.insertBefore(el, chat.firstChild);
+      const launcher = chat.querySelector('.abap-float-chat-launcher');
+      if (launcher) {
+        chat.insertBefore(el, launcher);
+      } else {
+        chat.appendChild(el);
+      }
       el.classList.add('draft-float-launcher--in-chat');
     } else {
       document.body.appendChild(el);

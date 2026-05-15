@@ -86,14 +86,21 @@ def delete_if_r2_uri(file_path: Optional[str]) -> None:
         pass
 
 
-def presigned_get_url(key: str, download_filename: str, expires_in: int = 3600) -> str:
+def presigned_get_url(
+    key: str,
+    download_filename: str,
+    expires_in: int = 3600,
+    *,
+    inline: bool = False,
+) -> str:
     bucket = os.environ["R2_BUCKET_NAME"]
+    disp = "inline" if inline else "attachment"
     return _client().generate_presigned_url(
         "get_object",
         Params={
             "Bucket": bucket,
             "Key": key,
-            "ResponseContentDisposition": f'attachment; filename="{download_filename}"',
+            "ResponseContentDisposition": f'{disp}; filename="{download_filename}"',
         },
         ExpiresIn=expires_in,
     )

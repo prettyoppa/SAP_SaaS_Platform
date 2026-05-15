@@ -20,7 +20,20 @@
         <div class="rfp-header mb-4">
           {% include 'partials/nav_prev_screen.html' %}
           <h2 class="rfp-title">SAP ABAP 분석·개선 요청</h2>
+          {% if edit_row %}
+          <p class="small text-muted mb-0 mt-2">
+            요청 ID <span class="badge bg-dark-subtle text-dark border font-monospace">{{ edit_row.id|request_no('ANA') }}</span>
+            <span class="ms-1">· 임시저장</span>
+          </p>
+          {% endif %}
         </div>
+
+        {% if draft_saved and edit_row %}
+        <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-circle-check me-2"></i>
+          <span>임시저장되었습니다. 요청 ID <strong class="font-monospace">{{ edit_row.id|request_no('ANA') }}</strong> — 이어서 작성하거나 나중에 목록에서 이 ID로 찾을 수 있습니다.</span>
+        </div>
+        {% endif %}
 
         {% if error == 'invalid_file' %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
@@ -178,7 +191,7 @@
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
 <script src="/static/js/file_preview.js?v=1"></script>
 <script src="/static/js/rfp_form.js?v=20260422rfpai"></script>
-<script src="/static/js/requirement_rich_editor.js?v=20260515c"></script>
+<script src="/static/js/requirement_rich_editor.js?v=20260515d"></script>
 {% if user and user.is_admin %}
 <script src="/static/js/writing_guides_admin.js?v=20260422wgmd"></script>
 {% endif %}
