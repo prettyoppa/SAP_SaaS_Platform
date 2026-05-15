@@ -77,7 +77,7 @@ from ..delivered_code_package import (
     build_integration_legacy_delivered_zip_bytes,
     integration_delivered_body_ready,
     integration_delivered_package_has_body,
-    parse_integration_delivered_payload,
+    resolve_integration_delivered_for_display,
 )
 from ..request_hub_access import (
     apply_integration_hub_read_access,
@@ -111,23 +111,31 @@ router = APIRouter()
 
 
 def _hub_integration_delivered_fields(ir: models.IntegrationRequest) -> dict[str, Any]:
-    """통합 허브: 연동 납품 JSON 슬롯 또는 레거시 단일 마크다운 미리보기."""
-    raw_pkg = parse_integration_delivered_payload(getattr(ir, "delivered_code_payload", None))
-    has_pkg = bool(raw_pkg and integration_delivered_package_has_body(raw_pkg))
+    """통합 허브: 구현가이드·테스트·파일별 슬롯 분리 표시(신규개발 납품 UX와 동일 계열)."""
     dc_ready = (getattr(ir, "delivered_code_status", None) or "").strip() == "ready"
     txt = (getattr(ir, "delivered_code_text", None) or "").strip()
-    delivered_package = raw_pkg if has_pkg else None
+    impl_codes = [x.strip() for x in (getattr(ir, "impl_types", None) or "").split(",") if x.strip()]
+    delivered_package = None
+    if dc_ready:
+        delivered_package = resolve_integration_delivered_for_display(
+            payload_raw=getattr(ir, "delivered_code_payload", None),
+            legacy_text=txt,
+            program_id_hint=(ir.title or "integration")[:48],
+            impl_codes=impl_codes,
+            request_title=(ir.title or "").strip(),
+        )
+    has_pkg = bool(delivered_package and integration_delivered_package_has_body(delivered_package))
     delivered_code_html = ""
     if dc_ready and txt and not has_pkg:
-        delivered_code_html = _markdown_to_html(ir.delivered_code_text or "")
+        delivered_code_html = _markdown_to_html(txt)
     impl_html = ""
     test_html = ""
-    if delivered_package:
+    if has_pkg and delivered_package:
         impl_html = _markdown_to_html(delivered_package.get("implementation_guide_md") or "")
         test_html = _markdown_to_html(delivered_package.get("test_scenarios_md") or "")
     has_delivered_preview = bool(dc_ready and (has_pkg or bool(txt)))
     return {
-        "delivered_package": delivered_package,
+        "delivered_package": delivered_package if has_pkg else None,
         "delivered_code_html": delivered_code_html,
         "delivered_impl_guide_html": impl_html,
         "delivered_test_scenarios_html": test_html,
@@ -2123,9 +2131,15 @@ def integration_delivered_code_download(req_id: int, request: Request, db: Sessi
         return RedirectResponse(url="/", status_code=302)
     if not integration_delivered_body_ready(ir):
         return RedirectResponse(url=integration_hub_url(req_id, "devcode"), status_code=302)
-    pkg = parse_integration_delivered_payload(getattr(ir, "delivered_code_payload", None))
+    impl_codes = [x.strip() for x in (getattr(ir, "impl_types", None) or "").split(",") if x.strip()]
+    pkg = resolve_integration_delivered_for_display(
+        payload_raw=getattr(ir, "delivered_code_payload", None),
+        legacy_text=(ir.delivered_code_text or "").strip(),
+        program_id_hint=(ir.title or "integration")[:48],
+        impl_codes=impl_codes,
+        request_title=(ir.title or "").strip(),
+    )
     if pkg and integration_delivered_package_has_body(pkg):
-        impl_codes = [x.strip() for x in (getattr(ir, "impl_types", None) or "").split(",") if x.strip()]
         body = build_integration_delivered_zip_bytes(pkg, impl_codes=impl_codes)
         fname = delivered_code_zip_basename(pkg.get("program_id"), getattr(ir, "title", None))
         return Response(

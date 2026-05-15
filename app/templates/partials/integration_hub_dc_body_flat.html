@@ -22,25 +22,10 @@
     <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)</span>
     {% endif %}
   </div>
-  <p class="small text-muted mb-3">스크립트·모듈·설정이 슬롯(파일) 단위로 분리되어 있습니다. 납품 전 반드시 검수·보안 점검을 수행하세요.</p>
-
-  {% for sl in delivered_package.slots %}
-  <div class="reference-code-program-box border rounded {% if not loop.last %}mb-3{% endif %} overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
-       style="border-color:var(--border)!important;background:var(--surface2);">
-    <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
-         style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
-      <span class="badge rounded-pill bg-secondary" style="font-size:.72rem;">{{ sl.role or 'other' }}</span>
-      <span class="fw-semibold font-monospace small">{{ sl.filename or '—' }}</span>
-      {% if sl.title_ko %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ sl.title_ko }}</span>{% endif %}
-    </div>
-    <div class="p-0">
-      <pre class="small mb-0 p-3 font-monospace text-wrap" style="max-height:28rem;overflow:auto;background:var(--surface);white-space:pre-wrap;">{{ sl.source or '' }}</pre>
-    </div>
-  </div>
-  {% endfor %}
+  <p class="small text-muted mb-3">구현·운영 가이드와 테스트는 아래 접이식 섹션에서, 실행·설정 파일은 파일별로 분리해 표시합니다.</p>
 
   {% if delivered_impl_guide_html %}
-  <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">
+  <details class="mb-3 border rounded" open style="border-color:var(--border)!important;background:var(--surface2);">
     <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">구현·운영 가이드</summary>
     <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
       {{ delivered_impl_guide_html | safe }}
@@ -57,9 +42,52 @@
   </details>
   {% endif %}
 
+  {% set doc_roles = ['doc', 'requirements', 'env_sample', 'config', 'manifest'] %}
+  {% set ns_doc = namespace(has=false) %}
+  {% for sl in delivered_package.slots %}
+    {% if sl.role in doc_roles %}{% set ns_doc.has = true %}{% endif %}
+  {% endfor %}
+  {% if ns_doc.has %}
+  <h6 class="small text-uppercase text-muted mb-2 mt-1">설정·문서</h6>
+  {% for sl in delivered_package.slots %}
+  {% if sl.role in doc_roles %}
+  <div class="reference-code-program-box border rounded mb-3 overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
+       style="border-color:var(--border)!important;background:var(--surface2);">
+    <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
+         style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
+      <span class="badge rounded-pill bg-secondary" style="font-size:.72rem;">{{ sl.role or 'other' }}</span>
+      <span class="fw-semibold font-monospace small">{{ sl.filename or '—' }}</span>
+      {% if sl.title_ko %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ sl.title_ko }}</span>{% endif %}
+    </div>
+    <div class="p-0">
+      <pre class="small mb-0 p-3 font-monospace text-wrap" style="max-height:28rem;overflow:auto;background:var(--surface);white-space:pre-wrap;">{{ sl.source or '' }}</pre>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+
+  <h6 class="small text-uppercase text-muted mb-2">실행·모듈 코드</h6>
+  {% for sl in delivered_package.slots %}
+  {% if sl.role not in doc_roles %}
+  <div class="reference-code-program-box border rounded mb-3 overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
+       style="border-color:var(--border)!important;background:var(--surface2);">
+    <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
+         style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
+      <span class="badge rounded-pill bg-secondary" style="font-size:.72rem;">{{ sl.role or 'other' }}</span>
+      <span class="fw-semibold font-monospace small">{{ sl.filename or '—' }}</span>
+      {% if sl.title_ko %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ sl.title_ko }}</span>{% endif %}
+    </div>
+    <div class="p-0">
+      <pre class="small mb-0 p-3 font-monospace text-wrap" style="max-height:28rem;overflow:auto;background:var(--surface);white-space:pre-wrap;">{{ sl.source or '' }}</pre>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+
   {% elif delivered_code_html %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-    <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · Markdown (ZIP)</h5>
+    <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · 단일 문서 (분리 복구 불가)</h5>
     {% if code_asset_unlocked|default(false) %}
     <a href="/integration/{{ ir.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">
@@ -69,7 +97,7 @@
     <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)</span>
     {% endif %}
   </div>
-  <p class="small text-muted mb-2">JSON 슬롯 생성이 아닌 단일 문서로 납품된 경우입니다. ZIP 안의 <code class="small">DELIVERED.md</code>를 확인하세요.</p>
+  <p class="small text-muted mb-2">파일별 슬롯으로 나누지 못한 경우입니다. ZIP의 <code class="small">DELIVERED.md</code> 또는 아래 본문을 확인하세요.</p>
   <div class="proposal-card mb-0">
     <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ delivered_code_html | safe }}</div>
   </div>

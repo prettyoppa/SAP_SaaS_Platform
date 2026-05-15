@@ -17,7 +17,13 @@ from .agent_playbook import (
     playbook_prompt_wrap,
 )
 from .database import SessionLocal
-from .delivered_code_package import ensure_python_script_delivery_package, legacy_markdown_from_integration_package
+from .delivered_code_package import (
+    ensure_python_script_delivery_package,
+    expand_integration_monolithic_slots,
+    integration_delivered_search_blurb,
+    integration_delivered_package_has_body,
+    integration_package_from_legacy_markdown,
+)
 from .devtype_catalog import format_integration_impl_types_for_llm
 from .integration_crew_adapter import integration_request_to_crew_rfp_dict
 from .routers.interview_router import _conversation_list_for_llm
@@ -197,14 +203,35 @@ def run_integration_deliverable_job(ir_id: int) -> None:
             impl_type_codes=impl_codes,
         )
         if pkg:
+            pkg = expand_integration_monolithic_slots(pkg)
             pkg = ensure_python_script_delivery_package(
                 pkg,
                 request_title=(ir.title or "").strip(),
                 impl_codes=impl_codes,
             )
-            legacy_md = legacy_markdown_from_integration_package(pkg)
-        ir.delivered_code_text = (legacy_md or "").strip()
-        ir.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None
+        elif legacy_md:
+            recovered = integration_package_from_legacy_markdown(
+                legacy_md,
+                program_id=(ir.title or "integration")[:48],
+            )
+            if recovered and integration_delivered_package_has_body(recovered):
+                pkg = expand_integration_monolithic_slots(recovered)
+                pkg = ensure_python_script_delivery_package(
+                    pkg,
+                    request_title=(ir.title or "").strip(),
+                    impl_codes=impl_codes,
+                )
+                append_integration_job_log(
+                    ir_id,
+                    "delivered_job_log",
+                    "레거시 마크다운에서 파일 슬롯 패키지 복구",
+                )
+        if pkg and integration_delivered_package_has_body(pkg):
+            ir.delivered_code_payload = json.dumps(pkg, ensure_ascii=False)
+            ir.delivered_code_text = integration_delivered_search_blurb(pkg)
+        else:
+            ir.delivered_code_payload = None
+            ir.delivered_code_text = (legacy_md or "").strip()
         ir.delivered_code_status = "ready"
         ir.delivered_code_generated_at = datetime.utcnow()
         ir.delivered_code_error = None

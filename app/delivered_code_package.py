@@ -451,6 +451,304 @@ def _fence_lang_for_integration_filename(fn: str) -> str:
     }.get(ext, "text")
 
 
+_INTEGRATION_LEGACY_FENCE_RE = re.compile(r"```(\w*)\n([\s\S]*?)```", re.MULTILINE)
+_INTEGRATION_HEADER_SLOT_RE = re.compile(
+    r"^##\s+(.+?)(?:\s+\(`([a-z_]+)`\s*·\s*`([^`]+)`\))?\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+_INTEGRATION_SKIP_SECTION_KEYWORDS = (
+    "연동 개발 납품 패키지",
+    "생성 메모",
+    "구현·운영 가이드",
+    "구현 운영 가이드",
+    "테스트 시나리오",
+)
+
+
+def _guess_integration_filename_from_lang(lang: str, index: int) -> str:
+    ext_map = {
+        "python": "py",
+        "py": "py",
+        "powershell": "ps1",
+        "ps1": "ps1",
+        "sql": "sql",
+        "json": "json",
+        "yaml": "yaml",
+        "yml": "yaml",
+        "bash": "sh",
+        "sh": "sh",
+        "bat": "bat",
+        "markdown": "md",
+        "md": "md",
+        "text": "txt",
+        "vbnet": "vba",
+        "vba": "vba",
+        "javascript": "js",
+        "typescript": "ts",
+    }
+    ext = ext_map.get((lang or "").strip().lower(), "txt")
+    return f"artifact_{index + 1}.{ext}"
+
+
+def _integration_role_from_filename(filename: str) -> str:
+    fn = (filename or "").lower()
+    base = fn.split("/")[-1]
+    if base in ("readme.md",):
+        return "doc"
+    if base in ("requirements.txt",):
+        return "requirements"
+    if base in (".env.example", "env.example"):
+        return "env_sample"
+    if base in ("main.py", "run.py", "__main__.py"):
+        return "entry_script"
+    if base.endswith(".py"):
+        return "module"
+    if base.endswith((".ps1", ".sh", ".bat", ".cmd")):
+        return "shell"
+    if base.endswith(".sql"):
+        return "sql"
+    return "other"
+
+
+def integration_package_from_legacy_markdown(
+    md: str,
+    *,
+    program_id: str | None = None,
+) -> dict[str, Any] | None:
+    """
+    단일 마크다운 납품(레거시·폴백)을 슬롯 패키지로 복원.
+    legacy_markdown_from_integration_package() 형식 및 일반 ## + 코드펜스 형식을 지원한다.
+    """
+    text = (md or "").strip()
+    if not text:
+        return None
+
+    impl_guide = ""
+    test_md = ""
+    notes = ""
+    gm = re.search(
+        r"##\s*구현[·•]?\s*운영\s*가이드\s*\n([\s\S]*?)(?=\n##\s+|\Z)",
+        text,
+        re.IGNORECASE,
+    )
+    if gm:
+        impl_guide = gm.group(1).strip()
+    tm = re.search(
+        r"##\s*테스트\s*시나리오\s*\n([\s\S]*?)(?=\n##\s+|\Z)",
+        text,
+        re.IGNORECASE,
+    )
+    if tm:
+        test_md = sanitize_test_scenarios_markdown(tm.group(1).strip())
+    nm = re.search(
+        r"##\s*생성\s*메모\s*\n([\s\S]*?)(?=\n##\s+|\Z)",
+        text,
+        re.IGNORECASE,
+    )
+    if nm:
+        notes = nm.group(1).strip()
+
+    slots: list[dict[str, str]] = []
+    sections = re.split(r"\n(?=##\s+)", text)
+    for sec in sections:
+        sec = sec.strip()
+        if not sec:
+            continue
+        lines = sec.splitlines()
+        heading_line = lines[0] if lines else ""
+        if not heading_line.startswith("##"):
+            continue
+        heading = heading_line.lstrip("#").strip()
+        if any(kw in heading for kw in _INTEGRATION_SKIP_SECTION_KEYWORDS):
+            continue
+        body = "\n".join(lines[1:]) if len(lines) > 1 else ""
+
+        hm = _INTEGRATION_HEADER_SLOT_RE.match(heading_line)
+        title_ko = (hm.group(1).strip() if hm else heading.split("(")[0].strip()) or "파일"
+        role = (hm.group(2) or "").strip().lower() if hm and hm.group(2) else ""
+        filename = (hm.group(3) or "").strip() if hm and hm.group(3) else ""
+        if not filename:
+            fn_m = re.search(r"`([^`]+\.[A-Za-z0-9]+)`", heading)
+            if fn_m:
+                filename = fn_m.group(1).strip()
+        if not role and filename:
+            role = _integration_role_from_filename(filename)
+
+        fences = list(_INTEGRATION_LEGACY_FENCE_RE.finditer(body))
+        if not fences:
+            continue
+        for fi, fm in enumerate(fences):
+            lang = fm.group(1) or ""
+            code = (fm.group(2) or "").strip()
+            if len(code) < 2:
+                continue
+            fn = filename if fi == 0 and filename else _guess_integration_filename_from_lang(lang, len(slots))
+            r = role if role in _INTEGRATION_ROLES else _integration_role_from_filename(fn)
+            if r not in _INTEGRATION_ROLES:
+                r = "other"
+            slots.append(
+                {
+                    "role": r,
+                    "filename": fn,
+                    "title_ko": title_ko if fi == 0 else fn,
+                    "source": code,
+                }
+            )
+
+    if not slots:
+        for fi, fm in enumerate(_INTEGRATION_LEGACY_FENCE_RE.finditer(text)):
+            code = (fm.group(2) or "").strip()
+            if len(code) < 2:
+                continue
+            lang = fm.group(1) or ""
+            fn = _guess_integration_filename_from_lang(lang, fi)
+            slots.append(
+                {
+                    "role": _integration_role_from_filename(fn),
+                    "filename": fn,
+                    "title_ko": fn,
+                    "source": code,
+                }
+            )
+
+    if not slots:
+        return None
+
+    pid = (program_id or "").strip()
+    if not pid:
+        pid_m = re.search(r"\*\*납품 ID:\*\*\s*`([^`]+)`", text)
+        pid = (pid_m.group(1).strip() if pid_m else "") or "integration"
+
+    base = {
+        "package_kind": "integration",
+        "program_id": pid,
+        "slots": slots,
+        "coder_notes": notes,
+        "implementation_guide_md": impl_guide,
+        "test_scenarios_md": test_md,
+    }
+    return normalize_integration_delivered_package(base)
+
+
+def _split_integration_slot_by_embedded_fences(sl: dict[str, str]) -> list[dict[str, str]]:
+    """한 슬롯 source 안에 코드펜스가 여러 개면 파일별 슬롯으로 분할."""
+    source = (sl.get("source") or "").strip()
+    if source.count("```") < 4:
+        return [sl]
+    fences = list(_INTEGRATION_LEGACY_FENCE_RE.finditer(source))
+    if len(fences) <= 1:
+        return [sl]
+    out: list[dict[str, str]] = []
+    base_role = (sl.get("role") or "other").strip()
+    base_title = (sl.get("title_ko") or "").strip()
+    for fi, fm in enumerate(fences):
+        code = (fm.group(2) or "").strip()
+        if len(code) < 2:
+            continue
+        lang = fm.group(1) or ""
+        fn = (sl.get("filename") or "").strip() if fi == 0 else ""
+        if not fn or fi > 0:
+            fn = _guess_integration_filename_from_lang(lang, len(out))
+        role = base_role if fi == 0 and base_role in _INTEGRATION_ROLES else _integration_role_from_filename(fn)
+        if role not in _INTEGRATION_ROLES:
+            role = "other"
+        out.append(
+            {
+                "role": role,
+                "filename": fn,
+                "title_ko": base_title if fi == 0 and base_title else fn,
+                "source": code,
+            }
+        )
+    return out if len(out) > 1 else [sl]
+
+
+def expand_integration_monolithic_slots(pkg: dict[str, Any]) -> dict[str, Any]:
+    """거대 단일 슬롯·슬롯 내 다중 펜스를 파일 단위로 펼친다."""
+    if not isinstance(pkg, dict):
+        return pkg
+    raw = pkg.get("slots")
+    if not isinstance(raw, list):
+        return pkg
+    expanded: list[dict[str, str]] = []
+    for sl in raw:
+        if not isinstance(sl, dict):
+            continue
+        normalized = _normalize_integration_slot(sl, len(expanded))
+        if not normalized:
+            continue
+        expanded.extend(_split_integration_slot_by_embedded_fences(normalized))
+    if not expanded:
+        return pkg
+    out = dict(pkg)
+    out["slots"] = expanded
+    return out
+
+
+def integration_delivered_search_blurb(pkg: dict[str, Any]) -> str:
+    """DB delivered_code_text: 검색·목록용 요약(화면에 통째로 노출하지 않음)."""
+    names = [
+        str(s.get("filename") or "")
+        for s in (pkg.get("slots") or [])
+        if isinstance(s, dict) and (s.get("filename") or "").strip()
+    ]
+    pid = (pkg.get("program_id") or "integration").strip()
+    lines = [
+        f"# 연동 개발 납품 요약",
+        "",
+        f"**program_id:** `{pid}`",
+        f"**파일 수:** {len(names)}",
+        "",
+    ]
+    if names:
+        lines.append("**파일:** " + ", ".join(names[:40]))
+        lines.append("")
+    ig = (pkg.get("implementation_guide_md") or "").strip()
+    if ig:
+        lines.extend(["## 구현·운영 가이드 (요약)", "", ig[:4000]])
+    return "\n".join(lines).strip()
+
+
+def resolve_integration_delivered_for_display(
+    *,
+    payload_raw: str | None,
+    legacy_text: str | None,
+    program_id_hint: str | None = None,
+    impl_codes: list[str] | None = None,
+    request_title: str = "",
+) -> dict[str, Any] | None:
+    """
+    허브·ZIP용 최종 패키지: JSON payload 우선, 부족하면 legacy 마크다운에서 슬롯 복원·분할.
+    """
+    pkg = parse_integration_delivered_payload(payload_raw)
+    if pkg:
+        pkg = expand_integration_monolithic_slots(pkg)
+
+    legacy = (legacy_text or "").strip()
+    if legacy:
+        parsed = integration_package_from_legacy_markdown(
+            legacy,
+            program_id=(pkg or {}).get("program_id") if pkg else program_id_hint,
+        )
+        if parsed:
+            parsed = expand_integration_monolithic_slots(parsed)
+            pkg_slots = len((pkg or {}).get("slots") or []) if pkg else 0
+            parsed_slots = len(parsed.get("slots") or [])
+            if not pkg or parsed_slots > pkg_slots:
+                pkg = parsed
+
+    if not pkg or not integration_delivered_package_has_body(pkg):
+        return None
+
+    if integration_impl_codes_include_python(impl_codes):
+        pkg = ensure_python_script_delivery_package(
+            pkg,
+            request_title=request_title,
+            impl_codes=impl_codes,
+        )
+    return pkg
+
+
 def legacy_markdown_from_integration_package(pkg: dict[str, Any]) -> str:
     """검색·미리보기 호환 단일 마크다운(슬롯별 펜스 + 가이드 + 테스트)."""
     lines: list[str] = [
