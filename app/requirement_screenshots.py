@@ -45,14 +45,16 @@ def entries_from_json(raw: Optional[str]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for item in data:
         if isinstance(item, dict) and item.get("path"):
-            out.append(
-                {
-                    "path": str(item["path"]),
-                    "filename": (item.get("filename") or "screenshot.png").strip()
-                    or "screenshot.png",
-                    "size": int(item.get("size") or 0),
-                }
-            )
+            ent: dict[str, Any] = {
+                "path": str(item["path"]),
+                "filename": (item.get("filename") or "screenshot.png").strip()
+                or "screenshot.png",
+                "size": int(item.get("size") or 0),
+            }
+            iid = item.get("inline_id")
+            if iid:
+                ent["inline_id"] = str(iid)
+            out.append(ent)
     return out
 
 
@@ -88,6 +90,9 @@ def duplicate_entries(entries: list[dict[str, Any]], *, user_id: int) -> list[di
         mime = mimetypes.guess_type(fname)[0] or "image/png"
         stored = _store_bytes(user_id, raw, mime, fname)
         if stored:
+            iid = ent.get("inline_id")
+            if iid:
+                stored["inline_id"] = str(iid)
             out.append(stored)
     return out
 

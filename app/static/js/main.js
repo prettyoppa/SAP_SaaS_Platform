@@ -1,12 +1,15 @@
 /* SAP Dev Hub – main.js */
 
 /** 임시저장 플로팅 — AI 문의(우하단) 스택 위에 붙이거나, 없으면 우하단 고정 */
-function hoistDraftFloatLaunchers() {
+function hoistDraftFloatLaunchers(chatRoot) {
+  const chat =
+    chatRoot instanceof HTMLElement
+      ? chatRoot
+      : document.querySelector('.abap-float-chat');
   document.querySelectorAll('.draft-float-launcher[data-draft-float-root]').forEach((el) => {
     if (!(el instanceof HTMLElement)) return;
     if (el.dataset.draftFloatHoisted === '1') return;
 
-    const chat = document.querySelector('.abap-float-chat');
     if (chat) {
       const launcher = chat.querySelector('.abap-float-chat-launcher');
       if (launcher) {
@@ -22,6 +25,8 @@ function hoistDraftFloatLaunchers() {
     el.dataset.draftFloatHoisted = '1';
   });
 }
+
+window.hoistDraftFloatLaunchers = hoistDraftFloatLaunchers;
 
 /* ── 전역 “처리 중” 오버레이 ─────────────────────────────────────────────────── */
 
@@ -384,6 +389,14 @@ document.addEventListener(
   },
   true,
 );
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => hoistDraftFloatLaunchers(), {
+    once: true,
+  });
+} else {
+  hoistDraftFloatLaunchers();
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   try {

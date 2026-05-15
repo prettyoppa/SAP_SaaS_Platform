@@ -284,3 +284,23 @@
 })();
 </script>
 {% endif %}
+{% if ai_inquiry %}
+<script>
+(function () {
+  var chat = document.getElementById({{ ai_inquiry.float_id | tojson }});
+  if (!chat) return;
+  if (typeof window.hoistDraftFloatLaunchers === 'function') {
+    window.hoistDraftFloatLaunchers(chat);
+    return;
+  }
+  document.querySelectorAll('.draft-float-launcher[data-draft-float-root]').forEach(function (el) {
+    if (el.dataset.draftFloatHoisted === '1') return;
+    var launcher = chat.querySelector('.abap-float-chat-launcher');
+    if (launcher) chat.insertBefore(el, launcher);
+    else chat.appendChild(el);
+    el.classList.add('draft-float-launcher--in-chat');
+    el.dataset.draftFloatHoisted = '1';
+  });
+})();
+</script>
+{% endif %}

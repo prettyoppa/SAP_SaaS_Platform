@@ -2800,6 +2800,10 @@ html[data-theme="light"] .abap-float-chat-resize {
   left: auto;
   pointer-events: none;
 }
+/* hoist 전: AI 런처와 같은 좌표 겹침 방지 (JS는 main.js·ai_inquiry 직후 실행) */
+body:has(.abap-float-chat) .draft-float-launcher[data-draft-float-root]:not(.draft-float-launcher--in-chat) {
+  bottom: calc(1.15rem + 3.35rem);
+}
 .abap-float-chat > .draft-float-launcher.draft-float-launcher--in-chat,
 .draft-float-launcher.draft-float-launcher--in-chat {
   position: static;
@@ -2845,6 +2849,9 @@ html[data-theme="dark"] .draft-float-launcher .draft-float-btn.btn-outline-secon
   .draft-float-launcher:not(.draft-float-launcher--in-chat) {
     bottom: 0.85rem;
     right: 0.85rem;
+  }
+  body:has(.abap-float-chat) .draft-float-launcher[data-draft-float-root]:not(.draft-float-launcher--in-chat) {
+    bottom: calc(0.85rem + 3.35rem);
   }
   .draft-float-launcher .draft-float-btn-label {
     display: none !important;

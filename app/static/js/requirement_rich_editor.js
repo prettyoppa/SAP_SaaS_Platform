@@ -120,6 +120,61 @@
     });
   }
 
+  function clipboardOffersImages(cd) {
+    if (!cd) return false;
+    var types = cd.types ? Array.prototype.slice.call(cd.types) : [];
+    if (types.indexOf('Files') >= 0) return true;
+    for (var t = 0; t < types.length; t++) {
+      if (String(types[t] || '').indexOf('image/') === 0) return true;
+    }
+    if (cd.items) {
+      for (var i = 0; i < cd.items.length; i++) {
+        if (cd.items[i].type && cd.items[i].type.indexOf('image/') === 0) return true;
+      }
+    }
+    var html = cd.getData('text/html') || '';
+    if (/<img\b/i.test(html)) return true;
+    return false;
+  }
+
+  function parseDataUrlsFromHtml(html) {
+    var urls = [];
+    if (!html) return urls;
+    var re = /\bsrc\s*=\s*["'](data:image\/[^"']+)["']/gi;
+    var m;
+    while ((m = re.exec(html)) !== null) {
+      if (m[1]) urls.push(m[1]);
+    }
+    return urls;
+  }
+
+  function collectImageBlobs(cd) {
+    var blobs = [];
+    var seen = new WeakSet();
+
+    function pushFile(f) {
+      if (!f || !f.type || f.type.indexOf('image/') !== 0) return;
+      if (seen.has(f)) return;
+      seen.add(f);
+      blobs.push(f);
+    }
+
+    if (cd.items) {
+      for (var i = 0; i < cd.items.length; i++) {
+        var item = cd.items[i];
+        if (item.kind === 'file') {
+          pushFile(item.getAsFile());
+        }
+      }
+    }
+    if (cd.files && cd.files.length) {
+      for (var j = 0; j < cd.files.length; j++) {
+        pushFile(cd.files[j]);
+      }
+    }
+    return blobs;
+  }
+
   function compressToJpeg(blob, maxDim, quality) {
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(blob);
@@ -169,10 +224,7 @@
     var range = pasteInsertRange;
     var inserted = false;
     try {
-      if (
-        range &&
-        richEl.contains(range.commonAncestorContainer)
-      ) {
+      if (range && richEl.contains(range.commonAncestorContainer)) {
         range.deleteContents();
         range.insertNode(img);
         inserted = true;
@@ -211,33 +263,6 @@
     }
   }
 
-  function collectImageBlobs(cd) {
-    var blobs = [];
-    var seen = new WeakSet();
-
-    function pushFile(f) {
-      if (!f || !f.type || f.type.indexOf('image/') !== 0) return;
-      if (seen.has(f)) return;
-      seen.add(f);
-      blobs.push(f);
-    }
-
-    if (cd.items) {
-      for (var i = 0; i < cd.items.length; i++) {
-        var item = cd.items[i];
-        if (item.kind === 'file') {
-          pushFile(item.getAsFile());
-        }
-      }
-    }
-    if (cd.files && cd.files.length) {
-      for (var j = 0; j < cd.files.length; j++) {
-        pushFile(cd.files[j]);
-      }
-    }
-    return blobs;
-  }
-
   function readBlobAsDataUrl(blob) {
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
@@ -245,12 +270,43 @@
         if (typeof reader.result === 'string') resolve(reader.result);
         else reject(new Error('read'));
       };
-      reader.onerror = function () { reject(new Error('read')); };
+      reader.onerror = function () {
+        reject(new Error('read'));
+      };
       reader.readAsDataURL(blob);
     });
   }
 
-  function processImageBlobsSequential(blobs) {
+  function estimateDataUrlBytes(dataUrl) {
+    var comma = dataUrl.indexOf(',');
+    if (comma < 0) return dataUrl.length;
+    return Math.floor((dataUrl.length - comma - 1) * 0.75);
+  }
+
+  function processOneBlob(blob) {
+    return compressToJpeg(blob, 1920, 0.82).then(function (jpeg) {
+      if (jpeg.size > MAX_BYTES) {
+        return { ok: false, reason: 'size' };
+      }
+      return readBlobAsDataUrl(jpeg).then(function (dataUrl) {
+        return { ok: true, dataUrl: dataUrl };
+      });
+    });
+  }
+
+  function processOneDataUrl(dataUrl) {
+    var est = estimateDataUrlBytes(dataUrl);
+    if (est > MAX_BYTES) {
+      return fetch(dataUrl)
+        .then(function (r) {
+          return r.blob();
+        })
+        .then(processOneBlob);
+    }
+    return Promise.resolve({ ok: true, dataUrl: dataUrl });
+  }
+
+  function processPasteQueue(queue) {
     var index = 0;
     var skipped = 0;
 
@@ -262,7 +318,7 @@
     }
 
     function next() {
-      if (index >= blobs.length) {
+      if (index >= queue.length) {
         if (skipped > 0) {
           showAlert(
             '일부 이미지는 용량·개수 제한으로 넣지 못했습니다. (본문 최대 ' + MAX_IMG + '장)'
@@ -273,23 +329,26 @@
       }
 
       if (countImages() >= MAX_IMG) {
-        skipped += blobs.length - index;
+        skipped += queue.length - index;
         showAlert('이미지는 본문에 최대 ' + MAX_IMG + '장까지 넣을 수 있습니다.');
         finish();
         return Promise.resolve();
       }
 
-      var blob = blobs[index++];
-      return compressToJpeg(blob, 1920, 0.82)
-        .then(function (jpeg) {
-          if (jpeg.size > MAX_BYTES) {
+      var item = queue[index++];
+      var p =
+        item.kind === 'blob'
+          ? processOneBlob(item.value)
+          : processOneDataUrl(item.value);
+
+      return p
+        .then(function (res) {
+          if (!res.ok) {
             skipped += 1;
             return next();
           }
-          return readBlobAsDataUrl(jpeg).then(function (dataUrl) {
-            insertImageAtSelection(dataUrl);
-            return next();
-          });
+          insertImageAtSelection(res.dataUrl);
+          return next();
         })
         .catch(function () {
           skipped += 1;
@@ -306,7 +365,12 @@
     if (!cd) return;
 
     var blobs = collectImageBlobs(cd);
-    if (!blobs.length) return;
+    var html = cd.getData('text/html') || '';
+    var dataUrls = parseDataUrlsFromHtml(html);
+
+    if (!blobs.length && !dataUrls.length) {
+      if (!clipboardOffersImages(cd)) return;
+    }
 
     e.preventDefault();
     e.stopPropagation();
@@ -314,7 +378,32 @@
     capturePasteInsertRange();
     removeBrokenImages();
 
-    processImageBlobsSequential(blobs)
+    var queue = [];
+    blobs.forEach(function (b) {
+      queue.push({ kind: 'blob', value: b });
+    });
+    var seenUrl = new Set();
+    dataUrls.forEach(function (u) {
+      if (!u || seenUrl.has(u)) return;
+      seenUrl.add(u);
+      var already = false;
+      for (var i = 0; i < queue.length; i++) {
+        if (queue[i].kind === 'dataUrl' && queue[i].value === u) {
+          already = true;
+          break;
+        }
+      }
+      if (!already) queue.push({ kind: 'dataUrl', value: u });
+    });
+
+    if (!queue.length) {
+      showAlert(
+        '여러 장 붙여넣기를 인식하지 못했습니다. 한 장씩 붙여넣거나, 이미지 파일을 드래그해 보세요.'
+      );
+      return;
+    }
+
+    processPasteQueue(queue)
       .then(function () {
         requestAnimationFrame(removeBrokenImages);
       })
@@ -326,8 +415,16 @@
       });
   }
 
-  if (modeRich) modeRich.addEventListener('change', function () { if (modeRich.checked) setMode('html'); });
-  if (modePlain) modePlain.addEventListener('change', function () { if (modePlain.checked) setMode('plain'); });
+  if (modeRich) {
+    modeRich.addEventListener('change', function () {
+      if (modeRich.checked) setMode('html');
+    });
+  }
+  if (modePlain) {
+    modePlain.addEventListener('change', function () {
+      if (modePlain.checked) setMode('plain');
+    });
+  }
 
   if (toolbar) {
     toolbar.addEventListener('click', function (e) {
