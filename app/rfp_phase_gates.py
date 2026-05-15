@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import models
 from .integration_hub import integration_hub_url
-from .request_hub_access import consultant_has_request_offer
+from .request_hub_access import consultant_has_request_offer, menu_abap_detail_url, menu_entity_hub_url
 from .paid_tier import PAID_ACTIVE
 from .rfp_hub import rfp_hub_url
 from .rfp_reference_code import normalize_reference_code_payload
@@ -45,6 +45,7 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
                      (2) 에이전트 납품 ABAP 진행·완료 → /rfp/{id}/fs (같은 허브에서 미리보기·다운로드)
     """
     rid = rfp.id
+    owner_id = int(rfp.user_id)
     has_ref_dev = _reference_code_has_content(rfp)
 
     paid_on = (rfp.paid_engagement_status or "none").strip() == PAID_ACTIVE
@@ -55,7 +56,7 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
         user and (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
     )
     has_fs = paid_on or pipeline or is_operator
-    fs_href = rfp_hub_url(rid, "fs") if has_fs else None
+    fs_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="fs") if has_fs else None
 
     st = (rfp.status or "").strip()
     iv = (rfp.interview_status or "").strip()
@@ -64,9 +65,9 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
 
     has_proposal = bool(prop) or iv == "generating_proposal"
     if iv == "generating_proposal":
-        proposal_href = rfp_hub_url(rid, "proposal")
+        proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="proposal")
     elif prop:
-        proposal_href = rfp_hub_url(rid, "proposal")
+        proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="proposal")
     else:
         proposal_href = None
 
@@ -75,27 +76,33 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
     if st != "draft":
         if iv == "generating_proposal":
             has_interview = True
-            interview_href = rfp_hub_url(rid, "interview", view_summary=True)
+            interview_href = menu_entity_hub_url(
+                user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="interview", view_summary=True
+            )
         elif iv == "in_progress":
             has_interview = True
-            interview_href = rfp_hub_url(rid, "interview")
+            interview_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="interview")
         elif iv == "completed":
             has_interview = True
-            interview_href = rfp_hub_url(rid, "interview", view_summary=True)
+            interview_href = menu_entity_hub_url(
+                user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="interview", view_summary=True
+            )
         elif nmsg > 0:
             has_interview = True
-            interview_href = rfp_hub_url(rid, "interview", view_summary=True)
+            interview_href = menu_entity_hub_url(
+                user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="interview", view_summary=True
+            )
         elif st == "submitted" and iv == "pending":
             has_interview = True
-            interview_href = rfp_hub_url(rid, "interview")
+            interview_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="interview")
 
-    request_href = rfp_hub_url(rid, "request")
+    request_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="request")
 
     dc_started = dc_s != "none"
     if dc_started:
-        dev_code_href = rfp_hub_url(rid, "devcode")
+        dev_code_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="devcode")
     elif has_ref_dev:
-        dev_code_href = rfp_hub_url(rid, "devcode")
+        dev_code_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="devcode")
     else:
         dev_code_href = None
 
@@ -120,6 +127,7 @@ def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] =
     (과거 workflow_rfp 연결이 있어도 연동 허브에서 진행한 단계를 반영한다.)
     """
     iid = int(ir.id)
+    owner_id = int(ir.user_id)
     fs_s = (getattr(ir, "fs_status", None) or "none").strip()
     dc_s = (getattr(ir, "delivered_code_status", None) or "none").strip()
     pipeline = fs_s != "none" or dc_s != "none"
@@ -136,9 +144,9 @@ def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] =
 
     has_proposal = bool(prop) or iv == "generating_proposal"
     if iv == "generating_proposal":
-        proposal_href = integration_hub_url(iid, "proposal")
+        proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="proposal")
     elif prop:
-        proposal_href = integration_hub_url(iid, "proposal")
+        proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="proposal")
     else:
         proposal_href = None
 
@@ -147,29 +155,35 @@ def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] =
     if st != "draft":
         if iv == "generating_proposal":
             has_interview = True
-            interview_href = integration_hub_url(iid, "interview", view_summary=True)
+            interview_href = menu_entity_hub_url(
+                user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="interview", view_summary=True
+            )
         elif iv == "in_progress":
             has_interview = True
-            interview_href = integration_hub_url(iid, "interview")
+            interview_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="interview")
         elif iv == "completed":
             has_interview = True
-            interview_href = integration_hub_url(iid, "interview", view_summary=True)
+            interview_href = menu_entity_hub_url(
+                user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="interview", view_summary=True
+            )
         elif nmsg > 0:
             has_interview = True
-            interview_href = integration_hub_url(iid, "interview", view_summary=True)
+            interview_href = menu_entity_hub_url(
+                user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="interview", view_summary=True
+            )
         elif st == "submitted" and iv == "pending":
             has_interview = True
-            interview_href = integration_hub_url(iid, "interview")
+            interview_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="interview")
 
-    request_href = integration_hub_url(iid, "request")
+    request_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="request")
 
     dc_started = dc_s != "none"
     has_ref_dev = _reference_code_has_content(ir)
 
     if dc_started:
-        dev_code_href = integration_hub_url(iid, "devcode")
+        dev_code_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="devcode")
     elif has_ref_dev:
-        dev_code_href = integration_hub_url(iid, "devcode")
+        dev_code_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="devcode")
     else:
         dev_code_href = None
 

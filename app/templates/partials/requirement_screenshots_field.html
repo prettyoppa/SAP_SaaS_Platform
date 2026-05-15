@@ -1,0 +1,22 @@
+{# 분석·개선 — 요구사항 캡처 붙여넣기 (form_scope == abap) #}
+<div class="req-screenshots-field mt-2" id="req-screenshots-root"
+     data-max-count="5"
+     data-max-bytes="2097152"
+     data-max-total-bytes="8388608">
+  <input type="hidden" name="requirement_screenshots_state" id="requirement-screenshots-state" value=""/>
+  {% if requirement_screenshot_entries %}
+  <script type="application/json" id="req-screenshots-initial">{{ requirement_screenshot_entries | tojson }}</script>
+  {% endif %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+    <label class="form-label fw-semibold mb-0 small text-muted">
+      요구사항 캡처 <span class="fw-normal">(선택 · 최대 5장)</span>
+    </label>
+    <small class="text-muted">요구사항 입력란 또는 아래 영역에 <kbd>Ctrl</kbd>+<kbd>V</kbd></small>
+  </div>
+  <div id="req-screenshots-alert" class="alert alert-warning py-2 px-3 small d-none mb-2" role="alert"></div>
+  <div id="req-screenshots-paste-zone" class="req-screenshots-paste-zone" tabindex="0" aria-label="스크린샷 붙여넣기 영역">
+    <i class="fa-regular fa-image me-2 opacity-75"></i>
+    <span>화면 캡처를 붙여넣으세요 (클립보드)</span>
+  </div>
+  <ul id="req-screenshots-list" class="req-screenshots-list list-unstyled mb-0 mt-2"></ul>
+</div>

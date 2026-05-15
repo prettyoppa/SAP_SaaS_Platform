@@ -773,6 +773,81 @@ html[data-theme="light"] .rfp-field-ai-wrap .rfp-ai-inline-btn--pid:hover {
   box-shadow: 0 0 0 3px rgba(99,102,241,.2); color: var(--text);
 }
 
+/* 요구사항 캡처 붙여넣기 (분석·개선) */
+.req-screenshots-paste-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: .9rem;
+  transition: border-color .2s, background .2s;
+}
+.req-screenshots-paste-zone:focus,
+.req-screenshots-paste-zone:hover {
+  border-color: var(--primary);
+  background: rgba(99,102,241,.06);
+  color: var(--text);
+  outline: none;
+}
+.req-screenshots-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+.req-screenshots-item {
+  position: relative;
+  width: 140px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface2);
+}
+.req-screenshots-item img {
+  display: block;
+  width: 100%;
+  height: 96px;
+  object-fit: cover;
+  background: #111;
+}
+.req-screenshots-item-meta {
+  padding: .25rem .5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.req-screenshots-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 0 .35rem;
+  line-height: 1.2;
+}
+.req-screenshots-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin-top: .5rem;
+}
+.req-screenshots-gallery-item {
+  display: block;
+  width: 160px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface2);
+}
+.req-screenshots-gallery-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: contain;
+  background: #111;
+}
+
 /* Tips */
 .rfp-tips {
   background: rgba(234,179,8,.06); border: 1px solid rgba(234,179,8,.2);
@@ -2692,10 +2767,10 @@ html[data-theme="light"] .abap-float-chat-resize {
   }
 }
 
-/* 플로팅 임시저장 — AI 문의(우하단)과 겹치지 않도록 좌하단 */
+/* 플로팅 임시저장 — AI 문의(우하단)과 겹치지 않도록 좌하단 (main.js에서 body로 hoist) */
 .draft-float-launcher {
   position: fixed;
-  z-index: 14950;
+  z-index: 15010;
   bottom: 1.15rem;
   left: 1.15rem;
   pointer-events: none;
@@ -2709,7 +2784,23 @@ html[data-theme="light"] .abap-float-chat-resize {
   border-radius: 999px;
   font-weight: 600;
   font-size: 0.9rem;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  border-width: 1px;
+}
+html[data-theme="dark"] .draft-float-launcher .draft-float-btn.btn-outline-warning {
+  color: #fcd34d;
+  border-color: rgba(251, 191, 36, 0.65);
+  background: rgba(30, 27, 20, 0.92);
+}
+html[data-theme="light"] .draft-float-launcher .draft-float-btn.btn-outline-warning {
+  color: #92400e;
+  border-color: rgba(217, 119, 6, 0.55);
+  background: #fffbeb;
+}
+html[data-theme="dark"] .draft-float-launcher .draft-float-btn.btn-outline-secondary {
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.55);
+  background: rgba(30, 33, 45, 0.92);
 }
 .draft-float-btn-label {
   line-height: 1.15;

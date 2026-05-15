@@ -83,6 +83,7 @@ from ..request_hub_access import (
     apply_integration_hub_read_access,
     consultant_has_request_offer,
     consultant_is_matched_on_request,
+    consultant_menu_matched_scope,
 )
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
@@ -1157,11 +1158,13 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
     show_rfp_owner = False
     proposal_offer_notice_count = 0
     if user:
-        # 메뉴 첫 화면은 권한자도 본인 요청만 표시
         admin_view = False
-        show_rfp_owner = False
+        consultant_matched = consultant_menu_matched_scope(user)
+        show_rfp_owner = consultant_matched
 
-        cnt, _buckets = rfp_landing_aggregate(db, admin=admin_view, user_id=user.id)
+        cnt, _buckets = rfp_landing_aggregate(
+            db, admin=admin_view, user_id=user.id, consultant_matched=consultant_matched
+        )
         rfp_landing_counts = cnt
         rfp_total_rows = sum(
             rfp_landing_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft")
@@ -1180,6 +1183,7 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
                 title_q=title_search,
                 date_from=date_from_dt,
                 date_to=date_to_dt,
+                consultant_matched=consultant_matched,
             )
             offered_ids = _offered_request_id_set(
                 db, "rfp", [int(x.id) for x in rfps_filtered], pending_only=True
@@ -1248,13 +1252,16 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
     proposal_offer_notice_count = 0
 
     if user:
-        # 메뉴 첫 화면은 권한자도 본인 요청만 표시
         admin_view = False
-        cnt, _b = integration_menu_aggregate(db, admin=admin_view, user_id=user.id)
+        consultant_matched = consultant_menu_matched_scope(user)
+        cnt, _b = integration_menu_aggregate(
+            db, admin=admin_view, user_id=user.id, consultant_matched=consultant_matched
+        )
         menu_counts = cnt
         menu_total_rows = sum(menu_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft"))
         presets = menu_landing_preset_params(request.query_params)
         menu_tile_links = {k: menu_landing_url("/integration", presets, k) for k in TILE_ORDER_WITH_ALL}
+        show_request_owner = consultant_matched
         if selected_bucket:
             filtered_rows = filtered_integration_menu_rows(
                 db,
@@ -1264,6 +1271,7 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
                 title_q=title_search,
                 date_from=date_from_dt,
                 date_to=date_to_dt,
+                consultant_matched=consultant_matched,
             )
             offered_ids = _offered_request_id_set(
                 db, "integration", [int(x.id) for x in filtered_rows], pending_only=True

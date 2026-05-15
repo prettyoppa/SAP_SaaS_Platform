@@ -324,7 +324,7 @@
           </div>
         </form>
         {% if not edit_ir or ((edit_ir.status or '')|lower == 'draft') %}
-        <div class="draft-float-launcher">
+        <div class="draft-float-launcher" data-draft-float-root>
           <button type="submit" form="integration-form" name="save_action" value="draft" class="btn btn-outline-warning draft-float-btn" id="draft-btn-float" title="임시저장">
             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
             <span class="draft-float-btn-label nav-ko">임시저장</span>

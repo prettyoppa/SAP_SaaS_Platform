@@ -1,5 +1,6 @@
 {% if integration_simple_actions|default(false) %}
-<a href="/integration/{{ ir.id }}" class="btn btn-sm btn-primary">
+{% set int_detail_href = '/integration/' ~ ir.id ~ '/console-readonly' if show_request_owner|default(false) and user and (ir.user_id != user.id) else '/integration/' ~ ir.id %}
+<a href="{{ int_detail_href }}" class="btn btn-sm btn-primary">
   <i class="fa-solid fa-eye me-1"></i><span data-i18n="common.detail">상세</span>
 </a>
 {% else %}

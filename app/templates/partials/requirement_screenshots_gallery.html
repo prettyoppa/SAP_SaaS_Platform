@@ -1,0 +1,10 @@
+{% if requirement_screenshot_entries and requirement_screenshot_entries|length %}
+<h6 class="text-muted mt-3 small text-uppercase">요구사항 캡처</h6>
+<div class="req-screenshots-gallery">
+  {% for shot in requirement_screenshot_entries %}
+  <a class="req-screenshots-gallery-item" href="{{ screenshot_url_base }}?idx={{ loop.index0 }}" target="_blank" rel="noopener" title="{{ shot.filename or '캡처' }}">
+    <img src="{{ screenshot_url_base }}?idx={{ loop.index0 }}" alt="{{ shot.filename or '요구사항 캡처' }}" loading="lazy" decoding="async"/>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}

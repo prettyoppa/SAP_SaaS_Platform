@@ -1,4 +1,5 @@
 {# context: row (AbapAnalysisRequest), show_request_owner, user #}
+{% set abap_detail_href = '/abap-analysis/' ~ row.id ~ '/edit' if row.is_draft and (not show_request_owner|default(false) or (user and row.user_id == user.id)) else ('/abap-analysis/' ~ row.id ~ '/console-readonly' if show_request_owner|default(false) and user and (row.user_id != user.id) else '/abap-analysis/' ~ row.id) %}
 <div class="menu-list-card{% if row.pulse_offer_bg|default(false) %} menu-list-card--proposal-offer-pulse{% endif %}">
 <div class="rfp-list-surface-tile">
 <div class="rfp-list-card rfp-list-card-v2">
@@ -10,7 +11,7 @@
       <div class="rfp-list-title">
         <span class="badge bg-secondary me-2 small" data-i18n="badge.analysis">분석</span>
         <span class="badge bg-dark-subtle text-dark border me-2 small font-monospace">{{ row.id|request_no('ANA') }}</span>
-        <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-reset fw-semibold text-decoration-none">
+        <a href="{{ abap_detail_href }}" class="text-reset fw-semibold text-decoration-none">
           {% if row.title and row.title.strip() %}
           {{ row.title.strip() }}
           {% else %}
@@ -59,7 +60,7 @@
 <div class="rfp-list-card rfp-list-card-v2 rfp-list-card--compact-row">
   <div class="rfp-list-compact-main">
     <span class="rfp-list-compact-pid font-monospace small text-muted">{{ row.id|request_no('ANA') }}</span>
-    <a href="{% if row.is_draft %}/abap-analysis/{{ row.id }}/edit{% else %}/abap-analysis/{{ row.id }}{% endif %}" class="text-truncate fw-semibold text-reset text-decoration-none">
+    <a href="{{ abap_detail_href }}" class="text-truncate fw-semibold text-reset text-decoration-none">
       {% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}<span data-i18n="list.requestNum">요청</span> #{{ row.id }}{% endif %}
     </a>
   </div>

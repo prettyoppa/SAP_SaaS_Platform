@@ -84,6 +84,7 @@
 
                 <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.requirements">요구사항</h6>
                 <div class="border rounded p-3 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ row.requirement_text or '' }}</div>
+                {% include 'partials/requirement_screenshots_gallery.html' %}
 
                 {% if attachment_entries %}
                 <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.attachments">첨부</h6>

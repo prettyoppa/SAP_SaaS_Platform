@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from sqlalchemy import exists, or_
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
@@ -9,7 +10,9 @@ from .menu_landing import abap_analysis_menu_bucket, integration_menu_bucket
 from .rfp_landing import BUCKET_ORDER, rfp_landing_bucket
 
 
-def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> dict:
+def home_tile_counts(
+    db: Session, user_id: int, *, is_admin: bool = False, consultant_matched: bool = False
+) -> dict:
     """
     각 메뉴별 건수 키 (모두 동일한 라벨):
 
@@ -24,7 +27,22 @@ def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> di
     uid = user_id
 
     rfp_q = db.query(models.RFP).options(joinedload(models.RFP.messages))
-    if not is_admin:
+    if is_admin:
+        pass
+    elif consultant_matched:
+        ro = models.RequestOffer
+        rfp_q = rfp_q.filter(
+            or_(
+                models.RFP.user_id == uid,
+                exists().where(
+                    ro.request_kind == "rfp",
+                    ro.request_id == models.RFP.id,
+                    ro.consultant_user_id == uid,
+                    ro.status == "matched",
+                ),
+            )
+        )
+    else:
         rfp_q = rfp_q.filter(models.RFP.user_id == uid)
     rfps = rfp_q.all()
 
@@ -37,7 +55,22 @@ def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> di
     a_q = db.query(models.AbapAnalysisRequest).options(
         joinedload(models.AbapAnalysisRequest.workflow_rfp).joinedload(models.RFP.messages)
     )
-    if not is_admin:
+    if is_admin:
+        pass
+    elif consultant_matched:
+        ro = models.RequestOffer
+        a_q = a_q.filter(
+            or_(
+                models.AbapAnalysisRequest.user_id == uid,
+                exists().where(
+                    ro.request_kind == "analysis",
+                    ro.request_id == models.AbapAnalysisRequest.id,
+                    ro.consultant_user_id == uid,
+                    ro.status == "matched",
+                ),
+            )
+        )
+    else:
         a_q = a_q.filter(models.AbapAnalysisRequest.user_id == uid)
     analyses = a_q.all()
 
@@ -51,7 +84,22 @@ def home_tile_counts(db: Session, user_id: int, *, is_admin: bool = False) -> di
         joinedload(models.IntegrationRequest.interview_messages),
         joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
     )
-    if not is_admin:
+    if is_admin:
+        pass
+    elif consultant_matched:
+        ro = models.RequestOffer
+        ir_q = ir_q.filter(
+            or_(
+                models.IntegrationRequest.user_id == uid,
+                exists().where(
+                    ro.request_kind == "integration",
+                    ro.request_id == models.IntegrationRequest.id,
+                    ro.consultant_user_id == uid,
+                    ro.status == "matched",
+                ),
+            )
+        )
+    else:
         ir_q = ir_q.filter(models.IntegrationRequest.user_id == uid)
     integrations = ir_q.all()
 

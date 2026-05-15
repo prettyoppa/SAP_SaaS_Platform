@@ -28,6 +28,7 @@ from .offer_inquiry_service import (
     pending_inquiry_reply_offer_ids_all,
 )
 from .home_counts import home_tile_counts
+from .request_hub_access import consultant_menu_matched_scope
 from .i18n_overrides import get_en_overrides_for_client
 from .subscription_quota import plan_row_for_entitlements, user_subscription_plan_display_names
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
@@ -105,6 +106,7 @@ def _run_migrations():
         ("abap_analysis_requests", "transaction_code", "VARCHAR", "VARCHAR"),
         ("abap_analysis_requests", "sap_modules", "VARCHAR", "VARCHAR"),
         ("abap_analysis_requests", "dev_types", "VARCHAR", "VARCHAR"),
+        ("abap_analysis_requests", "requirement_screenshots_json", "TEXT", "TEXT"),
         ("dev_types", "usage", "VARCHAR(16) DEFAULT 'abap'", "VARCHAR(16) DEFAULT 'abap'"),
         ("integration_requests", "workflow_rfp_id", "INTEGER", "INTEGER"),
         ("integration_requests", "improvement_request_text", "TEXT", "TEXT"),
@@ -624,7 +626,12 @@ def index(request: Request):
         proposal_offer_badges = {"rfp": False, "analysis": False, "integration": False}
         if user:
             try:
-                home_counts = home_tile_counts(_db, user.id, is_admin=bool(user.is_admin))
+                home_counts = home_tile_counts(
+                    _db,
+                    user.id,
+                    is_admin=bool(user.is_admin),
+                    consultant_matched=consultant_menu_matched_scope(user),
+                )
                 proposal_offer_badges = user_proposal_pending_offer_badges(_db, user.id)
             except Exception:
                 _log.exception("home_tile_counts failed user_id=%s", getattr(user, "id", None))

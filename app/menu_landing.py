@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
-from sqlalchemy import or_
+from sqlalchemy import exists, or_
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
@@ -141,7 +141,9 @@ def integration_menu_bucket(ir: models.IntegrationRequest) -> str:
     return b_ir
 
 
-def _abap_analysis_base_query(db: Session, *, admin: bool, user_id: int):
+def _abap_analysis_base_query(
+    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
+):
     q = (
         db.query(models.AbapAnalysisRequest)
         .options(
@@ -151,6 +153,19 @@ def _abap_analysis_base_query(db: Session, *, admin: bool, user_id: int):
     )
     if admin:
         return q
+    if consultant_matched:
+        ro = models.RequestOffer
+        return q.filter(
+            or_(
+                models.AbapAnalysisRequest.user_id == user_id,
+                exists().where(
+                    ro.request_kind == "analysis",
+                    ro.request_id == models.AbapAnalysisRequest.id,
+                    ro.consultant_user_id == user_id,
+                    ro.status == "matched",
+                ),
+            )
+        )
     return q.filter(models.AbapAnalysisRequest.user_id == user_id)
 
 
@@ -173,9 +188,11 @@ def _apply_abap_analysis_filters(q, *, title_q: str | None, date_from: date | No
 
 
 def abap_analysis_menu_aggregate(
-    db: Session, *, admin: bool, user_id: int
+    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
 ) -> tuple[dict[str, int], dict[str, list[models.AbapAnalysisRequest]]]:
-    q = _abap_analysis_base_query(db, admin=admin, user_id=user_id)
+    q = _abap_analysis_base_query(
+        db, admin=admin, user_id=user_id, consultant_matched=consultant_matched
+    )
     rows = q.order_by(models.AbapAnalysisRequest.created_at.desc()).all()
     buckets: dict[str, list[models.AbapAnalysisRequest]] = {k: [] for k in BUCKET_ORDER}
     for row in rows:
@@ -195,8 +212,11 @@ def filtered_abap_analysis_menu_rows(
     title_q: str | None,
     date_from: date | None,
     date_to: date | None,
+    consultant_matched: bool = False,
 ) -> list[models.AbapAnalysisRequest]:
-    q = _abap_analysis_base_query(db, admin=admin, user_id=user_id)
+    q = _abap_analysis_base_query(
+        db, admin=admin, user_id=user_id, consultant_matched=consultant_matched
+    )
     q = _apply_abap_analysis_filters(q, title_q=title_q, date_from=date_from, date_to=date_to)
     rows = q.order_by(models.AbapAnalysisRequest.created_at.desc()).all()
     if bucket == "all":
@@ -204,17 +224,29 @@ def filtered_abap_analysis_menu_rows(
     return [row for row in rows if abap_analysis_menu_bucket(row) == bucket]
 
 
-def _integration_base_query(db: Session, *, admin: bool, user_id: int):
-    q = (
-        db.query(models.IntegrationRequest)
-        .options(
-            joinedload(models.IntegrationRequest.owner),
-            joinedload(models.IntegrationRequest.interview_messages),
-            joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
-        )
+def _integration_base_query(
+    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
+):
+    q = db.query(models.IntegrationRequest).options(
+        joinedload(models.IntegrationRequest.owner),
+        joinedload(models.IntegrationRequest.interview_messages),
+        joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
     )
     if admin:
         return q
+    if consultant_matched:
+        ro = models.RequestOffer
+        return q.filter(
+            or_(
+                models.IntegrationRequest.user_id == user_id,
+                exists().where(
+                    ro.request_kind == "integration",
+                    ro.request_id == models.IntegrationRequest.id,
+                    ro.consultant_user_id == user_id,
+                    ro.status == "matched",
+                ),
+            )
+        )
     return q.filter(models.IntegrationRequest.user_id == user_id)
 
 
@@ -231,9 +263,11 @@ def _apply_integration_filters(q, *, title_q: str | None, date_from: date | None
 
 
 def integration_menu_aggregate(
-    db: Session, *, admin: bool, user_id: int
+    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
 ) -> tuple[dict[str, int], dict[str, list[models.IntegrationRequest]]]:
-    q = _integration_base_query(db, admin=admin, user_id=user_id)
+    q = _integration_base_query(
+        db, admin=admin, user_id=user_id, consultant_matched=consultant_matched
+    )
     rows = q.order_by(models.IntegrationRequest.created_at.desc()).all()
     buckets: dict[str, list[models.IntegrationRequest]] = {k: [] for k in BUCKET_ORDER}
     for row in rows:
@@ -253,8 +287,11 @@ def filtered_integration_menu_rows(
     title_q: str | None,
     date_from: date | None,
     date_to: date | None,
+    consultant_matched: bool = False,
 ) -> list[models.IntegrationRequest]:
-    q = _integration_base_query(db, admin=admin, user_id=user_id)
+    q = _integration_base_query(
+        db, admin=admin, user_id=user_id, consultant_matched=consultant_matched
+    )
     q = _apply_integration_filters(q, title_q=title_q, date_from=date_from, date_to=date_to)
     rows = q.order_by(models.IntegrationRequest.created_at.desc()).all()
     if bucket == "all":

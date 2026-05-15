@@ -33,6 +33,7 @@ from ..subscription_quota import (
 )
 from ..database import get_db
 from ..followup_messages_util import followup_created_at_sort_key
+from ..request_hub_access import consultant_menu_matched_scope
 from ..menu_landing import (
     DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO,
     TILE_ORDER_WITH_ALL,
@@ -47,6 +48,14 @@ from ..menu_landing import (
     user_proposal_pending_offer_badges,
 )
 from ..attachment_context import build_attachment_llm_digest
+from ..requirement_screenshots import (
+    build_requirement_screenshots_llm_digest,
+    duplicate_entries as duplicate_requirement_screenshots,
+    entries_from_json as requirement_screenshot_entries_from_json,
+    entries_to_json as requirement_screenshot_entries_to_json,
+    process_form_state as process_requirement_screenshots_form,
+    remove_stored_entries as remove_requirement_screenshots,
+)
 from ..offer_inquiry_service import (
     inquiries_by_offer_id,
     notify_consultant_request_matched,
@@ -222,6 +231,46 @@ def _set_attachments(row: models.AbapAnalysisRequest, entries: list[dict]) -> No
     row.attachments_json = json.dumps(entries, ensure_ascii=False)
 
 
+def _screenshot_entries(row: models.AbapAnalysisRequest) -> list[dict]:
+    return requirement_screenshot_entries_from_json(
+        getattr(row, "requirement_screenshots_json", None)
+    )
+
+
+def _set_screenshots(row: models.AbapAnalysisRequest, entries: list[dict]) -> None:
+    row.requirement_screenshots_json = requirement_screenshot_entries_to_json(entries)
+
+
+def _screenshot_entries_for_template(
+    row: Optional[models.AbapAnalysisRequest],
+    *,
+    req_id: Optional[int] = None,
+) -> list[dict]:
+    entries = _screenshot_entries(row) if row else []
+    if not req_id:
+        return entries
+    out: list[dict] = []
+    for i, ent in enumerate(entries):
+        d = dict(ent)
+        d["preview_url"] = f"/abap-analysis/{req_id}/requirement-screenshot?idx={i}"
+        out.append(d)
+    return out
+
+
+def _merge_llm_digests(file_entries: list[dict], screenshot_entries: list[dict]) -> str:
+    parts: list[str] = []
+    d1 = build_attachment_llm_digest(file_entries or [], max_total_chars=12_000)
+    if d1.strip():
+        parts.append(d1.strip())
+    d2 = build_requirement_screenshots_llm_digest(screenshot_entries or [])
+    if d2.strip():
+        parts.append(d2.strip())
+    combined = "\n\n".join(parts)
+    if len(combined) > 24_000:
+        combined = combined[:24_000] + "\n…(컨텍스트 상한)…"
+    return combined
+
+
 def _analysis_offer_rows(db: Session, req_id: int) -> list[models.RequestOffer]:
     return (
         db.query(models.RequestOffer)
@@ -291,13 +340,15 @@ def _run_analysis(
     requirement_text: str,
     source_code: str,
     attachment_entries: Optional[list[dict]] = None,
+    screenshot_entries: Optional[list[dict]] = None,
     sap_modules: Optional[List[str]] = None,
     dev_types: Optional[List[str]] = None,
 ) -> dict:
     from ..agents.free_crew import analyze_code_for_library, augment_abap_analysis_with_requirement
 
     att = attachment_entries if attachment_entries else []
-    digest = build_attachment_llm_digest(att, max_total_chars=12_000)
+    shots = screenshot_entries if screenshot_entries else []
+    digest = _merge_llm_digests(att, shots)
 
     title_snip = requirement_text.strip()[:200] or "ABAP 분석"
     structural = analyze_code_for_library(
@@ -390,6 +441,10 @@ def _form_template_response(
             "teaser_i18n": "chat.formAiTeaserAbap",
         }
 
+    shot_entries = _screenshot_entries_for_template(
+        edit_row,
+        req_id=int(edit_row.id) if edit_row else None,
+    )
     return templates.TemplateResponse(
         request,
         "abap_analysis_form.html",
@@ -401,6 +456,7 @@ def _form_template_response(
             "ref_code_initial": ref_code_initial,
             "edit_row": edit_row,
             "attachment_entries": attachment_entries or [],
+            "requirement_screenshot_entries": shot_entries,
             "modules": modules,
             "devtypes": devtypes,
             "writing_tip": writing_tip,
@@ -439,15 +495,18 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
     proposal_offer_notice_count = 0
 
     if user:
-        # 메뉴 첫 화면은 권한자도 본인 요청만 표시
         admin_view = False
-        cnt, _b = abap_analysis_menu_aggregate(db, admin=admin_view, user_id=user.id)
+        consultant_matched = consultant_menu_matched_scope(user)
+        cnt, _b = abap_analysis_menu_aggregate(
+            db, admin=admin_view, user_id=user.id, consultant_matched=consultant_matched
+        )
         menu_counts = cnt
         menu_total_rows = sum(menu_counts[k] for k in ("delivery", "proposal", "analysis", "in_progress", "draft"))
         presets = menu_landing_preset_params(request.query_params)
         menu_tile_links = {
             k: menu_landing_url("/abap-analysis", presets, k) for k in TILE_ORDER_WITH_ALL
         }
+        show_request_owner = consultant_matched
         if selected_bucket:
             filtered_rows = filtered_abap_analysis_menu_rows(
                 db,
@@ -457,6 +516,7 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
                 title_q=title_search,
                 date_from=date_from_dt,
                 date_to=date_to_dt,
+                consultant_matched=consultant_matched,
             )
             offered_ids = _offered_analysis_id_set(
                 db, [int(x.id) for x in filtered_rows], pending_only=True
@@ -530,6 +590,7 @@ async def abap_analysis_create(
     note_2: str = Form(""),
     note_3: str = Form(""),
     note_4: str = Form(""),
+    requirement_screenshots_state: str = Form(""),
     save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
@@ -541,6 +602,13 @@ async def abap_analysis_create(
     notes_in = [note_0, note_1, note_2, note_3, note_4]
     ref_initial = _ref_initial_from_raw(reference_code_json)
     is_draft_save = (save_action or "").strip().lower() == "draft"
+    existing_shots: list[dict] = []
+
+    def _rollback_new_shots(final: list[dict]) -> None:
+        old_paths = {e.get("path") for e in existing_shots if e.get("path")}
+        fresh = [e for e in final if e.get("path") and e.get("path") not in old_paths]
+        if fresh:
+            remove_requirement_screenshots(fresh)
 
     def _form_state() -> dict:
         return _abap_form_dict(
@@ -553,7 +621,9 @@ async def abap_analysis_create(
             notes=notes_in,
         )
 
-    def _bad(err: str, ref_init=None):
+    def _bad(err: str, ref_init=None, *, shots: Optional[list[dict]] = None):
+        if shots:
+            _rollback_new_shots(shots)
         return _form_template_response(
             request,
             user,
@@ -600,28 +670,36 @@ async def abap_analysis_create(
         }[terr]
         return _bad(err_key)
 
+    shot_entries, shot_err = process_requirement_screenshots_form(
+        user_id=user.id,
+        existing_entries=existing_shots,
+        state_json=requirement_screenshots_state,
+    )
+    if shot_err:
+        return _bad(shot_err)
+
     n_uploads = sum(1 for f in attachments if f.filename)
     if n_uploads > MAX_RFP_ATTACHMENTS:
-        return _bad("too_many_attachments")
+        return _bad("too_many_attachments", shots=shot_entries)
 
     att_entries: list[dict] = []
     if n_uploads > 0:
         att_entries, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
         if err_a:
-            return _bad(err_a)
+            return _bad(err_a, shots=shot_entries)
 
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
-        return _bad("reference_code_too_large", ref_init=ref_initial)
+        return _bad("reference_code_too_large", ref_init=ref_initial, shots=shot_entries)
 
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
     qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     if qerr == "disabled":
-        return _bad("subscription_dev_request_disabled")
+        return _bad("subscription_dev_request_disabled", shots=shot_entries)
     if qerr == "monthly_limit":
-        return _bad("subscription_dev_request_limit")
+        return _bad("subscription_dev_request_limit", shots=shot_entries)
 
     if is_draft_save:
         row = models.AbapAnalysisRequest(
@@ -639,22 +717,24 @@ async def abap_analysis_create(
             is_draft=True,
         )
         _set_attachments(row, att_entries)
+        _set_screenshots(row, shot_entries)
         db.add(row)
         db.commit()
         db.refresh(row)
         return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
 
     if len(title_clean) < MIN_TITLE_LEN:
-        return _bad("need_title")
+        return _bad("need_title", shots=shot_entries)
     if not norm_ref:
-        return _bad("need_reference_code")
+        return _bad("need_reference_code", shots=shot_entries)
     if len(src) < MIN_ABAP_SOURCE_LEN:
-        return _bad("code_too_short")
+        return _bad("code_too_short", shots=shot_entries)
 
     analysis = _run_analysis(
         req_clean,
         src,
         att_entries,
+        screenshot_entries=shot_entries,
         sap_modules=sap_modules,
         dev_types=dev_types,
     )
@@ -675,6 +755,7 @@ async def abap_analysis_create(
         is_draft=False,
     )
     _set_attachments(row, att_entries)
+    _set_screenshots(row, shot_entries)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -695,6 +776,7 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
     consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
     consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     att = duplicate_attachment_entries(_attachment_entries(row), user_id=user.id)
+    shots = duplicate_requirement_screenshots(_screenshot_entries(row), user_id=user.id)
     title = (row.title or "").strip()
     if title and not title.endswith(" (복사)"):
         title = f"{title} (복사)"
@@ -718,6 +800,7 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
         improvement_request_text=None,
     )
     _set_attachments(new_row, att)
+    _set_screenshots(new_row, shots)
     db.add(new_row)
     db.commit()
     db.refresh(new_row)
@@ -771,6 +854,7 @@ async def abap_analysis_edit_save(
     delete_2: str = Form(""),
     delete_3: str = Form(""),
     delete_4: str = Form(""),
+    requirement_screenshots_state: str = Form(""),
     save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
@@ -789,6 +873,13 @@ async def abap_analysis_edit_save(
     ref_initial = _ref_initial_from_raw(reference_code_json)
     is_draft_save = (save_action or "").strip().lower() == "draft"
     existing_att = _attachment_entries(row)
+    existing_shots = _screenshot_entries(row)
+
+    def _rollback_new_shots(final: list[dict]) -> None:
+        old_paths = {e.get("path") for e in existing_shots if e.get("path")}
+        fresh = [e for e in final if e.get("path") and e.get("path") not in old_paths]
+        if fresh:
+            remove_requirement_screenshots(fresh)
 
     def _form_state() -> dict:
         return _abap_form_dict(
@@ -801,7 +892,9 @@ async def abap_analysis_edit_save(
             notes=notes_in,
         )
 
-    def _bad(err: str, ref_init=None):
+    def _bad(err: str, ref_init=None, *, shots: Optional[list[dict]] = None):
+        if shots:
+            _rollback_new_shots(shots)
         return _form_template_response(
             request,
             user,
@@ -848,6 +941,14 @@ async def abap_analysis_edit_save(
         }[terr]
         return _bad(err_key)
 
+    shot_entries, shot_err = process_requirement_screenshots_form(
+        user_id=user.id,
+        existing_entries=existing_shots,
+        state_json=requirement_screenshots_state,
+    )
+    if shot_err:
+        return _bad(shot_err)
+
     kept: list[dict] = []
     for i, att in enumerate(existing_att):
         if i < len(del_flags) and del_flags[i]:
@@ -862,24 +963,24 @@ async def abap_analysis_edit_save(
 
     n_uploads = sum(1 for f in attachments if f.filename)
     if n_uploads > MAX_RFP_ATTACHMENTS:
-        return _bad("too_many_attachments")
+        return _bad("too_many_attachments", shots=shot_entries)
 
     new_parts: list[dict] = []
     if n_uploads > 0:
         new_parts, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
         if err_a:
-            return _bad(err_a)
+            return _bad(err_a, shots=shot_entries)
 
     remaining = MAX_RFP_ATTACHMENTS - len(kept)
     if len(new_parts) > remaining:
-        return _bad("too_many_attachments")
+        return _bad("too_many_attachments", shots=shot_entries)
 
     merged_att = kept + new_parts
 
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
-        return _bad("reference_code_too_large", ref_init=ref_initial)
+        return _bad("reference_code_too_large", ref_init=ref_initial, shots=shot_entries)
 
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
@@ -896,21 +997,23 @@ async def abap_analysis_edit_save(
         row.is_analyzed = False
         row.analysis_json = None
         _set_attachments(row, merged_att)
+        _set_screenshots(row, shot_entries)
         db.add(row)
         db.commit()
         return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
 
     if len(title_clean) < MIN_TITLE_LEN:
-        return _bad("need_title")
+        return _bad("need_title", shots=shot_entries)
     if not norm_ref:
-        return _bad("need_reference_code")
+        return _bad("need_reference_code", shots=shot_entries)
     if len(src) < MIN_ABAP_SOURCE_LEN:
-        return _bad("code_too_short")
+        return _bad("code_too_short", shots=shot_entries)
 
     analysis = _run_analysis(
         req_clean,
         src,
         merged_att,
+        screenshot_entries=shot_entries,
         sap_modules=sap_modules,
         dev_types=dev_types,
     )
@@ -927,6 +1030,7 @@ async def abap_analysis_edit_save(
     row.is_analyzed = analyzed
     row.is_draft = False
     _set_attachments(row, merged_att)
+    _set_screenshots(row, shot_entries)
     db.add(row)
     db.commit()
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
@@ -1012,6 +1116,9 @@ def _prepare_abap_analysis_detail_ctx(
         "hub_readonly_return_url": hub_readonly_return_url,
     }
 
+    screenshot_entries = _screenshot_entries(row)
+    screenshot_url_base = f"/abap-analysis/{row.id}/requirement-screenshot"
+
     if readonly_console:
         return {
             "request": request,
@@ -1019,6 +1126,8 @@ def _prepare_abap_analysis_detail_ctx(
             "row": row,
             "analysis": analysis,
             "attachment_entries": _attachment_entries(row),
+            "requirement_screenshot_entries": screenshot_entries,
+            "screenshot_url_base": screenshot_url_base,
             "owner": owner,
             "code_asset_unlocked": code_asset_unlocked,
             "source_program_groups": program_groups,
@@ -1055,6 +1164,8 @@ def _prepare_abap_analysis_detail_ctx(
         "row": row,
         "analysis": analysis,
         "attachment_entries": _attachment_entries(row),
+        "requirement_screenshot_entries": screenshot_entries,
+        "screenshot_url_base": screenshot_url_base,
         "owner": owner,
         "code_asset_unlocked": code_asset_unlocked,
         "followup_turns": followup_turns,
@@ -1418,6 +1529,42 @@ def abap_analysis_offer_profile_download(
     return FileResponse(ref, filename=fname)
 
 
+@router.get("/{req_id}/requirement-screenshot")
+def abap_analysis_requirement_screenshot(
+    req_id: int,
+    request: Request,
+    idx: int = 0,
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    entries = _screenshot_entries(row)
+    if idx < 0 or idx >= len(entries):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    ent = entries[idx]
+    path = ent.get("path")
+    fname = ent.get("filename") or "screenshot.png"
+    if not path:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    kind, ref = r2_storage.parse_storage_ref(path)
+    if kind == "r2":
+        if not r2_storage.is_configured():
+            return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+        url = r2_storage.presigned_get_url(ref, fname)
+        return RedirectResponse(url=url, status_code=302)
+    if not os.path.isfile(ref):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    media = "image/png"
+    low = fname.lower()
+    if low.endswith(".jpg") or low.endswith(".jpeg"):
+        media = "image/jpeg"
+    elif low.endswith(".webp"):
+        media = "image/webp"
+    return FileResponse(ref, media_type=media, filename=fname)
+
+
 @router.get("/{req_id}/attachment")
 def abap_analysis_download_attachment(
     req_id: int,
@@ -1465,7 +1612,12 @@ def abap_analysis_reanalyze(req_id: int, request: Request, db: Session = Depends
     if row.is_draft:
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     eff_src = _effective_abap_source(row)
-    analysis = _run_analysis(row.requirement_text or "", eff_src, _attachment_entries(row))
+    analysis = _run_analysis(
+        row.requirement_text or "",
+        eff_src,
+        _attachment_entries(row),
+        screenshot_entries=_screenshot_entries(row),
+    )
     analyzed = not bool(analysis.get("error"))
     row.source_code = eff_src
     row.analysis_json = json.dumps(analysis, ensure_ascii=False)
@@ -1483,6 +1635,7 @@ def abap_analysis_delete(req_id: int, request: Request, db: Session = Depends(ge
         return RedirectResponse(url="/abap-analysis", status_code=302)
     for ent in _attachment_entries(row):
         _remove_stored_file(ent.get("path"))
+    remove_requirement_screenshots(_screenshot_entries(row))
     db.delete(row)
     db.commit()
     return RedirectResponse(url="/abap-analysis", status_code=302)

@@ -1,5 +1,17 @@
 /* SAP Dev Hub – main.js */
 
+/** 임시저장 플로팅 버튼을 body 직속으로 올려 position:fixed·z-index가 항상 뷰포트 기준이 되게 함 */
+function hoistDraftFloatLaunchers() {
+  document.querySelectorAll('.draft-float-launcher[data-draft-float-root]').forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    if (el.dataset.draftFloatHoisted === '1') return;
+    if (el.parentElement !== document.body) {
+      document.body.appendChild(el);
+    }
+    el.dataset.draftFloatHoisted = '1';
+  });
+}
+
 /* ── 전역 “처리 중” 오버레이 ─────────────────────────────────────────────────── */
 
 function _busyOverlay() {
@@ -422,6 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     wireIframeThemeSyncFromParent(ifr),
   );
   formatLocalDateTimes();
+  hoistDraftFloatLaunchers();
 
   document.addEventListener(
     'submit',
