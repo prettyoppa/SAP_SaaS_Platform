@@ -1931,11 +1931,17 @@ def _collect_integration_unified_hub_ctx(
     gen_busy = fs_busy or dc_busy
 
     fs_body = (getattr(ir, "fs_text", None) or "").strip()
+    fs_ready = fs_stat == "ready" and bool(fs_body)
     can_operate_delivery_flag = user_can_operate_delivery(user)
     can_start_delivered_code = (
-        False
-        if readonly_console
-        else (bool(can_operate_delivery_flag) and bool(fs_body) and (dc_stat != "generating"))
+        bool(can_operate_delivery_flag)
+        and fs_ready
+        and (dc_stat != "generating")
+        and (
+            not readonly_console
+            or getattr(user, "is_consultant", False)
+            or getattr(user, "is_admin", False)
+        )
     )
 
     if readonly_console:
@@ -2138,6 +2144,7 @@ def integration_delivered_code_download(req_id: int, request: Request, db: Sessi
         program_id_hint=(ir.title or "integration")[:48],
         impl_codes=impl_codes,
         request_title=(ir.title or "").strip(),
+        augment_python=True,
     )
     if pkg and integration_delivered_package_has_body(pkg):
         body = build_integration_delivered_zip_bytes(pkg, impl_codes=impl_codes)

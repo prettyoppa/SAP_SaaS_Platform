@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+import re
+from datetime import datetime, timezone
 
 from crewai import Agent, Crew, Process, Task
 from sqlalchemy.orm import joinedload
@@ -18,6 +19,7 @@ from .agent_playbook import (
 )
 from .database import SessionLocal
 from .delivered_code_package import (
+    _integration_pkg_needs_slot_expansion,
     ensure_python_script_delivery_package,
     expand_integration_monolithic_slots,
     integration_delivered_search_blurb,
@@ -29,6 +31,22 @@ from .integration_crew_adapter import integration_request_to_crew_rfp_dict
 from .routers.interview_router import _conversation_list_for_llm
 
 _MAX_JOB_LOG_CHARS = 48_000
+
+
+def integration_deliverable_job_stale(ir: models.IntegrationRequest, *, minutes: int = 20) -> bool:
+    """generating 상태인데 로그가 오래 갱신되지 않으면 이전 작업이 멈춘 것으로 본다."""
+    log = (getattr(ir, "delivered_job_log", None) or "").strip()
+    if not log:
+        return True
+    matches = re.findall(r"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) UTC\]", log)
+    if not matches:
+        return True
+    try:
+        last_dt = datetime.strptime(matches[-1], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        age_sec = (datetime.now(timezone.utc) - last_dt).total_seconds()
+        return age_sec > minutes * 60
+    except Exception:
+        return True
 
 
 def append_integration_job_log(ir_id: int, field: str, line: str) -> None:
@@ -203,7 +221,8 @@ def run_integration_deliverable_job(ir_id: int) -> None:
             impl_type_codes=impl_codes,
         )
         if pkg:
-            pkg = expand_integration_monolithic_slots(pkg)
+            if _integration_pkg_needs_slot_expansion(pkg):
+                pkg = expand_integration_monolithic_slots(pkg)
             pkg = ensure_python_script_delivery_package(
                 pkg,
                 request_title=(ir.title or "").strip(),
@@ -215,7 +234,8 @@ def run_integration_deliverable_job(ir_id: int) -> None:
                 program_id=(ir.title or "integration")[:48],
             )
             if recovered and integration_delivered_package_has_body(recovered):
-                pkg = expand_integration_monolithic_slots(recovered)
+                if _integration_pkg_needs_slot_expansion(recovered):
+                    pkg = expand_integration_monolithic_slots(recovered)
                 pkg = ensure_python_script_delivery_package(
                     pkg,
                     request_title=(ir.title or "").strip(),

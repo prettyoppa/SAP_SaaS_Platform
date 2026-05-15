@@ -15,7 +15,12 @@ from ..paid_generation import (
     run_delivered_code_job,
     run_fs_generation_job,
 )
-from ..integration_generation import run_integration_deliverable_job, run_integration_fs_job
+from ..integration_generation import (
+    append_integration_job_log,
+    integration_deliverable_job_stale,
+    run_integration_deliverable_job,
+    run_integration_fs_job,
+)
 from ..paid_tier import user_can_operate_delivery
 from ..templates_config import templates
 from ..rfp_phase_gates import rfp_phase_gates
@@ -305,11 +310,15 @@ def admin_integration_code_start(
     fs_body = (ir.fs_text or "").strip()
     if not fs_body or (ir.fs_status or "").strip() != "ready":
         return RedirectResponse(url=f"/integration/{req_id}?phase=fs&err=fs_not_ready", status_code=302)
-    if (ir.delivered_code_status or "").strip() == "generating":
+    dc_generating = (ir.delivered_code_status or "").strip() == "generating"
+    if dc_generating and not integration_deliverable_job_stale(ir):
         return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)
+    if dc_generating and integration_deliverable_job_stale(ir):
+        append_integration_job_log(req_id, "delivered_job_log", "이전 generating 무응답 — 작업 재시작")
+    elif not dc_generating:
+        ir.delivered_job_log = None
     ir.delivered_code_status = "generating"
     ir.delivered_code_error = None
-    ir.delivered_job_log = None
     db.commit()
     background_tasks.add_task(run_integration_deliverable_job, req_id)
     return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)

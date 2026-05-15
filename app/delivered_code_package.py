@@ -8,6 +8,8 @@ import re
 import zipfile
 from typing import Any
 
+_MAX_FENCES_SPLIT_PER_SLOT = 48
+
 from .rfp_download_names import sanitize_path_component
 
 PACKAGE_VERSION = 1
@@ -630,6 +632,34 @@ def integration_package_from_legacy_markdown(
     return normalize_integration_delivered_package(base)
 
 
+def _legacy_text_is_integration_search_blurb(text: str) -> bool:
+    """DB delivered_code_text 가 요약본이면 레거시 전체 파싱을 생략한다."""
+    head = (text or "").strip()[:500]
+    return "연동 개발 납품 요약" in head or "**program_id:**" in head
+
+
+def _integration_pkg_looks_structured(pkg: dict[str, Any]) -> bool:
+    """파일 슬롯이 이미 분리된 패키지로 보이면 레거시 재파싱이 불필요하다."""
+    slots = [s for s in (pkg.get("slots") or []) if isinstance(s, dict)]
+    if len(slots) >= 2:
+        return True
+    if len(slots) == 1:
+        src = str(slots[0].get("source") or "")
+        return len(src) < 20_000 and src.count("```") < 3
+    return False
+
+
+def _integration_pkg_needs_slot_expansion(pkg: dict[str, Any]) -> bool:
+    """단일 거대 슬롯·슬롯 내 다중 펜스만 펼친다."""
+    slots = [s for s in (pkg.get("slots") or []) if isinstance(s, dict)]
+    if not slots:
+        return False
+    if len(slots) > 1:
+        return any(str(s.get("source") or "").count("```") >= 4 for s in slots)
+    src = str(slots[0].get("source") or "")
+    return len(src) > 12_000 or src.count("```") >= 4
+
+
 def _split_integration_slot_by_embedded_fences(sl: dict[str, str]) -> list[dict[str, str]]:
     """한 슬롯 source 안에 코드펜스가 여러 개면 파일별 슬롯으로 분할."""
     source = (sl.get("source") or "").strip()
@@ -638,6 +668,8 @@ def _split_integration_slot_by_embedded_fences(sl: dict[str, str]) -> list[dict[
     fences = list(_INTEGRATION_LEGACY_FENCE_RE.finditer(source))
     if len(fences) <= 1:
         return [sl]
+    if len(fences) > _MAX_FENCES_SPLIT_PER_SLOT:
+        fences = fences[:_MAX_FENCES_SPLIT_PER_SLOT]
     out: list[dict[str, str]] = []
     base_role = (sl.get("role") or "other").strip()
     base_title = (sl.get("title_ko") or "").strip()
@@ -665,7 +697,7 @@ def _split_integration_slot_by_embedded_fences(sl: dict[str, str]) -> list[dict[
 
 def expand_integration_monolithic_slots(pkg: dict[str, Any]) -> dict[str, Any]:
     """거대 단일 슬롯·슬롯 내 다중 펜스를 파일 단위로 펼친다."""
-    if not isinstance(pkg, dict):
+    if not isinstance(pkg, dict) or not _integration_pkg_needs_slot_expansion(pkg):
         return pkg
     raw = pkg.get("slots")
     if not isinstance(raw, list):
@@ -716,31 +748,36 @@ def resolve_integration_delivered_for_display(
     program_id_hint: str | None = None,
     impl_codes: list[str] | None = None,
     request_title: str = "",
+    augment_python: bool = False,
 ) -> dict[str, Any] | None:
     """
     허브·ZIP용 최종 패키지: JSON payload 우선, 부족하면 legacy 마크다운에서 슬롯 복원·분할.
+    augment_python: True 일 때만 README/requirements 보강(ZIP 다운로드·생성 직후용).
     """
     pkg = parse_integration_delivered_payload(payload_raw)
-    if pkg:
+    if pkg and _integration_pkg_needs_slot_expansion(pkg):
         pkg = expand_integration_monolithic_slots(pkg)
 
     legacy = (legacy_text or "").strip()
-    if legacy:
-        parsed = integration_package_from_legacy_markdown(
-            legacy,
-            program_id=(pkg or {}).get("program_id") if pkg else program_id_hint,
-        )
-        if parsed:
-            parsed = expand_integration_monolithic_slots(parsed)
-            pkg_slots = len((pkg or {}).get("slots") or []) if pkg else 0
-            parsed_slots = len(parsed.get("slots") or [])
-            if not pkg or parsed_slots > pkg_slots:
-                pkg = parsed
+    if legacy and not _legacy_text_is_integration_search_blurb(legacy):
+        need_legacy = not pkg or not _integration_pkg_looks_structured(pkg)
+        if need_legacy:
+            parsed = integration_package_from_legacy_markdown(
+                legacy,
+                program_id=(pkg or {}).get("program_id") if pkg else program_id_hint,
+            )
+            if parsed:
+                if _integration_pkg_needs_slot_expansion(parsed):
+                    parsed = expand_integration_monolithic_slots(parsed)
+                pkg_slots = len((pkg or {}).get("slots") or []) if pkg else 0
+                parsed_slots = len(parsed.get("slots") or [])
+                if not pkg or parsed_slots > pkg_slots:
+                    pkg = parsed
 
     if not pkg or not integration_delivered_package_has_body(pkg):
         return None
 
-    if integration_impl_codes_include_python(impl_codes):
+    if augment_python and integration_impl_codes_include_python(impl_codes):
         pkg = ensure_python_script_delivery_package(
             pkg,
             request_title=request_title,
