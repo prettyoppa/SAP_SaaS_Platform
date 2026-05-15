@@ -33,7 +33,7 @@
       {% if sl.title_ko %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ sl.title_ko }}</span>{% endif %}
     </div>
     <div class="p-0">
-      <pre class="small mb-0 p-3 font-monospace text-wrap" style="max-height:28rem;overflow:auto;background:var(--surface);white-space:pre-wrap;">{{ sl.source or '' }}</pre>
+      <pre class="codelib-source-pre delivered-slot-source-pre mb-0"><code>{{ sl.source or '' }}</code></pre>
     </div>
   </div>
   {% endfor %}

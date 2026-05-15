@@ -61,10 +61,7 @@ def maybe_fail_stale_integration_deliverable(
     if not integration_deliverable_job_stale(ir, minutes=minutes):
         return ir
     ir.delivered_code_status = "failed"
-    ir.delivered_code_error = (
-        "구현 산출물 생성이 제한 시간 내에 완료되지 않았습니다. "
-        "아래 「구현 산출물 재생성」을 다시 시도하세요."
-    )
+    ir.delivered_code_error = "구현 산출물 생성이 제한 시간 내에 완료되지 않았습니다."
     append_integration_job_log(
         int(ir.id),
         "delivered_job_log",
@@ -296,9 +293,7 @@ def run_integration_deliverable_job(ir_id: int) -> None:
             ir_fin = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == ir_id).first()
             if ir_fin and (ir_fin.delivered_code_status or "").strip() == "generating":
                 ir_fin.delivered_code_status = "failed"
-                ir_fin.delivered_code_error = (
-                    ir_fin.delivered_code_error or "작업이 비정상 종료되었습니다. 재생성을 시도하세요."
-                )
+                ir_fin.delivered_code_error = ir_fin.delivered_code_error or "구현 산출물 생성 작업이 비정상 종료되었습니다."
                 db.commit()
         except Exception:
             pass

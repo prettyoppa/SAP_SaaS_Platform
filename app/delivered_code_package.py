@@ -52,6 +52,19 @@ def _safe_filename(name: str, fallback: str) -> str:
     return raw
 
 
+def normalize_slot_source_text(source: str) -> str:
+    """
+    슬롯 source 텍스트 정규화: CRLF 통일, JSON 이스케이프만 남은 줄바꿈 복원.
+    (화면·ZIP 동일 본문; Bootstrap .text-wrap 이 아닌 <pre> 기본 white-space 와 함께 사용)
+    """
+    s = (source or "").replace("\r\n", "\n").replace("\r", "\n")
+    if not s:
+        return s
+    if "\n" not in s and ("\\n" in s or "\\t" in s):
+        s = s.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    return s
+
+
 def _normalize_slot(slot: Any, idx: int) -> dict[str, str] | None:
     if not isinstance(slot, dict):
         return None
@@ -60,7 +73,7 @@ def _normalize_slot(slot: Any, idx: int) -> dict[str, str] | None:
         role = "other"
     title_ko = (str(slot.get("title_ko") or slot.get("title") or "")).strip() or f"슬롯 {idx + 1}"
     fn = _safe_filename(str(slot.get("filename") or ""), f"slot_{idx + 1}.abap")
-    source = str(slot.get("source") or "")
+    source = normalize_slot_source_text(str(slot.get("source") or ""))
     return {"role": role, "filename": fn, "title_ko": title_ko, "source": source}
 
 
@@ -351,7 +364,7 @@ def _normalize_integration_slot(slot: Any, idx: int) -> dict[str, str] | None:
         role = "other"
     title_ko = (str(slot.get("title_ko") or slot.get("title") or "")).strip() or f"파일 {idx + 1}"
     fn = _safe_filename_integration(str(slot.get("filename") or ""), idx)
-    source = str(slot.get("source") or "")
+    source = normalize_slot_source_text(str(slot.get("source") or ""))
     return {"role": role, "filename": fn, "title_ko": title_ko, "source": source}
 
 

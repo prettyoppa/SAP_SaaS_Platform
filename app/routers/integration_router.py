@@ -111,6 +111,20 @@ from .rfp_router import (
 router = APIRouter()
 
 
+def _integration_delivered_code_error_for_viewer(raw: str | None, *, can_operate_delivery: bool) -> str:
+    """요청자 화면에는 재생성 버튼 안내 문구(레거시 DB 메시지)를 제거한다."""
+    msg = (raw or "").strip() or "알 수 없는 오류"
+    if can_operate_delivery:
+        return msg
+    for legacy in (
+        "아래 「구현 산출물 재생성」을 다시 시도하세요.",
+        "「구현 산출물 재생성」으로 다시 시도하세요.",
+        "재생성을 시도하세요.",
+    ):
+        msg = msg.replace(legacy, "").strip()
+    return msg.rstrip(".。").strip() or "구현 산출물 생성에 실패했습니다."
+
+
 def _hub_integration_delivered_fields(ir: models.IntegrationRequest) -> dict[str, Any]:
     """통합 허브: 구현가이드·테스트·파일별 슬롯 분리 표시(신규개발 납품 UX와 동일 계열)."""
     dc_ready = (getattr(ir, "delivered_code_status", None) or "").strip() == "ready"
@@ -1929,6 +1943,7 @@ def _collect_integration_unified_hub_ctx(
         fs_html = _markdown_to_html(ir.fs_text)
 
     dc_hub = _hub_integration_delivered_fields(ir)
+    can_operate_delivery_flag = user_can_operate_delivery(user)
 
     fs_busy = fs_stat == "generating"
     dc_busy = dc_stat == "generating"
@@ -1936,7 +1951,6 @@ def _collect_integration_unified_hub_ctx(
 
     fs_body = (getattr(ir, "fs_text", None) or "").strip()
     fs_ready = fs_stat == "ready" and bool(fs_body)
-    can_operate_delivery_flag = user_can_operate_delivery(user)
     can_start_delivered_code = (
         bool(can_operate_delivery_flag)
         and fs_ready
@@ -2047,6 +2061,10 @@ def _collect_integration_unified_hub_ctx(
         "proposal_html": proposal_html,
         "fs_html": fs_html,
         **dc_hub,
+        "delivered_code_error_display": _integration_delivered_code_error_for_viewer(
+            getattr(ir, "delivered_code_error", None),
+            can_operate_delivery=can_operate_delivery_flag,
+        ),
         "fs_stat": fs_stat,
         "dc_stat": dc_stat,
         "fs_busy": fs_busy,

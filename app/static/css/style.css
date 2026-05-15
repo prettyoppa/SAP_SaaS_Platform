@@ -537,6 +537,7 @@ html[data-theme="light"] .theme-switch-icon-wrap--right { color: #ea580c; opacit
   padding: 1.25rem;
   font-size: .82rem;
   line-height: 1.65;
+  white-space: pre;
   overflow-x: auto;
   max-height: 500px;
   overflow-y: auto;
@@ -546,6 +547,15 @@ html[data-theme="light"] .theme-switch-icon-wrap--right { color: #ea580c; opacit
 .codelib-source-pre code {
   color: inherit;
   font-family: ui-monospace, Consolas, "Segoe UI Mono", monospace;
+  white-space: inherit;
+}
+/* 납품 슬롯: Bootstrap .text-wrap(white-space:normal!important) 사용 금지 */
+.delivered-slot-source-pre {
+  max-height: 28rem;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
 }
 html[data-theme="light"] .codelib-source-pre {
   background: #f1f5f9;

@@ -2,7 +2,12 @@
   {% if dc_stat == 'failed' %}
   <div class="alert alert-danger small mb-3">
     <div class="fw-semibold mb-1">구현 산출물 생성 실패</div>
-    <pre class="mb-0 small text-wrap" style="white-space:pre-wrap;">{{ ir.delivered_code_error or '알 수 없는 오류' }}</pre>
+    <p class="mb-2 small">{{ delivered_code_error_display|default(ir.delivered_code_error or '알 수 없는 오류') }}</p>
+    {% if can_operate_delivery|default(false) %}
+    <p class="mb-0 small text-muted">「4. 기능명세 (FS)」 영역에서 <strong>구현 산출물 재생성</strong>을 눌러 다시 시도할 수 있습니다.</p>
+    {% else %}
+    <p class="mb-0 small text-muted">담당 컨설턴트에게 개발코드 재생성을 요청해 주세요. 처리가 끝나면 이 페이지를 새로고침하여 결과를 확인하시면 됩니다.</p>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -60,7 +65,7 @@
       {% if sl.title_ko %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ sl.title_ko }}</span>{% endif %}
     </div>
     <div class="p-0">
-      <pre class="small mb-0 p-3 font-monospace text-wrap" style="max-height:28rem;overflow:auto;background:var(--surface);white-space:pre-wrap;">{{ sl.source or '' }}</pre>
+      <pre class="codelib-source-pre delivered-slot-source-pre mb-0"><code>{{ sl.source or '' }}</code></pre>
     </div>
   </div>
   {% endif %}
@@ -79,7 +84,7 @@
       {% if sl.title_ko %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ sl.title_ko }}</span>{% endif %}
     </div>
     <div class="p-0">
-      <pre class="small mb-0 p-3 font-monospace text-wrap" style="max-height:28rem;overflow:auto;background:var(--surface);white-space:pre-wrap;">{{ sl.source or '' }}</pre>
+      <pre class="codelib-source-pre delivered-slot-source-pre mb-0"><code>{{ sl.source or '' }}</code></pre>
     </div>
   </div>
   {% endif %}

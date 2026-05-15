@@ -340,6 +340,6 @@ def admin_integration_code_cancel(
     if (ir.delivered_code_status or "").strip() == "generating":
         append_integration_job_log(req_id, "delivered_job_log", "운영자 수동 중단")
         ir.delivered_code_status = "failed"
-        ir.delivered_code_error = "운영자가 생성 작업을 중단했습니다. 「구현 산출물 재생성」으로 다시 시도하세요."
+        ir.delivered_code_error = "구현 산출물 생성 작업이 중단되었습니다."
         db.commit()
     return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)
