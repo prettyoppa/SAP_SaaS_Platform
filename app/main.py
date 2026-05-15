@@ -107,6 +107,7 @@ def _run_migrations():
         ("abap_analysis_requests", "sap_modules", "VARCHAR", "VARCHAR"),
         ("abap_analysis_requests", "dev_types", "VARCHAR", "VARCHAR"),
         ("abap_analysis_requests", "requirement_screenshots_json", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "requirement_text_format", "VARCHAR(16) DEFAULT 'plain'", "VARCHAR(16) DEFAULT 'plain'"),
         ("dev_types", "usage", "VARCHAR(16) DEFAULT 'abap'", "VARCHAR(16) DEFAULT 'abap'"),
         ("integration_requests", "workflow_rfp_id", "INTEGER", "INTEGER"),
         ("integration_requests", "improvement_request_text", "TEXT", "TEXT"),

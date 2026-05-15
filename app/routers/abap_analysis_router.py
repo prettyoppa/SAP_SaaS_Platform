@@ -48,12 +48,18 @@ from ..menu_landing import (
     user_proposal_pending_offer_badges,
 )
 from ..attachment_context import build_attachment_llm_digest
+from ..requirement_rich_text import (
+    html_to_plain_text,
+    is_html_format,
+    legacy_gallery_entries,
+    process_submitted_html,
+    sanitize_html,
+)
 from ..requirement_screenshots import (
     build_requirement_screenshots_llm_digest,
     duplicate_entries as duplicate_requirement_screenshots,
     entries_from_json as requirement_screenshot_entries_from_json,
     entries_to_json as requirement_screenshot_entries_to_json,
-    process_form_state as process_requirement_screenshots_form,
     remove_stored_entries as remove_requirement_screenshots,
 )
 from ..offer_inquiry_service import (
@@ -105,6 +111,7 @@ def _abap_form_dict(
     *,
     title: str = "",
     requirement_text: str = "",
+    requirement_text_format: str = "html",
     program_id: str = "",
     transaction_code: str = "",
     sap_modules: Optional[List[str]] = None,
@@ -116,6 +123,7 @@ def _abap_form_dict(
     return {
         "title": title or "",
         "requirement_text": requirement_text or "",
+        "requirement_text_format": (requirement_text_format or "html").strip().lower(),
         "program_id": program_id or "",
         "transaction_code": transaction_code or "",
         "sap_modules": list(sap_modules or []),
@@ -126,15 +134,56 @@ def _abap_form_dict(
 
 def _abap_form_dict_from_row(row: models.AbapAnalysisRequest) -> dict:
     notes = _notes_from_entries(_attachment_entries(row))[:5]
+    fmt = (getattr(row, "requirement_text_format", None) or "plain").strip().lower()
     return _abap_form_dict(
         title=row.title or "",
         requirement_text=row.requirement_text or "",
+        requirement_text_format=fmt,
         program_id=getattr(row, "program_id", None) or "",
         transaction_code=getattr(row, "transaction_code", None) or "",
         sap_modules=_split_csv_chips(getattr(row, "sap_modules", None)),
         dev_types=_split_csv_chips(getattr(row, "dev_types", None)),
         notes=notes,
     )
+
+
+def _requirement_plain(row: models.AbapAnalysisRequest) -> str:
+    fmt = (getattr(row, "requirement_text_format", None) or "plain").strip().lower()
+    raw = row.requirement_text or ""
+    if is_html_format(fmt):
+        return html_to_plain_text(raw)
+    return raw.strip()
+
+
+def _apply_requirement_body(
+    row: models.AbapAnalysisRequest,
+    user: models.User,
+    req_raw: str,
+    fmt: str,
+) -> Optional[str]:
+    """요구사항 본문·포맷·인라인 이미지 저장. 오류 키 또는 None."""
+    existing = _screenshot_entries(row)
+    fmt_norm = (fmt or "plain").strip().lower()
+    if is_html_format(fmt_norm):
+        html, entries, err = process_submitted_html(
+            user_id=user.id,
+            raw_html=req_raw,
+            req_id=int(row.id),
+            existing_entries=existing,
+        )
+        if err:
+            return err
+        row.requirement_text = html
+        row.requirement_text_format = "html"
+        _set_screenshots(row, entries)
+        return None
+    plain = (req_raw or "").strip()
+    if existing:
+        remove_requirement_screenshots(existing)
+    row.requirement_text = plain
+    row.requirement_text_format = "plain"
+    _set_screenshots(row, [])
+    return None
 
 
 def _ref_initial_from_raw(reference_code_json: str) -> Optional[dict]:
@@ -441,10 +490,6 @@ def _form_template_response(
             "teaser_i18n": "chat.formAiTeaserAbap",
         }
 
-    shot_entries = _screenshot_entries_for_template(
-        edit_row,
-        req_id=int(edit_row.id) if edit_row else None,
-    )
     return templates.TemplateResponse(
         request,
         "abap_analysis_form.html",
@@ -456,7 +501,6 @@ def _form_template_response(
             "ref_code_initial": ref_code_initial,
             "edit_row": edit_row,
             "attachment_entries": attachment_entries or [],
-            "requirement_screenshot_entries": shot_entries,
             "modules": modules,
             "devtypes": devtypes,
             "writing_tip": writing_tip,
@@ -590,7 +634,7 @@ async def abap_analysis_create(
     note_2: str = Form(""),
     note_3: str = Form(""),
     note_4: str = Form(""),
-    requirement_screenshots_state: str = Form(""),
+    requirement_text_format: str = Form("html"),
     save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
@@ -598,22 +642,19 @@ async def abap_analysis_create(
     title_raw = title or ""
     title_clean = (title_raw.strip())[:TITLE_MAX_LEN]
     req_raw = requirement_text or ""
-    req_clean = req_raw.strip()
+    req_fmt = (requirement_text_format or "html").strip().lower()
+    req_for_validate = (
+        html_to_plain_text(req_raw) if is_html_format(req_fmt) else req_raw.strip()
+    )
     notes_in = [note_0, note_1, note_2, note_3, note_4]
     ref_initial = _ref_initial_from_raw(reference_code_json)
     is_draft_save = (save_action or "").strip().lower() == "draft"
-    existing_shots: list[dict] = []
-
-    def _rollback_new_shots(final: list[dict]) -> None:
-        old_paths = {e.get("path") for e in existing_shots if e.get("path")}
-        fresh = [e for e in final if e.get("path") and e.get("path") not in old_paths]
-        if fresh:
-            remove_requirement_screenshots(fresh)
 
     def _form_state() -> dict:
         return _abap_form_dict(
             title=title_raw,
             requirement_text=req_raw,
+            requirement_text_format=req_fmt,
             program_id=program_id,
             transaction_code=transaction_code,
             sap_modules=sap_modules,
@@ -621,9 +662,7 @@ async def abap_analysis_create(
             notes=notes_in,
         )
 
-    def _bad(err: str, ref_init=None, *, shots: Optional[list[dict]] = None):
-        if shots:
-            _rollback_new_shots(shots)
+    def _bad(err: str, ref_init=None):
         return _form_template_response(
             request,
             user,
@@ -645,7 +684,7 @@ async def abap_analysis_create(
         program_id,
         sap_modules,
         dev_types,
-        req_clean,
+        req_for_validate,
         min_description_chars=min_desc,
     )
     if miss:
@@ -670,75 +709,36 @@ async def abap_analysis_create(
         }[terr]
         return _bad(err_key)
 
-    shot_entries, shot_err = process_requirement_screenshots_form(
-        user_id=user.id,
-        existing_entries=existing_shots,
-        state_json=requirement_screenshots_state,
-    )
-    if shot_err:
-        return _bad(shot_err)
-
     n_uploads = sum(1 for f in attachments if f.filename)
     if n_uploads > MAX_RFP_ATTACHMENTS:
-        return _bad("too_many_attachments", shots=shot_entries)
+        return _bad("too_many_attachments")
 
     att_entries: list[dict] = []
     if n_uploads > 0:
         att_entries, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
         if err_a:
-            return _bad(err_a, shots=shot_entries)
+            return _bad(err_a)
 
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
-        return _bad("reference_code_too_large", ref_init=ref_initial, shots=shot_entries)
+        return _bad("reference_code_too_large", ref_init=ref_initial)
 
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
     qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     if qerr == "disabled":
-        return _bad("subscription_dev_request_disabled", shots=shot_entries)
+        return _bad("subscription_dev_request_disabled")
     if qerr == "monthly_limit":
-        return _bad("subscription_dev_request_limit", shots=shot_entries)
+        return _bad("subscription_dev_request_limit")
 
-    if is_draft_save:
-        row = models.AbapAnalysisRequest(
-            user_id=user.id,
-            title=title_clean,
-            program_id=pid,
-            transaction_code=tc,
-            sap_modules=",".join(sap_modules) if sap_modules else "",
-            dev_types=",".join(dev_types) if dev_types else "",
-            requirement_text=req_clean,
-            reference_code_payload=norm_ref,
-            source_code=src,
-            analysis_json=None,
-            is_analyzed=False,
-            is_draft=True,
-        )
-        _set_attachments(row, att_entries)
-        _set_screenshots(row, shot_entries)
-        db.add(row)
-        db.commit()
-        db.refresh(row)
-        return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
-
-    if len(title_clean) < MIN_TITLE_LEN:
-        return _bad("need_title", shots=shot_entries)
-    if not norm_ref:
-        return _bad("need_reference_code", shots=shot_entries)
-    if len(src) < MIN_ABAP_SOURCE_LEN:
-        return _bad("code_too_short", shots=shot_entries)
-
-    analysis = _run_analysis(
-        req_clean,
-        src,
-        att_entries,
-        screenshot_entries=shot_entries,
-        sap_modules=sap_modules,
-        dev_types=dev_types,
-    )
-    analyzed = not bool(analysis.get("error"))
+    if not is_draft_save:
+        if len(title_clean) < MIN_TITLE_LEN:
+            return _bad("need_title")
+        if not norm_ref:
+            return _bad("need_reference_code")
+        if len(src) < MIN_ABAP_SOURCE_LEN:
+            return _bad("code_too_short")
 
     row = models.AbapAnalysisRequest(
         user_id=user.id,
@@ -747,18 +747,42 @@ async def abap_analysis_create(
         transaction_code=tc,
         sap_modules=",".join(sap_modules) if sap_modules else "",
         dev_types=",".join(dev_types) if dev_types else "",
-        requirement_text=req_clean,
+        requirement_text="",
+        requirement_text_format="plain",
         reference_code_payload=norm_ref,
         source_code=src,
-        analysis_json=json.dumps(analysis, ensure_ascii=False),
-        is_analyzed=analyzed,
-        is_draft=False,
+        analysis_json=None,
+        is_analyzed=False,
+        is_draft=is_draft_save,
     )
     _set_attachments(row, att_entries)
-    _set_screenshots(row, shot_entries)
     db.add(row)
-    db.commit()
+    try:
+        db.flush()
+        body_err = _apply_requirement_body(row, user, req_raw, req_fmt)
+        if body_err:
+            db.rollback()
+            return _bad(body_err)
+        if not is_draft_save:
+            analysis = _run_analysis(
+                _requirement_plain(row),
+                src,
+                att_entries,
+                screenshot_entries=_screenshot_entries(row),
+                sap_modules=sap_modules,
+                dev_types=dev_types,
+            )
+            analyzed = not bool(analysis.get("error"))
+            row.analysis_json = json.dumps(analysis, ensure_ascii=False)
+            row.is_analyzed = analyzed
+            row.is_draft = False
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(row)
+    if is_draft_save:
+        return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
 
 
@@ -791,6 +815,7 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
         sap_modules=getattr(row, "sap_modules", None),
         dev_types=getattr(row, "dev_types", None),
         requirement_text=row.requirement_text or "",
+        requirement_text_format=getattr(row, "requirement_text_format", None) or "plain",
         reference_code_payload=row.reference_code_payload,
         source_code=src,
         is_draft=True,
@@ -854,7 +879,7 @@ async def abap_analysis_edit_save(
     delete_2: str = Form(""),
     delete_3: str = Form(""),
     delete_4: str = Form(""),
-    requirement_screenshots_state: str = Form(""),
+    requirement_text_format: str = Form("html"),
     save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
@@ -866,25 +891,22 @@ async def abap_analysis_edit_save(
     title_raw = title or ""
     title_clean = (title_raw.strip())[:TITLE_MAX_LEN]
     req_raw = requirement_text or ""
-    req_clean = req_raw.strip()
+    req_fmt = (requirement_text_format or "html").strip().lower()
+    req_for_validate = (
+        html_to_plain_text(req_raw) if is_html_format(req_fmt) else req_raw.strip()
+    )
     notes_in = [note_0, note_1, note_2, note_3, note_4]
     notes_orig = [note_orig_0, note_orig_1, note_orig_2, note_orig_3, note_orig_4]
     del_flags = [bool(delete_0), bool(delete_1), bool(delete_2), bool(delete_3), bool(delete_4)]
     ref_initial = _ref_initial_from_raw(reference_code_json)
     is_draft_save = (save_action or "").strip().lower() == "draft"
     existing_att = _attachment_entries(row)
-    existing_shots = _screenshot_entries(row)
-
-    def _rollback_new_shots(final: list[dict]) -> None:
-        old_paths = {e.get("path") for e in existing_shots if e.get("path")}
-        fresh = [e for e in final if e.get("path") and e.get("path") not in old_paths]
-        if fresh:
-            remove_requirement_screenshots(fresh)
 
     def _form_state() -> dict:
         return _abap_form_dict(
             title=title_raw,
             requirement_text=req_raw,
+            requirement_text_format=req_fmt,
             program_id=program_id,
             transaction_code=transaction_code,
             sap_modules=sap_modules,
@@ -892,9 +914,7 @@ async def abap_analysis_edit_save(
             notes=notes_in,
         )
 
-    def _bad(err: str, ref_init=None, *, shots: Optional[list[dict]] = None):
-        if shots:
-            _rollback_new_shots(shots)
+    def _bad(err: str, ref_init=None):
         return _form_template_response(
             request,
             user,
@@ -916,7 +936,7 @@ async def abap_analysis_edit_save(
         program_id,
         sap_modules,
         dev_types,
-        req_clean,
+        req_for_validate,
         min_description_chars=min_desc,
     )
     if miss:
@@ -941,14 +961,6 @@ async def abap_analysis_edit_save(
         }[terr]
         return _bad(err_key)
 
-    shot_entries, shot_err = process_requirement_screenshots_form(
-        user_id=user.id,
-        existing_entries=existing_shots,
-        state_json=requirement_screenshots_state,
-    )
-    if shot_err:
-        return _bad(shot_err)
-
     kept: list[dict] = []
     for i, att in enumerate(existing_att):
         if i < len(del_flags) and del_flags[i]:
@@ -963,76 +975,70 @@ async def abap_analysis_edit_save(
 
     n_uploads = sum(1 for f in attachments if f.filename)
     if n_uploads > MAX_RFP_ATTACHMENTS:
-        return _bad("too_many_attachments", shots=shot_entries)
+        return _bad("too_many_attachments")
 
     new_parts: list[dict] = []
     if n_uploads > 0:
         new_parts, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
         if err_a:
-            return _bad(err_a, shots=shot_entries)
+            return _bad(err_a)
 
     remaining = MAX_RFP_ATTACHMENTS - len(kept)
     if len(new_parts) > remaining:
-        return _bad("too_many_attachments", shots=shot_entries)
+        return _bad("too_many_attachments")
 
     merged_att = kept + new_parts
 
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
-        return _bad("reference_code_too_large", ref_init=ref_initial, shots=shot_entries)
+        return _bad("reference_code_too_large", ref_init=ref_initial)
 
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
-    if is_draft_save:
-        row.title = title_clean
-        row.program_id = pid
-        row.transaction_code = tc
-        row.sap_modules = ",".join(sap_modules) if sap_modules else ""
-        row.dev_types = ",".join(dev_types) if dev_types else ""
-        row.requirement_text = req_clean
-        row.reference_code_payload = norm_ref
-        row.source_code = src
-        row.is_draft = True
-        row.is_analyzed = False
-        row.analysis_json = None
-        _set_attachments(row, merged_att)
-        _set_screenshots(row, shot_entries)
-        db.add(row)
-        db.commit()
-        return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
+    if not is_draft_save:
+        if len(title_clean) < MIN_TITLE_LEN:
+            return _bad("need_title")
+        if not norm_ref:
+            return _bad("need_reference_code")
+        if len(src) < MIN_ABAP_SOURCE_LEN:
+            return _bad("code_too_short")
 
-    if len(title_clean) < MIN_TITLE_LEN:
-        return _bad("need_title", shots=shot_entries)
-    if not norm_ref:
-        return _bad("need_reference_code", shots=shot_entries)
-    if len(src) < MIN_ABAP_SOURCE_LEN:
-        return _bad("code_too_short", shots=shot_entries)
-
-    analysis = _run_analysis(
-        req_clean,
-        src,
-        merged_att,
-        screenshot_entries=shot_entries,
-        sap_modules=sap_modules,
-        dev_types=dev_types,
-    )
-    analyzed = not bool(analysis.get("error"))
     row.title = title_clean
     row.program_id = pid
     row.transaction_code = tc
     row.sap_modules = ",".join(sap_modules) if sap_modules else ""
     row.dev_types = ",".join(dev_types) if dev_types else ""
-    row.requirement_text = req_clean
     row.reference_code_payload = norm_ref
     row.source_code = src
-    row.analysis_json = json.dumps(analysis, ensure_ascii=False)
-    row.is_analyzed = analyzed
-    row.is_draft = False
     _set_attachments(row, merged_att)
-    _set_screenshots(row, shot_entries)
+
+    body_err = _apply_requirement_body(row, user, req_raw, req_fmt)
+    if body_err:
+        return _bad(body_err)
+
+    if is_draft_save:
+        row.is_draft = True
+        row.is_analyzed = False
+        row.analysis_json = None
+    else:
+        analysis = _run_analysis(
+            _requirement_plain(row),
+            src,
+            merged_att,
+            screenshot_entries=_screenshot_entries(row),
+            sap_modules=sap_modules,
+            dev_types=dev_types,
+        )
+        analyzed = not bool(analysis.get("error"))
+        row.analysis_json = json.dumps(analysis, ensure_ascii=False)
+        row.is_analyzed = analyzed
+        row.is_draft = False
+
     db.add(row)
     db.commit()
+    if is_draft_save:
+        return RedirectResponse(url=f"/abap-analysis/{row.id}/edit", status_code=302)
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
 
 
@@ -1116,8 +1122,22 @@ def _prepare_abap_analysis_detail_ctx(
         "hub_readonly_return_url": hub_readonly_return_url,
     }
 
-    screenshot_entries = _screenshot_entries(row)
-    screenshot_url_base = f"/abap-analysis/{row.id}/requirement-screenshot"
+    req_fmt = (getattr(row, "requirement_text_format", None) or "plain").strip().lower()
+    all_shots = _screenshot_entries(row)
+    legacy_shots = legacy_gallery_entries(all_shots)
+    req_ctx = {
+        "requirement_text_format": req_fmt,
+        "requirement_html_safe": sanitize_html(row.requirement_text or "")
+        if is_html_format(req_fmt)
+        else "",
+        "requirement_plain_text": (row.requirement_text or "")
+        if not is_html_format(req_fmt)
+        else "",
+        "requirement_screenshot_entries": legacy_shots or (
+            [] if is_html_format(req_fmt) else all_shots
+        ),
+        "screenshot_url_base": f"/abap-analysis/{row.id}/requirement-screenshot",
+    }
 
     if readonly_console:
         return {
@@ -1126,8 +1146,7 @@ def _prepare_abap_analysis_detail_ctx(
             "row": row,
             "analysis": analysis,
             "attachment_entries": _attachment_entries(row),
-            "requirement_screenshot_entries": screenshot_entries,
-            "screenshot_url_base": screenshot_url_base,
+            **req_ctx,
             "owner": owner,
             "code_asset_unlocked": code_asset_unlocked,
             "source_program_groups": program_groups,
@@ -1164,8 +1183,7 @@ def _prepare_abap_analysis_detail_ctx(
         "row": row,
         "analysis": analysis,
         "attachment_entries": _attachment_entries(row),
-        "requirement_screenshot_entries": screenshot_entries,
-        "screenshot_url_base": screenshot_url_base,
+        **req_ctx,
         "owner": owner,
         "code_asset_unlocked": code_asset_unlocked,
         "followup_turns": followup_turns,
@@ -1529,6 +1547,46 @@ def abap_analysis_offer_profile_download(
     return FileResponse(ref, filename=fname)
 
 
+@router.get("/{req_id}/requirement-inline")
+def abap_analysis_requirement_inline_image(
+    req_id: int,
+    request: Request,
+    iid: str = "",
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    key = (iid or "").strip()
+    if not key:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    ent = next(
+        (e for e in _screenshot_entries(row) if str(e.get("inline_id") or "") == key),
+        None,
+    )
+    if not ent:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    path = ent.get("path")
+    fname = ent.get("filename") or "screenshot.png"
+    if not path:
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    kind, ref = r2_storage.parse_storage_ref(path)
+    if kind == "r2":
+        if not r2_storage.is_configured():
+            return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+        return RedirectResponse(url=r2_storage.presigned_get_url(ref, fname), status_code=302)
+    if not os.path.isfile(ref):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+    media = "image/png"
+    low = fname.lower()
+    if low.endswith(".jpg") or low.endswith(".jpeg"):
+        media = "image/jpeg"
+    elif low.endswith(".webp"):
+        media = "image/webp"
+    return FileResponse(ref, media_type=media, filename=fname)
+
+
 @router.get("/{req_id}/requirement-screenshot")
 def abap_analysis_requirement_screenshot(
     req_id: int,
@@ -1613,7 +1671,7 @@ def abap_analysis_reanalyze(req_id: int, request: Request, db: Session = Depends
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     eff_src = _effective_abap_source(row)
     analysis = _run_analysis(
-        row.requirement_text or "",
+        _requirement_plain(row),
         eff_src,
         _attachment_entries(row),
         screenshot_entries=_screenshot_entries(row),

@@ -322,7 +322,9 @@ class AbapAnalysisRequest(Base):
     sap_modules = Column(String, nullable=True)
     dev_types = Column(String, nullable=True)
     requirement_text = Column(Text, nullable=False, default="")
-    # [{path, filename, size}] — 요구사항 캡처 붙여넣기(최대 5장)
+    # plain | html — html이면 requirement_text에 서식·인라인 이미지 HTML
+    requirement_text_format = Column(String(16), nullable=False, default="plain")
+    # [{path, filename, size, inline_id?}] — 인라인·레거시 갤러리 이미지
     requirement_screenshots_json = Column(Text, nullable=True)
     # RFP와 동일 JSON 스키마(슬롯·섹션)
     reference_code_payload = Column(Text, nullable=True)

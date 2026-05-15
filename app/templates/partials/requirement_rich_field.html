@@ -1,0 +1,48 @@
+{# 분석·개선 — 요구사항 리치(서식·인라인 이미지) / 텍스트 전용 #}
+{% set req_fmt = (form.get('requirement_text_format') if form else none) or (resource.requirement_text_format if resource else none) or 'html' %}
+{% set req_body = '' %}
+{% if form and form.get('requirement_text') is not none %}
+  {% set req_body = form.get('requirement_text') %}
+{% elif resource and resource.requirement_text %}
+  {% set req_body = resource.requirement_text %}
+{% endif %}
+{% set req_plain = req_body if req_fmt != 'html' else '' %}
+{% set req_html = req_body if req_fmt == 'html' else '' %}
+
+<div class="req-rich-field" id="req-rich-root" data-default-mode="{{ req_fmt }}">
+  <input type="hidden" name="requirement_text_format" id="requirement-text-format" value="{{ req_fmt }}"/>
+  <input type="hidden" name="requirement_text" id="description" value=""/>
+
+  <div class="btn-group btn-group-sm mb-2" role="group" aria-label="요구사항 입력 방식">
+    <input type="radio" class="btn-check" name="req-mode-toggle" id="req-mode-rich" value="html" autocomplete="off"
+           {% if req_fmt == 'html' %}checked{% endif %}/>
+    <label class="btn btn-outline-primary" for="req-mode-rich">서식·이미지</label>
+    <input type="radio" class="btn-check" name="req-mode-toggle" id="req-mode-plain" value="plain" autocomplete="off"
+           {% if req_fmt != 'html' %}checked{% endif %}/>
+    <label class="btn btn-outline-secondary" for="req-mode-plain">텍스트만</label>
+  </div>
+
+  <div id="req-rich-alert" class="alert alert-warning py-2 px-3 small d-none mb-2" role="alert"></div>
+
+  <div id="req-rich-toolbar" class="req-rich-toolbar btn-toolbar mb-2 {% if req_fmt != 'html' %}d-none{% endif %}" role="toolbar">
+    <div class="btn-group btn-group-sm me-1">
+      <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="굵게"><i class="fa-solid fa-bold"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="기울임"><i class="fa-solid fa-italic"></i></button>
+    </div>
+    <div class="btn-group btn-group-sm">
+      <button type="button" class="btn btn-outline-secondary" data-cmd="insertUnorderedList" title="목록"><i class="fa-solid fa-list-ul"></i></button>
+    </div>
+    <small class="text-muted ms-2 align-self-center">본문에 <kbd>Ctrl</kbd>+<kbd>V</kbd>로 캡처 붙여넣기 (최대 5장)</small>
+  </div>
+
+  <div id="description-rich" class="form-control req-rich-editor rfp-textarea {% if req_fmt != 'html' %}d-none{% endif %}"
+       contenteditable="true" role="textbox" aria-multiline="true"
+       data-placeholder="요구사항을 입력하세요. 화면 캡처는 원하는 위치에 붙여넣을 수 있습니다.">{% if req_html %}{{ req_html|safe }}{% endif %}</div>
+
+  <textarea id="description-plain" class="form-control rfp-textarea {% if req_fmt == 'html' %}d-none{% endif %}"
+            rows="10" placeholder="요구사항을 입력하세요.">{{ req_plain }}</textarea>
+
+  <div class="d-flex justify-content-end mt-1">
+    <small class="text-muted"><span id="char-count">0</span> 자</small>
+  </div>
+</div>

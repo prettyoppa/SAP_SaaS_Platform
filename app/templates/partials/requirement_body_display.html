@@ -1,0 +1,6 @@
+{% if requirement_text_format == 'html' and requirement_html_safe %}
+<div class="border rounded p-3 small req-rich-body{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important">{{ requirement_html_safe|safe }}</div>
+{% else %}
+<div class="border rounded p-3 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ requirement_plain_text or row.requirement_text or '' }}</div>
+{% include 'partials/requirement_screenshots_gallery.html' %}
+{% endif %}

@@ -120,12 +120,13 @@
       </div>
     </div>
     <div class="mb-3">
+      {% if form_scope == 'abap' %}
+      {% include 'partials/requirement_rich_field.html' %}
+      {% else %}
       <textarea name="{{ description_field_name }}" id="description" class="form-control rfp-textarea" rows="10">{% if form and form.get(description_field_name) %}{{ form.get(description_field_name) }}{% elif resource and description_field_name == 'description' %}{{ resource.description or '' }}{% elif resource and description_field_name == 'requirement_text' %}{{ resource.requirement_text or '' }}{% endif %}</textarea>
       <div class="d-flex justify-content-end mt-1">
         <small class="text-muted"><span id="char-count">0</span> 자</small>
       </div>
-      {% if form_scope == 'abap' %}
-      {% include 'partials/requirement_screenshots_field.html' %}
       {% endif %}
     </div>
 

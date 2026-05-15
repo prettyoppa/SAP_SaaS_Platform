@@ -848,6 +848,30 @@ html[data-theme="light"] .rfp-field-ai-wrap .rfp-ai-inline-btn--pid:hover {
   background: #111;
 }
 
+.req-rich-editor {
+  min-height: 200px;
+  overflow-y: auto;
+  line-height: 1.7;
+}
+.req-rich-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+.req-rich-editor img.req-inline-img,
+.req-rich-body img.req-inline-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: .5rem 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.req-rich-body ul, .req-rich-body ol {
+  margin-bottom: .5rem;
+  padding-left: 1.25rem;
+}
+
 /* Tips */
 .rfp-tips {
   background: rgba(234,179,8,.06); border: 1px solid rgba(234,179,8,.2);
