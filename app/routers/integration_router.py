@@ -96,6 +96,7 @@ from ..integration_followup_chat import (
 )
 from ..agent_display import wrap_unbracketed_agent_names
 from ..integration_hub import integration_hub_url, normalize_integration_hub_phase
+from ..integration_generation import maybe_fail_stale_integration_deliverable
 from ..integration_interview_service import serve_integration_interview_workspace
 from ..routers.interview_router import _markdown_to_html, _messages_to_list
 from .rfp_router import (
@@ -1920,6 +1921,9 @@ def _collect_integration_unified_hub_ctx(
 
     fs_stat = (getattr(ir, "fs_status", None) or "none").strip() or "none"
     dc_stat = (getattr(ir, "delivered_code_status", None) or "none").strip() or "none"
+    if dc_stat == "generating":
+        ir = maybe_fail_stale_integration_deliverable(db, ir, minutes=10)
+        dc_stat = (getattr(ir, "delivered_code_status", None) or "none").strip() or "none"
     fs_html = ""
     if fs_stat == "ready" and (getattr(ir, "fs_text", None) or "").strip():
         fs_html = _markdown_to_html(ir.fs_text)
@@ -2101,6 +2105,7 @@ def integration_generation_status(req_id: int, request: Request, db: Session = D
     ir = q.first()
     if not ir:
         return JSONResponse({"detail": "not_found"}, status_code=404)
+    ir = maybe_fail_stale_integration_deliverable(db, ir, minutes=10)
     return JSONResponse(
         {
             "fs_status": getattr(ir, "fs_status", None) or "none",

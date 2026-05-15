@@ -311,9 +311,9 @@ def admin_integration_code_start(
     if not fs_body or (ir.fs_status or "").strip() != "ready":
         return RedirectResponse(url=f"/integration/{req_id}?phase=fs&err=fs_not_ready", status_code=302)
     dc_generating = (ir.delivered_code_status or "").strip() == "generating"
-    if dc_generating and not integration_deliverable_job_stale(ir):
+    if dc_generating and not integration_deliverable_job_stale(ir, minutes=8):
         return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)
-    if dc_generating and integration_deliverable_job_stale(ir):
+    if dc_generating and integration_deliverable_job_stale(ir, minutes=8):
         append_integration_job_log(req_id, "delivered_job_log", "이전 generating 무응답 — 작업 재시작")
     elif not dc_generating:
         ir.delivered_job_log = None
@@ -321,4 +321,25 @@ def admin_integration_code_start(
     ir.delivered_code_error = None
     db.commit()
     background_tasks.add_task(run_integration_deliverable_job, req_id)
+    return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)
+
+
+@router.post("/integration/{req_id}/delivery/code-cancel")
+def admin_integration_code_cancel(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """generating 고착 시 운영자가 수동으로 중단하고 재시도할 수 있게 한다."""
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
+    if not ir:
+        return RedirectResponse(url="/admin", status_code=302)
+    if (ir.delivered_code_status or "").strip() == "generating":
+        append_integration_job_log(req_id, "delivered_job_log", "운영자 수동 중단")
+        ir.delivered_code_status = "failed"
+        ir.delivered_code_error = "운영자가 생성 작업을 중단했습니다. 「구현 산출물 재생성」으로 다시 시도하세요."
+        db.commit()
     return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)

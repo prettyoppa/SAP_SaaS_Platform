@@ -33,7 +33,7 @@ from .routers.interview_router import _conversation_list_for_llm
 _MAX_JOB_LOG_CHARS = 48_000
 
 
-def integration_deliverable_job_stale(ir: models.IntegrationRequest, *, minutes: int = 20) -> bool:
+def integration_deliverable_job_stale(ir: models.IntegrationRequest, *, minutes: int = 10) -> bool:
     """generating 상태인데 로그가 오래 갱신되지 않으면 이전 작업이 멈춘 것으로 본다."""
     log = (getattr(ir, "delivered_job_log", None) or "").strip()
     if not log:
@@ -47,6 +47,32 @@ def integration_deliverable_job_stale(ir: models.IntegrationRequest, *, minutes:
         return age_sec > minutes * 60
     except Exception:
         return True
+
+
+def maybe_fail_stale_integration_deliverable(
+    db,
+    ir: models.IntegrationRequest,
+    *,
+    minutes: int = 10,
+) -> models.IntegrationRequest:
+    """generating 이 오래 지속되면 failed 로 전환해 UI·재시도가 가능하게 한다."""
+    if (getattr(ir, "delivered_code_status", None) or "").strip() != "generating":
+        return ir
+    if not integration_deliverable_job_stale(ir, minutes=minutes):
+        return ir
+    ir.delivered_code_status = "failed"
+    ir.delivered_code_error = (
+        "구현 산출물 생성이 제한 시간 내에 완료되지 않았습니다. "
+        "아래 「구현 산출물 재생성」을 다시 시도하세요."
+    )
+    append_integration_job_log(
+        int(ir.id),
+        "delivered_job_log",
+        f"자동 중단: {minutes}분 이상 로그 갱신 없음",
+    )
+    db.commit()
+    db.refresh(ir)
+    return ir
 
 
 def append_integration_job_log(ir_id: int, field: str, line: str) -> None:
@@ -177,6 +203,7 @@ ABAP Report/Function 모듈 작성 지시는 쓰지 말고, 외부 코드·스�
 
 def run_integration_deliverable_job(ir_id: int) -> None:
     db = SessionLocal()
+    ir: models.IntegrationRequest | None = None
     try:
         ir = (
             db.query(models.IntegrationRequest)
@@ -265,4 +292,14 @@ def run_integration_deliverable_job(ir_id: int) -> None:
             db.commit()
         append_integration_job_log(ir_id, "delivered_job_log", f"실패: {type(ex).__name__}: {ex}")
     finally:
+        try:
+            ir_fin = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == ir_id).first()
+            if ir_fin and (ir_fin.delivered_code_status or "").strip() == "generating":
+                ir_fin.delivered_code_status = "failed"
+                ir_fin.delivered_code_error = (
+                    ir_fin.delivered_code_error or "작업이 비정상 종료되었습니다. 재생성을 시도하세요."
+                )
+                db.commit()
+        except Exception:
+            pass
         db.close()

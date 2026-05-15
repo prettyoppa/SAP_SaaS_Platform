@@ -23,7 +23,39 @@ from ..delivered_code_package import (
 )
 from ..gemini_model import get_gemini_model_id
 from .free_crew import _get_llm
-from .paid_crew import _tail_for_followup_prompt, _truncate
+from .paid_crew import _truncate
+
+_INTEGRATION_MANIFEST_SOURCE_PREVIEW = 600
+
+
+def _integration_slots_manifest_json(data: dict[str, Any], *, source_preview_chars: int = _INTEGRATION_MANIFEST_SOURCE_PREVIEW) -> str:
+    """가이드·테스트 LLM용: 전체 source 대신 파일 목록·앞부분만 (토큰·지연 절감)."""
+    slots_out: list[dict[str, Any]] = []
+    for s in data.get("slots") or []:
+        if not isinstance(s, dict):
+            continue
+        src = str(s.get("source") or "")
+        preview = src[:source_preview_chars]
+        if len(src) > source_preview_chars:
+            preview += "\n…(이하 생략)"
+        slots_out.append(
+            {
+                "role": s.get("role"),
+                "filename": s.get("filename"),
+                "title_ko": s.get("title_ko"),
+                "source_chars": len(src),
+                "source_preview": preview,
+            }
+        )
+    return json.dumps(
+        {
+            "package_kind": data.get("package_kind") or "integration",
+            "program_id": data.get("program_id"),
+            "coder_notes": data.get("coder_notes"),
+            "slots": slots_out,
+        },
+        ensure_ascii=False,
+    )
 
 
 def _monolithic_integration_markdown(
@@ -113,14 +145,6 @@ def generate_integration_deliverable_artifact(
         llm=llm,
         allow_delegation=False,
     )
-    json_reviewer = Agent(
-        role="비 ABAP 코드 검수자",
-        goal="JSON 패키지 스키마·파일명·분리 적절성을 검수한다",
-        backstory="""JSON 이스케이프·확장자·역할 일관성을 점검한다. 거대 단일 소스가 있으면 슬롯을 나눈다.""",
-        verbose=False,
-        llm=llm,
-        allow_delegation=False,
-    )
     guide_agent = Agent(
         role="연동 구현·운영 컨설턴트",
         goal="슬롯별 산출물을 설명하는 구현·운영 가이드를 한국어 마크다운으로 쓴다",
@@ -200,41 +224,10 @@ requirements, manifest, test, doc, other
     out_slots = str(crew_slots.kickoff()).strip()
     _ph(f"{agent_label_ko('p_coder')} JSON 초안 완료 · 약 {len(out_slots)}자")
 
-    review_task = Task(
-        description=(
-            "### 입력 JSON/텍스트 (연동 납품 초안)\n\n"
-            + _tail_for_followup_prompt(out_slots, max_chars=118_000)
-            + """
-
-### 검수
-1. `json.loads`로 파싱 가능한 **순수 JSON 객체 하나**만 출력한다 (설명 문장 없음).
-2. `package_kind`는 반드시 문자열 "integration".
-3. `program_id`, `slots[]`, 선택 `coder_notes`.
-4. 각 slot: role, filename, title_ko, source (문자열).
-5. entry_script 역할 슬롯이 1개 이상 있어야 하고, source에 해당 파일 전체가 있어야 한다.
-6. **한 슬롯에 여러 논리 파일을 합친 거대 문자열이 있으면** 역할별로 슬롯을 분할한다.
-7. 줄바꿈은 JSON 문자열 안에서 \\n 이스케이프.
-"""
-            + (
-                "8. 구현 형태에 python_script가 있으면: README.md(doc), requirements.txt(requirements), "
-                ".env.example(env_sample) 슬롯이 있는지 확인하고, entry_script와 SAP GUI 자동화 로직(module) 분리를 유지한다.\n"
-                if "python_script" in impl_lc
-                else ""
-            )
-        ),
-        agent=json_reviewer,
-        expected_output="파싱 가능한 JSON 한 덩어리",
-    )
-    _ph(f"{agent_label_ko('p_inspector')} — 연동 JSON 검수 Gemini 호출 시작")
-    crew_rev = Crew(agents=[json_reviewer], tasks=[review_task], process=Process.sequential, verbose=False)
-    out_rev = str(crew_rev.kickoff()).strip()
-    _ph(f"{agent_label_ko('p_inspector')} JSON 검수 완료 · 약 {len(out_rev)}자")
-
-    data = extract_json_object_from_llm_text(out_rev)
-    if not data:
-        data = extract_json_object_from_llm_text(out_slots)
-        if data:
-            _ph("검수본 JSON 파싱 실패 — 코더 초안 JSON으로 복구")
+    # 검수 LLM은 3만+자 JSON 재출력 시 지연·멈춤이 잦아, 코더 초안을 직접 파싱한다.
+    data = extract_json_object_from_llm_text(out_slots)
+    if data:
+        _ph("연동 JSON — 코더 초안 파싱 성공(검수 LLM 생략)")
     if not data:
         _ph("연동 JSON 파싱 실패 — 단일 마크다운 폴백")
         return None, _monolithic_integration_markdown(
@@ -248,7 +241,7 @@ requirements, manifest, test, doc, other
         safe = "".join(c if c.isalnum() or c in "_-" else "_" for c in req_title.lower())[:48].strip("_") or "integration"
         data["program_id"] = safe
 
-    slots_summary = _tail_for_followup_prompt(json.dumps(data, ensure_ascii=False), max_chars=96_000)
+    slots_summary = _integration_slots_manifest_json(data)
 
     guide_task = Task(
         description=f"""아래 FS 발췌와 **연동 납품 JSON**(slots의 파일명·역할·소스 일부 맥락)을 읽고,

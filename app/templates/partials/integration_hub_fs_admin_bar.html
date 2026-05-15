@@ -13,6 +13,11 @@
         {% if has_delivered_preview|default(false) %}구현 산출물 재생성{% else %}구현 산출물 생성 시작{% endif %}
       </button>
     </form>
+    {% if dc_busy %}
+    <form method="post" action="/admin/integration/{{ ir.id }}/delivery/code-cancel" class="d-inline ms-1">
+      <button type="submit" class="btn btn-sm btn-outline-danger">생성 중단</button>
+    </form>
+    {% endif %}
   </div>
   <p class="small text-muted mb-0">연동 FS·구현 가이드는 <strong>비 ABAP</strong> 관점의 마크다운으로 생성됩니다. 진행 로그는 브라우저 개발자 도구 네트워크 탭의 generation-status 응답에서 확인할 수 있습니다.</p>
 </div>
