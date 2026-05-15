@@ -22,6 +22,9 @@
   var modePlain = document.getElementById('req-mode-plain');
   var formEl = document.getElementById('abap-analysis-form');
 
+  /** @type {Range|null} 여러 장 붙여넣기 시 삽입 위치를 순서대로 이어감 */
+  var pasteInsertRange = null;
+
   function showAlert(msg) {
     if (!alertEl) return;
     alertEl.textContent = msg;
@@ -90,6 +93,32 @@
       .replace(/"/g, '&quot;');
   }
 
+  function capturePasteInsertRange() {
+    if (!richEl) return;
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && richEl.contains(sel.anchorNode)) {
+      pasteInsertRange = sel.getRangeAt(0).cloneRange();
+      return;
+    }
+    pasteInsertRange = document.createRange();
+    pasteInsertRange.selectNodeContents(richEl);
+    pasteInsertRange.collapse(false);
+  }
+
+  function removeBrokenImages() {
+    if (!richEl) return;
+    richEl.querySelectorAll('img').forEach(function (img) {
+      var src = (img.getAttribute('src') || '').trim();
+      if (!src || src === 'about:blank') {
+        img.remove();
+        return;
+      }
+      if (src.indexOf('file:') === 0) {
+        img.remove();
+      }
+    });
+  }
+
   function compressToJpeg(blob, maxDim, quality) {
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(blob);
@@ -124,63 +153,145 @@
   }
 
   function insertImageAtSelection(dataUrl) {
-    richEl.focus();
+    if (!richEl || !dataUrl) return;
+    if (!pasteInsertRange) capturePasteInsertRange();
+
     var img = document.createElement('img');
     img.src = dataUrl;
     img.alt = '캡처';
     img.className = 'req-inline-img';
-    img.setAttribute('data-inline-id', 'tmp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+    img.setAttribute(
+      'data-inline-id',
+      'tmp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+    );
+
+    var range = pasteInsertRange;
+    range.deleteContents();
+    range.insertNode(img);
+
+    var spacer = document.createElement('br');
+    if (img.nextSibling) {
+      img.parentNode.insertBefore(spacer, img.nextSibling);
+    } else if (img.parentNode) {
+      img.parentNode.appendChild(spacer);
+    }
+
+    range.setStartAfter(spacer);
+    range.collapse(true);
+    pasteInsertRange = range.cloneRange();
 
     var sel = window.getSelection();
-    if (sel && sel.rangeCount) {
-      var range = sel.getRangeAt(0);
-      range.deleteContents();
-      range.insertNode(img);
-      range.setStartAfter(img);
-      range.collapse(true);
+    if (sel) {
       sel.removeAllRanges();
-      sel.addRange(range);
-    } else {
-      richEl.appendChild(img);
+      sel.addRange(pasteInsertRange.cloneRange());
     }
-    var br = document.createElement('br');
-    img.parentNode.insertBefore(br, img.nextSibling);
-    updateCharCount();
-    syncHidden();
+  }
+
+  function collectImageBlobs(cd) {
+    var blobs = [];
+    var seen = new Set();
+
+    function pushFile(f) {
+      if (!f || !f.type || f.type.indexOf('image/') !== 0) return;
+      var key = [f.name, f.size, f.lastModified, f.type].join('|');
+      if (seen.has(key)) return;
+      seen.add(key);
+      blobs.push(f);
+    }
+
+    if (cd.items) {
+      for (var i = 0; i < cd.items.length; i++) {
+        pushFile(cd.items[i].getAsFile());
+      }
+    }
+    if (cd.files && cd.files.length) {
+      for (var j = 0; j < cd.files.length; j++) {
+        pushFile(cd.files[j]);
+      }
+    }
+    return blobs;
+  }
+
+  function readBlobAsDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        if (typeof reader.result === 'string') resolve(reader.result);
+        else reject(new Error('read'));
+      };
+      reader.onerror = function () { reject(new Error('read')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function processImageBlobsSequential(blobs) {
+    var index = 0;
+    var skipped = 0;
+
+    function finish() {
+      pasteInsertRange = null;
+      removeBrokenImages();
+      updateCharCount();
+      syncHidden();
+    }
+
+    function next() {
+      if (index >= blobs.length) {
+        if (skipped > 0) {
+          showAlert(
+            '일부 이미지는 용량·개수 제한으로 넣지 못했습니다. (본문 최대 ' + MAX_IMG + '장)'
+          );
+        }
+        finish();
+        return Promise.resolve();
+      }
+
+      if (countImages() >= MAX_IMG) {
+        skipped += blobs.length - index;
+        showAlert('이미지는 본문에 최대 ' + MAX_IMG + '장까지 넣을 수 있습니다.');
+        finish();
+        return Promise.resolve();
+      }
+
+      var blob = blobs[index++];
+      return compressToJpeg(blob, 1920, 0.82)
+        .then(function (jpeg) {
+          if (jpeg.size > MAX_BYTES) {
+            skipped += 1;
+            return next();
+          }
+          return readBlobAsDataUrl(jpeg).then(function (dataUrl) {
+            insertImageAtSelection(dataUrl);
+            return next();
+          });
+        })
+        .catch(function () {
+          skipped += 1;
+          return next();
+        });
+    }
+
+    return next();
   }
 
   function onPaste(e) {
     if (!isRichMode() || !richEl) return;
     var cd = e.clipboardData;
-    if (!cd || !cd.items) return;
-    var imgItem = null;
-    for (var i = 0; i < cd.items.length; i++) {
-      if (cd.items[i].type && cd.items[i].type.indexOf('image/') === 0) {
-        imgItem = cd.items[i];
-        break;
-      }
-    }
-    if (!imgItem) return;
-    var blob = imgItem.getAsFile();
-    if (!blob) return;
+    if (!cd) return;
+
+    var blobs = collectImageBlobs(cd);
+    if (!blobs.length) return;
+
     e.preventDefault();
     hideAlert();
-    if (countImages() >= MAX_IMG) {
-      showAlert('이미지는 본문에 최대 ' + MAX_IMG + '장까지 넣을 수 있습니다.');
-      return;
-    }
-    compressToJpeg(blob, 1920, 0.82).then(function (jpeg) {
-      if (jpeg.size > MAX_BYTES) {
-        showAlert('이미지 한 장은 약 ' + Math.round(MAX_BYTES / 1024 / 1024) + 'MB 이하여야 합니다.');
-        return;
-      }
-      var reader = new FileReader();
-      reader.onload = function () {
-        if (typeof reader.result === 'string') insertImageAtSelection(reader.result);
-      };
-      reader.readAsDataURL(jpeg);
-    }).catch(function () {
+    pasteInsertRange = null;
+    capturePasteInsertRange();
+
+    processImageBlobsSequential(blobs).catch(function () {
       showAlert('이미지를 붙여넣지 못했습니다.');
+      pasteInsertRange = null;
+      removeBrokenImages();
+      syncHidden();
     });
   }
 
@@ -205,9 +316,6 @@
       syncHidden();
     });
     richEl.addEventListener('blur', syncHidden);
-    if (!richEl.innerHTML.trim() && richEl.dataset.placeholder) {
-      richEl.dataset.empty = '1';
-    }
   }
   if (plainEl) {
     plainEl.addEventListener('input', function () {
@@ -218,6 +326,7 @@
 
   if (formEl) {
     formEl.addEventListener('submit', function () {
+      removeBrokenImages();
       syncHidden();
     });
   }

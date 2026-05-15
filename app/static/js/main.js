@@ -1,12 +1,18 @@
 /* SAP Dev Hub – main.js */
 
-/** 임시저장 플로팅 버튼을 body 직속으로 올려 position:fixed·z-index가 항상 뷰포트 기준이 되게 함 */
+/** 임시저장 플로팅 — AI 문의(우하단) 스택 위에 붙이거나, 없으면 우하단 고정 */
 function hoistDraftFloatLaunchers() {
   document.querySelectorAll('.draft-float-launcher[data-draft-float-root]').forEach((el) => {
     if (!(el instanceof HTMLElement)) return;
     if (el.dataset.draftFloatHoisted === '1') return;
-    if (el.parentElement !== document.body) {
+
+    const chat = document.querySelector('.abap-float-chat');
+    if (chat) {
+      chat.insertBefore(el, chat.firstChild);
+      el.classList.add('draft-float-launcher--in-chat');
+    } else {
       document.body.appendChild(el);
+      el.classList.remove('draft-float-launcher--in-chat');
     }
     el.dataset.draftFloatHoisted = '1';
   });

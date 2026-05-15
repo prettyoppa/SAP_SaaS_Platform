@@ -2791,13 +2791,23 @@ html[data-theme="light"] .abap-float-chat-resize {
   }
 }
 
-/* 플로팅 임시저장 — AI 문의(우하단)과 겹치지 않도록 좌하단 (main.js에서 body로 hoist) */
+/* 플로팅 임시저장 — AI 문의 없을 때만 우하단 고정 (있으면 .abap-float-chat 스택 안, launcher 위) */
 .draft-float-launcher {
   position: fixed;
   z-index: 15010;
   bottom: 1.15rem;
-  left: 1.15rem;
+  right: 1.15rem;
+  left: auto;
   pointer-events: none;
+}
+.abap-float-chat > .draft-float-launcher.draft-float-launcher--in-chat,
+.draft-float-launcher.draft-float-launcher--in-chat {
+  position: static;
+  z-index: auto;
+  bottom: auto;
+  right: auto;
+  left: auto;
+  margin: 0;
 }
 .draft-float-launcher .draft-float-btn {
   pointer-events: auto;
@@ -2830,9 +2840,9 @@ html[data-theme="dark"] .draft-float-launcher .draft-float-btn.btn-outline-secon
   line-height: 1.15;
 }
 @media (max-width: 576px) {
-  .draft-float-launcher {
+  .draft-float-launcher:not(.draft-float-launcher--in-chat) {
     bottom: 0.85rem;
-    left: 0.85rem;
+    right: 0.85rem;
   }
   .draft-float-launcher .draft-float-btn-label {
     display: none !important;
