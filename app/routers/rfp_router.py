@@ -53,6 +53,16 @@ from ..rfp_form_suggest import (
 )
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
 from ..rfp_hub import normalize_rfp_hub_phase, rfp_hub_url
+from ..requirement_body import (
+    apply_body as apply_requirement_body,
+    display_ctx as requirement_display_ctx,
+    duplicate_screenshots as duplicate_requirement_screenshots,
+    inline_image_response,
+    resolve_inline_entry,
+    screenshot_entries as requirement_screenshot_entries,
+    set_screenshot_entries,
+)
+from ..requirement_rich_text import html_to_plain_text, is_html_format
 from ..workflow_abap_rfp_context import load_workflow_abap_mirror_context
 from ..rfp_followup_chat import (
     generate_rfp_followup_reply,
@@ -467,6 +477,7 @@ async def submit_rfp(
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
     description: str = Form(""),
+    description_format: str = Form("html"),
     attachments: List[UploadFile] = File(default=[]),
     note_0: str = Form(""),
     note_1: str = Form(""),
@@ -482,6 +493,8 @@ async def submit_rfp(
         return RedirectResponse(url="/login", status_code=302)
 
     is_draft = (save_action.strip().lower() == "draft")
+    desc_fmt = (description_format or "html").strip().lower()
+    desc_plain = _description_plain_for_validate(description, desc_fmt)
     notes_in = [note_0, note_1, note_2, note_3, note_4]
 
     modules, devtypes = _get_modules_devtypes(db)
@@ -494,6 +507,7 @@ async def submit_rfp(
             "transaction_code": transaction_code,
             "title": title,
             "description": description,
+            "description_format": desc_fmt,
             "sap_modules": sap_modules,
             "dev_types": dev_types,
             "notes": notes_in,
@@ -512,7 +526,14 @@ async def submit_rfp(
             status_code=400,
         )
 
-    miss = _rfp_missing_core_field_labels(title, program_id, sap_modules, dev_types, description)
+    miss = _rfp_missing_core_field_labels(
+        title,
+        program_id,
+        sap_modules,
+        dev_types,
+        desc_plain,
+        min_description_chars=0 if is_draft else None,
+    )
     if miss:
         return _rfp_core_fields_incomplete_response(request, miss)
 
@@ -626,7 +647,8 @@ async def submit_rfp(
         title=title.strip(),
         sap_modules=",".join(sap_modules) if sap_modules else "",
         dev_types=",".join(dev_types) if dev_types else "",
-        description=description,
+        description="",
+        description_format="plain",
         status="draft" if is_draft else "submitted",
         interview_status="pending",
         workflow_origin="direct",
@@ -634,7 +656,25 @@ async def submit_rfp(
     )
     _set_rfp_attachments(rfp, att_entries)
     db.add(rfp)
-    db.commit()
+    try:
+        db.flush()
+        body_err = apply_requirement_body(rfp, user, description, desc_fmt, "rfp")
+        if body_err:
+            db.rollback()
+            return templates.TemplateResponse(
+                request,
+                "rfp_form.html",
+                _rfp_form_ctx(
+                    request, user, modules, devtypes, writing_tip, db,
+                    error=body_err,
+                    form=_form_dict(),
+                ),
+                status_code=400,
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(rfp)
     if is_draft:
         return RedirectResponse(url=f"/rfp/{rfp.id}/edit", status_code=302)
@@ -690,6 +730,26 @@ def rfp_download_attachment(
     if not os.path.isfile(ref):
         return RedirectResponse(url="/", status_code=302)
     return FileResponse(ref, filename=fname)
+
+
+@router.get("/rfp/{rfp_id}/requirement-inline")
+def rfp_requirement_inline_image(
+    rfp_id: int,
+    request: Request,
+    iid: str = "",
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = rfp_for_hub_readonly_embed(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+    key = (iid or "").strip()
+    if not key:
+        return RedirectResponse(url=f"/rfp/{rfp_id}", status_code=302)
+    ent = resolve_inline_entry(rfp, key)
+    return inline_image_response(ent=ent, redirect_url=f"/rfp/{rfp_id}")
 
 
 def _collect_rfp_unified_hub_ctx(
@@ -910,6 +970,7 @@ def _collect_rfp_unified_hub_ctx(
         ),
     }
     ctx.update(delivered_fields)
+    ctx.update(requirement_display_ctx(rfp, "rfp", int(rfp.id)))
 
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
         ctx.update(ws_out.wizard_ctx)
@@ -1463,6 +1524,9 @@ def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(g
     consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
     consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     entries = duplicate_attachment_entries(_rfp_attachment_entries(rfp), user_id=user.id)
+    shots = duplicate_requirement_screenshots(
+        requirement_screenshot_entries(rfp), user_id=user.id
+    )
     title = (rfp.title or "").strip()
     if title and not title.endswith(" (복사)"):
         title = f"{title} (복사)"
@@ -1473,12 +1537,14 @@ def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(g
         title=title or "복사된 요청",
         sap_modules=rfp.sap_modules,
         dev_types=rfp.dev_types,
-        description=rfp.description,
+        description=rfp.description or "",
+        description_format=getattr(rfp, "description_format", None) or "plain",
         reference_code_payload=rfp.reference_code_payload,
         status="draft",
         interview_status="pending",
         workflow_origin="direct",
     )
+    set_screenshot_entries(new_rfp, shots)
     _set_rfp_attachments(new_rfp, entries)
     db.add(new_rfp)
     db.commit()
@@ -1591,6 +1657,7 @@ async def rfp_edit_submit(
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
     description: str = Form(""),
+    description_format: str = Form("html"),
     attachments: List[UploadFile] = File(default=[]),
     note_0: str = Form(""),
     note_1: str = Form(""),
@@ -1622,6 +1689,8 @@ async def rfp_edit_submit(
     if rfp.status != "draft":
         is_draft = False
 
+    desc_fmt = (description_format or "html").strip().lower()
+    desc_plain = _description_plain_for_validate(description, desc_fmt)
     notes_in = [note_0, note_1, note_2, note_3, note_4]
     notes_orig = [note_orig_0, note_orig_1, note_orig_2, note_orig_3, note_orig_4]
     del_flags = [bool(delete_0), bool(delete_1), bool(delete_2), bool(delete_3), bool(delete_4)]
@@ -1636,6 +1705,7 @@ async def rfp_edit_submit(
             "transaction_code": transaction_code,
             "title": title,
             "description": description,
+            "description_format": desc_fmt,
             "sap_modules": sap_modules,
             "dev_types": dev_types,
             "notes": notes_in,
@@ -1655,7 +1725,14 @@ async def rfp_edit_submit(
             status_code=400,
         )
 
-    miss = _rfp_missing_core_field_labels(title, program_id, sap_modules, dev_types, description)
+    miss = _rfp_missing_core_field_labels(
+        title,
+        program_id,
+        sap_modules,
+        dev_types,
+        desc_plain,
+        min_description_chars=0 if is_draft else None,
+    )
     if miss:
         return _rfp_core_fields_incomplete_response(request, miss)
 
@@ -1783,7 +1860,6 @@ async def rfp_edit_submit(
     rfp.title = title.strip()
     rfp.sap_modules = ",".join(sap_modules) if sap_modules else ""
     rfp.dev_types = ",".join(dev_types) if dev_types else ""
-    rfp.description = description
     rfp.reference_code_payload = norm_ref
     if is_draft:
         rfp.status = "draft"
@@ -1791,6 +1867,21 @@ async def rfp_edit_submit(
         rfp.status = "submitted"
 
     _set_rfp_attachments(rfp, combined)
+    body_err = apply_requirement_body(rfp, user, description, desc_fmt, "rfp")
+    if body_err:
+        db.rollback()
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip, db,
+                error=body_err,
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+            ),
+            status_code=400,
+        )
     db.commit()
     if is_draft:
         return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)

@@ -585,6 +585,29 @@ html[data-theme="light"] .codelib-source-pre {
   color: var(--text);
   line-height: 1.65;
 }
+.analysis-pre-wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.analysis-mapping-block {
+  padding: .75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+}
+.analysis-mapping-desc {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.analysis-mapping-key {
+  letter-spacing: 0.02em;
+}
+.analysis-list li code {
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--surface2) 85%, var(--border));
+}
 
 /* ── Sections ──────────────────────────────── */
 .section-light { background: var(--surface); }

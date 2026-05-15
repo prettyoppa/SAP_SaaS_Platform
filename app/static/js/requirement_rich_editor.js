@@ -17,10 +17,12 @@
   var plainEl = document.getElementById('description-plain');
   var toolbar = document.getElementById('req-rich-toolbar');
   var alertEl = document.getElementById('req-rich-alert');
-  var counter = document.getElementById('char-count');
+  var formId = root.getAttribute('data-form-id') || 'abap-analysis-form';
+  var charCountId = root.getAttribute('data-char-count-id') || 'char-count';
+  var counter = document.getElementById(charCountId);
   var modeRich = document.getElementById('req-mode-rich');
   var modePlain = document.getElementById('req-mode-plain');
-  var formEl = document.getElementById('abap-analysis-form');
+  var formEl = document.getElementById(formId);
 
   /** @type {Range|null} 여러 장 붙여넣기 시 삽입 위치를 순서대로 이어감 */
   var pasteInsertRange = null;

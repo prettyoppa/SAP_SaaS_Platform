@@ -17,7 +17,7 @@
       <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
       <dd class="col-sm-9">{{ rfp.created_at|local_dt_span }}</dd>
     </dl>
-    {% if rfp.description %}
+    {% if requirement_html_safe or requirement_plain_text or requirement_screenshot_entries %}
     <h6 class="text-muted mt-3 small text-uppercase">
       {% if wf_abap_mirror is defined and wf_abap_mirror %}
       <span data-i18n="reqPanel.workflowSummary">에이전트용 요약 본문</span>
@@ -28,10 +28,12 @@
     {% if wf_abap_mirror is defined and wf_abap_mirror %}
     <details class="mb-0">
       <summary class="small text-muted mb-2" data-i18n="reqPanel.workflowSummaryToggle">펼쳐서 보기 (인터뷰·제안서 생성 시 참고)</summary>
-      <div class="border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ rfp.description }}</div>
+      {% set row = rfp %}
+      {% include 'partials/requirement_body_display.html' %}
     </details>
     {% else %}
-    <div class="border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="white-space:pre-wrap;background:var(--surface2);border-color:var(--border)!important">{{ rfp.description }}</div>
+    {% set row = rfp %}
+    {% include 'partials/requirement_body_display.html' %}
     {% endif %}
     {% endif %}
     {% if attachment_entries %}

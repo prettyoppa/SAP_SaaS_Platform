@@ -108,6 +108,15 @@ from .rfp_router import (
     duplicate_attachment_entries,
     r2_storage,
 )
+from ..requirement_body import (
+    apply_body as apply_requirement_body,
+    display_ctx as requirement_display_ctx,
+    duplicate_screenshots as duplicate_requirement_screenshots,
+    inline_image_response,
+    resolve_inline_entry,
+    screenshot_entries as requirement_screenshot_entries,
+    set_screenshot_entries,
+)
 
 router = APIRouter()
 
@@ -1351,6 +1360,7 @@ async def integration_new_submit(
     sap_touchpoints: str = Form(""),
     environment_notes: str = Form(""),
     description: str = Form(""),
+    description_format: str = Form("html"),
     attachments: list[UploadFile] = File(default=[]),
     note_0: str = Form(""),
     note_1: str = Form(""),
@@ -1368,6 +1378,7 @@ async def integration_new_submit(
     modules, devtypes = _get_modules_devtypes(db)
     notes_in = [note_0, note_1, note_2, note_3, note_4]
     is_draft_save = (save_action or "").strip().lower() == "draft"
+    desc_fmt = (description_format or "html").strip().lower()
 
     def _form_dict():
         return {
@@ -1376,6 +1387,7 @@ async def integration_new_submit(
             "sap_touchpoints": sap_touchpoints,
             "environment_notes": environment_notes,
             "description": description,
+            "description_format": desc_fmt,
             "notes": notes_in,
         }
 
@@ -1508,14 +1520,37 @@ async def integration_new_submit(
         sap_touchpoints=sap_touchpoints.strip() or None,
         environment_notes=environment_notes.strip() or None,
         security_notes=None,
-        description=description.strip() or None,
+        description="",
+        description_format="plain",
         reference_code_payload=norm_ref,
         status="draft" if is_draft_save else "submitted",
         interview_status="pending",
     )
     _set_attachments(ir, att_entries)
     db.add(ir)
-    db.commit()
+    try:
+        db.flush()
+        body_err = apply_requirement_body(ir, user, description, desc_fmt, "integration")
+        if body_err:
+            db.rollback()
+            return templates.TemplateResponse(
+                request,
+                "integration_form.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "modules": modules,
+                    "devtypes": devtypes,
+                    **_integration_impl_ui_ctx(db),
+                    "error": body_err,
+                    "form": _form_dict(),
+                },
+                status_code=400,
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(ir)
     if is_draft_save:
         return RedirectResponse(url=f"/integration/{ir.id}/edit", status_code=302)
@@ -1542,6 +1577,9 @@ def integration_duplicate_request(req_id: int, request: Request, db: Session = D
     consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
     consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     entries = duplicate_attachment_entries(_attachment_entries(ir), user_id=user.id)
+    shots = duplicate_requirement_screenshots(
+        requirement_screenshot_entries(ir), user_id=user.id
+    )
     title = (ir.title or "").strip()
     if title and not title.endswith(" (복사)"):
         title = f"{title} (복사)"
@@ -1552,13 +1590,15 @@ def integration_duplicate_request(req_id: int, request: Request, db: Session = D
         sap_touchpoints=ir.sap_touchpoints,
         environment_notes=ir.environment_notes,
         security_notes=ir.security_notes,
-        description=ir.description,
+        description=ir.description or "",
+        description_format=getattr(ir, "description_format", None) or "plain",
         reference_code_payload=ir.reference_code_payload,
         status="draft",
         interview_status="pending",
         workflow_rfp_id=None,
         improvement_request_text=None,
     )
+    set_screenshot_entries(new_ir, shots)
     _set_attachments(new_ir, entries)
     db.add(new_ir)
     db.commit()
@@ -1617,6 +1657,7 @@ def integration_edit_form(req_id: int, request: Request, db: Session = Depends(g
         "sap_touchpoints": ir.sap_touchpoints or "",
         "environment_notes": ir.environment_notes or "",
         "description": ir.description or "",
+        "description_format": (getattr(ir, "description_format", None) or "html").strip().lower(),
         "notes": notes,
     }
     ref_init = None
@@ -1677,6 +1718,7 @@ async def integration_edit_submit(
     sap_touchpoints: str = Form(""),
     environment_notes: str = Form(""),
     description: str = Form(""),
+    description_format: str = Form("html"),
     attachments: list[UploadFile] = File(default=[]),
     note_0: str = Form(""),
     note_1: str = Form(""),
@@ -1705,6 +1747,7 @@ async def integration_edit_submit(
     is_draft_save = (save_action or "").strip().lower() == "draft"
     if (ir.status or "").strip().lower() != "draft":
         is_draft_save = False
+    desc_fmt = (description_format or "html").strip().lower()
 
     def _form_dict():
         return {
@@ -1713,6 +1756,7 @@ async def integration_edit_submit(
             "sap_touchpoints": sap_touchpoints,
             "environment_notes": environment_notes,
             "description": description,
+            "description_format": desc_fmt,
             "notes": notes_in,
         }
 
@@ -1844,7 +1888,6 @@ async def integration_edit_submit(
     ir.sap_touchpoints = sap_touchpoints.strip() or None
     ir.environment_notes = environment_notes.strip() or None
     ir.security_notes = None
-    ir.description = description.strip() or None
     ir.reference_code_payload = norm_ref
     if is_draft_save:
         ir.status = "draft"
@@ -1852,6 +1895,26 @@ async def integration_edit_submit(
         ir.status = "submitted"
         ir.interview_status = "pending"
     _set_attachments(ir, merged_att)
+    body_err = apply_requirement_body(ir, user, description, desc_fmt, "integration")
+    if body_err:
+        db.rollback()
+        return templates.TemplateResponse(
+            request,
+            "integration_form.html",
+            {
+                "request": request,
+                "user": user,
+                "modules": modules,
+                "devtypes": devtypes,
+                **_integration_impl_ui_ctx(db),
+                "error": body_err,
+                "form": _form_dict(),
+                "edit_ir": ir,
+                "integration_ref_code_initial": None,
+                "attachment_entries": merged_att,
+            },
+            status_code=400,
+        )
     db.add(ir)
     db.commit()
     if is_draft_save:
@@ -2116,7 +2179,35 @@ def _collect_integration_unified_hub_ctx(
         ctx["proposal_status_url"] = f"/integration/{ir.id}/proposal/status"
         ctx["proposal_done_redirect_url"] = integration_hub_url(ir.id, "proposal")
 
+    ctx.update(requirement_display_ctx(ir, "integration", int(ir.id)))
     return ctx
+
+
+@router.get("/integration/{req_id}/requirement-inline")
+def integration_requirement_inline_image(
+    req_id: int,
+    request: Request,
+    iid: str = "",
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
+        console_embed=bool(
+            getattr(user, "is_admin", False) or getattr(user, "is_consultant", False)
+        ),
+    )
+    ir = q.first()
+    if not ir:
+        return RedirectResponse(url="/", status_code=302)
+    key = (iid or "").strip()
+    if not key:
+        return RedirectResponse(url=f"/integration/{req_id}", status_code=302)
+    ent = resolve_inline_entry(ir, key)
+    return inline_image_response(ent=ent, redirect_url=f"/integration/{req_id}")
 
 
 @router.get("/integration/{req_id}/generation-status")

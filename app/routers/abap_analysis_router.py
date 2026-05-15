@@ -48,11 +48,19 @@ from ..menu_landing import (
     user_proposal_pending_offer_badges,
 )
 from ..attachment_context import build_attachment_llm_digest
+from ..requirement_body import (
+    apply_body as _apply_requirement_body_shared,
+    body_plain as _requirement_body_plain,
+    display_ctx as _requirement_display_ctx,
+    has_body_context as requirement_has_body_context,
+    inline_image_response,
+    resolve_inline_entry,
+    screenshot_entries as _screenshot_entries_from_row,
+)
 from ..requirement_rich_text import (
     html_to_plain_text,
     is_html_format,
     legacy_gallery_entries,
-    process_submitted_html,
     sanitize_html,
 )
 from ..requirement_screenshots import (
@@ -148,17 +156,11 @@ def _abap_form_dict_from_row(row: models.AbapAnalysisRequest) -> dict:
 
 
 def _requirement_plain(row: models.AbapAnalysisRequest) -> str:
-    fmt = (getattr(row, "requirement_text_format", None) or "plain").strip().lower()
-    raw = row.requirement_text or ""
-    if is_html_format(fmt):
-        return html_to_plain_text(raw)
-    return raw.strip()
+    return _requirement_body_plain(row, "abap")
 
 
 def _has_requirement_context(row: models.AbapAnalysisRequest) -> bool:
-    if _requirement_plain(row).strip():
-        return True
-    return any(e.get("inline_id") for e in _screenshot_entries(row))
+    return requirement_has_body_context(row, "abap")
 
 
 def _apply_requirement_body(
@@ -167,29 +169,7 @@ def _apply_requirement_body(
     req_raw: str,
     fmt: str,
 ) -> Optional[str]:
-    """요구사항 본문·포맷·인라인 이미지 저장. 오류 키 또는 None."""
-    existing = _screenshot_entries(row)
-    fmt_norm = (fmt or "plain").strip().lower()
-    if is_html_format(fmt_norm):
-        html, entries, err = process_submitted_html(
-            user_id=user.id,
-            raw_html=req_raw,
-            req_id=int(row.id),
-            existing_entries=existing,
-        )
-        if err:
-            return err
-        row.requirement_text = html
-        row.requirement_text_format = "html"
-        _set_screenshots(row, entries)
-        return None
-    plain = (req_raw or "").strip()
-    if existing:
-        remove_requirement_screenshots(existing)
-    row.requirement_text = plain
-    row.requirement_text_format = "plain"
-    _set_screenshots(row, [])
-    return None
+    return _apply_requirement_body_shared(row, user, req_raw, fmt, "abap")
 
 
 def _ref_initial_from_raw(reference_code_json: str) -> Optional[dict]:
@@ -261,6 +241,19 @@ def _get_abap_row_readable(db: Session, user: models.User, req_id: int) -> Optio
     return _query_abap_readable(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
 
 
+def _get_abap_row_for_requirement_media(
+    db: Session, user: models.User, req_id: int
+) -> Optional[models.AbapAnalysisRequest]:
+    """요구사항 인라인·캡처 이미지 — 상세·요청 Console(읽기 전용)과 동일한 조회 범위."""
+    if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
+        return (
+            db.query(models.AbapAnalysisRequest)
+            .filter(models.AbapAnalysisRequest.id == req_id)
+            .first()
+        )
+    return _get_abap_row_readable(db, user, req_id)
+
+
 def _get_request_for_user(
     db: Session, user: models.User, req_id: int
 ) -> Optional[models.AbapAnalysisRequest]:
@@ -287,9 +280,7 @@ def _set_attachments(row: models.AbapAnalysisRequest, entries: list[dict]) -> No
 
 
 def _screenshot_entries(row: models.AbapAnalysisRequest) -> list[dict]:
-    return requirement_screenshot_entries_from_json(
-        getattr(row, "requirement_screenshots_json", None)
-    )
+    return _screenshot_entries_from_row(row)
 
 
 def _set_screenshots(row: models.AbapAnalysisRequest, entries: list[dict]) -> None:
@@ -1141,22 +1132,7 @@ def _prepare_abap_analysis_detail_ctx(
         "hub_readonly_return_url": hub_readonly_return_url,
     }
 
-    req_fmt = (getattr(row, "requirement_text_format", None) or "plain").strip().lower()
-    all_shots = _screenshot_entries(row)
-    legacy_shots = legacy_gallery_entries(all_shots)
-    req_ctx = {
-        "requirement_text_format": req_fmt,
-        "requirement_html_safe": sanitize_html(row.requirement_text or "")
-        if is_html_format(req_fmt)
-        else "",
-        "requirement_plain_text": (row.requirement_text or "")
-        if not is_html_format(req_fmt)
-        else "",
-        "requirement_screenshot_entries": legacy_shots or (
-            [] if is_html_format(req_fmt) else all_shots
-        ),
-        "screenshot_url_base": f"/abap-analysis/{row.id}/requirement-screenshot",
-    }
+    req_ctx = _requirement_display_ctx(row, "abap", row.id)
 
     if readonly_console:
         return {
@@ -1574,39 +1550,17 @@ def abap_analysis_requirement_inline_image(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
-    row = _get_abap_row_readable(db, user, req_id)
+    row = _get_abap_row_for_requirement_media(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
     key = (iid or "").strip()
     if not key:
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-    ent = next(
-        (e for e in _screenshot_entries(row) if str(e.get("inline_id") or "") == key),
-        None,
+    ent = resolve_inline_entry(row, key)
+    return inline_image_response(
+        ent=ent,
+        redirect_url=f"/abap-analysis/{req_id}",
     )
-    if not ent:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-    path = ent.get("path")
-    fname = ent.get("filename") or "screenshot.png"
-    if not path:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-    kind, ref = r2_storage.parse_storage_ref(path)
-    if kind == "r2":
-        if not r2_storage.is_configured():
-            return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-        return RedirectResponse(
-            url=r2_storage.presigned_get_url(ref, fname, inline=True),
-            status_code=302,
-        )
-    if not os.path.isfile(ref):
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-    media = "image/png"
-    low = fname.lower()
-    if low.endswith(".jpg") or low.endswith(".jpeg"):
-        media = "image/jpeg"
-    elif low.endswith(".webp"):
-        media = "image/webp"
-    return FileResponse(ref, media_type=media, filename=fname, content_disposition_type="inline")
 
 
 @router.get("/{req_id}/requirement-screenshot")
@@ -1617,7 +1571,7 @@ def abap_analysis_requirement_screenshot(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
-    row = _get_abap_row_readable(db, user, req_id)
+    row = _get_abap_row_for_requirement_media(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
     entries = _screenshot_entries(row)

@@ -92,6 +92,8 @@ class RFP(Base):
     sap_modules = Column(String, nullable=True)        # comma-separated, 최대 3개
     dev_types = Column(String, nullable=True)          # comma-separated, 최대 3개
     description = Column(Text, nullable=True)
+    description_format = Column(String(16), nullable=False, default="plain")
+    requirement_screenshots_json = Column(Text, nullable=True)
     file_path = Column(String, nullable=True)
     file_name = Column(String, nullable=True)
     attachments_json = Column(Text, nullable=True)   # JSON [{path, filename, note}, ...] 최대 5
@@ -205,6 +207,8 @@ class IntegrationRequest(Base):
     environment_notes = Column(Text, nullable=True)
     security_notes = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
+    description_format = Column(String(16), nullable=False, default="plain")
+    requirement_screenshots_json = Column(Text, nullable=True)
     attachments_json = Column(Text, nullable=True)
     reference_code_payload = Column(Text, nullable=True)
     status = Column(String, default="submitted")

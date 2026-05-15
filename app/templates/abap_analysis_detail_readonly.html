@@ -269,37 +269,37 @@
             {% if ra.get('interpretation') %}
             <details class="analysis-fold mb-3" open>
               <summary class="analysis-fold-summary" data-i18n="analysis.fold.interpretation">요구사항 해석</summary>
-              <div class="analysis-fold-body">{{ ra.interpretation }}</div>
+              <div class="analysis-fold-body">{{ ra.interpretation | req_analysis_html }}</div>
             </details>
             {% endif %}
             {% if ra.get('mapping') %}
             <details class="analysis-fold mb-3">
               <summary class="analysis-fold-summary" data-i18n="analysis.fold.mapping">코드와의 연관</summary>
-              <div class="analysis-fold-body">{{ ra.mapping }}</div>
+              <div class="analysis-fold-body">{{ ra.mapping | req_analysis_html }}</div>
             </details>
             {% endif %}
             {% if ra.get('suspected_areas') %}
             <details class="analysis-fold mb-3">
               <summary class="analysis-fold-summary" data-i18n="analysis.fold.suspected">살펴볼 만한 위치</summary>
-              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.suspected_areas %}<li>{{ x }}</li>{% endfor %}</ul></div>
+              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.suspected_areas %}<li>{{ x | req_analysis_li }}</li>{% endfor %}</ul></div>
             </details>
             {% endif %}
             {% if ra.get('hypotheses') %}
             <details class="analysis-fold mb-3">
               <summary class="analysis-fold-summary" data-i18n="analysis.fold.hypotheses">가설</summary>
-              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.hypotheses %}<li>{{ x }}</li>{% endfor %}</ul></div>
+              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.hypotheses %}<li>{{ x | req_analysis_li }}</li>{% endfor %}</ul></div>
             </details>
             {% endif %}
             {% if ra.get('verification_suggestions') %}
             <details class="analysis-fold mb-3">
               <summary class="analysis-fold-summary" data-i18n="analysis.fold.verification">검증 제안</summary>
-              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.verification_suggestions %}<li>{{ x }}</li>{% endfor %}</ul></div>
+              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.verification_suggestions %}<li>{{ x | req_analysis_li }}</li>{% endfor %}</ul></div>
             </details>
             {% endif %}
             {% if ra.get('open_questions') %}
             <details class="analysis-fold mb-0">
               <summary class="analysis-fold-summary" data-i18n="analysis.fold.openQuestions">추가 확인 질문</summary>
-              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.open_questions %}<li>{{ x }}</li>{% endfor %}</ul></div>
+              <div class="analysis-fold-body"><ul class="analysis-list mb-0">{% for x in ra.open_questions %}<li>{{ x | req_analysis_li }}</li>{% endfor %}</ul></div>
             </details>
             {% endif %}
           </div>

@@ -25,9 +25,14 @@ ALLOWED_TAGS = frozenset(
 VOID_TAGS = frozenset({"br", "img"})
 _IMG_SRC_DATA = re.compile(r"^data:image/", re.I)
 _INLINE_URL_RE = re.compile(
-    r"/abap-analysis/(\d+)/requirement-inline\?([^\"'\s>]+)",
+    r"/(?:abap-analysis|rfp|integration)/(\d+)/requirement-inline\?([^\"'\s>]+)",
     re.I,
 )
+_KIND_BASE = {
+    "abap": "/abap-analysis",
+    "rfp": "/rfp",
+    "integration": "/integration",
+}
 
 
 def is_html_format(fmt: Optional[str]) -> bool:
@@ -75,6 +80,8 @@ class _Sanitizer(HTMLParser):
                     _IMG_SRC_DATA.match(v)
                     or _INLINE_URL_RE.search(v)
                     or v.startswith("/abap-analysis/")
+                    or v.startswith("/rfp/")
+                    or v.startswith("/integration/")
                 ):
                     continue
                 safe_attrs.append((lk, html.escape(v, quote=True)))
@@ -113,8 +120,9 @@ def sanitize_html(raw: str) -> str:
     return out or ""
 
 
-def _inline_url(req_id: int, inline_id: str) -> str:
-    return f"/abap-analysis/{int(req_id)}/requirement-inline?iid={inline_id}"
+def _inline_url(req_id: int, inline_id: str, kind: str = "abap") -> str:
+    base = _KIND_BASE.get((kind or "abap").strip().lower(), "/abap-analysis")
+    return f"{base}/{int(req_id)}/requirement-inline?iid={inline_id}"
 
 
 def _parse_inline_id_from_src(src: str) -> Optional[str]:
@@ -139,6 +147,7 @@ def process_submitted_html(
     raw_html: str,
     req_id: int,
     existing_entries: list[dict[str, Any]],
+    kind: str = "abap",
 ) -> tuple[str, list[dict[str, Any]], Optional[str]]:
     """
     data: URL·기존 inline URL을 정리해 저장용 HTML·screenshots JSON 엔트리 반환.
@@ -195,7 +204,7 @@ def process_submitted_html(
             stored["inline_id"] = inline_id
             new_entries.append(stored)
             used_ids.add(inline_id)
-            url = _inline_url(req_id, inline_id)
+            url = _inline_url(req_id, inline_id, kind)
             return (
                 f'<img src="{html.escape(url, quote=True)}" '
                 f'data-inline-id="{html.escape(inline_id, quote=True)}" '
@@ -206,7 +215,7 @@ def process_submitted_html(
             ent = by_id[inline_id]
             used_ids.add(inline_id)
             new_entries.append(ent)
-            url = _inline_url(req_id, inline_id)
+            url = _inline_url(req_id, inline_id, kind)
             return (
                 f'<img src="{html.escape(url, quote=True)}" '
                 f'data-inline-id="{html.escape(inline_id, quote=True)}" '
@@ -219,7 +228,7 @@ def process_submitted_html(
                 used_ids.add(iid2)
                 new_entries.append(by_id[iid2])
                 return (
-                    f'<img src="{html.escape(_inline_url(req_id, iid2), quote=True)}" '
+                    f'<img src="{html.escape(_inline_url(req_id, iid2, kind), quote=True)}" '
                     f'data-inline-id="{html.escape(iid2, quote=True)}" '
                     f'alt="{alt}" class="req-inline-img"/>'
                 )

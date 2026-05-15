@@ -22,10 +22,11 @@
   </div>
   {% endif %}
 
-  {% if ir.description %}
+  {% if requirement_html_safe or requirement_plain_text or requirement_screenshot_entries %}
   <div class="mb-4">
     <h5 class="small text-uppercase text-muted" data-i18n="detail.description">상세 설명</h5>
-    <div class="border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;white-space:pre-wrap;">{{ ir.description }}</div>
+    {% set row = ir %}
+    {% include 'partials/requirement_body_display.html' %}
   </div>
   {% endif %}
 

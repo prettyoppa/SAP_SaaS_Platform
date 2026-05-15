@@ -124,6 +124,24 @@ def _md_html_filter(s) -> Markup:
 templates.env.filters["md_html"] = _md_html_filter
 
 
+def _req_analysis_html_filter(value) -> Markup:
+    from .analysis_display import format_requirement_analysis_field
+
+    return format_requirement_analysis_field(value)
+
+
+templates.env.filters["req_analysis_html"] = _req_analysis_html_filter
+
+
+def _req_analysis_li_filter(value) -> Markup:
+    from .analysis_display import format_requirement_analysis_list_item
+
+    return format_requirement_analysis_list_item(value)
+
+
+templates.env.filters["req_analysis_li"] = _req_analysis_li_filter
+
+
 def _interview_answers_text_to_qa_pairs(text) -> list[dict[str, str]]:
     """인터뷰 라운드 answers_text(Q1:/A1: 블록) → 메신저용 Q/A 쌍."""
     import re

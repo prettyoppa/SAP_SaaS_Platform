@@ -1,17 +1,36 @@
-{# 분석·개선 — 요구사항 리치(서식·인라인 이미지) / 텍스트 전용 #}
-{% set req_fmt = (form.get('requirement_text_format') if form else none) or (resource.requirement_text_format if resource else none) or 'html' %}
+{# requirement rich #}
+{% set body_field = description_field_name|default('description') %}
+{% set fmt_field = 'requirement_text_format' if body_field == 'requirement_text' else 'description_format' %}
+{% if form and form.get(fmt_field) is not none %}
+  {% set req_fmt = form.get(fmt_field) %}
+{% elif resource %}
+  {% if body_field == 'requirement_text' %}
+    {% set req_fmt = resource.requirement_text_format or 'html' %}
+  {% else %}
+    {% set req_fmt = resource.description_format or 'html' %}
+  {% endif %}
+{% else %}
+  {% set req_fmt = 'html' %}
+{% endif %}
 {% set req_body = '' %}
-{% if form and form.get('requirement_text') is not none %}
-  {% set req_body = form.get('requirement_text') %}
-{% elif resource and resource.requirement_text %}
-  {% set req_body = resource.requirement_text %}
+{% if form and form.get(body_field) is not none %}
+  {% set req_body = form.get(body_field) %}
+{% elif resource %}
+  {% if body_field == 'requirement_text' %}
+    {% set req_body = resource.requirement_text or '' %}
+  {% else %}
+    {% set req_body = resource.description or '' %}
+  {% endif %}
 {% endif %}
 {% set req_plain = req_body if req_fmt != 'html' else '' %}
 {% set req_html = req_body if req_fmt == 'html' else '' %}
+{% set rich_form_id = form_id|default('abap-analysis-form') %}
+{% set rich_char_count_id = char_count_id|default('char-count') %}
 
-<div class="req-rich-field" id="req-rich-root" data-default-mode="{{ req_fmt }}">
-  <input type="hidden" name="requirement_text_format" id="requirement-text-format" value="{{ req_fmt }}"/>
-  <input type="hidden" name="requirement_text" id="description" value=""/>
+<div class="req-rich-field" id="req-rich-root" data-default-mode="{{ req_fmt }}"
+     data-form-id="{{ rich_form_id }}" data-char-count-id="{{ rich_char_count_id }}">
+  <input type="hidden" name="{{ fmt_field }}" id="requirement-text-format" value="{{ req_fmt }}"/>
+  <input type="hidden" name="{{ body_field }}" id="description" value=""/>
 
   <div class="btn-group btn-group-sm mb-2" role="group" aria-label="요구사항 입력 방식">
     <input type="radio" class="btn-check" name="req-mode-toggle" id="req-mode-rich" value="html" autocomplete="off"
@@ -43,6 +62,6 @@
             rows="10" placeholder="요구사항을 입력하세요.">{{ req_plain }}</textarea>
 
   <div class="d-flex justify-content-end mt-1">
-    <small class="text-muted"><span id="char-count">0</span> 자</small>
+    <small class="text-muted"><span id="{{ rich_char_count_id }}">0</span> 자</small>
   </div>
 </div>

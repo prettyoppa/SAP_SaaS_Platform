@@ -276,11 +276,13 @@ window.updateReview = updateReview;
 document.addEventListener('DOMContentLoaded', () => {
   loadRfpNotePrefill();
 
-  const desc = document.getElementById('description');
-  const counter = document.getElementById('char-count');
-  if (desc && counter) {
-    counter.textContent = desc.value.length;
-    desc.addEventListener('input', () => { counter.textContent = desc.value.length; });
+  if (!document.getElementById('req-rich-root')) {
+    const desc = document.getElementById('description');
+    const counter = document.getElementById('char-count');
+    if (desc && counter) {
+      counter.textContent = desc.value.length;
+      desc.addEventListener('input', () => { counter.textContent = desc.value.length; });
+    }
   }
 
   setupMaxSelect('module-chip', 'module-count', 3);

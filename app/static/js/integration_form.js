@@ -241,13 +241,15 @@ window.updateIntegrationReview = function () {};
 document.addEventListener('DOMContentLoaded', () => {
   loadIntegrationNotePrefill();
 
-  const desc = document.getElementById('int-description');
-  const counter = document.getElementById('int-char-count');
-  if (desc && counter) {
-    counter.textContent = desc.value.length;
-    desc.addEventListener('input', () => {
+  if (!document.getElementById('req-rich-root')) {
+    const desc = document.getElementById('description') || document.getElementById('int-description');
+    const counter = document.getElementById('int-char-count');
+    if (desc && counter) {
       counter.textContent = desc.value.length;
-    });
+      desc.addEventListener('input', () => {
+        counter.textContent = desc.value.length;
+      });
+    }
   }
 
   initIntegrationAttachmentDropZone();
