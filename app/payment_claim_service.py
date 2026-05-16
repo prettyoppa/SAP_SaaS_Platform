@@ -8,6 +8,18 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from . import models
+from .payment_claim_messages import (
+    ERR_AMOUNT_MISMATCH,
+    ERR_CLAIM_NOT_FOUND,
+    ERR_CLAIM_NOT_PENDING,
+    ERR_DEPOSITOR_REQUIRED,
+    ERR_INVALID_COUNTRY,
+    ERR_KRW_AMOUNT_MISSING,
+    ERR_PENDING_CLAIM_EXISTS,
+    ERR_PLAN_NOT_FOUND,
+    ERR_PLAN_REQUIRED,
+    ERR_USD_AMOUNT_MISSING,
+)
 from .subscription_catalog import resolve_plan_monthly_prices
 from .subscription_quota import SUBSCRIPTION_SOURCE_ADMIN
 
@@ -38,17 +50,17 @@ def expected_amount_minor(
         .first()
     )
     if not row:
-        return None, "플랜을 찾을 수 없습니다."
+        return None, ERR_PLAN_NOT_FOUND
     krw, usd_cents = resolve_plan_monthly_prices(row)
     if billing_country == "KR":
         if krw is None or krw <= 0:
-            return None, "이 플랜은 원화 결제 금액이 설정되지 않았습니다."
+            return None, ERR_KRW_AMOUNT_MISSING
         return int(krw), None
     if billing_country == "US":
         if usd_cents is None or usd_cents <= 0:
-            return None, "이 플랜은 USD 결제 금액이 설정되지 않았습니다."
+            return None, ERR_USD_AMOUNT_MISSING
         return int(usd_cents), None
-    return None, "지원하지 않는 국가입니다."
+    return None, ERR_INVALID_COUNTRY
 
 
 def user_pending_claim(db: Session, user_id: int) -> models.PaymentClaim | None:
@@ -76,22 +88,22 @@ def create_payment_claim(
 ) -> tuple[models.PaymentClaim | None, str | None]:
     bc = (billing_country or "").strip().upper()
     if bc not in ("KR", "US"):
-        return None, "한국(KR) 또는 미국(US)만 선택할 수 있습니다."
+        return None, ERR_INVALID_COUNTRY
     currency = "KRW" if bc == "KR" else "USD"
     kind = account_kind_for_user(user)
     code = (plan_code or "").strip()[:32]
     if not code:
-        return None, "플랜을 선택해 주세요."
+        return None, ERR_PLAN_REQUIRED
     expected, err = expected_amount_minor(db, account_kind=kind, plan_code=code, billing_country=bc)
     if err:
         return None, err
     if int(amount_minor) != int(expected):
-        return None, f"입금 금액이 플랜 요금과 일치하지 않습니다. (필요: {expected:,})"
+        return None, f"{ERR_AMOUNT_MISMATCH}:{int(expected)}"
     if user_pending_claim(db, user.id):
-        return None, "이미 처리 대기 중인 입금 신청이 있습니다."
+        return None, ERR_PENDING_CLAIM_EXISTS
     dep = (depositor_name or "").strip()[:200]
     if not dep:
-        return None, "입금자명을 입력해 주세요."
+        return None, ERR_DEPOSITOR_REQUIRED
     row = models.PaymentClaim(
         user_id=int(user.id),
         status=CLAIM_STATUS_PENDING,
@@ -122,9 +134,9 @@ def cancel_payment_claim(db: Session, user: models.User, claim_id: int) -> str |
         .first()
     )
     if not row:
-        return "신청을 찾을 수 없습니다."
+        return ERR_CLAIM_NOT_FOUND
     if row.status != CLAIM_STATUS_PENDING:
-        return "대기 중인 신청만 취소할 수 있습니다."
+        return ERR_CLAIM_NOT_PENDING
     row.status = CLAIM_STATUS_CANCELLED
     row.updated_at = datetime.utcnow()
     db.commit()
@@ -173,9 +185,9 @@ def reject_payment_claim(
 ) -> str | None:
     row = db.query(models.PaymentClaim).filter(models.PaymentClaim.id == int(claim_id)).first()
     if not row:
-        return "신청을 찾을 수 없습니다."
+        return ERR_CLAIM_NOT_FOUND
     if row.status != CLAIM_STATUS_PENDING:
-        return "대기 중인 신청만 반려할 수 있습니다."
+        return ERR_CLAIM_NOT_PENDING
     row.status = CLAIM_STATUS_REJECTED
     row.admin_note = (admin_note or "").strip()[:2000] or None
     row.updated_at = datetime.utcnow()
@@ -204,9 +216,12 @@ def pending_claims_for_admin(db: Session, limit: int = 100) -> list[models.Payme
 
 
 def claim_status_label_ko(status: str) -> str:
-    return {
-        CLAIM_STATUS_PENDING: "확인 대기",
-        CLAIM_STATUS_CONFIRMED: "활성화 완료",
-        CLAIM_STATUS_REJECTED: "반려",
-        CLAIM_STATUS_CANCELLED: "취소",
-    }.get(status, status)
+    from .payment_claim_messages import STATUS_LABEL_KO
+
+    return STATUS_LABEL_KO.get(status, status)
+
+
+def claim_status_label_en(status: str) -> str:
+    from .payment_claim_messages import STATUS_LABEL_EN
+
+    return STATUS_LABEL_EN.get(status, status)

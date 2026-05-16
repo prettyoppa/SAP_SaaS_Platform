@@ -603,7 +603,7 @@ class RequestOffer(Base):
     request_kind = Column(String(16), nullable=False, index=True)  # rfp | analysis | integration
     request_id = Column(Integer, nullable=False, index=True)
     consultant_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    status = Column(String(16), nullable=False, default="offered", index=True)  # offered | matched
+    status = Column(String(16), nullable=False, default="offered", index=True)  # offered | matched | withdrawn
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     matched_at = Column(DateTime, nullable=True)
     # 컨설턴트가 요청 Console에서 매칭 탭을 열기 전까지 표시할 빨간점용

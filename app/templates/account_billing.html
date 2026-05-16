@@ -1,105 +1,163 @@
 {% extends "base.html" %}
-{% block title %}구독·입금 – SAP 개발 파트너{% endblock %}
+{% block title %}<span class="nav-ko">구독·입금</span><span class="nav-en" style="display:none">Subscription &amp; payment</span> – SAP Dev Hub{% endblock %}
 
 {% block content %}
 <div class="dashboard-page py-4">
   <div class="container" style="max-width: 42rem;">
     <div class="mb-4">
-      <a href="/account" class="small text-decoration-none"><i class="fa-solid fa-arrow-left me-1"></i>회원 정보</a>
-      <h2 class="mt-2 mb-1">구독·계좌이체</h2>
-      <p class="text-muted small mb-0">현재 플랜: <strong>{{ subscription_plan_display_ko }}</strong></p>
+      <a href="/account" class="small text-decoration-none">
+        <i class="fa-solid fa-arrow-left me-1"></i>
+        <span class="nav-ko">회원 정보</span><span class="nav-en" style="display:none">Account</span>
+      </a>
+      <h2 class="mt-2 mb-1">
+        <span class="nav-ko">구독·계좌이체</span><span class="nav-en" style="display:none">Subscription &amp; bank transfer</span>
+      </h2>
+      <p class="text-muted small mb-0">
+        <span class="nav-ko">현재 플랜:</span><span class="nav-en" style="display:none">Current plan:</span>
+        <strong class="nav-ko">{{ subscription_plan_display_ko }}</strong>
+        <strong class="nav-en" style="display:none">{{ subscription_plan_display_en }}</strong>
+      </p>
     </div>
 
     {% if billing_ok %}
-    <div class="alert alert-success small">입금 신청을 접수했습니다. 확인 후 플랜이 활성화됩니다.</div>
+    <div class="alert alert-success small">
+      <span class="nav-ko">입금 신청을 접수했습니다. 확인 후 플랜이 활성화됩니다.</span>
+      <span class="nav-en" style="display:none">Your transfer claim was submitted. We will activate your plan after verification.</span>
+    </div>
     {% endif %}
-    {% if billing_err %}
-    <div class="alert alert-danger small">{{ billing_err }}</div>
-    {% endif %}
+    {% include 'partials/billing_err_alert.html' %}
 
     <div class="rfp-section p-3 mb-4">
-      <h6 class="text-muted text-uppercase small mb-2">결제 안내</h6>
-      <p class="small text-muted">현재 <strong>한국(원화)</strong>·<strong>미국(달러)</strong> 계좌이체만 지원합니다. 카드·자동결제는 준비 중입니다.</p>
-      {% if settings.get('bank_transfer_activation_sla_ko') %}
-      <p class="small mb-3"><i class="fa-solid fa-clock me-1 text-primary"></i>{{ settings.bank_transfer_activation_sla_ko }}</p>
+      <h6 class="text-muted text-uppercase small mb-2">
+        <span class="nav-ko">결제 안내</span><span class="nav-en" style="display:none">Payment information</span>
+      </h6>
+      <p class="small text-muted">
+        <span class="nav-ko">현재 <strong>한국(원화)</strong>·<strong>미국(달러)</strong> 계좌이체만 지원합니다. 카드·자동결제는 준비 중입니다.</span>
+        <span class="nav-en" style="display:none">We currently support <strong>bank transfer in KRW (Korea)</strong> and <strong>USD (United States)</strong> only. Card and auto-pay are coming soon.</span>
+      </p>
+      {% if settings.get('bank_transfer_activation_sla_ko') or settings.get('bank_transfer_activation_sla_en') %}
+      <p class="small mb-3">
+        <i class="fa-solid fa-clock me-1 text-primary"></i>
+        <span class="nav-ko">{{ settings.get('bank_transfer_activation_sla_ko', '') }}</span>
+        <span class="nav-en" style="display:none">{{ settings.get('bank_transfer_activation_sla_en', settings.get('bank_transfer_activation_sla_ko', '')) }}</span>
+      </p>
       {% endif %}
 
       <ul class="nav nav-tabs nav-tabs-sm mb-3" role="tablist">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#bt-kr" type="button">KRW · 한국</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#bt-us" type="button">USD · 미국</button></li>
+        <li class="nav-item">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#bt-kr" type="button">KRW · <span class="nav-ko">한국</span><span class="nav-en" style="display:none">Korea</span></button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#bt-us" type="button">USD · <span class="nav-ko">미국</span><span class="nav-en" style="display:none">US</span></button>
+        </li>
       </ul>
       <div class="tab-content small">
         <div class="tab-pane fade show active markdown-body" id="bt-kr">
-          {{ (settings.get('bank_transfer_notice_md_ko') or '')|md_html }}
+          <div class="nav-ko">{{ (settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
+          <div class="nav-en markdown-body" style="display:none">{{ (settings.get('bank_transfer_notice_md_en') or settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
         </div>
         <div class="tab-pane fade markdown-body" id="bt-us">
-          {{ (settings.get('bank_transfer_notice_usd_md_ko') or '')|md_html }}
+          <div class="nav-ko">{{ (settings.get('bank_transfer_notice_usd_md_ko') or '')|md_html }}</div>
+          <div class="nav-en" style="display:none">{{ (settings.get('bank_transfer_notice_usd_md_en') or settings.get('bank_transfer_notice_usd_md_ko') or '')|md_html }}</div>
         </div>
       </div>
     </div>
 
     {% if pending_claim %}
     <div class="alert alert-info small">
-      <strong>입금 확인 대기 중</strong> — {{ pending_claim.plan_code }} / {{ pending_claim.currency }}
-      {{ "{:,}".format(pending_claim.amount_minor) }}{% if pending_claim.currency == 'USD' %} (cents){% endif %}
+      <span class="nav-ko"><strong>입금 확인 대기 중</strong></span>
+      <span class="nav-en" style="display:none"><strong>Pending verification</strong></span>
+      — {{ pending_claim.plan_code }} / {{ pending_claim.currency }}
+      {{ "{:,}".format(pending_claim.amount_minor) }}{% if pending_claim.currency == 'USD' %} <span class="nav-ko">(센트)</span><span class="nav-en" style="display:none">(cents)</span>{% endif %}
       <form method="post" action="/account/billing/claim/{{ pending_claim.id }}/cancel" class="d-inline ms-2"
-            data-app-confirm="입금 신청을 취소할까요?">
-        <button type="submit" class="btn btn-xs btn-outline-secondary">신청 취소</button>
+            data-app-confirm-i18n="billing.claimCancelConfirm">
+        <button type="submit" class="btn btn-xs btn-outline-secondary">
+          <span class="nav-ko">신청 취소</span><span class="nav-en" style="display:none">Cancel claim</span>
+        </button>
       </form>
     </div>
     {% elif plan_options|length > 0 %}
     <form method="post" action="/account/billing/claim" class="rfp-section p-3 mb-4">
-      <h6 class="mb-3">입금 신청</h6>
+      <h6 class="mb-3">
+        <span class="nav-ko">입금 신청</span><span class="nav-en" style="display:none">Transfer claim</span>
+      </h6>
       <div class="mb-3">
-        <label class="form-label small">청구 국가</label>
+        <label class="form-label small">
+          <span class="nav-ko">청구 국가</span><span class="nav-en" style="display:none">Billing country</span>
+        </label>
         <select name="billing_country" class="form-select form-select-sm" id="billingCountry" required>
           <option value="KR">한국 (KRW)</option>
           <option value="US">미국 (USD)</option>
         </select>
       </div>
       <div class="mb-3">
-        <label class="form-label small">플랜</label>
+        <label class="form-label small">
+          <span class="nav-ko">플랜</span><span class="nav-en" style="display:none">Plan</span>
+        </label>
         <select name="plan_code" class="form-select form-select-sm" id="billingPlan" required>
           {% for p in plan_options %}
-          <option value="{{ p.code }}" data-krw="{{ p.krw or 0 }}" data-usd="{{ p.usd_cents or 0 }}">{{ p.name }} ({{ p.code }})</option>
+          <option value="{{ p.code }}" data-krw="{{ p.krw or 0 }}" data-usd="{{ p.usd_cents or 0 }}">{{ p.name_ko }} · {{ p.name_en }} ({{ p.code }})</option>
           {% endfor %}
         </select>
       </div>
       <div class="mb-3">
-        <label class="form-label small">입금 금액 (플랜 요금과 동일)</label>
+        <label class="form-label small">
+          <span class="nav-ko">입금 금액 (플랜 요금과 동일)</span><span class="nav-en" style="display:none">Amount (must match plan price)</span>
+        </label>
         <input type="number" name="amount_minor" id="billingAmount" class="form-control form-control-sm" required readonly>
-        <p class="text-muted small mb-0 mt-1" id="billingAmountHint"></p>
+        <p class="text-muted small mb-0 mt-1 nav-ko" id="billingAmountHintKo"></p>
+        <p class="text-muted small mb-0 mt-1 nav-en" id="billingAmountHintEn" style="display:none"></p>
       </div>
       <div class="mb-3">
-        <label class="form-label small">입금자명</label>
+        <label class="form-label small">
+          <span class="nav-ko">입금자명</span><span class="nav-en" style="display:none">Depositor name</span>
+        </label>
         <input type="text" name="depositor_name" class="form-control form-control-sm" required maxlength="200"
-               value="{{ user.full_name }}" placeholder="통장 표시 이름">
+               value="{{ user.full_name }}">
       </div>
       <div class="mb-3">
-        <label class="form-label small">입금일</label>
+        <label class="form-label small">
+          <span class="nav-ko">입금일</span><span class="nav-en" style="display:none">Transfer date</span>
+        </label>
         <input type="date" name="transfer_date" class="form-control form-control-sm">
       </div>
       <div class="mb-3">
-        <label class="form-label small">메모 (선택)</label>
+        <label class="form-label small">
+          <span class="nav-ko">메모 (선택)</span><span class="nav-en" style="display:none">Note (optional)</span>
+        </label>
         <textarea name="member_note" class="form-control form-control-sm" rows="2" maxlength="500"></textarea>
       </div>
-      <button type="submit" class="btn btn-primary btn-sm">입금 신청 제출</button>
+      <button type="submit" class="btn btn-primary btn-sm">
+        <span class="nav-ko">입금 신청 제출</span><span class="nav-en" style="display:none">Submit claim</span>
+      </button>
     </form>
     {% endif %}
 
     {% if claims|length > 0 %}
     <div class="rfp-section p-3 mb-4">
-      <h6 class="text-muted text-uppercase small mb-2">입금 신청 이력</h6>
+      <h6 class="text-muted text-uppercase small mb-2">
+        <span class="nav-ko">입금 신청 이력</span><span class="nav-en" style="display:none">Claim history</span>
+      </h6>
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0">
-          <thead><tr><th>일시</th><th>플랜</th><th>금액</th><th>상태</th></tr></thead>
+          <thead>
+            <tr>
+              <th><span class="nav-ko">일시</span><span class="nav-en" style="display:none">Date</span></th>
+              <th><span class="nav-ko">플랜</span><span class="nav-en" style="display:none">Plan</span></th>
+              <th><span class="nav-ko">금액</span><span class="nav-en" style="display:none">Amount</span></th>
+              <th><span class="nav-ko">상태</span><span class="nav-en" style="display:none">Status</span></th>
+            </tr>
+          </thead>
           <tbody>
             {% for c in claims %}
             <tr>
               <td class="small text-muted">{{ c.created_at|local_dt_span }}</td>
               <td><code>{{ c.plan_code }}</code></td>
               <td class="font-monospace small">{{ c.currency }} {{ "{:,}".format(c.amount_minor) }}</td>
-              <td class="small">{{ c.status }}</td>
+              <td class="small">
+                <span class="nav-ko">{{ claim_status_label_ko(c.status) }}</span>
+                <span class="nav-en" style="display:none">{{ claim_status_label_en(c.status) }}</span>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -109,8 +167,9 @@
     {% endif %}
 
     <p class="small text-muted mb-0">
-      <a href="/subscription-plans">구독 플랜 비교</a> ·
-      문의는 <a href="/reviews">문의/리뷰</a>를 이용해 주세요.
+      <a href="/subscription-plans"><span class="nav-ko">구독 플랜 비교</span><span class="nav-en" style="display:none">Compare plans</span></a>
+      ·
+      <a href="/reviews"><span class="nav-ko">문의/리뷰</span><span class="nav-en" style="display:none">Contact / reviews</span></a>
     </p>
   </div>
 </div>
@@ -122,7 +181,8 @@
   var country = document.getElementById('billingCountry');
   var plan = document.getElementById('billingPlan');
   var amount = document.getElementById('billingAmount');
-  var hint = document.getElementById('billingAmountHint');
+  var hintKo = document.getElementById('billingAmountHintKo');
+  var hintEn = document.getElementById('billingAmountHintEn');
   if (!country || !plan || !amount) return;
   function sync() {
     var opt = plan.options[plan.selectedIndex];
@@ -131,15 +191,35 @@
     var us = parseInt(opt.getAttribute('data-usd') || '0', 10);
     if (country.value === 'KR') {
       amount.value = kr > 0 ? String(kr) : '';
-      hint.textContent = kr > 0 ? ('₩' + kr.toLocaleString('ko-KR') + ' 을 입금해 주세요.') : '원화 요금이 없는 플랜입니다.';
+      if (hintKo) hintKo.textContent = kr > 0 ? ('₩' + kr.toLocaleString('ko-KR') + ' 을 입금해 주세요.') : '원화 요금이 없는 플랜입니다.';
+      if (hintEn) hintEn.textContent = kr > 0 ? ('Please transfer ₩' + kr.toLocaleString('en-US') + '.') : 'This plan has no KRW price.';
     } else {
       amount.value = us > 0 ? String(us) : '';
-      hint.textContent = us > 0 ? ('$' + (us / 100).toFixed(2) + ' USD (센트 단위 ' + us + ')') : 'USD 요금이 없는 플랜입니다.';
+      if (hintKo) hintKo.textContent = us > 0 ? ('$' + (us / 100).toFixed(2) + ' USD (센트 단위 ' + us + ') 를 입금해 주세요.') : 'USD 요금이 없는 플랜입니다.';
+      if (hintEn) hintEn.textContent = us > 0 ? ('Please transfer $' + (us / 100).toFixed(2) + ' USD (amount in cents: ' + us + ').') : 'This plan has no USD price.';
     }
   }
   country.addEventListener('change', sync);
   plan.addEventListener('change', sync);
   sync();
+  var krOpt = country.querySelector('option[value="KR"]');
+  if (krOpt) {
+    krOpt.textContent = '한국 (KRW)';
+  }
+  function refreshCountryLabels() {
+    var isKo = (document.documentElement.getAttribute('data-lang') || 'ko') === 'ko';
+    var kr = country.querySelector('option[value="KR"]');
+    var us = country.querySelector('option[value="US"]');
+    if (kr) kr.textContent = isKo ? '한국 (KRW)' : 'Korea (KRW)';
+    if (us) us.textContent = isKo ? '미국 (USD)' : 'United States (USD)';
+  }
+  refreshCountryLabels();
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'lang') refreshCountryLabels();
+  });
+  document.querySelectorAll('.lang-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { setTimeout(refreshCountryLabels, 0); });
+  });
 })();
 </script>
 {% endblock %}

@@ -22,13 +22,15 @@ from ..delivered_code_package import (
     rfp_delivered_body_ready,
 )
 from ..offer_inquiry_service import (
+    apply_request_offer_match_action,
     inquiries_by_offer_id,
-    notify_consultant_request_matched,
     public_request_url,
     sanitize_console_readonly_return_url,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
+    withdraw_request_offer,
 )
+from ..request_offer_lifecycle import request_has_deliverables
 from ..delivery_fs_supplements import KIND_RFP, fs_supplement_hub_template_ctx
 from ..delivery_proposal_supplements import (
     has_delivery_proposal_supplements,
@@ -37,7 +39,11 @@ from ..delivery_proposal_supplements import (
 )
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..code_asset_access import user_may_copy_download_request_assets
-from ..request_hub_access import consultant_has_request_offer, consultant_is_matched_on_request
+from ..request_hub_access import (
+    apply_hub_deliverables_visibility,
+    consultant_has_request_offer,
+    consultant_is_matched_on_request,
+)
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..paid_tier import (
     paid_engagement_is_active,
@@ -837,7 +843,9 @@ def _collect_rfp_unified_hub_ctx(
             display_phase = "interview"
 
     if requested_phase in ("fs", "devcode"):
-        if not user_can_access_fs_hub(user, rfp):
+        if int(user.id) == int(rfp.user_id) and not user_can_access_fs_hub(
+            user, rfp, db=db, request_kind="rfp", request_id=int(rfp.id)
+        ):
             return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
 
     groups = reference_code_program_groups_for_tabs(rfp.reference_code_payload)
@@ -1027,8 +1035,12 @@ def _collect_rfp_unified_hub_ctx(
         "hub_include_proposal_scripts": proposal_scripts,
         "request_offers": vis_offers,
         "request_offer_can_match": bool(user and rfp and user.id == rfp.user_id and not readonly_console),
+        "request_offer_owner_match_cancel_blocked": bool(
+            rfp and request_has_deliverables(db, "rfp", int(rfp.id))
+        ),
         "request_offer_profile_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/profile",
         "request_offer_match_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/match",
+        "request_offer_withdraw_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/withdraw",
         "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_offers]),
         "request_offer_inquiry_url_builder": lambda offer_id: f"/rfp/{rfp.id}/offers/{int(offer_id)}/inquiry",
         "request_offer_can_inquire": bool(user and rfp and user.id == rfp.user_id and not readonly_console),
@@ -1036,6 +1048,8 @@ def _collect_rfp_unified_hub_ctx(
             request, f"/rfp/{rfp.id}?phase=proposal"
         ),
         "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
+        "offer_match_err": (request.query_params.get("offer_match_err") or "").strip(),
+        "offer_withdraw_err": (request.query_params.get("offer_withdraw_err") or "").strip(),
         "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
         "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
         "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
@@ -1094,6 +1108,15 @@ def _collect_rfp_unified_hub_ctx(
             }
         )
 
+    apply_hub_deliverables_visibility(
+        ctx,
+        db=db,
+        user=user,
+        request_kind="rfp",
+        request_id=int(rfp.id),
+        owner_user_id=int(rfp.user_id),
+        paid_entity=rfp,
+    )
     return ctx
 
 
@@ -1166,7 +1189,7 @@ def rfp_offer_match(
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id).first()
+    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
     if not rfp:
         return RedirectResponse(url="/rfp", status_code=302)
     offer = (
@@ -1181,36 +1204,68 @@ def rfp_offer_match(
     )
     if not offer:
         return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
-    if (offer.status or "") == "matched":
-        offer.status = "offered"
-        offer.matched_at = None
-        offer.match_notice_pending = False
-        db.add(offer)
-        db.commit()
-        return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
-    db.query(models.RequestOffer).filter(
-        models.RequestOffer.request_kind == "rfp",
-        models.RequestOffer.request_id == rfp_id,
-    ).update(
-        {"status": "offered", "matched_at": None, "match_notice_pending": False},
-        synchronize_session=False,
+    is_owner = int(user.id) == int(rfp.user_id)
+    is_matched_consultant = (
+        getattr(user, "is_consultant", False)
+        and (offer.status or "").strip() == "matched"
+        and int(offer.consultant_user_id) == int(user.id)
     )
-    offer.status = "matched"
-    offer.matched_at = datetime.utcnow()
-    offer.match_notice_pending = True
-    db.add(offer)
-    db.commit()
+    if not is_owner and not is_matched_consultant:
+        return RedirectResponse(url="/rfp", status_code=302)
     title = (rfp.title or "").strip() or f"RFP #{rfp_id}"
-    c = offer.consultant
-    if c:
-        notify_consultant_request_matched(
-            request=request,
-            consultant=c,
-            request_kind="rfp",
-            request_id=rfp_id,
-            request_title=title,
+    err = apply_request_offer_match_action(
+        db,
+        http_request=request,
+        offer=offer,
+        request_title=title,
+        actor=user,
+        owner_user_id=int(rfp.user_id),
+    )
+    base = f"/rfp/{rfp_id}?phase=proposal"
+    readonly = f"/rfp/{rfp_id}/console-readonly?phase=proposal"
+    ret = readonly if is_matched_consultant and not is_owner else base
+    if err:
+        sep = "&" if "?" in ret else "?"
+        return RedirectResponse(url=f"{ret}{sep}offer_match_err={quote(str(err))}", status_code=303)
+    return RedirectResponse(url=ret, status_code=303)
+
+
+@router.post("/rfp/{rfp_id}/offers/{offer_id}/withdraw")
+def rfp_offer_withdraw(
+    rfp_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user or not getattr(user, "is_consultant", False):
+        return RedirectResponse(url="/login", status_code=302)
+    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
+    if not rfp:
+        return RedirectResponse(url="/rfp", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "rfp",
+            models.RequestOffer.request_id == rfp_id,
         )
-    return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=303)
+        .first()
+    )
+    base = f"/rfp/{rfp_id}?phase=proposal"
+    readonly = f"/rfp/{rfp_id}/console-readonly?phase=proposal"
+    if not offer:
+        return RedirectResponse(url=base, status_code=303)
+    title = (rfp.title or "").strip() or f"RFP #{rfp_id}"
+    err = withdraw_request_offer(
+        db, http_request=request, offer=offer, request_title=title, actor=user
+    )
+    ret = readonly if int(offer.consultant_user_id) == int(user.id) and int(user.id) != int(rfp.user_id) else base
+    if err:
+        sep = "&" if "?" in ret else "?"
+        return RedirectResponse(url=f"{ret}{sep}offer_withdraw_err={quote(str(err))}", status_code=303)
+    return RedirectResponse(url=ret, status_code=303)
 
 
 @router.post("/rfp/{rfp_id}/offers/{offer_id}/inquiry")
@@ -1488,7 +1543,9 @@ def rfp_paid_generation_status(rfp_id: int, request: Request, db: Session = Depe
     if not user:
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
-    if not rfp or not user_can_access_fs_hub(user, rfp):
+    if not rfp or not user_can_access_fs_hub(
+        user, rfp, db=db, request_kind="rfp", request_id=int(rfp_id)
+    ):
         return JSONResponse({"detail": "forbidden"}, status_code=403)
     return JSONResponse(
         {
@@ -1505,7 +1562,9 @@ def rfp_fs_download(rfp_id: int, request: Request, db: Session = Depends(get_db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
-    if not rfp or not user_can_access_fs_hub(user, rfp):
+    if not rfp or not user_can_access_fs_hub(
+        user, rfp, db=db, request_kind="rfp", request_id=int(rfp_id)
+    ):
         return RedirectResponse(url="/", status_code=302)
     if not user_may_copy_download_request_assets(
         db,
@@ -1532,7 +1591,9 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
-    if not rfp or not user_can_access_fs_hub(user, rfp):
+    if not rfp or not user_can_access_fs_hub(
+        user, rfp, db=db, request_kind="rfp", request_id=int(rfp_id)
+    ):
         return RedirectResponse(url="/", status_code=302)
     if not user_may_copy_download_request_assets(
         db,

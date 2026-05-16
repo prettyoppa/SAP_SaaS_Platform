@@ -1,4 +1,11 @@
 <div class="interview-summary-body pt-0">
+  {% if not can_view_deliverables|default(true) %}
+    {% if user and user.is_consultant and not user.is_admin %}
+    {% include 'partials/hub_deliverables_no_access.html' %}
+    {% else %}
+    <p class="text-muted small mb-0">납품 코드가 아직 없습니다.</p>
+    {% endif %}
+  {% else %}
   {% if dc_stat == 'failed' %}
   <div class="alert alert-danger small mb-3">
     <div class="fw-semibold mb-1">구현 산출물 생성 실패</div>
@@ -112,5 +119,6 @@
   <p class="text-muted small mb-0">구현 산출물은 FS 준비 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>
   {% elif fs_stat != 'ready' and not dc_busy %}
   <p class="text-muted small mb-0">기능명세(FS)가 준비된 뒤 개발코드를 생성할 수 있습니다.</p>
+  {% endif %}
   {% endif %}
 </div>

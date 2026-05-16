@@ -1,4 +1,11 @@
 <div class="interview-summary-body pt-0">
+  {% if not can_view_deliverables|default(true) %}
+    {% if user and user.is_consultant and not user.is_admin %}
+    {% include 'partials/hub_deliverables_no_access.html' %}
+    {% else %}
+    {% include 'partials/hub_fs_empty_hint.html' %}
+    {% endif %}
+  {% else %}
   {% if fs_stat == 'failed' %}
   <div class="alert alert-danger small mb-3">
     FS 생성에 실패했습니다. 관리자에게 문의하세요.
@@ -34,5 +41,6 @@
   <div class="proposal-card mb-0">
     <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ fs_html | safe }}</div>
   </div>
+  {% endif %}
   {% endif %}
 </div>

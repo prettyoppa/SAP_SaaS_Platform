@@ -11,14 +11,27 @@ from sqlalchemy.orm import Session
 from .. import auth, models
 from ..bank_transfer_settings import ALL_BANK_BILLING_SETTING_KEYS
 from ..database import get_db
+from ..payment_claim_messages import ERR_AMOUNT_MISMATCH
 from ..payment_claim_service import (
     account_kind_for_user,
     cancel_payment_claim,
+    claim_status_label_en,
+    claim_status_label_ko,
     claims_for_user,
     create_payment_claim,
     expected_amount_minor,
     user_pending_claim,
 )
+
+_PLAN_DISPLAY_EN: dict[str, str] = {
+    "experience": "Experience",
+    "end_user": "End User",
+    "power_user": "Power User",
+    "process_innovator": "Process Innovator",
+    "junior": "Junior",
+    "senior": "Senior",
+    "superior": "Superior",
+}
 from ..subscription_catalog import (
     CONSULTANT_PLAN_PUBLIC_ORDER,
     MEMBER_PLAN_PUBLIC_ORDER,
@@ -75,13 +88,19 @@ def account_billing_page(request: Request, db: Session = Depends(get_db)):
         plan_options.append(
             {
                 "code": code,
-                "name": p.display_name_ko,
+                "name_ko": p.display_name_ko,
+                "name_en": _PLAN_DISPLAY_EN.get(code, p.display_name_ko),
                 "krw": krw,
                 "usd_cents": usdc,
             }
         )
     sp_ko, sp_en = user_subscription_plan_display_names(db, user)
     err = (request.query_params.get("err") or "").strip()
+    err_expected = (request.query_params.get("err_expected") or "").strip()
+    if err.startswith(f"{ERR_AMOUNT_MISMATCH}:"):
+        parts = err.split(":", 1)
+        err = ERR_AMOUNT_MISMATCH
+        err_expected = parts[1] if len(parts) > 1 else err_expected
     ok = request.query_params.get("ok") == "1"
     return templates.TemplateResponse(
         request,
@@ -96,7 +115,10 @@ def account_billing_page(request: Request, db: Session = Depends(get_db)):
             "subscription_plan_display_ko": sp_ko,
             "subscription_plan_display_en": sp_en,
             "billing_err": err,
+            "billing_err_expected": err_expected,
             "billing_ok": ok,
+            "claim_status_label_ko": claim_status_label_ko,
+            "claim_status_label_en": claim_status_label_en,
         },
     )
 
@@ -132,7 +154,14 @@ def account_billing_claim_post(
     if err:
         from urllib.parse import quote
 
-        return RedirectResponse(url=f"/account/billing?err={quote(err)}", status_code=303)
+        if str(err).startswith(f"{ERR_AMOUNT_MISMATCH}:"):
+            parts = str(err).split(":", 1)
+            expected = parts[1] if len(parts) > 1 else ""
+            return RedirectResponse(
+                url=f"/account/billing?err={ERR_AMOUNT_MISMATCH}&err_expected={quote(expected)}",
+                status_code=303,
+            )
+        return RedirectResponse(url=f"/account/billing?err={quote(str(err))}", status_code=303)
     return RedirectResponse(url="/account/billing?ok=1", status_code=303)
 
 

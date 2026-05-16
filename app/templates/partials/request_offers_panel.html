@@ -1,19 +1,58 @@
 {% from "partials/_consultant_profile_fa_icon.html" import consultant_profile_fa_icon %}
 {% if request_offers is defined and request_offers %}
 <div class="request-offers-panel {{ request_offer_panel_wrap_class|default('mt-3') }}">
-  <h6 class="text-muted small text-uppercase mb-2">오퍼 현황</h6>
+  <h6 class="text-muted small text-uppercase mb-2">
+    <span class="nav-ko">오퍼 현황</span><span class="nav-en" style="display:none">Offers</span>
+  </h6>
   {% if offer_inquiry_err is defined and offer_inquiry_err %}
   <div class="alert alert-danger small py-2 mb-2">{{ offer_inquiry_err }}</div>
   {% endif %}
   {% if offer_inquiry_ok is defined and offer_inquiry_ok %}
-  <div class="alert alert-success small py-2 mb-2">문의를 전송했습니다.</div>
+  <div class="alert alert-success small py-2 mb-2">
+    <span class="nav-ko">문의를 전송했습니다.</span><span class="nav-en" style="display:none">Your inquiry was sent.</span>
+  </div>
   {% endif %}
   {% if offer_inquiry_reply_err is defined and offer_inquiry_reply_err %}
   <div class="alert alert-danger small py-2 mb-2">{{ offer_inquiry_reply_err }}</div>
   {% endif %}
   {% if offer_inquiry_reply_ok is defined and offer_inquiry_reply_ok %}
-  <div class="alert alert-success small py-2 mb-2">답변을 전송했습니다.</div>
+  <div class="alert alert-success small py-2 mb-2">
+    <span class="nav-ko">답변을 전송했습니다.</span><span class="nav-en" style="display:none">Your reply was sent.</span>
+  </div>
   {% endif %}
+  {% if offer_match_err is defined and offer_match_err %}
+  <div class="alert alert-warning small py-2 mb-2">
+    {% if offer_match_err == 'match_blocked' %}
+    <span class="nav-ko">이미 다른 컨설턴트와 매칭되어 있습니다. 다른 오퍼로 매칭하려면 먼저 기존 매칭을 취소해 주세요.</span>
+    <span class="nav-en" style="display:none">Another consultant is already matched. Cancel the current match before matching a different offer.</span>
+    {% elif offer_match_err == 'match_cancel_deliverables' %}
+    <span class="nav-ko">기능명세·납품 코드 등 컨설턴트 납품이 있어 매칭을 취소할 수 없습니다. 컨설턴트에게 문의해 주세요.</span>
+    <span class="nav-en" style="display:none">Consultant deliverables (e.g. functional spec or delivered code) exist; you cannot cancel the match. Please contact the consultant.</span>
+    {% elif offer_match_err == 'match_forbidden' %}
+    <span class="nav-ko">매칭 변경 권한이 없습니다.</span>
+    <span class="nav-en" style="display:none">You do not have permission to change this match.</span>
+    {% else %}
+    {{ offer_match_err }}
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if offer_withdraw_err is defined and offer_withdraw_err %}
+  <div class="alert alert-warning small py-2 mb-2">
+    {% if offer_withdraw_err == 'offer_not_withdrawable' %}
+    <span class="nav-ko">이 오퍼는 철회할 수 없습니다. (매칭된 오퍼는 매칭 취소를 이용해 주세요.)</span>
+    <span class="nav-en" style="display:none">This offer cannot be withdrawn. Cancel the match first if you are matched.</span>
+    {% elif offer_withdraw_err == 'offer_forbidden' %}
+    <span class="nav-ko">오퍼 철회 권한이 없습니다.</span>
+    <span class="nav-en" style="display:none">You do not have permission to withdraw this offer.</span>
+    {% else %}
+    {{ offer_withdraw_err }}
+    {% endif %}
+  </div>
+  {% endif %}
+  {% set ns_match = namespace(active_id=none) %}
+  {% for o in request_offers %}
+    {% if o.status == 'matched' %}{% set ns_match.active_id = o.id %}{% endif %}
+  {% endfor %}
   <div class="list-group">
     {% for of in request_offers %}
     {% set c = of.consultant %}
@@ -28,24 +67,28 @@
       <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
         <div class="flex-grow-1" style="min-width: 0;">
           <div class="fw-semibold">
-            {{ c.full_name if c else '컨설턴트' }}
+            {{ c.full_name if c else '' }}{% if not c %}<span class="nav-ko">컨설턴트</span><span class="nav-en" style="display:none">Consultant</span>{% endif %}
             {% if c and c.company %}<span class="text-muted small"> · {{ c.company }}</span>{% endif %}
             {% if of.status == 'matched' %}
             <span class="badge bg-success ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
-              <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>매칭
+              <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i><span class="nav-ko">매칭</span><span class="nav-en" style="display:none">Matched</span>
+            </span>
+            {% elif of.status == 'withdrawn' %}
+            <span class="badge bg-dark ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
+              <i class="fa-solid fa-ban" aria-hidden="true"></i><span class="nav-ko">오퍼 취소</span><span class="nav-en" style="display:none">Withdrawn</span>
             </span>
             {% else %}
             <span class="badge bg-secondary ms-2 d-inline-flex align-items-center gap-1 offer-status-badge-fa">
-              <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>오퍼
+              <i class="fa-solid fa-hand-holding" aria-hidden="true"></i><span class="nav-ko">오퍼</span><span class="nav-en" style="display:none">Offer</span>
             </span>
             {% endif %}
             {% if c %}
             <span class="offer-consent-inline d-inline-flex flex-wrap align-items-center gap-1 ms-2 fw-normal">
-              <span class="text-muted small text-nowrap">이메일 수신</span>
-              <span class="badge rounded-pill {{ 'bg-success' if c.ops_email_opt_in else 'bg-secondary' }}">{{ '동의' if c.ops_email_opt_in else '미동의' }}</span>
+              <span class="text-muted small text-nowrap"><span class="nav-ko">이메일 수신</span><span class="nav-en" style="display:none">Email</span></span>
+              <span class="badge rounded-pill {{ 'bg-success' if c.ops_email_opt_in else 'bg-secondary' }}"><span class="nav-ko">{{ '동의' if c.ops_email_opt_in else '미동의' }}</span><span class="nav-en" style="display:none">{{ 'On' if c.ops_email_opt_in else 'Off' }}</span></span>
               <span class="text-muted small" aria-hidden="true">·</span>
-              <span class="text-muted small text-nowrap">SMS 수신</span>
-              <span class="badge rounded-pill {{ 'bg-success' if c.ops_sms_opt_in else 'bg-secondary' }}">{{ '동의' if c.ops_sms_opt_in else '미동의' }}</span>
+              <span class="text-muted small text-nowrap"><span class="nav-ko">SMS 수신</span><span class="nav-en" style="display:none">SMS</span></span>
+              <span class="badge rounded-pill {{ 'bg-success' if c.ops_sms_opt_in else 'bg-secondary' }}"><span class="nav-ko">{{ '동의' if c.ops_sms_opt_in else '미동의' }}</span><span class="nav-en" style="display:none">{{ 'On' if c.ops_sms_opt_in else 'Off' }}</span></span>
             </span>
             {% endif %}
           </div>
@@ -56,7 +99,7 @@
           <button type="button" class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1"
                   data-bs-toggle="collapse" data-bs-target="#offer-inq-body-{{ of.id }}"
                   aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
-            <i class="fa-solid fa-envelope" aria-hidden="true"></i>문의
+            <i class="fa-solid fa-envelope" aria-hidden="true"></i><span class="nav-ko">문의</span><span class="nav-en" style="display:none">Inquire</span>
           </button>
           {% elif (is_offer_staff and inq_list|length > 0) or can_reply_as_consultant %}
           <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
@@ -67,17 +110,51 @@
             {% if can_reply_as_consultant %}
             <span class="console-mail-pending-dot flex-shrink-0" title="요청자 문의에 답변이 필요합니다" aria-hidden="true"></span>
             {% endif %}
-            {% if can_reply_as_consultant %}문의 / 답변{% else %}문의 내역{% endif %}
+            {% if can_reply_as_consultant %}<span class="nav-ko">문의 / 답변</span><span class="nav-en" style="display:none">Inquiry / reply</span>{% else %}<span class="nav-ko">문의 내역</span><span class="nav-en" style="display:none">History</span>{% endif %}
           </button>
           {% endif %}
           {% if request_offer_profile_url_builder is defined %}
-          <a class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" href="{{ request_offer_profile_url_builder(of.id) }}" data-no-busy="true">{{ consultant_profile_fa_icon(c) }}프로필</a>
+          <a class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" href="{{ request_offer_profile_url_builder(of.id) }}" data-no-busy="true">{{ consultant_profile_fa_icon(c) }}<span class="nav-ko">프로필</span><span class="nav-en" style="display:none">Profile</span></a>
           {% endif %}
-          {% if request_offer_match_url_builder is defined and request_offer_can_match %}
-          <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm="{% if of.status == 'matched' %}매칭을 해제하시겠습니까?{% else %}이 오퍼로 매칭하시겠습니까?{% endif %}">
-            <button type="submit" class="btn btn-sm d-inline-flex align-items-center gap-1 {% if of.status == 'matched' %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
-              <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
-              {% if of.status == 'matched' %}매칭 해제{% else %}매칭{% endif %}
+          {% if request_offer_match_url_builder is defined and request_offer_can_match and of.status != 'withdrawn' %}
+          {% set match_blocked = ns_match.active_id is not none and of.status != 'matched' %}
+          {% if of.status == 'matched' %}
+            {% if request_offer_owner_match_cancel_blocked|default(false) %}
+          <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" disabled
+                  data-i18n-title="offers.matchCancelDeliverablesTooltip">
+            <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i><span class="nav-ko">매칭 취소</span><span class="nav-en" style="display:none">Cancel match</span>
+          </button>
+            {% else %}
+          <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm-i18n="offers.confirmMatchCancel">
+            <button type="submit" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+              <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i><span class="nav-ko">매칭 취소</span><span class="nav-en" style="display:none">Cancel match</span>
+            </button>
+          </form>
+            {% endif %}
+          {% elif match_blocked %}
+          <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" disabled
+                  data-i18n-title="offers.matchBlockedTooltip">
+            <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i><span class="nav-ko">매칭</span><span class="nav-en" style="display:none">Match</span>
+          </button>
+          {% else %}
+          <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm-i18n="offers.confirmMatch">
+            <button type="submit" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+              <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i><span class="nav-ko">매칭</span><span class="nav-en" style="display:none">Match</span>
+            </button>
+          </form>
+          {% endif %}
+          {% endif %}
+          {% if is_my_offer and of.status == 'matched' and request_offer_match_url_builder is defined and not request_offer_can_match|default(false) %}
+          <form method="post" action="{{ request_offer_match_url_builder(of.id) }}" data-app-confirm-i18n="offers.confirmMatchCancel">
+            <button type="submit" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+              <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i><span class="nav-ko">매칭 취소</span><span class="nav-en" style="display:none">Cancel match</span>
+            </button>
+          </form>
+          {% endif %}
+          {% if is_my_offer and of.status == 'offered' and request_offer_withdraw_url_builder is defined %}
+          <form method="post" action="{{ request_offer_withdraw_url_builder(of.id) }}" data-app-confirm-i18n="offers.confirmWithdraw">
+            <button type="submit" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1">
+              <i class="fa-solid fa-ban" aria-hidden="true"></i><span class="nav-ko">오퍼 취소</span><span class="nav-en" style="display:none">Withdraw offer</span>
             </button>
           </form>
           {% endif %}

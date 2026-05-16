@@ -36,6 +36,7 @@ from ..payment_claim_service import (
     reject_payment_claim,
 )
 from ..ai_usage_recorder import (
+    STAGE_LABEL_EN,
     STAGE_LABEL_KO,
     aggregate_usage_for_user,
     format_krw_from_micro,
@@ -722,6 +723,7 @@ def admin_user_subscription_page(user_id: int, request: Request, db: Session = D
             {
                 "stage": st,
                 "label": STAGE_LABEL_KO.get(st, st),
+                "label_en": STAGE_LABEL_EN.get(st, st),
                 "micro": micro,
                 "usd": format_usd_from_micro(micro),
                 "krw": format_krw_from_micro(micro, usd_krw),
@@ -752,7 +754,8 @@ def admin_user_subscription_page(user_id: int, request: Request, db: Session = D
             "ai_usage_total_krw": format_krw_from_micro(total_micro, usd_krw),
             "ai_usage_event_count": usage_agg.get("event_count", 0),
             "ai_usage_stage_rows": stage_rows,
-            "ai_usage_disclaimer": "추정치이며 API 토큰·모델 단가 기반입니다. 환불·손익 판단용 참고 지표입니다.",
+            "ai_usage_disclaimer_ko": "추정치이며 API 토큰·모델 단가 기반입니다. 환불·손익 판단용 참고 지표입니다.",
+            "ai_usage_disclaimer_en": "Estimated from API tokens and model rates. For reference only—not exact billing or refund amounts.",
             "payment_claims": payment_claims,
         },
     )

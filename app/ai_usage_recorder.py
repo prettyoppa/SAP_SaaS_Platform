@@ -27,6 +27,17 @@ STAGE_LABEL_KO: dict[str, str] = {
     "other": "기타",
 }
 
+STAGE_LABEL_EN: dict[str, str] = {
+    "interview": "Interview",
+    "proposal": "Proposal",
+    "fs": "Functional spec (FS)",
+    "delivered_code": "Delivered code",
+    "ai_inquiry": "AI Q&A",
+    "codelib": "Code library",
+    "integration_deliverable": "Integration deliverable",
+    "other": "Other",
+}
+
 FALLBACK_COST_USD_MICRO: dict[str, int] = {
     "interview": 50_000,
     "proposal": 90_000,

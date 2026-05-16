@@ -1,5 +1,12 @@
 {# context: row, ana_dc_stat, ana_dc_busy, ana_fs_stat, delivered_*, code_asset_unlocked #}
 <div class="interview-summary-body pt-0">
+  {% if not can_view_deliverables|default(true) %}
+    {% if user and user.is_consultant and not user.is_admin %}
+    {% include 'partials/hub_deliverables_no_access.html' %}
+    {% else %}
+    <p class="text-muted small mb-0">납품 코드가 아직 없습니다.</p>
+    {% endif %}
+  {% else %}
   {% if ana_dc_stat == 'failed' %}
   <div class="alert alert-danger small mb-3">코드 생성 실패 · 관리자에게 문의하세요.</div>
   {% endif %}
@@ -22,25 +29,14 @@
     <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)</span>
     {% endif %}
   </div>
-  <p class="small text-muted mb-3">에디터에 옮길 때 슬롯 파일명을 INCLUDE / 서브루틴 구조에 맞게 사용하세요. 최종 납품 전 반드시 검수합니다.</p>
+  <p class="small text-muted mb-3">파일별 탭에서 ABAP 소스를 확인하세요. 에디터에 옮길 때 슬롯 파일명을 INCLUDE / 서브루틴 구조에 맞게 사용하세요.</p>
 
-  {% for sl in delivered_package.slots %}
-  <div class="reference-code-program-box border rounded {% if not loop.last %}mb-3{% endif %} overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
-       style="border-color:var(--border)!important;background:var(--surface2);">
-    <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
-         style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
-      <span class="badge rounded-pill bg-secondary" style="font-size:.72rem;">{{ sl.role or 'other' }}</span>
-      <span class="fw-semibold font-monospace small">{{ sl.filename or '—' }}</span>
-      {% if sl.title_ko %}<span class="small text-muted ms-auto text-start" style="flex:1 1 8rem;">{{ sl.title_ko }}</span>{% endif %}
-    </div>
-    <div class="p-0">
-      <pre class="codelib-source-pre delivered-slot-source-pre mb-0"><code>{{ sl.source or '' }}</code></pre>
-    </div>
-  </div>
-  {% endfor %}
+  {% with delivered_slots=delivered_package.slots, tabs_id='delivered-dc-ana-' ~ (row.id|string), panel_title='납품 ABAP' %}
+  {% include 'partials/delivered_code_slots_tabs.html' %}
+  {% endwith %}
 
   {% if delivered_impl_guide_html %}
-  <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">
+  <details class="mb-3 border rounded mt-3" style="border-color:var(--border)!important;background:var(--surface2);">
     <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">구현·운영 가이드</summary>
     <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
       {{ delivered_impl_guide_html | safe }}
@@ -78,5 +74,6 @@
   {% endif %}
   {% elif ana_fs_stat != 'ready' and not ana_dc_busy %}
   <p class="text-muted small mb-0">기능명세(FS)가 준비된 뒤 개발코드를 생성할 수 있습니다.</p>
+  {% endif %}
   {% endif %}
 </div>

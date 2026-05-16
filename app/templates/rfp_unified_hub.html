@@ -239,11 +239,11 @@
       {% if hub_phase_open == 'fs' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <span class="fw-semibold">{% if hub_skip_interview %}3. {% else %}4. {% endif %}<span data-i18n="hub.phaseOnlyFs">기능명세 (FS)</span></span>
-        {% if fs_busy %}
+        {% if can_view_deliverables|default(true) and fs_busy %}
         <span class="badge bg-info text-dark ms-1" data-i18n="common.generating">생성 중</span>
-        {% elif fs_stat == 'failed' %}
+        {% elif can_view_deliverables|default(true) and fs_stat == 'failed' %}
         <span class="badge bg-danger ms-1" data-i18n="hub.fsFailed">실패</span>
-        {% elif fs_stat == 'ready' and fs_html %}
+        {% elif can_view_deliverables|default(true) and fs_stat == 'ready' and fs_html %}
         <span class="badge bg-success ms-1" data-i18n="hub.fsReady">준비됨</span>
         {% else %}
         <span class="badge bg-secondary ms-1" data-i18n="hub.fsWait">대기</span>
@@ -261,9 +261,9 @@
       {% if hub_phase_open == 'devcode' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <span class="fw-semibold">{% if hub_skip_interview %}4. {% else %}5. {% endif %}<span data-i18n="hub.phaseOnlyDevCode">개발코드</span></span>
-        {% if dc_busy %}
+        {% if can_view_deliverables|default(true) and dc_busy %}
         <span class="badge bg-info text-dark ms-1" data-i18n="hub.dcGen">납품 코드 생성 중</span>
-        {% elif has_delivered_preview|default(false) %}
+        {% elif can_view_deliverables|default(true) and has_delivered_preview|default(false) %}
         <span class="badge bg-success ms-1" data-i18n="hub.dcReady">납품 코드 준비됨</span>
         {% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
@@ -276,9 +276,11 @@
       </div>
     </details>
 
+    {% if can_view_deliverables|default(true) and gen_busy|default(false) %}
     {% with delivery_gen_status_url='/rfp/' ~ (rfp.id|string) ~ '/paid-generation-status', delivery_gen_request_title=rfp.title %}
     {% include 'partials/hub_delivery_generating_bundle.html' %}
     {% endwith %}
+    {% endif %}
 
     {% if user.id == rfp.user_id %}
     <p class="small text-muted mb-0 mt-2">

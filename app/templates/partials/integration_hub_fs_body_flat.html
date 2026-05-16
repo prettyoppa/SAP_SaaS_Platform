@@ -1,4 +1,11 @@
 <div class="interview-summary-body pt-0">
+  {% if not can_view_deliverables|default(true) %}
+    {% if user and user.is_consultant and not user.is_admin %}
+    {% include 'partials/hub_deliverables_no_access.html' %}
+    {% else %}
+    {% include 'partials/hub_fs_empty_hint.html' %}
+    {% endif %}
+  {% else %}
   {% include 'partials/hub_fs_supplement_panel.html' %}
 
   {% if fs_stat == 'failed' %}
@@ -19,6 +26,7 @@
   {% with wrap_class = 'mb-0' %}
   {% include 'partials/hub_fs_empty_hint.html' %}
   {% endwith %}
+  {% endif %}
   {% endif %}
   {% endif %}
 </div>

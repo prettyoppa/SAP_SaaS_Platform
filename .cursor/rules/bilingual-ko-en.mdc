@@ -1,0 +1,53 @@
+---
+description: All user-facing UI must ship Korean and English together (site default is bilingual).
+alwaysApply: true
+---
+
+# Bilingual UI (Korean + English)
+
+This site supports **Korean and English** via the language toggle. Any new page, template change, or user-visible string is incomplete if only Korean is added.
+
+## When this applies
+
+- New features, pages, forms, alerts, buttons, labels, tooltips
+- Modifications to existing UI (do not add KO-only copy in touched areas)
+- Server redirect error messages shown on pages (use error **codes** + bilingual template text, not Korean-only query strings)
+
+Admin-only screens: still prefer KO/EN for consistency; deep admin copy may stay KO if explicitly scoped out.
+
+## Implementation patterns (use what fits)
+
+### 1. Jinja templates — `nav-ko` / `nav-en`
+
+```html
+<span class="nav-ko">입금 신청</span>
+<span class="nav-en" style="display:none">Submit claim</span>
+```
+
+Markdown from SiteSettings: provide both `*_ko` and `*_en` keys; show each in the matching `nav-*` block (fallback EN → KO if EN empty).
+
+### 2. Confirm dialogs — `data-app-confirm-i18n`
+
+```html
+<form data-app-confirm-i18n="offers.confirmMatch">
+```
+
+Add matching keys in `app/static/js/i18n.js` under both `en:` and `ko:`.
+
+### 3. Dynamic JS strings — `i18n.js`
+
+Add `ko` and `en` entries; use `window.t('key')` or dual DOM nodes updated on language change.
+
+### 4. API / service errors — error codes
+
+Return stable codes (e.g. `match_blocked`, `pending_claim_exists`), not Korean sentences in URLs. Map codes to bilingual alerts in templates (`partials/billing_err_alert.html` pattern).
+
+### 5. Emails / SMS
+
+When adding transactional notifications, consider EN copy or document as follow-up if only KO is implemented in the same PR.
+
+## Checklist before finishing UI work
+
+- [ ] Every new visible string has KO and EN (or `i18n.js` key in both locales)
+- [ ] Language toggle shows sensible text (no empty EN blocks)
+- [ ] Form confirms use `data-app-confirm-i18n`, not hardcoded Korean-only `data-app-confirm`

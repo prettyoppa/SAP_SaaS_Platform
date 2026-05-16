@@ -102,12 +102,15 @@ from ..delivered_code_package import (
 )
 from ..paid_tier import user_can_operate_delivery
 from ..offer_inquiry_service import (
+    apply_request_offer_match_action,
     inquiries_by_offer_id,
-    notify_consultant_request_matched,
     public_request_url,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
+    withdraw_request_offer,
 )
+from ..request_offer_lifecycle import request_has_deliverables
+from ..request_hub_access import apply_hub_deliverables_visibility, user_can_view_request_deliverables
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import (
     content_disposition_attachment,
@@ -1203,8 +1206,12 @@ def _prepare_abap_analysis_detail_ctx(
         "request_offer_can_match": bool(
             user and int(user.id) == int(row.user_id) and not readonly_console
         ),
+        "request_offer_owner_match_cancel_blocked": bool(
+            request_has_deliverables(db, "analysis", int(row.id))
+        ),
         "request_offer_profile_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/profile",
         "request_offer_match_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/match",
+        "request_offer_withdraw_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/withdraw",
         "request_offer_inquiry_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/inquiry",
         "request_offer_inquiry_reply_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/inquiry-reply",
         "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_offers]),
@@ -1213,6 +1220,8 @@ def _prepare_abap_analysis_detail_ctx(
             request, f"/abap-analysis/{row.id}#abap-phase-proposal"
         ),
         "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
+        "offer_match_err": (request.query_params.get("offer_match_err") or "").strip(),
+        "offer_withdraw_err": (request.query_params.get("offer_withdraw_err") or "").strip(),
         "ana_fs_stat": ana_fs_stat,
         "ana_dc_stat": ana_dc_stat,
         "ana_fs_busy": ana_fs_stat == "generating",
@@ -1269,7 +1278,7 @@ def _prepare_abap_analysis_detail_ctx(
     }
 
     if readonly_console:
-        return {
+        ro_ctx = {
             "request": request,
             "user": user,
             "row": row,
@@ -1281,6 +1290,16 @@ def _prepare_abap_analysis_detail_ctx(
             "source_program_groups": program_groups,
             **ana_hub,
         }
+        apply_hub_deliverables_visibility(
+            ro_ctx,
+            db=db,
+            user=user,
+            request_kind="analysis",
+            request_id=int(row.id),
+            owner_user_id=int(row.user_id),
+            paid_entity=row,
+        )
+        return ro_ctx
 
     followup_messages = sorted(
         list(row.followup_messages or []),
@@ -1311,7 +1330,7 @@ def _prepare_abap_analysis_detail_ctx(
         subscription_quota_flash = "이 요청에서 제안서 재생성 허용 횟수에 도달했습니다."
     elif qe == "proposal_regen_disabled":
         subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
-    return {
+    detail_ctx = {
         "request": request,
         "user": user,
         "row": row,
@@ -1333,6 +1352,16 @@ def _prepare_abap_analysis_detail_ctx(
         "hub_readonly_return_url": hub_readonly_return_url,
         **ana_hub,
     }
+    apply_hub_deliverables_visibility(
+        detail_ctx,
+        db=db,
+        user=user,
+        request_kind="analysis",
+        request_id=int(row.id),
+        owner_user_id=int(row.user_id),
+        paid_entity=row,
+    )
+    return detail_ctx
 
 
 @router.get("/{req_id}/console-readonly", response_class=HTMLResponse)
@@ -1455,6 +1484,15 @@ def abap_analysis_generation_status(req_id: int, request: Request, db: Session =
     row = _get_abap_row_readable(db, user, req_id)
     if not row:
         return JSONResponse({"detail": "not_found"}, status_code=404)
+    if not user_can_view_request_deliverables(
+        db,
+        user,
+        request_kind="analysis",
+        request_id=int(req_id),
+        owner_user_id=int(row.user_id),
+        paid_entity=row,
+    ):
+        return JSONResponse({"detail": "forbidden"}, status_code=403)
     row = reconcile_abap_analysis_delivery_status(db, row)
     return JSONResponse(
         {
@@ -1618,7 +1656,6 @@ def abap_analysis_offer_match(
     user = _require_user(request, db)
     req_row = db.query(models.AbapAnalysisRequest).filter(
         models.AbapAnalysisRequest.id == req_id,
-        models.AbapAnalysisRequest.user_id == user.id,
     ).first()
     if not req_row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
@@ -1634,36 +1671,76 @@ def abap_analysis_offer_match(
     )
     if not offer:
         return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-proposal", status_code=303)
-    if (offer.status or "") == "matched":
-        offer.status = "offered"
-        offer.matched_at = None
-        offer.match_notice_pending = False
-        db.add(offer)
-        db.commit()
-        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-proposal", status_code=303)
-    db.query(models.RequestOffer).filter(
-        models.RequestOffer.request_kind == "analysis",
-        models.RequestOffer.request_id == req_id,
-    ).update(
-        {"status": "offered", "matched_at": None, "match_notice_pending": False},
-        synchronize_session=False,
+    is_owner = int(user.id) == int(req_row.user_id)
+    is_matched_consultant = (
+        getattr(user, "is_consultant", False)
+        and (offer.status or "").strip() == "matched"
+        and int(offer.consultant_user_id) == int(user.id)
     )
-    offer.status = "matched"
-    offer.matched_at = datetime.utcnow()
-    offer.match_notice_pending = True
-    db.add(offer)
-    db.commit()
+    if not is_owner and not is_matched_consultant:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
     title = (req_row.title or "").strip() or f"분석·개선 #{req_id}"
-    c = offer.consultant
-    if c:
-        notify_consultant_request_matched(
-            request=request,
-            consultant=c,
-            request_kind="analysis",
-            request_id=req_id,
-            request_title=title,
+    err = apply_request_offer_match_action(
+        db,
+        http_request=request,
+        offer=offer,
+        request_title=title,
+        actor=user,
+        owner_user_id=int(req_row.user_id),
+    )
+    base = f"/abap-analysis/{req_id}"
+    readonly = f"/abap-analysis/{req_id}/console-readonly"
+    ret = readonly if is_matched_consultant and not is_owner else base
+    frag = "#abap-phase-proposal"
+    if err:
+        return RedirectResponse(
+            url=f"{ret}?offer_match_err={quote(err)}{frag}",
+            status_code=303,
         )
-    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-proposal", status_code=303)
+    return RedirectResponse(url=f"{ret}{frag}", status_code=303)
+
+
+@router.post("/{req_id}/offers/{offer_id}/withdraw")
+def abap_analysis_offer_withdraw(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user or not getattr(user, "is_consultant", False):
+        return RedirectResponse(url="/login", status_code=302)
+    req_row = db.query(models.AbapAnalysisRequest).filter(
+        models.AbapAnalysisRequest.id == req_id,
+    ).first()
+    if not req_row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "analysis",
+            models.RequestOffer.request_id == req_id,
+        )
+        .first()
+    )
+    base = f"/abap-analysis/{req_id}"
+    readonly = f"/abap-analysis/{req_id}/console-readonly"
+    frag = "#abap-phase-proposal"
+    if not offer:
+        return RedirectResponse(url=f"{base}{frag}", status_code=303)
+    title = (req_row.title or "").strip() or f"분석·개선 #{req_id}"
+    err = withdraw_request_offer(
+        db, http_request=request, offer=offer, request_title=title, actor=user
+    )
+    ret = readonly if int(offer.consultant_user_id) == int(user.id) and int(user.id) != int(req_row.user_id) else base
+    if err:
+        return RedirectResponse(
+            url=f"{ret}?offer_withdraw_err={quote(err)}{frag}",
+            status_code=303,
+        )
+    return RedirectResponse(url=f"{ret}{frag}", status_code=303)
 
 
 @router.post("/{req_id}/offers/{offer_id}/inquiry")

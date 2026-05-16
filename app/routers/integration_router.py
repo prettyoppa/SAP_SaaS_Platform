@@ -59,10 +59,10 @@ from ..devtype_catalog import (
 )
 from ..offer_inquiry_service import (
     CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
+    apply_request_offer_match_action,
     clear_match_notice_pending_for_consultant,
     consultant_has_pending_match_notice,
     inquiries_by_offer_id,
-    notify_consultant_request_matched,
     notify_request_owner_new_console_offer,
     pending_inquiry_reply_offer_ids_all,
     pending_inquiry_reply_offer_ids_for_consultant,
@@ -71,6 +71,12 @@ from ..offer_inquiry_service import (
     send_consultant_matched_first_inquiry_to_owner,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
+    withdraw_request_offer,
+)
+from ..request_offer_lifecycle import (
+    OFFER_STATUS_OFFERED,
+    OFFER_STATUS_WITHDRAWN,
+    request_has_deliverables,
 )
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..delivered_code_package import (
@@ -81,10 +87,12 @@ from ..delivered_code_package import (
     resolve_integration_delivered_for_display,
 )
 from ..request_hub_access import (
+    apply_hub_deliverables_visibility,
     apply_integration_hub_read_access,
     consultant_has_request_offer,
     consultant_is_matched_on_request,
     consultant_menu_matched_scope,
+    user_can_view_request_deliverables,
 )
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
@@ -1120,13 +1128,23 @@ def request_console_offer_submit(
         .first()
     )
     created_new = False
-    if not exists:
+    if exists:
+        st = (exists.status or "").strip()
+        if st == OFFER_STATUS_WITHDRAWN:
+            exists.status = OFFER_STATUS_OFFERED
+            exists.created_at = datetime.utcnow()
+            exists.matched_at = None
+            exists.match_notice_pending = False
+            db.add(exists)
+            db.commit()
+            created_new = True
+    else:
         db.add(
             models.RequestOffer(
                 request_kind=req_kind,
                 request_id=req_id,
                 consultant_user_id=user.id,
-                status="offered",
+                status=OFFER_STATUS_OFFERED,
                 created_at=datetime.utcnow(),
             )
         )
@@ -2211,8 +2229,12 @@ def _collect_integration_unified_hub_ctx(
         "hub_include_proposal_scripts": hub_scripts,
         "request_offers": vis_int_offers,
         "request_offer_can_match": bool(user and ir and user.id == ir.user_id and not readonly_console),
+        "request_offer_owner_match_cancel_blocked": bool(
+            ir and request_has_deliverables(db, "integration", int(ir.id))
+        ),
         "request_offer_profile_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/profile",
         "request_offer_match_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/match",
+        "request_offer_withdraw_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/withdraw",
         "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_int_offers]),
         "request_offer_inquiry_url_builder": lambda offer_id: f"/integration/{ir.id}/offers/{int(offer_id)}/inquiry",
         "request_offer_can_inquire": bool(user and ir and user.id == ir.user_id and not readonly_console),
@@ -2220,6 +2242,8 @@ def _collect_integration_unified_hub_ctx(
             request, f"/integration/{ir.id}?phase=proposal"
         ),
         "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
+        "offer_match_err": (request.query_params.get("offer_match_err") or "").strip(),
+        "offer_withdraw_err": (request.query_params.get("offer_withdraw_err") or "").strip(),
         "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
         "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
         "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
@@ -2239,6 +2263,15 @@ def _collect_integration_unified_hub_ctx(
         ctx["proposal_done_redirect_url"] = integration_hub_url(ir.id, "proposal")
 
     ctx.update(requirement_display_ctx(ir, "integration", int(ir.id)))
+    apply_hub_deliverables_visibility(
+        ctx,
+        db=db,
+        user=user,
+        request_kind="integration",
+        request_id=int(ir.id),
+        owner_user_id=int(ir.user_id),
+        paid_entity=ir,
+    )
     return ctx
 
 
@@ -2281,6 +2314,15 @@ def integration_generation_status(req_id: int, request: Request, db: Session = D
     ir = q.first()
     if not ir:
         return JSONResponse({"detail": "not_found"}, status_code=404)
+    if not user_can_view_request_deliverables(
+        db,
+        user,
+        request_kind="integration",
+        request_id=int(req_id),
+        owner_user_id=int(ir.user_id),
+        paid_entity=ir,
+    ):
+        return JSONResponse({"detail": "forbidden"}, status_code=403)
     ir = maybe_fail_stale_integration_deliverable(db, ir, minutes=10)
     return JSONResponse(
         {
@@ -2512,11 +2554,7 @@ def integration_offer_match(
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    ir = (
-        db.query(models.IntegrationRequest)
-        .filter(models.IntegrationRequest.id == req_id, models.IntegrationRequest.user_id == user.id)
-        .first()
-    )
+    ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
     offer = (
@@ -2531,36 +2569,66 @@ def integration_offer_match(
     )
     if not offer:
         return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
-    if (offer.status or "") == "matched":
-        offer.status = "offered"
-        offer.matched_at = None
-        offer.match_notice_pending = False
-        db.add(offer)
-        db.commit()
-        return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
-    db.query(models.RequestOffer).filter(
-        models.RequestOffer.request_kind == "integration",
-        models.RequestOffer.request_id == req_id,
-    ).update(
-        {"status": "offered", "matched_at": None, "match_notice_pending": False},
-        synchronize_session=False,
+    is_owner = int(user.id) == int(ir.user_id)
+    is_matched_consultant = (
+        getattr(user, "is_consultant", False)
+        and (offer.status or "").strip() == "matched"
+        and int(offer.consultant_user_id) == int(user.id)
     )
-    offer.status = "matched"
-    offer.matched_at = datetime.utcnow()
-    offer.match_notice_pending = True
-    db.add(offer)
-    db.commit()
+    if not is_owner and not is_matched_consultant:
+        return RedirectResponse(url="/integration", status_code=302)
     title = (ir.title or "").strip() or f"연동 #{req_id}"
-    c = offer.consultant
-    if c:
-        notify_consultant_request_matched(
-            request=request,
-            consultant=c,
-            request_kind="integration",
-            request_id=req_id,
-            request_title=title,
+    err = apply_request_offer_match_action(
+        db,
+        http_request=request,
+        offer=offer,
+        request_title=title,
+        actor=user,
+        owner_user_id=int(ir.user_id),
+    )
+    base = f"/integration/{req_id}?phase=proposal"
+    readonly = f"/integration/{req_id}/console-readonly?phase=proposal"
+    ret = readonly if is_matched_consultant and not is_owner else base
+    if err:
+        return RedirectResponse(url=f"{ret}&offer_match_err={quote(str(err))}", status_code=303)
+    return RedirectResponse(url=ret, status_code=303)
+
+
+@router.post("/integration/{req_id}/offers/{offer_id}/withdraw")
+def integration_offer_withdraw(
+    req_id: int,
+    offer_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user or not getattr(user, "is_consultant", False):
+        return RedirectResponse(url="/login", status_code=302)
+    ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    offer = (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.id == offer_id,
+            models.RequestOffer.request_kind == "integration",
+            models.RequestOffer.request_id == req_id,
         )
-    return RedirectResponse(url=f"/integration/{req_id}?phase=proposal", status_code=303)
+        .first()
+    )
+    base = f"/integration/{req_id}?phase=proposal"
+    readonly = f"/integration/{req_id}/console-readonly?phase=proposal"
+    if not offer:
+        return RedirectResponse(url=base, status_code=303)
+    title = (ir.title or "").strip() or f"연동 #{req_id}"
+    err = withdraw_request_offer(
+        db, http_request=request, offer=offer, request_title=title, actor=user
+    )
+    ret = readonly if int(offer.consultant_user_id) == int(user.id) and int(user.id) != int(ir.user_id) else base
+    if err:
+        return RedirectResponse(url=f"{ret}&offer_withdraw_err={quote(str(err))}", status_code=303)
+    return RedirectResponse(url=ret, status_code=303)
 
 
 @router.post("/integration/{req_id}/offers/{offer_id}/inquiry")

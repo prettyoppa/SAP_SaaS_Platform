@@ -1,0 +1,40 @@
+{% if billing_err %}
+<div class="alert alert-danger small py-2 mb-2">
+  {% if billing_err == 'invalid_country' %}
+  <span class="nav-ko">한국(KR) 또는 미국(US)만 선택할 수 있습니다.</span>
+  <span class="nav-en" style="display:none">Only Korea (KR) or United States (US) is supported.</span>
+  {% elif billing_err == 'plan_required' %}
+  <span class="nav-ko">플랜을 선택해 주세요.</span>
+  <span class="nav-en" style="display:none">Please select a plan.</span>
+  {% elif billing_err == 'plan_not_found' %}
+  <span class="nav-ko">플랜을 찾을 수 없습니다.</span>
+  <span class="nav-en" style="display:none">Plan not found.</span>
+  {% elif billing_err == 'krw_amount_missing' %}
+  <span class="nav-ko">이 플랜은 원화 결제 금액이 설정되지 않았습니다.</span>
+  <span class="nav-en" style="display:none">This plan has no KRW price configured.</span>
+  {% elif billing_err == 'usd_amount_missing' %}
+  <span class="nav-ko">이 플랜은 USD 결제 금액이 설정되지 않았습니다.</span>
+  <span class="nav-en" style="display:none">This plan has no USD price configured.</span>
+  {% elif billing_err == 'amount_mismatch' %}
+  <span class="nav-ko">입금 금액이 플랜 요금과 일치하지 않습니다.{% if billing_err_expected %} (필요: {{ billing_err_expected }}){% endif %}</span>
+  <span class="nav-en" style="display:none">Transfer amount does not match the plan price.{% if billing_err_expected %} (Required: {{ billing_err_expected }}){% endif %}</span>
+  {% elif billing_err == 'pending_claim_exists' %}
+  <span class="nav-ko">이미 처리 대기 중인 입금 신청이 있습니다.</span>
+  <span class="nav-en" style="display:none">You already have a pending transfer claim.</span>
+  {% elif billing_err == 'depositor_required' %}
+  <span class="nav-ko">입금자명을 입력해 주세요.</span>
+  <span class="nav-en" style="display:none">Please enter the depositor name.</span>
+  {% elif billing_err == 'claim_not_found' %}
+  <span class="nav-ko">신청을 찾을 수 없습니다.</span>
+  <span class="nav-en" style="display:none">Claim not found.</span>
+  {% elif billing_err == 'claim_not_pending' %}
+  <span class="nav-ko">대기 중인 신청만 취소할 수 있습니다.</span>
+  <span class="nav-en" style="display:none">Only pending claims can be cancelled.</span>
+  {% elif billing_err == 'invalid_amount' %}
+  <span class="nav-ko">입금 금액 형식이 올바르지 않습니다.</span>
+  <span class="nav-en" style="display:none">Invalid transfer amount.</span>
+  {% else %}
+  {{ billing_err }}
+  {% endif %}
+</div>
+{% endif %}

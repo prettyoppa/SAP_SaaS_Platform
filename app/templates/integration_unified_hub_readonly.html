@@ -129,7 +129,9 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if can_view_deliverables|default(true) and gen_busy|default(false) %}
 {% with delivery_gen_status_url='/integration/' ~ (ir.id|string) ~ '/generation-status', delivery_gen_request_title=ir.title %}
 {% include 'partials/hub_delivery_generating_bundle.html' %}
 {% endwith %}
+{% endif %}
 {% endblock %}

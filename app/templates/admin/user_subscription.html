@@ -18,18 +18,22 @@
 
     <div class="rfp-section p-3 mb-4">
       <h5 class="mb-2">추정 AI 이용 비용 <span class="text-muted small fw-normal">(누적, 참고용)</span></h5>
-      <p class="small text-muted">{{ ai_usage_disclaimer }}</p>
+      <p class="small text-muted">
+        <span class="nav-ko">{{ ai_usage_disclaimer_ko }}</span>
+        <span class="nav-en" style="display:none">{{ ai_usage_disclaimer_en }}</span>
+      </p>
       <p class="mb-3">
-        합계 <strong>{{ ai_usage_total_usd }}</strong>
-        <span class="text-muted">(약 {{ ai_usage_total_krw }})</span>
-        · 이벤트 {{ ai_usage_event_count }}건
+        <span class="nav-ko">합계</span><span class="nav-en" style="display:none">Total</span>
+        <strong>{{ ai_usage_total_usd }}</strong>
+        <span class="text-muted">(<span class="nav-ko">약</span><span class="nav-en" style="display:none">approx.</span> {{ ai_usage_total_krw }})</span>
+        · <span class="nav-ko">이벤트</span><span class="nav-en" style="display:none">Events</span> {{ ai_usage_event_count }}<span class="nav-ko">건</span>
       </p>
       {% if ai_usage_stage_rows|length > 0 %}
       <div class="ai-usage-stage-chart mb-0">
         {% for row in ai_usage_stage_rows %}
         <div class="ai-usage-stage-row mb-2">
           <div class="d-flex justify-content-between small mb-1">
-            <span>{{ row.label }} <code class="text-muted">{{ row.stage }}</code></span>
+            <span><span class="nav-ko">{{ row.label }}</span><span class="nav-en" style="display:none">{{ row.label_en }}</span> <code class="text-muted">{{ row.stage }}</code></span>
             <span class="font-monospace">{{ row.usd }} <span class="text-muted">({{ row.pct }}%)</span></span>
           </div>
           <div class="progress" style="height: 8px;" role="presentation">

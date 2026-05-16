@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import exists, or_
 from sqlalchemy.orm import Query, Session
 
 from . import models
+from .paid_tier import paid_delivery_pipeline_started, paid_engagement_is_active, user_can_operate_delivery
+from .request_offer_lifecycle import OFFER_STATUS_MATCHED, OFFER_STATUS_OFFERED
 
 
 def abap_analysis_consultant_matched_on_linked_rfp(user_id: int):
@@ -48,6 +52,7 @@ def consultant_has_request_offer(
             models.RequestOffer.consultant_user_id == consultant_user_id,
             models.RequestOffer.request_kind == request_kind,
             models.RequestOffer.request_id == request_id,
+            models.RequestOffer.status.in_((OFFER_STATUS_OFFERED, OFFER_STATUS_MATCHED)),
         )
         .first()
         is not None
@@ -108,6 +113,124 @@ def menu_abap_detail_url(*, user, owner_user_id: int, request_id: int, draft: bo
     if consultant_views_client_request_via_console(user, owner_user_id):
         return f"/abap-analysis/{rid}/console-readonly"
     return f"/abap-analysis/{rid}"
+
+
+def user_can_view_request_deliverables(
+    db: Session,
+    user,
+    *,
+    request_kind: str,
+    request_id: int,
+    owner_user_id: int,
+    paid_entity: Any | None = None,
+) -> bool:
+    """FS·개발코드 납품 조회: 요청자(결제/파이프라인 규칙), 매칭 컨설턴트, 관리자만."""
+    if not user:
+        return False
+    if getattr(user, "is_admin", False):
+        return True
+    try:
+        uid = int(user.id)
+        owner_id = int(owner_user_id)
+    except (TypeError, ValueError):
+        return False
+    if uid == owner_id:
+        if paid_entity is None:
+            return True
+        if paid_engagement_is_active(paid_entity):
+            return True
+        return paid_delivery_pipeline_started(paid_entity)
+    if getattr(user, "is_consultant", False):
+        return consultant_is_matched_on_request(
+            db,
+            consultant_user_id=uid,
+            request_kind=request_kind,
+            request_id=int(request_id),
+        )
+    return False
+
+
+def user_can_operate_request_deliverables(
+    db: Session,
+    user,
+    *,
+    request_kind: str,
+    request_id: int,
+) -> bool:
+    """FS·납품 코드 생성/첨부: 관리자 또는 해당 요청에 매칭된 컨설턴트."""
+    if not user_can_operate_delivery(user):
+        return False
+    if getattr(user, "is_admin", False):
+        return True
+    if not getattr(user, "is_consultant", False):
+        return False
+    return consultant_is_matched_on_request(
+        db,
+        consultant_user_id=int(user.id),
+        request_kind=request_kind,
+        request_id=int(request_id),
+    )
+
+
+_DELIVERABLES_MASK_KEYS = (
+    "fs_html",
+    "ana_fs_html",
+    "delivered_code_html",
+    "delivered_impl_guide_html",
+    "delivered_test_scenarios_html",
+    "delivered_package",
+    "has_delivered_preview",
+    "ana_has_delivered_zip",
+)
+
+
+def apply_hub_deliverables_visibility(
+    ctx: dict,
+    *,
+    db: Session,
+    user,
+    request_kind: str,
+    request_id: int,
+    owner_user_id: int,
+    paid_entity: Any | None,
+) -> None:
+    """허브 템플릿용 can_view_deliverables / can_operate_delivery 및 민감 필드 마스킹."""
+    can_view = user_can_view_request_deliverables(
+        db,
+        user,
+        request_kind=request_kind,
+        request_id=request_id,
+        owner_user_id=owner_user_id,
+        paid_entity=paid_entity,
+    )
+    can_operate = user_can_operate_request_deliverables(
+        db,
+        user,
+        request_kind=request_kind,
+        request_id=request_id,
+    )
+    ctx["can_view_deliverables"] = can_view
+    ctx["can_operate_delivery"] = can_operate
+    if can_view:
+        return
+    for key in _DELIVERABLES_MASK_KEYS:
+        if key not in ctx:
+            continue
+        if key == "delivered_package":
+            ctx[key] = None
+        elif key.startswith("has_") or key.startswith("ana_has_"):
+            ctx[key] = False
+        elif "html" in key:
+            ctx[key] = ""
+        else:
+            ctx[key] = None
+    ctx["fs_busy"] = False
+    ctx["dc_busy"] = False
+    ctx["gen_busy"] = False
+    ctx["ana_fs_busy"] = False
+    ctx["ana_dc_busy"] = False
+    ctx["ana_gen_busy"] = False
+    ctx["fs_supplements"] = []
 
 
 def consultant_is_matched_on_request(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -21,6 +22,20 @@ CONSOLE_OFFER_CONFIRM_MESSAGE_KO = (
     "요청자에게 이메일 및 SMS로 알림이 전송되며, "
     "요청자는 오퍼한 컨설턴트님의 프로필 확인이 가능해집니다."
 )
+OFFER_MATCH_ERR_BLOCKED = "match_blocked"
+
+from .request_offer_lifecycle import (
+    MATCH_ERR_CANCEL_DELIVERABLES,
+    MATCH_ERR_FORBIDDEN,
+    OFFER_ERR_FORBIDDEN,
+    OFFER_ERR_NOT_WITHDRAWABLE,
+    OFFER_STATUS_MATCHED,
+    OFFER_STATUS_OFFERED,
+    OFFER_STATUS_WITHDRAWN,
+    request_has_deliverables,
+    request_owner_user_id,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -216,6 +231,26 @@ def notify_request_owner_new_console_offer(
     return " ".join(warnings)
 
 
+def matched_offer_on_request(
+    db: Session,
+    *,
+    request_kind: str,
+    request_id: int,
+) -> models.RequestOffer | None:
+    """해당 요청에 status=matched 인 오퍼가 있으면 반환(최대 1건 가정)."""
+    kind = (request_kind or "").strip().lower()
+    return (
+        db.query(models.RequestOffer)
+        .options(joinedload(models.RequestOffer.consultant))
+        .filter(
+            models.RequestOffer.request_kind == kind,
+            models.RequestOffer.request_id == int(request_id),
+            models.RequestOffer.status == "matched",
+        )
+        .first()
+    )
+
+
 def notify_consultant_request_matched(
     *,
     request: Any,
@@ -270,6 +305,313 @@ def notify_consultant_request_matched(
             request_kind,
             request_id,
         )
+
+
+def notify_consultant_request_match_cancelled(
+    *,
+    request: Any,
+    consultant: models.User,
+    request_kind: str,
+    request_id: int,
+    request_title: str,
+) -> None:
+    """요청자가 매칭을 취소했을 때 해당 컨설턴트에게 이메일·SMS(수신 동의 시)."""
+    email_ok = bool(getattr(consultant, "ops_email_opt_in", False))
+    sms_ok, phone_e164 = _member_ops_sms_target(consultant)
+    to_email = (consultant.email or "").strip()
+    if email_ok and not to_email:
+        email_ok = False
+    if not email_ok and not (sms_ok and phone_e164):
+        logger.info(
+            "match cancel notify skipped (no consultant channel) consultant_id=%s kind=%s rid=%s",
+            getattr(consultant, "id", None),
+            request_kind,
+            request_id,
+        )
+        return
+    label = inquiry_request_label(
+        SimpleNamespace(request_kind=request_kind, request_id=request_id, id=0)
+    )
+    console_url = public_request_url(request, "/request-console?kind=matching")
+    hub = owner_hub_proposal_public_url(request, request_kind, request_id)
+    subject = f"[SAP Dev Hub] 매칭 취소 — {request_title[:60]}"
+    body_email = (
+        "안녕하세요.\n\n"
+        "요청자가 귀하와의 매칭을 취소했습니다.\n\n"
+        f"요청 ID: {label}\n"
+        f"요청 제목: {request_title}\n\n"
+        f"요청 Console(매칭)에서 확인:\n{console_url}\n\n"
+        f"요청 상세:\n{hub}\n"
+    )
+    try:
+        if email_ok and to_email:
+            send_plain_notification_email(to_email, subject, body_email)
+        if sms_ok and phone_e164:
+            sms_body = (
+                f"[SAP Dev Hub 매칭 취소]\n"
+                f"{request_title[:45]}\n"
+                f"요청자가 매칭을 취소했습니다.\n"
+                f"{console_url}"
+            )
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="offer_match_cancel")
+    except Exception:
+        logger.exception(
+            "notify_consultant_request_match_cancelled failed consultant_id=%s kind=%s rid=%s",
+            getattr(consultant, "id", None),
+            request_kind,
+            request_id,
+        )
+
+
+def notify_request_owner_match_cancelled_by_consultant(
+    *,
+    db: Session | None = None,
+    request: Any,
+    owner: models.User,
+    consultant: models.User,
+    request_kind: str,
+    request_id: int,
+    request_title: str,
+) -> None:
+    """매칭된 컨설턴트가 매칭을 취소했을 때 요청자에게 이메일·SMS(수신 동의 시)."""
+    if db is not None and getattr(owner, "id", None):
+        fresh = db.query(models.User).filter(models.User.id == int(owner.id)).first()
+        if fresh is not None:
+            owner = fresh
+    email_ok, to_email = _owner_ops_email_channel(owner)
+    sms_ok, phone_e164 = _member_ops_sms_target(owner)
+    if not email_ok and not (sms_ok and phone_e164):
+        logger.info(
+            "match cancel owner notify skipped owner_id=%s kind=%s rid=%s",
+            getattr(owner, "id", None),
+            request_kind,
+            request_id,
+        )
+        return
+    label = inquiry_request_label(
+        SimpleNamespace(request_kind=request_kind, request_id=request_id, id=0)
+    )
+    hub = owner_hub_proposal_public_url(request, request_kind, request_id)
+    cname = (getattr(consultant, "full_name", None) or "").strip() or "Consultant"
+    subject = f"[SAP Dev Hub] 매칭 취소 — {request_title[:60]}"
+    body_email = (
+        "안녕하세요.\n\n"
+        f"매칭되었던 컨설턴트({cname})가 매칭을 취소했습니다.\n\n"
+        f"요청 ID: {label}\n"
+        f"요청 제목: {request_title}\n\n"
+        f"요청·오퍼 확인:\n{hub}\n"
+    )
+    try:
+        if email_ok and to_email:
+            send_plain_notification_email(to_email, subject, body_email)
+        if sms_ok and phone_e164:
+            sms_body = (
+                f"[SAP Dev Hub 매칭 취소]\n"
+                f"{request_title[:45]}\n"
+                f"컨설턴트가 매칭을 취소했습니다.\n"
+                f"{hub}"
+            )
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="offer_match_cancel")
+    except Exception:
+        logger.exception(
+            "notify_request_owner_match_cancelled_by_consultant failed owner_id=%s kind=%s rid=%s",
+            getattr(owner, "id", None),
+            request_kind,
+            request_id,
+        )
+
+
+def notify_request_owner_offer_withdrawn(
+    *,
+    db: Session | None = None,
+    request: Any,
+    owner: models.User,
+    consultant: models.User,
+    request_kind: str,
+    request_id: int,
+    request_title: str,
+) -> str | None:
+    """컨설턴트가 오퍼를 철회했을 때 요청자에게 이메일·SMS(수신 동의 시)."""
+    if db is not None and getattr(owner, "id", None):
+        fresh = db.query(models.User).filter(models.User.id == int(owner.id)).first()
+        if fresh is not None:
+            owner = fresh
+    email_ok, to_email = _owner_ops_email_channel(owner)
+    sms_ok, phone_e164 = _member_ops_sms_target(owner)
+    if not email_ok and not (sms_ok and phone_e164):
+        logger.info(
+            "offer withdraw notify skipped owner_id=%s kind=%s rid=%s",
+            getattr(owner, "id", None),
+            request_kind,
+            request_id,
+        )
+        return "요청자가 업무 이메일·SMS 수신에 동의하지 않았거나 연락처가 없어 알림을 보내지 못했습니다."
+    hub = owner_hub_proposal_public_url(request, request_kind, request_id)
+    label = inquiry_request_label(
+        SimpleNamespace(request_kind=request_kind, request_id=request_id, id=0)
+    )
+    subject = f"[SAP Dev Hub] 오퍼 철회 — {request_title[:60]}"
+    body_email = (
+        "안녕하세요.\n\n"
+        "컨설턴트가 귀하의 요청에 대한 오퍼를 철회했습니다.\n\n"
+        f"요청 ID: {label}\n"
+        f"요청 제목: {request_title}\n\n"
+        f"{consultant_profile_email_lines(consultant)}\n\n"
+        f"요청·오퍼 확인:\n{hub}\n"
+    )
+    sms_body = (
+        f"[SAP Dev Hub 오퍼 철회]\n"
+        f"{request_title[:50]}\n"
+        "컨설턴트가 오퍼를 철회했습니다. 로그인 후 요청 상세에서 확인해 주세요."
+    )
+    warnings: list[str] = []
+    if email_ok and to_email:
+        try:
+            send_plain_notification_email(to_email, subject, body_email)
+        except Exception as ex:
+            logger.exception(
+                "offer withdraw notify email failed owner_id=%s kind=%s rid=%s",
+                getattr(owner, "id", None),
+                request_kind,
+                request_id,
+            )
+            warnings.append(
+                f"요청자 이메일 발송에 실패했습니다. ({_notify_delivery_err_short(ex)})"
+            )
+    if sms_ok and phone_e164:
+        try:
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="offer_withdraw")
+        except Exception as ex:
+            logger.exception(
+                "offer withdraw notify sms failed owner_id=%s kind=%s rid=%s",
+                getattr(owner, "id", None),
+                request_kind,
+                request_id,
+            )
+            warnings.append(
+                f"요청자 SMS 발송에 실패했습니다. ({_notify_delivery_err_short(ex)})"
+            )
+    if not warnings:
+        return None
+    return " ".join(warnings)
+
+
+def apply_request_offer_match_action(
+    db: Session,
+    *,
+    http_request: Any,
+    offer: models.RequestOffer,
+    request_title: str,
+    actor: models.User,
+    owner_user_id: int,
+) -> str | None:
+    """
+    오퍼 매칭 또는 매칭 취소.
+    - 요청자: 매칭 / (납품물 없을 때만) 매칭 취소
+    - 매칭된 컨설턴트: 언제든 매칭 취소
+    성공 시 None, 실패 시 오류 코드.
+    """
+    kind = (offer.request_kind or "").strip().lower()
+    rid = int(offer.request_id)
+    title = (request_title or "").strip() or inquiry_request_label(offer)
+    actor_id = int(actor.id)
+    owner_id = int(owner_user_id)
+
+    if (offer.status or "").strip() == OFFER_STATUS_MATCHED:
+        is_owner = actor_id == owner_id
+        is_matched_consultant = actor_id == int(offer.consultant_user_id)
+        if not is_owner and not is_matched_consultant:
+            return MATCH_ERR_FORBIDDEN
+        if is_owner and request_has_deliverables(db, kind, rid):
+            return MATCH_ERR_CANCEL_DELIVERABLES
+        consultant = offer.consultant
+        offer.status = OFFER_STATUS_OFFERED
+        offer.matched_at = None
+        offer.match_notice_pending = False
+        db.add(offer)
+        db.commit()
+        if consultant:
+            if is_owner:
+                notify_consultant_request_match_cancelled(
+                    request=http_request,
+                    consultant=consultant,
+                    request_kind=kind,
+                    request_id=rid,
+                    request_title=title,
+                )
+            else:
+                owner = db.query(models.User).filter(models.User.id == owner_id).first()
+                if owner:
+                    notify_request_owner_match_cancelled_by_consultant(
+                        db=db,
+                        request=http_request,
+                        owner=owner,
+                        consultant=consultant,
+                        request_kind=kind,
+                        request_id=rid,
+                        request_title=title,
+                    )
+        return None
+
+    if actor_id != owner_id:
+        return MATCH_ERR_FORBIDDEN
+
+    if matched_offer_on_request(db, request_kind=kind, request_id=rid) is not None:
+        return OFFER_MATCH_ERR_BLOCKED
+
+    offer.status = OFFER_STATUS_MATCHED
+    offer.matched_at = datetime.utcnow()
+    offer.match_notice_pending = True
+    db.add(offer)
+    db.commit()
+    c = offer.consultant
+    if c:
+        notify_consultant_request_matched(
+            request=http_request,
+            consultant=c,
+            request_kind=kind,
+            request_id=rid,
+            request_title=title,
+        )
+    return None
+
+
+def withdraw_request_offer(
+    db: Session,
+    *,
+    http_request: Any,
+    offer: models.RequestOffer,
+    request_title: str,
+    actor: models.User,
+) -> str | None:
+    """컨설턴트 본인 오퍼 철회(status=withdrawn). offered 상태만 가능."""
+    if int(actor.id) != int(offer.consultant_user_id):
+        return OFFER_ERR_FORBIDDEN
+    if (offer.status or "").strip() != OFFER_STATUS_OFFERED:
+        return OFFER_ERR_NOT_WITHDRAWABLE
+    kind = (offer.request_kind or "").strip().lower()
+    rid = int(offer.request_id)
+    title = (request_title or "").strip() or inquiry_request_label(offer)
+    offer.status = OFFER_STATUS_WITHDRAWN
+    offer.matched_at = None
+    offer.match_notice_pending = False
+    db.add(offer)
+    db.commit()
+    owner_id = request_owner_user_id(db, kind, rid)
+    if owner_id is not None:
+        owner = db.query(models.User).filter(models.User.id == owner_id).first()
+        consultant = offer.consultant
+        if owner and consultant:
+            notify_request_owner_offer_withdrawn(
+                db=db,
+                request=http_request,
+                owner=owner,
+                consultant=consultant,
+                request_kind=kind,
+                request_id=rid,
+                request_title=title,
+            )
+    return None
 
 
 def consultant_has_pending_match_notice(db: Session, consultant_user_id: int) -> bool:

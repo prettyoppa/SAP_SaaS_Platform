@@ -1,0 +1,62 @@
+{# ABAP 납품 슬롯 — 참고 코드와 동일한 탭 UX. delivered_slots, tabs_id, code_asset_unlocked, panel_title(optional) #}
+{% if delivered_slots and delivered_slots|length > 0 %}
+{% set tabs_uid = tabs_id|default('delivered-dc-tabs') %}
+<div class="reference-code-program-box border rounded mb-0 overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
+     style="border-color:var(--border)!important;background:var(--surface2);">
+  <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
+       style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
+    <span class="fw-semibold small">{{ panel_title|default('납품 소스') }}</span>
+    <span class="small text-muted">({{ delivered_slots|length }}개 파일)</span>
+  </div>
+  <div class="p-0">
+    {% if delivered_slots|length > 1 %}
+    <ul class="nav nav-tabs codelib-source-tabs px-3 pt-2" id="{{ tabs_uid }}" role="tablist"
+        style="background:var(--surface2);border-bottom:1px solid var(--border)">
+      {% for sl in delivered_slots %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link codelib-src-tab-btn {% if loop.first %}active{% endif %} small py-2 px-3"
+                id="{{ tabs_uid }}-btn-{{ loop.index }}"
+                data-bs-toggle="tab"
+                data-bs-target="#{{ tabs_uid }}-pane-{{ loop.index }}"
+                type="button" role="tab"
+                aria-controls="{{ tabs_uid }}-pane-{{ loop.index }}"
+                aria-selected="{% if loop.first %}true{% else %}false{% endif %}">
+          <i class="fa-solid fa-file-code me-1 codelib-tab-ic"></i>
+          <span class="font-monospace text-start">{{ sl.filename or '—' }}</span>
+          {% if sl.role %}
+          <span class="badge rounded-pill bg-secondary ms-1" style="font-size:.65rem;">{{ sl.role }}</span>
+          {% endif %}
+          <span class="ms-1 codelib-tab-meta">({{ (sl.source or '').splitlines()|length }}줄)</span>
+        </button>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="tab-content">
+      {% for sl in delivered_slots %}
+      <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+           id="{{ tabs_uid }}-pane-{{ loop.index }}" role="tabpanel"
+           aria-labelledby="{{ tabs_uid }}-btn-{{ loop.index }}">
+        {% if sl.title_ko %}
+        <div class="px-3 py-2 small text-muted border-bottom" style="border-color:var(--border)!important;background:rgba(0,0,0,.03);">
+          {{ sl.title_ko }}
+        </div>
+        {% endif %}
+        <pre class="codelib-source-pre delivered-slot-source-pre rounded-0 mb-0"><code>{{ sl.source or '' }}</code></pre>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    {% set sl = delivered_slots[0] %}
+    {% if sl.title_ko %}
+    <div class="px-3 py-2 small text-muted border-bottom d-flex flex-wrap align-items-baseline gap-2"
+         style="border-color:var(--border)!important;background:rgba(0,0,0,.03);">
+      {% if sl.role %}<span class="badge rounded-pill bg-secondary" style="font-size:.72rem;">{{ sl.role }}</span>{% endif %}
+      <span class="font-monospace fw-semibold small">{{ sl.filename or '—' }}</span>
+      <span class="ms-auto">{{ sl.title_ko }}</span>
+    </div>
+    {% endif %}
+    <pre class="codelib-source-pre delivered-slot-source-pre mb-0" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)"><code>{{ sl.source or '' }}</code></pre>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

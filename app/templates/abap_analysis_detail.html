@@ -356,11 +356,11 @@
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-fs" {% if hub_phase_open|default('') == 'fs' %}open{% endif %}>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <span class="fw-semibold">4. <span data-i18n="hub.phaseOnlyFs">기능명세 (FS)</span></span>
-            {% if ana_fs_busy|default(false) %}
+            {% if can_view_deliverables|default(true) and ana_fs_busy|default(false) %}
             <span class="badge bg-info text-dark ms-1" data-i18n="common.generating">생성 중</span>
-            {% elif ana_fs_stat|default('none') == 'failed' %}
+            {% elif can_view_deliverables|default(true) and ana_fs_stat|default('none') == 'failed' %}
             <span class="badge bg-danger ms-1" data-i18n="hub.fsFailed">실패</span>
-            {% elif ana_fs_stat|default('none') == 'ready' and ana_fs_html|default('') %}
+            {% elif can_view_deliverables|default(true) and ana_fs_stat|default('none') == 'ready' and ana_fs_html|default('') %}
             <span class="badge bg-success ms-1" data-i18n="hub.fsReady">준비됨</span>
             {% else %}
             <span class="badge bg-secondary ms-1" data-i18n="hub.fsWait">대기</span>
@@ -379,9 +379,9 @@
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-devcode" {% if hub_phase_open|default('') == 'devcode' %}open{% endif %}>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <span class="fw-semibold">5. <span data-i18n="hub.phaseOnlyDevCode">개발코드</span></span>
-            {% if ana_dc_busy|default(false) %}
+            {% if can_view_deliverables|default(true) and ana_dc_busy|default(false) %}
             <span class="badge bg-info text-dark ms-1" data-i18n="hub.dcGen">납품 코드 생성 중</span>
-            {% elif ana_has_delivered_zip|default(false) or delivered_package|default(none) or delivered_code_html|default('') %}
+            {% elif can_view_deliverables|default(true) and (ana_has_delivered_zip|default(false) or delivered_package|default(none) or delivered_code_html|default('')) %}
             <span class="badge bg-success ms-1" data-i18n="hub.dcReady">납품 코드 준비됨</span>
             {% endif %}
             <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
@@ -739,7 +739,9 @@
 })();
 </script>
 {% endif %}
+{% if can_view_deliverables|default(true) and ana_gen_busy|default(false) %}
 {% with delivery_gen_status_url='/abap-analysis/' ~ (row.id|string) ~ '/generation-status', delivery_gen_request_title=row.title %}
 {% include 'partials/hub_delivery_generating_bundle.html' %}
 {% endwith %}
+{% endif %}
 {% endblock %}

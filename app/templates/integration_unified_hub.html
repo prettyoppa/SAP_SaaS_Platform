@@ -170,11 +170,11 @@
       {% if hub_phase_open == 'fs' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <span class="fw-semibold" data-i18n="hub.phaseFs">4. 기능명세 (FS)</span>
-        {% if fs_busy %}
+        {% if can_view_deliverables|default(true) and fs_busy %}
         <span class="badge bg-info text-dark ms-1" data-i18n="common.generating">생성 중</span>
-        {% elif fs_stat == 'failed' %}
+        {% elif can_view_deliverables|default(true) and fs_stat == 'failed' %}
         <span class="badge bg-danger ms-1" data-i18n="hub.fsFailed">실패</span>
-        {% elif fs_stat == 'ready' and fs_html %}
+        {% elif can_view_deliverables|default(true) and fs_stat == 'ready' and fs_html %}
         <span class="badge bg-success ms-1" data-i18n="hub.fsReady">준비됨</span>
         {% else %}
         <span class="badge bg-secondary ms-1" data-i18n="hub.fsWait">대기</span>
@@ -192,9 +192,9 @@
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <span class="fw-semibold">5. 개발코드</span>
         <span class="small text-muted">(구현 가이드·스켈레톤)</span>
-        {% if dc_busy %}
+        {% if can_view_deliverables|default(true) and dc_busy %}
         <span class="badge bg-info text-dark ms-1" data-i18n="hub.dcGen">생성 중</span>
-        {% elif has_delivered_preview|default(false) %}
+        {% elif can_view_deliverables|default(true) and has_delivered_preview|default(false) %}
         <span class="badge bg-success ms-1" data-i18n="hub.dcReady">준비됨</span>
         {% endif %}
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
@@ -205,9 +205,11 @@
       </div>
     </details>
 
+    {% if can_view_deliverables|default(true) and gen_busy|default(false) %}
     {% with delivery_gen_status_url='/integration/' ~ (ir.id|string) ~ '/generation-status', delivery_gen_request_title=ir.title %}
     {% include 'partials/hub_delivery_generating_bundle.html' %}
     {% endwith %}
+    {% endif %}
 
     {% if hub_int_ai_chat_enabled|default(false) %}
     <p class="small text-muted mb-0 mt-2">

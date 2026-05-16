@@ -101,9 +101,11 @@
       </div>
     </details>
 
+    {% if can_view_deliverables|default(true) and gen_busy|default(false) %}
     {% with delivery_gen_status_url='/rfp/' ~ (rfp.id|string) ~ '/paid-generation-status', delivery_gen_request_title=rfp.title %}
     {% include 'partials/hub_delivery_generating_bundle.html' %}
     {% endwith %}
+    {% endif %}
   </div>
 </div>
 
