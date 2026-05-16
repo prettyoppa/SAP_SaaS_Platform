@@ -29,6 +29,7 @@ from ..offer_inquiry_service import (
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
 )
+from ..delivery_fs_supplements import KIND_RFP, fs_supplement_hub_template_ctx
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..request_hub_access import consultant_has_request_offer, consultant_is_matched_on_request
@@ -852,6 +853,10 @@ def _collect_rfp_unified_hub_ctx(
 
     can_start_delivered_code = False
     can_operate_delivery = user_can_operate_delivery(user)
+    proposal_ready = bool((rfp.proposal_text or "").strip()) or (
+        (rfp.interview_status or "") == "completed"
+    )
+    can_start_fs = proposal_ready or fs_stat in ("ready", "generating", "failed")
     if can_operate_delivery:
         fs_body, _ = resolved_fs_markdown_for_codegen(db, rfp)
         can_start_delivered_code = bool(fs_body and fs_body.strip()) and (
@@ -969,7 +974,18 @@ def _collect_rfp_unified_hub_ctx(
         "dc_busy": dc_busy,
         "gen_busy": gen_busy,
         "can_start_delivered_code": can_start_delivered_code,
+        "can_start_fs": can_start_fs,
         "can_operate_delivery": can_operate_delivery,
+        **fs_supplement_hub_template_ctx(
+            db,
+            request_kind=KIND_RFP,
+            request_id=int(rfp.id),
+            return_to=(
+                f"/rfp/{rfp.id}/console-readonly?phase=fs#rfp-phase-fs"
+                if readonly_console
+                else f"/rfp/{rfp.id}?phase=fs#rfp-phase-fs"
+            ),
+        ),
         "source_program_groups": groups,
         "reference_section_count": ref_section_count,
         "tabs_base_id": tabs_base_id,

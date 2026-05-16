@@ -3,7 +3,7 @@
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <form method="post" action="/admin/integration/{{ ir.id }}/delivery/fs-start" class="d-inline"
           data-busy-agents='[{"agentKo":"「FS」","doingKo":"연동 요청·인터뷰·제안을 바탕으로 비 ABAP 기능명세를 작성하고 있습니다","agentEn":"「FS」","doingEn":"drafting the non-ABAP integration functional spec"}]'>
-      <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy %}disabled{% endif %}>
+      <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy or not can_start_fs|default(false) %}disabled{% endif %}>
         {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
       </button>
     </form>
@@ -19,6 +19,6 @@
     </form>
     {% endif %}
   </div>
-  <p class="small text-muted mb-0">연동 FS·구현 가이드는 <strong>비 ABAP</strong> 관점의 마크다운으로 생성됩니다. 진행 로그는 브라우저 개발자 도구 네트워크 탭의 generation-status 응답에서 확인할 수 있습니다.</p>
+  <p class="small text-muted mb-0">매칭된 컨설턴트가 연동 FS·구현 가이드를 생성합니다. 다른 화면으로 이동해도 서버에서 계속됩니다.{% if not can_start_fs|default(false) %} 제안서가 준비된 뒤 FS를 시작할 수 있습니다.{% endif %} (비 ABAP 마크다운)</p>
 </div>
 {% endif %}

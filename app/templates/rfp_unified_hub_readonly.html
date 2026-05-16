@@ -86,6 +86,7 @@
         <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
       </summary>
       <div class="rfp-hub-phase-body">
+        {% include 'partials/rfp_hub_fs_admin_bar.html' %}
         {% include 'partials/rfp_hub_fs_body_flat.html' %}
       </div>
     </details>
@@ -118,4 +119,6 @@
 </script>
 {% endblock %}
 
-{% block extra_js %}{% endblock %}
+{% block extra_js %}
+{% include 'partials/rfp_hub_gen_poll_script.html' %}
+{% endblock %}

@@ -8,7 +8,7 @@
       <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
         <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline"
               data-busy-agents='[{"agentKo":"「FS설계」","doingKo":"RFP·인터뷰·제안서를 바탕으로 상세 기능명세서(FS)를 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification from the RFP, interview, and proposal"}]'>
-          <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy %}disabled{% endif %}>
+          <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy or not can_start_fs|default(false) %}disabled{% endif %}>
             {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
           </button>
         </form>
@@ -57,7 +57,9 @@
         {% endif %}
 
         {% if fs_stat == 'none' or (fs_stat != 'generating' and fs_stat != 'ready' and fs_stat != 'failed') %}
+        {% if not can_operate_delivery|default(false) %}
         {% include 'partials/hub_fs_empty_hint.html' %}
+        {% endif %}
         {% endif %}
 
         {% if rfp.fs_supplements %}

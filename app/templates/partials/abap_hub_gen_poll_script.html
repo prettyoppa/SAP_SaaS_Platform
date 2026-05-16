@@ -1,0 +1,31 @@
+{% if ana_gen_busy|default(false) %}
+<script>
+(function () {
+  const reqId = {{ row.id }};
+  const statusUrl = '/abap-analysis/' + reqId + '/generation-status';
+  const fsBusyStart = {{ ana_fs_busy|default(false)|tojson }};
+  const dcBusyStart = {{ ana_dc_busy|default(false)|tojson }};
+  async function checkDone() {
+    try {
+      const r = await fetch(statusUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+      if (!r.ok) return false;
+      const j = await r.json();
+      let done = true;
+      const fsSt = String(j.fs_status || '').trim();
+      const dcSt = String(j.delivered_code_status || '').trim();
+      if (fsBusyStart && fsSt === 'generating') done = false;
+      if (dcBusyStart && dcSt === 'generating') done = false;
+      return done;
+    } catch (e) {
+      return false;
+    }
+  }
+  const pollTimer = setInterval(async () => {
+    if (await checkDone()) {
+      clearInterval(pollTimer);
+      window.location.reload();
+    }
+  }, 5000);
+})();
+</script>
+{% endif %}

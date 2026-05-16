@@ -163,6 +163,8 @@ def _run_migrations():
         ("notices", "content_en", "TEXT", "TEXT"),
         ("faqs", "question_en", "TEXT", "TEXT"),
         ("faqs", "answer_en", "TEXT", "TEXT"),
+        ("rfp_fs_supplements", "request_kind", "VARCHAR(32) DEFAULT 'rfp'", "VARCHAR(32) DEFAULT 'rfp'"),
+        ("rfp_fs_supplements", "request_id", "INTEGER", "INTEGER"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -184,6 +186,17 @@ def _run_migrations():
                 text(
                     "UPDATE dev_types SET usage = 'abap' "
                     "WHERE usage IS NULL OR TRIM(COALESCE(usage, '')) = ''"
+                )
+            )
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "UPDATE rfp_fs_supplements SET request_id = rfp_id, request_kind = 'rfp' "
+                    "WHERE request_id IS NULL AND rfp_id IS NOT NULL"
                 )
             )
             conn.commit()

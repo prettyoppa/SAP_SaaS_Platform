@@ -82,7 +82,11 @@ from ..requirement_screenshots import (
     entries_to_json as requirement_screenshot_entries_to_json,
     remove_stored_entries as remove_requirement_screenshots,
 )
-from ..abap_analysis_generation import resolved_abap_analysis_fs_for_codegen
+from ..abap_analysis_generation import (
+    reconcile_abap_analysis_delivery_status,
+    resolved_abap_analysis_fs_for_codegen,
+)
+from ..delivery_fs_supplements import KIND_ANALYSIS, fs_supplement_hub_template_ctx
 from ..abap_analysis_proposal_service import run_abap_analysis_proposal_background
 from ..agent_display import wrap_unbracketed_agent_names
 from ..code_asset_access import user_may_copy_download_request_assets
@@ -1091,6 +1095,7 @@ def _prepare_abap_analysis_detail_ctx(
     )
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
+    row = reconcile_abap_analysis_delivery_status(db, row)
     analysis: dict = {}
     if row.analysis_json:
         try:
@@ -1167,7 +1172,7 @@ def _prepare_abap_analysis_detail_ctx(
     can_start_fs = proposal_ready or ana_fs_stat in ("ready", "generating", "failed")
     can_start_delivered_code = False
     if can_operate_delivery_flag:
-        fs_body, _fs_err = resolved_abap_analysis_fs_for_codegen(row)
+        fs_body, _fs_err = resolved_abap_analysis_fs_for_codegen(db, row)
         can_start_delivered_code = bool((fs_body or "").strip()) and ana_dc_stat != "generating"
 
     offers_raw = _analysis_offer_rows(db, row.id)
@@ -1221,6 +1226,16 @@ def _prepare_abap_analysis_detail_ctx(
         "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
         "ana_fs_html": ana_fs_html,
         **_abap_analysis_hub_delivered_fields(row),
+        **fs_supplement_hub_template_ctx(
+            db,
+            request_kind=KIND_ANALYSIS,
+            request_id=int(row.id),
+            return_to=(
+                f"/abap-analysis/{row.id}/console-readonly#abap-phase-fs"
+                if readonly_console
+                else f"/abap-analysis/{row.id}#abap-phase-fs"
+            ),
+        ),
     }
 
     if readonly_console:
@@ -1400,6 +1415,28 @@ def abap_analysis_proposal_status(req_id: int, request: Request, db: Session = D
     if not row:
         return JSONResponse({"status": "not_found"}, status_code=404)
     return JSONResponse({"status": (row.interview_status or "pending")})
+
+
+@router.get("/{req_id}/generation-status")
+def abap_analysis_generation_status(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row:
+        return JSONResponse({"detail": "not_found"}, status_code=404)
+    row = reconcile_abap_analysis_delivery_status(db, row)
+    return JSONResponse(
+        {
+            "fs_status": getattr(row, "fs_status", None) or "none",
+            "delivered_code_status": getattr(row, "delivered_code_status", None) or "none",
+            "fs_job_log": getattr(row, "fs_job_log", None) or "",
+            "delivered_job_log": getattr(row, "delivered_job_log", None) or "",
+            "fs_error": getattr(row, "fs_error", None) or "",
+            "delivered_code_error": getattr(row, "delivered_code_error", None) or "",
+        },
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get("/{req_id}/delivered-code/download")

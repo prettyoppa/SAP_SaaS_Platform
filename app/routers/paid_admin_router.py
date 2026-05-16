@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, File, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 import os
@@ -10,6 +10,7 @@ import os
 from .. import auth, models, r2_storage
 from ..delivered_code_package import rfp_delivered_body_ready
 from ..abap_analysis_generation import (
+    reconcile_abap_analysis_delivery_status,
     resolved_abap_analysis_fs_for_codegen,
     run_abap_analysis_delivered_code_job,
     run_abap_analysis_fs_job,
@@ -25,6 +26,13 @@ from ..integration_generation import (
     integration_deliverable_job_stale,
     run_integration_deliverable_job,
     run_integration_fs_job,
+)
+from ..delivery_fs_supplements import (
+    KIND_ANALYSIS,
+    KIND_INTEGRATION,
+    KIND_RFP,
+    fs_supplement_admin_paths,
+    list_delivery_fs_supplements,
 )
 from ..paid_tier import user_can_operate_delivery
 from ..templates_config import templates
@@ -179,12 +187,105 @@ def admin_start_delivered_code(
     return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
 
 
+def _delivery_redirect_after_fs_upload(
+    request_kind: str,
+    request_id: int,
+    *,
+    err: str | None = None,
+    return_to: str | None = None,
+) -> str:
+    if return_to and return_to.startswith("/") and "//" not in return_to:
+        url = return_to
+    else:
+        url = fs_supplement_admin_paths(request_kind, request_id)["fs_supplement_upload_url"].replace(
+            "/fs-supplement-upload", ""
+        )
+    if err:
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}err={err}"
+    return url
+
+
+async def _handle_fs_supplement_upload(
+    *,
+    request_kind: str,
+    request_id: int,
+    owner_user_id: int,
+    actor_id: int,
+    db: Session,
+    files: list[UploadFile],
+    return_to: str | None,
+) -> str:
+    """Returns redirect URL."""
+    rid = int(request_id)
+    kind = (request_kind or "").strip().lower()
+    upload_list = files if isinstance(files, list) else [files]
+    if not upload_list:
+        return _delivery_redirect_after_fs_upload(kind, rid, err="fs_upload_no_name", return_to=return_to)
+    pending: list[tuple[bytes, str]] = []
+    for file in upload_list:
+        if not file.filename:
+            continue
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext != ".md":
+            return _delivery_redirect_after_fs_upload(kind, rid, err="fs_bad_ext", return_to=return_to)
+        try:
+            raw = await _read_upload_limited(file)
+        except ValueError:
+            return _delivery_redirect_after_fs_upload(kind, rid, err="fs_too_large", return_to=return_to)
+        if raw:
+            pending.append((raw, file.filename or "fs.md"))
+    if not pending:
+        return _delivery_redirect_after_fs_upload(kind, rid, err="fs_upload_empty", return_to=return_to)
+    rfp_fk = rid if kind == KIND_RFP else None
+    for raw, fname in pending:
+        path_stored, fname_stored = _store_rfp_file(int(owner_user_id), ".md", raw, fname)
+        db.add(
+            models.RfpFsSupplement(
+                rfp_id=rfp_fk,
+                request_kind=kind,
+                request_id=rid,
+                stored_path=path_stored,
+                filename=fname_stored,
+                uploaded_by_user_id=actor_id,
+            )
+        )
+    db.commit()
+    return _delivery_redirect_after_fs_upload(kind, rid, return_to=return_to)
+
+
+def _delete_fs_supplement_row(db: Session, *, request_kind: str, request_id: int, supplement_id: int) -> bool:
+    kind = (request_kind or "").strip().lower()
+    rid = int(request_id)
+    sup = (
+        db.query(models.RfpFsSupplement)
+        .filter(
+            models.RfpFsSupplement.id == supplement_id,
+            models.RfpFsSupplement.request_kind == kind,
+            models.RfpFsSupplement.request_id == rid,
+        )
+        .first()
+    )
+    if not sup:
+        return False
+    if kind == KIND_RFP:
+        rfp = db.query(models.RFP).filter(models.RFP.id == rid).first()
+        if rfp and rfp.fs_codegen_supplement_id == sup.id:
+            rfp.fs_codegen_supplement_id = None
+    p = sup.stored_path
+    db.delete(sup)
+    db.commit()
+    _delete_supplement_blob(p or "")
+    return True
+
+
 @router.post("/rfp/{rfp_id}/delivery/fs-supplement-upload")
 async def admin_upload_fs_supplement(
     rfp_id: int,
     request: Request,
     db: Session = Depends(get_db),
     files: list[UploadFile] = File(...),
+    return_to: str | None = Form(None),
 ):
     actor = _require_delivery_operator(request, db)
     if not actor:
@@ -193,47 +294,70 @@ async def admin_upload_fs_supplement(
     if not rfp:
         return RedirectResponse(url="/admin", status_code=302)
     uid_store = int(rfp.user_id) if rfp.user_id else actor.id
-    upload_list = files if isinstance(files, list) else [files]
-    if not upload_list:
-        return RedirectResponse(
-            url=f"/admin/rfp/{rfp_id}/delivery?err=fs_upload_no_name",
-            status_code=302,
-        )
-    pending: list[tuple[bytes, str]] = []
-    for file in upload_list:
-        if not file.filename:
-            continue
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext != ".md":
-            return RedirectResponse(
-                url=f"/admin/rfp/{rfp_id}/delivery?err=fs_bad_ext",
-                status_code=302,
-            )
-        try:
-            raw = await _read_upload_limited(file)
-        except ValueError:
-            return RedirectResponse(
-                url=f"/admin/rfp/{rfp_id}/delivery?err=fs_too_large",
-                status_code=302,
-            )
-        if raw:
-            pending.append((raw, file.filename or "fs.md"))
-    if not pending:
-        return RedirectResponse(
-            url=f"/admin/rfp/{rfp_id}/delivery?err=fs_upload_empty",
-            status_code=302,
-        )
-    for raw, fname in pending:
-        path_stored, fname_stored = _store_rfp_file(uid_store, ".md", raw, fname)
-        sup = models.RfpFsSupplement(
-            rfp_id=rfp.id,
-            stored_path=path_stored,
-            filename=fname_stored,
-            uploaded_by_user_id=actor.id,
-        )
-        db.add(sup)
-    db.commit()
-    return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
+    url = await _handle_fs_supplement_upload(
+        request_kind=KIND_RFP,
+        request_id=rfp_id,
+        owner_user_id=uid_store,
+        actor_id=int(actor.id),
+        db=db,
+        files=files,
+        return_to=return_to,
+    )
+    return RedirectResponse(url=url, status_code=302)
+
+
+@router.post("/abap-analysis/{analysis_id}/delivery/fs-supplement-upload")
+async def admin_abap_upload_fs_supplement(
+    analysis_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    files: list[UploadFile] = File(...),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == analysis_id).first()
+    if not row:
+        return RedirectResponse(url="/admin", status_code=302)
+    uid_store = int(row.user_id) if row.user_id else actor.id
+    url = await _handle_fs_supplement_upload(
+        request_kind=KIND_ANALYSIS,
+        request_id=analysis_id,
+        owner_user_id=uid_store,
+        actor_id=int(actor.id),
+        db=db,
+        files=files,
+        return_to=return_to,
+    )
+    return RedirectResponse(url=url, status_code=302)
+
+
+@router.post("/integration/{req_id}/delivery/fs-supplement-upload")
+async def admin_integration_upload_fs_supplement(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    files: list[UploadFile] = File(...),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
+    if not ir:
+        return RedirectResponse(url="/admin", status_code=302)
+    uid_store = int(ir.user_id) if ir.user_id else actor.id
+    url = await _handle_fs_supplement_upload(
+        request_kind=KIND_INTEGRATION,
+        request_id=req_id,
+        owner_user_id=uid_store,
+        actor_id=int(actor.id),
+        db=db,
+        files=files,
+        return_to=return_to,
+    )
+    return RedirectResponse(url=url, status_code=302)
 
 
 def _delete_supplement_blob(stored_path: str) -> None:
@@ -253,27 +377,50 @@ def admin_delete_fs_supplement(
     supplement_id: int,
     request: Request,
     db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
 ):
     actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
-    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
-    if not rfp:
-        return RedirectResponse(url="/admin", status_code=302)
-    sup = (
-        db.query(models.RfpFsSupplement)
-        .filter(models.RfpFsSupplement.id == supplement_id, models.RfpFsSupplement.rfp_id == rfp.id)
-        .first()
+    _delete_fs_supplement_row(db, request_kind=KIND_RFP, request_id=rfp_id, supplement_id=supplement_id)
+    url = _delivery_redirect_after_fs_upload(KIND_RFP, rfp_id, return_to=return_to)
+    return RedirectResponse(url=url, status_code=302)
+
+
+@router.post("/abap-analysis/{analysis_id}/delivery/fs-supplement/{supplement_id}/delete")
+def admin_abap_delete_fs_supplement(
+    analysis_id: int,
+    supplement_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    _delete_fs_supplement_row(
+        db, request_kind=KIND_ANALYSIS, request_id=analysis_id, supplement_id=supplement_id
     )
-    if not sup:
-        return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
-    if rfp.fs_codegen_supplement_id == sup.id:
-        rfp.fs_codegen_supplement_id = None
-    p = sup.stored_path
-    db.delete(sup)
-    db.commit()
-    _delete_supplement_blob(p or "")
-    return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
+    url = _delivery_redirect_after_fs_upload(KIND_ANALYSIS, analysis_id, return_to=return_to)
+    return RedirectResponse(url=url, status_code=302)
+
+
+@router.post("/integration/{req_id}/delivery/fs-supplement/{supplement_id}/delete")
+def admin_integration_delete_fs_supplement(
+    req_id: int,
+    supplement_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    _delete_fs_supplement_row(
+        db, request_kind=KIND_INTEGRATION, request_id=req_id, supplement_id=supplement_id
+    )
+    url = _delivery_redirect_after_fs_upload(KIND_INTEGRATION, req_id, return_to=return_to)
+    return RedirectResponse(url=url, status_code=302)
 
 
 @router.post("/integration/{req_id}/delivery/fs-start")
@@ -368,13 +515,15 @@ def admin_abap_analysis_delivery_page(
     )
     if not row:
         return RedirectResponse(url="/admin", status_code=302)
-    fs_body, fs_src_err = resolved_abap_analysis_fs_for_codegen(row)
+    fs_body, fs_src_err = resolved_abap_analysis_fs_for_codegen(db, row)
     can_start_code = bool(fs_body and fs_body.strip()) and (row.delivered_code_status or "").strip() != "generating"
     fs_busy = (row.fs_status or "").strip() == "generating"
     dc_busy = (row.delivered_code_status or "").strip() == "generating"
     gen_busy = fs_busy or dc_busy
     has_fs_material = (row.fs_status or "").strip() == "ready" and (row.fs_text or "").strip()
     has_code_material = rfp_delivered_body_ready(row)
+    from ..delivery_fs_supplements import fs_supplement_hub_template_ctx
+
     return templates.TemplateResponse(
         request,
         "admin/abap_analysis_delivery.html",
@@ -384,6 +533,7 @@ def admin_abap_analysis_delivery_page(
             "row": row,
             "delivery_err": err,
             "can_start_delivered_code": can_start_code,
+            "can_operate_delivery": True,
             "fs_codegen_preview_error": fs_src_err,
             "job_log_poll_ms": 2500,
             "fs_busy": fs_busy,
@@ -391,6 +541,12 @@ def admin_abap_analysis_delivery_page(
             "gen_busy": gen_busy,
             "has_fs_material": has_fs_material,
             "has_code_material": has_code_material,
+            **fs_supplement_hub_template_ctx(
+                db,
+                request_kind=KIND_ANALYSIS,
+                request_id=int(row.id),
+                return_to=f"/admin/abap-analysis/{analysis_id}/delivery",
+            ),
         },
     )
 
@@ -407,6 +563,7 @@ def admin_abap_analysis_delivery_generation_log_json(
     row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == analysis_id).first()
     if not row:
         return JSONResponse({"detail": "not found"}, status_code=404)
+    row = reconcile_abap_analysis_delivery_status(db, row)
     return JSONResponse(
         {
             "fs_status": getattr(row, "fs_status", None) or "none",
@@ -433,6 +590,7 @@ def admin_abap_analysis_start_fs_generation(
     row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == analysis_id).first()
     if not row:
         return RedirectResponse(url="/admin", status_code=302)
+    row = reconcile_abap_analysis_delivery_status(db, row)
     if (row.fs_status or "").strip() == "generating":
         return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-fs", status_code=302)
     row.fs_status = "generating"
@@ -456,7 +614,8 @@ def admin_abap_analysis_start_delivered_code(
     row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == analysis_id).first()
     if not row:
         return RedirectResponse(url="/admin", status_code=302)
-    fs_body, fs_err = resolved_abap_analysis_fs_for_codegen(row)
+    row = reconcile_abap_analysis_delivery_status(db, row)
+    fs_body, fs_err = resolved_abap_analysis_fs_for_codegen(db, row)
     if fs_err or not (fs_body or "").strip():
         return RedirectResponse(
             url=f"/abap-analysis/{analysis_id}?err=fs_not_ready#abap-phase-fs",

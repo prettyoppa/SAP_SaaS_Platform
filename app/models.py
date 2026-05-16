@@ -184,7 +184,9 @@ class RfpFsSupplement(Base):
     __tablename__ = "rfp_fs_supplements"
 
     id = Column(Integer, primary_key=True, index=True)
-    rfp_id = Column(Integer, ForeignKey("rfps.id", ondelete="CASCADE"), nullable=False, index=True)
+    rfp_id = Column(Integer, ForeignKey("rfps.id", ondelete="CASCADE"), nullable=True, index=True)
+    request_kind = Column(String(32), nullable=False, default="rfp", index=True)
+    request_id = Column(Integer, nullable=False, index=True)
     stored_path = Column(Text, nullable=False)
     filename = Column(String(512), nullable=False)
     uploaded_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

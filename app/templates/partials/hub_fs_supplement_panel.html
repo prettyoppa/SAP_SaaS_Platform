@@ -1,0 +1,40 @@
+{# can_operate_delivery, fs_supplements, fs_supplement_upload_url, fs_supplement_delete_url_prefix, fs_supplement_return_to #}
+{% if can_operate_delivery|default(false) %}
+<div class="proposal-card mb-3 border" style="border-color:var(--border)!important;background:var(--surface2);">
+  <h6 class="text-muted small text-uppercase mb-2">
+    <i class="fa-solid fa-paperclip me-1"></i>컨설턴트 FS 첨부 (.md)
+  </h6>
+  <p class="small text-muted mb-2">
+    에이전트 FS가 부족하면 직접 작성한 기능명세를 올리세요. 개발코드 생성 시 <strong>첨부 FS가 자동 FS보다 우선</strong> 적용됩니다.
+  </p>
+
+  {% if fs_supplements %}
+  <ul class="mb-3 ps-3 small">
+    {% for s in fs_supplements %}
+    <li class="mb-2 d-flex flex-wrap align-items-center gap-2">
+      <span class="fw-medium">{{ s.filename }}</span>
+      <span class="text-muted">({% if s.uploaded_at %}{{ s.uploaded_at|local_dt_span }}{% else %}—{% endif %})</span>
+      <form method="post" action="{{ fs_supplement_delete_url_prefix }}/{{ s.id }}/delete" class="d-inline ms-auto"
+            data-app-confirm="이 FS 첨부를 삭제할까요?">
+        {% if fs_supplement_return_to %}
+        <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
+        {% endif %}
+        <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" action="{{ fs_supplement_upload_url }}">
+    {% if fs_supplement_return_to %}
+    <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
+    {% endif %}
+    <div class="mb-2">
+      <input type="file" name="files" class="form-control form-control-sm" accept=".md,text/markdown" multiple>
+    </div>
+    <p class="small text-muted mb-2">Markdown (.md) · 파일당 최대 20MB · 여러 파일 가능</p>
+    <button type="submit" class="btn btn-sm btn-secondary">FS 첨부 업로드</button>
+  </form>
+</div>
+{% endif %}

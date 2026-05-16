@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from . import models
 from .agent_playbook import PlaybookContext, STAGE_DELIVERED_ABAP, STAGE_FS_ABAP, build_playbook_addon
@@ -16,8 +17,100 @@ from .agents.paid_crew import generate_delivered_abap_artifact, generate_fs_mark
 from .abap_analysis_crew_adapter import abap_analysis_request_to_crew_rfp_dict, _member_safe_for_abap_analysis
 from .abap_analysis_proposal_service import abap_analysis_synthetic_conversation
 from .database import SessionLocal
+from .delivery_fs_supplements import KIND_ANALYSIS, resolved_delivery_fs_for_codegen
+from .delivered_code_package import (
+    delivered_package_has_body,
+    parse_delivered_code_payload,
+)
 
 _MAX_JOB_LOG_CHARS = 48_000
+_DEFAULT_FS_STALE_MINUTES = 45
+_DEFAULT_DC_STALE_MINUTES = 60
+
+
+def _job_log_last_activity_utc(log: str | None) -> datetime | None:
+    text = (log or "").strip()
+    if not text:
+        return None
+    matches = re.findall(r"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) UTC\]", text)
+    if not matches:
+        return None
+    try:
+        return datetime.strptime(matches[-1], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def abap_analysis_job_stale(
+    row: models.AbapAnalysisRequest,
+    log_field: str,
+    *,
+    minutes: int = _DEFAULT_FS_STALE_MINUTES,
+) -> bool:
+    """generating 인데 작업 로그가 오래 갱신되지 않으면 워커 중단으로 본다."""
+    last = _job_log_last_activity_utc(getattr(row, log_field, None))
+    if last is None:
+        return True
+    age_sec = (datetime.now(timezone.utc) - last).total_seconds()
+    return age_sec > minutes * 60
+
+
+def _abap_delivered_body_present(row: models.AbapAnalysisRequest) -> bool:
+    pkg = parse_delivered_code_payload(getattr(row, "delivered_code_payload", None))
+    if delivered_package_has_body(pkg):
+        return True
+    return bool((getattr(row, "delivered_code_text", None) or "").strip())
+
+
+def reconcile_abap_analysis_delivery_status(
+    db: Session,
+    row: models.AbapAnalysisRequest,
+    *,
+    fs_stale_minutes: int = _DEFAULT_FS_STALE_MINUTES,
+    dc_stale_minutes: int = _DEFAULT_DC_STALE_MINUTES,
+) -> models.AbapAnalysisRequest:
+    """
+    FS/납품 코드 generating 상태를 DB 실제 산출물·로그와 맞춘다.
+    - 본문은 있는데 status만 generating → ready
+    - 오래 generating 이고 산출물 없음 → failed (재시도 가능)
+    """
+    changed = False
+    fs_st = (getattr(row, "fs_status", None) or "none").strip()
+    fs_body = (getattr(row, "fs_text", None) or "").strip()
+
+    if fs_st == "generating":
+        if fs_body:
+            row.fs_status = "ready"
+            row.fs_error = None
+            if not getattr(row, "fs_generated_at", None):
+                row.fs_generated_at = datetime.utcnow()
+            changed = True
+        elif abap_analysis_job_stale(row, "fs_job_log", minutes=fs_stale_minutes):
+            row.fs_status = "failed"
+            row.fs_error = (
+                "FS 생성이 제한 시간 내에 완료되지 않았습니다. FS 생성 시작을 다시 눌러 주세요."
+            )
+            changed = True
+
+    dc_st = (getattr(row, "delivered_code_status", None) or "none").strip()
+    if dc_st == "generating":
+        if _abap_delivered_body_present(row):
+            row.delivered_code_status = "ready"
+            row.delivered_code_error = None
+            if not getattr(row, "delivered_code_generated_at", None):
+                row.delivered_code_generated_at = datetime.utcnow()
+            changed = True
+        elif abap_analysis_job_stale(row, "delivered_job_log", minutes=dc_stale_minutes):
+            row.delivered_code_status = "failed"
+            row.delivered_code_error = (
+                "개발코드 생성이 제한 시간 내에 완료되지 않았습니다. 다시 시도해 주세요."
+            )
+            changed = True
+
+    if changed:
+        db.commit()
+        db.refresh(row)
+    return row
 
 
 def append_abap_analysis_job_log(analysis_id: int, field: str, line: str) -> None:
@@ -70,11 +163,16 @@ def _delivered_heartbeat_abap(
         )
 
 
-def resolved_abap_analysis_fs_for_codegen(row: models.AbapAnalysisRequest) -> tuple[str | None, str | None]:
-    body = (getattr(row, "fs_text", None) or "").strip()
-    if not body:
-        return None, "FS 본문이 없습니다. 관리자 화면에서 FS 생성을 완료하세요."
-    return body, None
+def resolved_abap_analysis_fs_for_codegen(
+    db: Session,
+    row: models.AbapAnalysisRequest,
+) -> tuple[str | None, str | None]:
+    return resolved_delivery_fs_for_codegen(
+        db,
+        request_kind=KIND_ANALYSIS,
+        request_id=int(row.id),
+        agent_fs_text=getattr(row, "fs_text", None),
+    )
 
 
 def run_abap_analysis_fs_job(analysis_id: int) -> None:
@@ -162,7 +260,7 @@ def run_abap_analysis_delivered_code_job(analysis_id: int) -> None:
             return
 
         append_abap_analysis_job_log(analysis_id, "delivered_job_log", "납품 ABAP 생성 백그라운드 워커 시작")
-        fs_body, fs_err = resolved_abap_analysis_fs_for_codegen(row)
+        fs_body, fs_err = resolved_abap_analysis_fs_for_codegen(db, row)
         if fs_err or not (fs_body or "").strip():
             msg = fs_err or "FS 본문이 없습니다."
             row.delivered_code_status = "failed"

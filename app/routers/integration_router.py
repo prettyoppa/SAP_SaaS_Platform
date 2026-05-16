@@ -90,6 +90,7 @@ from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
 from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
+from ..delivery_fs_supplements import KIND_INTEGRATION, fs_supplement_hub_template_ctx
 from ..paid_tier import user_can_operate_delivery
 from ..integration_followup_chat import (
     generate_integration_followup_reply,
@@ -2037,6 +2038,10 @@ def _collect_integration_unified_hub_ctx(
 
     fs_body = (getattr(ir, "fs_text", None) or "").strip()
     fs_ready = fs_stat == "ready" and bool(fs_body)
+    proposal_ready = bool((ir.proposal_text or "").strip()) or (
+        (ir.interview_status or "") == "completed"
+    )
+    can_start_fs = proposal_ready or fs_stat in ("ready", "generating", "failed")
     can_start_delivered_code = (
         bool(can_operate_delivery_flag)
         and fs_ready
@@ -2157,7 +2162,18 @@ def _collect_integration_unified_hub_ctx(
         "dc_busy": dc_busy,
         "gen_busy": gen_busy,
         "can_start_delivered_code": can_start_delivered_code,
+        "can_start_fs": can_start_fs,
         "can_operate_delivery": can_operate_delivery_flag,
+        **fs_supplement_hub_template_ctx(
+            db,
+            request_kind=KIND_INTEGRATION,
+            request_id=int(ir.id),
+            return_to=(
+                f"/integration/{ir.id}/console-readonly?phase=fs#int-phase-fs"
+                if readonly_console
+                else f"/integration/{ir.id}?phase=fs#int-phase-fs"
+            ),
+        ),
         "followup_turns": followup_turns,
         "chat_limit_reached": chat_limit_reached,
         "chat_error": chat_error,

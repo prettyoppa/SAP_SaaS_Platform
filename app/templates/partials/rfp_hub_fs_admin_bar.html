@@ -3,7 +3,7 @@
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline"
           data-busy-agents='[{"agentKo":"「FS설계」","doingKo":"RFP·인터뷰·제안서를 바탕으로 상세 기능명세서(FS)를 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification from the RFP, interview, and proposal"}]'>
-      <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy %}disabled{% endif %}>
+      <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy or not can_start_fs|default(false) %}disabled{% endif %}>
         {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
       </button>
     </form>
@@ -14,7 +14,7 @@
       </button>
     </form>
   </div>
-  <p class="small text-muted mb-2 mb-md-0">컨설턴트 FS 첨부·실행 로그는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>에서 처리합니다.</p>
+  <p class="small text-muted mb-2 mb-md-0">매칭된 컨설턴트가 FS·납품 ABAP을 생성합니다. 다른 화면으로 이동해도 서버에서 계속됩니다.{% if not can_start_fs|default(false) %} 제안서가 준비된 뒤 FS를 시작할 수 있습니다.{% endif %} FS 첨부·실행 로그는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>에서도 확인할 수 있습니다.</p>
   <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="collapse" data-bs-target="#adminFsHubEditHub" aria-expanded="false" aria-controls="adminFsHubEditHub">추가 안내</button>
   <div class="collapse mt-2" id="adminFsHubEditHub">
     <hr class="my-2">

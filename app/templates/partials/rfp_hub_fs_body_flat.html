@@ -6,20 +6,12 @@
   {% endif %}
 
   {% if fs_stat == 'none' or (fs_stat != 'generating' and fs_stat != 'ready' and fs_stat != 'failed') %}
+  {% if not can_operate_delivery|default(false) %}
   {% include 'partials/hub_fs_empty_hint.html' %}
   {% endif %}
-
-  {% if rfp.fs_supplements %}
-  <div class="proposal-card mb-3">
-    <h6 class="text-muted small text-uppercase mb-2">컨설턴트 FS 첨부</h6>
-    <p class="small text-muted mb-2">코드 생성 시 아래 파일이 모두 반영됩니다.</p>
-    <ul class="mb-0 ps-3 small">
-      {% for s in rfp.fs_supplements %}
-      <li>{{ s.filename }} <span class="text-muted">({% if s.uploaded_at %}{{ s.uploaded_at|local_dt_span }}{% else %}—{% endif %})</span></li>
-      {% endfor %}
-    </ul>
-  </div>
   {% endif %}
+
+  {% include 'partials/hub_fs_supplement_panel.html' %}
 
   {% if fs_busy %}
   {% with job_label = 'FS' %}

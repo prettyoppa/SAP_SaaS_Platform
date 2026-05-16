@@ -1,4 +1,6 @@
 <div class="interview-summary-body pt-0">
+  {% include 'partials/hub_fs_supplement_panel.html' %}
+
   {% if fs_stat == 'failed' %}
   <div class="alert alert-danger small mb-3">
     <div class="fw-semibold mb-1">FS 생성 실패</div>
@@ -13,8 +15,10 @@
     {{ fs_html | safe }}
   </div>
   {% else %}
+  {% if not can_operate_delivery|default(false) %}
   {% with wrap_class = 'mb-0' %}
   {% include 'partials/hub_fs_empty_hint.html' %}
   {% endwith %}
+  {% endif %}
   {% endif %}
 </div>

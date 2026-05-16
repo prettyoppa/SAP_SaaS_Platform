@@ -211,10 +211,17 @@ def run_integration_deliverable_job(ir_id: int) -> None:
         if not ir:
             append_integration_job_log(ir_id, "delivered_job_log", "연동 요청을 찾을 수 없음")
             return
-        fs_body = (ir.fs_text or "").strip()
-        if not fs_body:
+        from .delivery_fs_supplements import KIND_INTEGRATION, resolved_delivery_fs_for_codegen
+
+        fs_body, fs_err = resolved_delivery_fs_for_codegen(
+            db,
+            request_kind=KIND_INTEGRATION,
+            request_id=int(ir.id),
+            agent_fs_text=ir.fs_text,
+        )
+        if fs_err or not (fs_body or "").strip():
             ir.delivered_code_status = "failed"
-            ir.delivered_code_error = "FS가 없습니다."
+            ir.delivered_code_error = fs_err or "FS가 없습니다."
             db.commit()
             return
         append_integration_job_log(ir_id, "delivered_job_log", "구현 산출물 생성 시작(파일 슬롯 패턴)")
