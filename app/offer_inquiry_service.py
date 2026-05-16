@@ -71,7 +71,7 @@ def owner_hub_proposal_public_url(request: Any, request_kind: str, request_id: i
     if k == "rfp":
         return public_request_url(request, f"/rfp/{rid}?phase=proposal")
     if k == "analysis":
-        return public_request_url(request, f"/abap-analysis/{rid}")
+        return public_request_url(request, f"/abap-analysis/{rid}#abap-phase-proposal")
     if k == "integration":
         return public_request_url(request, f"/integration/{rid}?phase=proposal")
     return public_request_url(request, "/request-console")
