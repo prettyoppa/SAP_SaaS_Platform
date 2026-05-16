@@ -16,6 +16,7 @@ from .agent_display import agent_label_ko
 from .agents.agent_tools import get_code_library_context
 from .agents.paid_crew import generate_delivered_abap_artifact, generate_fs_markdown
 from .database import SessionLocal
+from .ai_usage_recorder import AiUsageContext, ai_usage_scope
 
 _MAX_JOB_LOG_CHARS = 48_000
 _HEARTBEAT_SEC = 40
@@ -125,14 +126,17 @@ def run_fs_generation_job(rfp_id: int) -> None:
                 request_id=int(rfp.id),
                 agent_proposal_text=rfp.proposal_text,
             )
-            rfp.fs_text = generate_fs_markdown(
-                rfp_dict,
-                conv,
-                prop_merged,
-                code_library_context=code_ctx or "",
-                member_safe_output=ms,
-                playbook_addon=pb_fs,
-            )
+            with ai_usage_scope(
+                AiUsageContext(user_id=int(rfp.user_id), request_kind="rfp", request_id=int(rfp.id))
+            ):
+                rfp.fs_text = generate_fs_markdown(
+                    rfp_dict,
+                    conv,
+                    prop_merged,
+                    code_library_context=code_ctx or "",
+                    member_safe_output=ms,
+                    playbook_addon=pb_fs,
+                )
             rfp.fs_status = "ready"
             rfp.fs_generated_at = datetime.utcnow()
             rfp.fs_error = None
@@ -231,16 +235,19 @@ def run_delivered_code_job(rfp_id: int) -> None:
                 request_id=int(rfp.id),
                 agent_proposal_text=rfp.proposal_text,
             )
-            pkg, legacy_md = generate_delivered_abap_artifact(
-                rfp_dict,
-                fs_body or "",
-                prop_merged,
-                conv,
-                code_library_context=code_ctx or "",
-                member_safe_output=ms,
-                phase_log=_phase_log_delivery,
-                playbook_addon=pb_del,
-            )
+            with ai_usage_scope(
+                AiUsageContext(user_id=int(rfp.user_id), request_kind="rfp", request_id=int(rfp.id))
+            ):
+                pkg, legacy_md = generate_delivered_abap_artifact(
+                    rfp_dict,
+                    fs_body or "",
+                    prop_merged,
+                    conv,
+                    code_library_context=code_ctx or "",
+                    member_safe_output=ms,
+                    phase_log=_phase_log_delivery,
+                    playbook_addon=pb_del,
+                )
             rfp.delivered_code_text = legacy_md
             rfp.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None
             rfp.delivered_code_status = "ready"

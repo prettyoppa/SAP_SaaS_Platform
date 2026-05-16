@@ -61,6 +61,26 @@
       </div>
       {% endif %}
 
+      <div class="subscription-plans-notice-outer mx-auto mt-3" style="max-width: 48rem;">
+        <h6 class="text-muted text-uppercase small mb-2">결제 방법 · 계좌이체 (KR / US)</h6>
+        {% if bank_transfer_sla_ko %}
+        <p class="small text-muted mb-2"><i class="fa-solid fa-clock me-1"></i>{{ bank_transfer_sla_ko }}</p>
+        {% endif %}
+        {% if user %}
+        <p class="small mb-2"><a href="/account/billing" class="fw-semibold">입금 신청 · 구독 활성화</a></p>
+        {% else %}
+        <p class="small text-muted mb-2">입금 후 활성화는 로그인 후 계정 메뉴에서 신청합니다.</p>
+        {% endif %}
+        <details class="small">
+          <summary class="mb-2" style="cursor:pointer">한국 원화(KRW) 입금 안내</summary>
+          <div class="markdown-body subscription-plans-notice">{{ bank_transfer_notice_md_ko|md_html }}</div>
+        </details>
+        <details class="small mt-2">
+          <summary class="mb-2" style="cursor:pointer">미국 달러(USD) 입금 안내</summary>
+          <div class="markdown-body subscription-plans-notice">{{ bank_transfer_notice_usd_md_ko|md_html }}</div>
+        </details>
+      </div>
+
       <div class="subscription-plans-tabs-wrap mx-auto mt-4 mt-lg-5">
         <div class="subscription-plans-currency-row d-flex justify-content-center align-items-center gap-2 mb-3 flex-wrap">
           <span class="small text-muted">

@@ -43,6 +43,8 @@ class User(Base):
     subscription_plan_expires_at = Column(DateTime, nullable=True)
     # Experience 플랜 체험(UTC): 기간 중 entitlement는 consultant+junior와 동일. 이메일·휴대폰당 1회(해시 보관).
     experience_trial_ends_at = Column(DateTime, nullable=True)
+    # 계좌이체·청구: KR | US (수동 구독 운영)
+    billing_country = Column(String(2), nullable=True)
 
     rfps = relationship("RFP", back_populates="owner")
     integration_requests = relationship("IntegrationRequest", back_populates="owner")
@@ -711,6 +713,58 @@ class SubscriptionUsagePerRequest(Base):
             "user_id", "metric_key", "request_kind", "request_id", name="uq_sub_usage_per_request"
         ),
     )
+
+
+class PaymentClaim(Base):
+    """회원 계좌이체 입금 신청(Admin 수동 확인 후 구독 활성화)."""
+
+    __tablename__ = "payment_claims"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    billing_country = Column(String(2), nullable=False)
+    currency = Column(String(3), nullable=False)
+    amount_minor = Column(Integer, nullable=False)
+    plan_account_kind = Column(String(16), nullable=False)
+    plan_code = Column(String(32), nullable=False)
+    billing_period = Column(String(16), nullable=False, default="monthly")
+    depositor_name = Column(String(200), nullable=False)
+    transfer_date = Column(DateTime, nullable=True)
+    member_note = Column(Text, nullable=True)
+    admin_note = Column(Text, nullable=True)
+    confirmed_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)
+    subscription_period_start = Column(DateTime, nullable=True)
+    subscription_period_end = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
+    confirmed_by = relationship("User", foreign_keys=[confirmed_by_user_id])
+
+
+class AiUsageEvent(Base):
+    """추정 AI 추론 비용 원장(환불·운영 모니터링용, 회원 비공개)."""
+
+    __tablename__ = "ai_usage_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    request_kind = Column(String(32), nullable=False, default="system", index=True)
+    request_id = Column(Integer, nullable=True, index=True)
+    stage = Column(String(32), nullable=False, index=True)
+    agent_key = Column(String(64), nullable=True)
+    model_id = Column(String(128), nullable=False, default="")
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    total_tokens = Column(Integer, nullable=True)
+    estimated_cost_usd_micro = Column(Integer, nullable=False, default=0)
+    cost_source = Column(String(20), nullable=False, default="estimated")
+    idempotency_key = Column(String(128), nullable=True, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = relationship("User", foreign_keys=[user_id])
 
 
 class AgentPlaybookEntry(Base):

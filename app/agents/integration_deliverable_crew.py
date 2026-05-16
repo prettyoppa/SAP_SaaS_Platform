@@ -22,6 +22,7 @@ from ..delivered_code_package import (
     sanitize_test_scenarios_markdown,
 )
 from ..gemini_model import get_gemini_model_id
+from ..ai_usage_recorder import logged_crew_kickoff
 from .free_crew import _get_llm
 from .paid_crew import _truncate
 
@@ -93,7 +94,7 @@ def _monolithic_integration_markdown(
         expected_output="마크다운 본문",
     )
     crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
-    return str(crew.kickoff()).strip()
+    return str(logged_crew_kickoff(crew, stage="integration_deliverable", agent_key="p_coder")).strip()
 
 
 def generate_integration_deliverable_artifact(
@@ -221,7 +222,7 @@ requirements, manifest, test, doc, other
 
     _ph(f"{agent_label_ko('p_coder')} — 연동 납품 JSON 슬롯 Gemini({get_gemini_model_id()}) 호출 시작")
     crew_slots = Crew(agents=[json_coder], tasks=[slot_task], process=Process.sequential, verbose=False)
-    out_slots = str(crew_slots.kickoff()).strip()
+    out_slots = str(logged_crew_kickoff(crew_slots, stage="integration_deliverable", agent_key="p_coder")).strip()
     _ph(f"{agent_label_ko('p_coder')} JSON 초안 완료 · 약 {len(out_slots)}자")
 
     # 검수 LLM은 3만+자 JSON 재출력 시 지연·멈춤이 잦아, 코더 초안을 직접 파싱한다.
@@ -261,7 +262,7 @@ requirements, manifest, test, doc, other
     )
     _ph("연동 구현·운영 가이드 생성 — Gemini 호출")
     crew_g = Crew(agents=[guide_agent], tasks=[guide_task], process=Process.sequential, verbose=False)
-    guide_md = str(crew_g.kickoff()).strip()
+    guide_md = str(logged_crew_kickoff(crew_g, stage="integration_deliverable", agent_key="p_coder")).strip()
     _ph("연동 구현·운영 가이드 완료")
 
     test_task = Task(
@@ -282,7 +283,9 @@ requirements, manifest, test, doc, other
     )
     _ph(f"{agent_label_ko('p_tester')} — 연동 테스트 시나리오 Gemini 호출 시작")
     crew_t = Crew(agents=[test_agent], tasks=[test_task], process=Process.sequential, verbose=False)
-    test_md = sanitize_test_scenarios_markdown(str(crew_t.kickoff()).strip())
+    test_md = sanitize_test_scenarios_markdown(
+        str(logged_crew_kickoff(crew_t, stage="integration_deliverable", agent_key="p_tester")).strip()
+    )
     _ph(f"{agent_label_ko('p_tester')} 연동 테스트 시나리오 완료")
 
     pkg = merge_integration_slots_json_with_extras(

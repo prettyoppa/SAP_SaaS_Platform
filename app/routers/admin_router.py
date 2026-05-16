@@ -28,6 +28,19 @@ from ..subscription_catalog import (
     format_monthly_usd_display,
 )
 from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
+from ..bank_transfer_settings import ALL_BANK_BILLING_SETTING_KEYS, BANK_TRANSFER_SETTING_KEYS
+from ..payment_claim_service import (
+    CLAIM_STATUS_PENDING,
+    confirm_payment_claim,
+    pending_claims_for_admin,
+    reject_payment_claim,
+)
+from ..ai_usage_recorder import (
+    STAGE_LABEL_KO,
+    aggregate_usage_for_user,
+    format_krw_from_micro,
+    format_usd_from_micro,
+)
 from ..i18n_overrides import build_admin_grouped, invalidate_en_overrides_cache, load_i18n_baseline
 from ..i18n_admin_suggest import suggest_ui_english
 from ..agent_playbook import ALL_STAGE_CHOICES, stages_json_from_list
@@ -692,6 +705,36 @@ def admin_user_subscription_page(user_id: int, request: Request, db: Session = D
         .all()
     )
     usage_map = {r.metric_key: int(r.used) for r in usage_rows}
+    usage_agg = aggregate_usage_for_user(db, target.id)
+    raw_settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    try:
+        usd_krw = float((raw_settings.get("usd_krw_rate") or "1350").strip().replace(",", ""))
+    except ValueError:
+        usd_krw = 1350.0
+    stage_rows = []
+    total_micro = int(usage_agg.get("total_usd_micro") or 0)
+    for st, micro in sorted(
+        (usage_agg.get("by_stage_micro") or {}).items(),
+        key=lambda x: -x[1],
+    ):
+        pct = (100.0 * micro / total_micro) if total_micro else 0.0
+        stage_rows.append(
+            {
+                "stage": st,
+                "label": STAGE_LABEL_KO.get(st, st),
+                "micro": micro,
+                "usd": format_usd_from_micro(micro),
+                "krw": format_krw_from_micro(micro, usd_krw),
+                "pct": round(pct, 1),
+            }
+        )
+    payment_claims = (
+        db.query(models.PaymentClaim)
+        .filter(models.PaymentClaim.user_id == target.id)
+        .order_by(models.PaymentClaim.created_at.desc())
+        .limit(20)
+        .all()
+    )
     return templates.TemplateResponse(
         request,
         "admin/user_subscription.html",
@@ -705,6 +748,12 @@ def admin_user_subscription_page(user_id: int, request: Request, db: Session = D
             "metric_order": METRIC_ORDER,
             "metric_label_ko": METRIC_LABEL_KO,
             "saved": request.query_params.get("saved") == "1",
+            "ai_usage_total_usd": format_usd_from_micro(total_micro),
+            "ai_usage_total_krw": format_krw_from_micro(total_micro, usd_krw),
+            "ai_usage_event_count": usage_agg.get("event_count", 0),
+            "ai_usage_stage_rows": stage_rows,
+            "ai_usage_disclaimer": "추정치이며 API 토큰·모델 단가 기반입니다. 환불·손익 판단용 참고 지표입니다.",
+            "payment_claims": payment_claims,
         },
     )
 
@@ -1439,7 +1488,80 @@ def _parse_optional_usd_to_cents(raw) -> int | None:
 SUBSCRIPTION_PLAN_NOTICE_KEYS = (
     "subscription_plans_notice_md_ko",
     "subscription_plans_notice_md_en",
+    *BANK_TRANSFER_SETTING_KEYS,
 )
+
+
+@router.get("/payment-claims", response_class=HTMLResponse)
+def admin_payment_claims_page(request: Request, db: Session = Depends(get_db)):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    pending = pending_claims_for_admin(db)
+    for c in pending:
+        c.user = db.query(models.User).filter(models.User.id == c.user_id).first()
+    recent = (
+        db.query(models.PaymentClaim)
+        .filter(models.PaymentClaim.status != CLAIM_STATUS_PENDING)
+        .order_by(models.PaymentClaim.updated_at.desc())
+        .limit(40)
+        .all()
+    )
+    for c in recent:
+        c.user = db.query(models.User).filter(models.User.id == c.user_id).first()
+    return templates.TemplateResponse(
+        request,
+        "admin/payment_claims.html",
+        {
+            "request": request,
+            "user": actor,
+            "pending": pending,
+            "recent": recent,
+            "saved": request.query_params.get("saved") == "1",
+            "err": (request.query_params.get("err") or "").strip(),
+        },
+    )
+
+
+@router.post("/payment-claims/{claim_id}/confirm")
+def admin_payment_claim_confirm(
+    claim_id: int,
+    request: Request,
+    period_days: str = Form("31"),
+    admin_note: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    try:
+        days = max(1, int((period_days or "31").strip()))
+    except ValueError:
+        days = 31
+    err = confirm_payment_claim(db, claim_id, actor, admin_note=admin_note, period_days=days)
+    if err:
+        from urllib.parse import quote
+
+        return RedirectResponse(url=f"/admin/payment-claims?err={quote(err)}", status_code=303)
+    return RedirectResponse(url="/admin/payment-claims?saved=1", status_code=303)
+
+
+@router.post("/payment-claims/{claim_id}/reject")
+def admin_payment_claim_reject(
+    claim_id: int,
+    request: Request,
+    admin_note: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    err = reject_payment_claim(db, claim_id, actor, admin_note=admin_note)
+    if err:
+        from urllib.parse import quote
+
+        return RedirectResponse(url=f"/admin/payment-claims?err={quote(err)}", status_code=303)
+    return RedirectResponse(url="/admin/payment-claims?saved=1", status_code=303)
 
 
 @router.get("/subscription-plans", response_class=HTMLResponse)
@@ -1487,6 +1609,8 @@ async def admin_subscription_plans_settings_save(request: Request, db: Session =
         return RedirectResponse(url="/", status_code=302)
     form = await request.form()
     for key in SUBSCRIPTION_PLAN_NOTICE_KEYS:
+        if key not in form:
+            continue
         val = (form.get(key) or "").strip()
         existing = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
         if existing:

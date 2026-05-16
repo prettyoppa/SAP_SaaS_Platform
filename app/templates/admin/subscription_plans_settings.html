@@ -137,6 +137,53 @@
     </div>
 
     <div class="admin-content-card mb-4">
+      <h6 class="mb-3 text-warning"><i class="fa-solid fa-building-columns me-2"></i>계좌이체 · 입금 안내 (KR / US)</h6>
+      <p class="text-muted small mb-3">
+        <strong>/subscription-plans</strong> 및 <strong>/account/billing</strong>에 표시됩니다.
+        <code>usd_krw_rate</code>는 회원 구독 화면 AI 비용 KRW 환산에 사용됩니다.
+      </p>
+      <form method="post" action="/admin/subscription-plans">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small" for="bank_transfer_notice_md_ko">KRW 입금 안내 (한국어, Markdown)</label>
+            <textarea id="bank_transfer_notice_md_ko" name="bank_transfer_notice_md_ko" class="form-control font-monospace small" rows="8">{{ settings.get('bank_transfer_notice_md_ko', '') }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small" for="bank_transfer_notice_md_en">KRW notice (English, Markdown)</label>
+            <textarea id="bank_transfer_notice_md_en" name="bank_transfer_notice_md_en" class="form-control font-monospace small" rows="8">{{ settings.get('bank_transfer_notice_md_en', '') }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small" for="bank_transfer_notice_usd_md_ko">USD 입금 안내 (한국어, Markdown)</label>
+            <textarea id="bank_transfer_notice_usd_md_ko" name="bank_transfer_notice_usd_md_ko" class="form-control font-monospace small" rows="8">{{ settings.get('bank_transfer_notice_usd_md_ko', '') }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small" for="bank_transfer_notice_usd_md_en">USD notice (English, Markdown)</label>
+            <textarea id="bank_transfer_notice_usd_md_en" name="bank_transfer_notice_usd_md_en" class="form-control font-monospace small" rows="8">{{ settings.get('bank_transfer_notice_usd_md_en', '') }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small" for="bank_transfer_activation_sla_ko">활성화 SLA (한국어)</label>
+            <input type="text" id="bank_transfer_activation_sla_ko" name="bank_transfer_activation_sla_ko" class="form-control form-control-sm"
+              value="{{ settings.get('bank_transfer_activation_sla_ko', '') }}" placeholder="영업일 1~2일 내 플랜을 활성화합니다.">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small" for="bank_transfer_activation_sla_en">Activation SLA (English)</label>
+            <input type="text" id="bank_transfer_activation_sla_en" name="bank_transfer_activation_sla_en" class="form-control form-control-sm"
+              value="{{ settings.get('bank_transfer_activation_sla_en', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small" for="usd_krw_rate">USD→KRW 환율 (숫자)</label>
+            <input type="text" id="usd_krw_rate" name="usd_krw_rate" class="form-control form-control-sm font-monospace"
+              value="{{ settings.get('usd_krw_rate', '') }}" placeholder="1350">
+          </div>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>계좌이체 안내 저장</button>
+          <a href="/admin/payment-claims" class="btn btn-outline-warning ms-2">입금 신청 대기열</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="admin-content-card mb-4">
       <h6 class="mb-3 text-warning"><i class="fa-solid fa-circle-question me-2"></i>기능별 설명 (구독 플랜 페이지 툴팁)</h6>
       <p class="text-muted small mb-3">
         <strong>/subscription-plans</strong> 비교 표에서 각 기능명 오른쪽에 물음표가 나타나며, 마우스를 올리면 아래 텍스트가 말풍선으로 표시됩니다.

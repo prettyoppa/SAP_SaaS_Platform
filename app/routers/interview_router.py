@@ -310,6 +310,7 @@ def _cap_suggestions(xs) -> list:
 
 def _run_proposal_background(rfp_id: int):
     """BackgroundTask: 에이전트 Crew를 실행하여 Proposal을 생성하고 DB에 저장합니다."""
+    from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
     from ..database import SessionLocal
     db = SessionLocal()
     try:
@@ -327,13 +328,16 @@ def _run_proposal_background(rfp_id: int):
                 member_safe_output=ms,
             )
             pb = _playbook_addon_for_rfp(db, rfp, STAGE_PROPOSAL)
-            proposal = _fc().generate_proposal(
-                rfp_dict,
-                conv,
-                code_library_context=code_ctx,
-                member_safe_output=ms,
-                playbook_addon=pb,
-            )
+            with ai_usage_scope(
+                AiUsageContext(user_id=int(rfp.user_id), request_kind="rfp", request_id=int(rfp.id))
+            ):
+                proposal = _fc().generate_proposal(
+                    rfp_dict,
+                    conv,
+                    code_library_context=code_ctx,
+                    member_safe_output=ms,
+                    playbook_addon=pb,
+                )
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
         rfp.proposal_text = (

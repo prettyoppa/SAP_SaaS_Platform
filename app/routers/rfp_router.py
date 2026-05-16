@@ -1428,6 +1428,8 @@ def rfp_hub_chat_post(
             context_block=ctx_block,
             history_messages=prior,
             user_question=msg,
+            owner_user_id=int(rfp.user_id),
+            request_id=int(rfp.id),
         )
     except Exception:
         reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."

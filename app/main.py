@@ -34,7 +34,7 @@ from .subscription_quota import plan_row_for_entitlements, user_subscription_pla
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import site_content_router
-from .routers import payments_router, paid_admin_router, proposal_supplements_router
+from .routers import payments_router, paid_admin_router, proposal_supplements_router, billing_router
 from .templates_config import templates
 
 _log = logging.getLogger("uvicorn.error")
@@ -157,6 +157,7 @@ def _run_migrations():
         ("users", "subscription_plan_source", "VARCHAR(20) DEFAULT 'default'", "VARCHAR(20) DEFAULT 'default'"),
         ("users", "subscription_plan_expires_at", "DATETIME", "TIMESTAMP"),
         ("users", "experience_trial_ends_at", "DATETIME", "TIMESTAMP"),
+        ("users", "billing_country", "VARCHAR(2)", "VARCHAR(2)"),
         ("subscription_plans", "price_monthly_krw", "INTEGER", "INTEGER"),
         ("subscription_plans", "price_monthly_usd_cents", "INTEGER", "INTEGER"),
         ("notices", "title_en", "TEXT", "TEXT"),
@@ -234,6 +235,11 @@ def _run_migrations():
         models.AgentPlaybookEntry.__table__.create(bind=engine, checkfirst=True)
     except Exception:
         pass
+    try:
+        models.PaymentClaim.__table__.create(bind=engine, checkfirst=True)
+        models.AiUsageEvent.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        pass
 
 
 DEFAULT_INTEGRATION_IMPL_DEVTYPES = [
@@ -293,6 +299,13 @@ def _seed_home_tile_settings():
         ("user_guide_pdf_url", "/static/docs/user-guide.pdf"),
         ("subscription_plans_notice_md_ko", ""),
         ("subscription_plans_notice_md_en", ""),
+        ("bank_transfer_notice_md_ko", ""),
+        ("bank_transfer_notice_md_en", ""),
+        ("bank_transfer_notice_usd_md_ko", ""),
+        ("bank_transfer_notice_usd_md_en", ""),
+        ("bank_transfer_activation_sla_ko", "영업일 1~2일 내 플랜을 활성화합니다."),
+        ("bank_transfer_activation_sla_en", "We activate your plan within 1–2 business days."),
+        ("usd_krw_rate", "1350"),
         ("experience_trial_days", "14"),
         ("service_abap_intro_md_ko", DEFAULT_SERVICE_ABAP_INTRO_MD_KO),
         ("service_analysis_intro_md_ko", DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO),
@@ -645,6 +658,7 @@ app.include_router(integration_router.router)
 app.include_router(payments_router.router)
 app.include_router(paid_admin_router.router)
 app.include_router(proposal_supplements_router.router)
+app.include_router(billing_router.router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -800,6 +814,9 @@ def subscription_plans_page(request: Request):
             "user": user,
             "subscription_notice_md_ko": (raw_settings.get("subscription_plans_notice_md_ko") or "").strip(),
             "subscription_notice_md_en": (raw_settings.get("subscription_plans_notice_md_en") or "").strip(),
+            "bank_transfer_notice_md_ko": (raw_settings.get("bank_transfer_notice_md_ko") or "").strip(),
+            "bank_transfer_notice_usd_md_ko": (raw_settings.get("bank_transfer_notice_usd_md_ko") or "").strip(),
+            "bank_transfer_sla_ko": (raw_settings.get("bank_transfer_activation_sla_ko") or "").strip(),
             "metric_labels": METRIC_LABEL_KO,
             "metric_labels_en": METRIC_LABEL_EN,
             "metric_help": metric_help,

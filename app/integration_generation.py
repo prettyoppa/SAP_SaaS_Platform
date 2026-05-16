@@ -18,6 +18,7 @@ from .agent_playbook import (
     playbook_prompt_wrap,
 )
 from .database import SessionLocal
+from .ai_usage_recorder import AiUsageContext, ai_usage_scope, logged_crew_kickoff
 from .delivered_code_package import (
     _integration_pkg_needs_slot_expansion,
     ensure_python_script_delivery_package,
@@ -190,7 +191,10 @@ ABAP Report/Function 모듈 작성 지시는 쓰지 말고, 외부 코드·스�
             expected_output="마크다운 본문",
         )
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
-        raw = str(crew.kickoff())
+        with ai_usage_scope(
+            AiUsageContext(user_id=int(ir.user_id), request_kind="integration", request_id=int(ir.id))
+        ):
+            raw = str(logged_crew_kickoff(crew, stage="fs", agent_key="p_architect"))
         ir.fs_text = raw.strip()
         ir.fs_status = "ready"
         ir.fs_generated_at = datetime.utcnow()
@@ -259,16 +263,19 @@ def run_integration_deliverable_job(ir_id: int) -> None:
             request_id=int(ir.id),
             agent_proposal_text=ir.proposal_text,
         )
-        pkg, legacy_md = generate_integration_deliverable_artifact(
-            rfp_dict,
-            fs_body,
-            prop_merged,
-            conv_txt,
-            impl,
-            playbook_addon=_pb_g,
-            phase_log=lambda m: append_integration_job_log(ir_id, "delivered_job_log", m),
-            impl_type_codes=impl_codes,
-        )
+        with ai_usage_scope(
+            AiUsageContext(user_id=int(ir.user_id), request_kind="integration", request_id=int(ir.id))
+        ):
+            pkg, legacy_md = generate_integration_deliverable_artifact(
+                rfp_dict,
+                fs_body,
+                prop_merged,
+                conv_txt,
+                impl,
+                playbook_addon=_pb_g,
+                phase_log=lambda m: append_integration_job_log(ir_id, "delivered_job_log", m),
+                impl_type_codes=impl_codes,
+            )
         if pkg:
             if _integration_pkg_needs_slot_expansion(pkg):
                 pkg = expand_integration_monolithic_slots(pkg)

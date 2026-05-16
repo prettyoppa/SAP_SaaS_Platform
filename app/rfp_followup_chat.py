@@ -138,6 +138,8 @@ def generate_rfp_followup_reply(
     context_block: str,
     history_messages: list,
     user_question: str,
+    owner_user_id: int | None = None,
+    request_id: int | None = None,
 ) -> str:
     hist = history_messages[-MAX_HISTORY_MESSAGES:] if history_messages else []
     hist_text = _format_history(hist)
@@ -165,6 +167,16 @@ def generate_rfp_followup_reply(
 
     model = _get_model()
     response = model.generate_content(prompt)
+    if owner_user_id:
+        from .ai_usage_recorder import log_gemini_generate_content
+
+        log_gemini_generate_content(
+            response,
+            stage="ai_inquiry",
+            user_id=int(owner_user_id),
+            request_kind="rfp",
+            request_id=request_id,
+        )
     try:
         raw = (response.text or "").strip()
     except Exception:

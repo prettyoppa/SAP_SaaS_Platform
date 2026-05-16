@@ -17,6 +17,7 @@ from .agents.paid_crew import generate_delivered_abap_artifact, generate_fs_mark
 from .abap_analysis_crew_adapter import abap_analysis_request_to_crew_rfp_dict, _member_safe_for_abap_analysis
 from .abap_analysis_proposal_service import abap_analysis_synthetic_conversation
 from .database import SessionLocal
+from .ai_usage_recorder import AiUsageContext, ai_usage_scope
 from .delivery_fs_supplements import KIND_ANALYSIS, resolved_delivery_fs_for_codegen
 from .delivery_proposal_supplements import resolved_delivery_proposal_for_downstream
 from .delivered_code_package import (
@@ -226,14 +227,21 @@ def run_abap_analysis_fs_job(analysis_id: int) -> None:
                 request_id=int(row.id),
                 agent_proposal_text=row.proposal_text,
             )
-            row.fs_text = generate_fs_markdown(
-                rfp_dict,
-                conv,
-                prop_merged,
-                code_library_context=code_ctx or "",
-                member_safe_output=ms,
-                playbook_addon=pb_fs,
-            )
+            with ai_usage_scope(
+                AiUsageContext(
+                    user_id=int(row.user_id),
+                    request_kind="analysis",
+                    request_id=int(row.id),
+                )
+            ):
+                row.fs_text = generate_fs_markdown(
+                    rfp_dict,
+                    conv,
+                    prop_merged,
+                    code_library_context=code_ctx or "",
+                    member_safe_output=ms,
+                    playbook_addon=pb_fs,
+                )
             row.fs_status = "ready"
             row.fs_generated_at = datetime.utcnow()
             row.fs_error = None
@@ -310,16 +318,23 @@ def run_abap_analysis_delivered_code_job(analysis_id: int) -> None:
                 request_id=int(row.id),
                 agent_proposal_text=row.proposal_text,
             )
-            pkg, legacy_md = generate_delivered_abap_artifact(
-                rfp_dict,
-                fs_body or "",
-                prop_merged,
-                conv,
-                code_library_context=code_ctx or "",
-                member_safe_output=ms,
-                phase_log=_phase_log_delivery,
-                playbook_addon=pb_del,
-            )
+            with ai_usage_scope(
+                AiUsageContext(
+                    user_id=int(row.user_id),
+                    request_kind="analysis",
+                    request_id=int(row.id),
+                )
+            ):
+                pkg, legacy_md = generate_delivered_abap_artifact(
+                    rfp_dict,
+                    fs_body or "",
+                    prop_merged,
+                    conv,
+                    code_library_context=code_ctx or "",
+                    member_safe_output=ms,
+                    phase_log=_phase_log_delivery,
+                    playbook_addon=pb_del,
+                )
             row.delivered_code_text = legacy_md
             row.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None
             row.delivered_code_status = "ready"

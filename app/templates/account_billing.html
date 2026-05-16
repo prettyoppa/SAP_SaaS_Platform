@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}구독·입금 – SAP 개발 파트너{% endblock %}
+
+{% block content %}
+<div class="dashboard-page py-4">
+  <div class="container" style="max-width: 42rem;">
+    <div class="mb-4">
+      <a href="/account" class="small text-decoration-none"><i class="fa-solid fa-arrow-left me-1"></i>회원 정보</a>
+      <h2 class="mt-2 mb-1">구독·계좌이체</h2>
+      <p class="text-muted small mb-0">현재 플랜: <strong>{{ subscription_plan_display_ko }}</strong></p>
+    </div>
+
+    {% if billing_ok %}
+    <div class="alert alert-success small">입금 신청을 접수했습니다. 확인 후 플랜이 활성화됩니다.</div>
+    {% endif %}
+    {% if billing_err %}
+    <div class="alert alert-danger small">{{ billing_err }}</div>
+    {% endif %}
+
+    <div class="rfp-section p-3 mb-4">
+      <h6 class="text-muted text-uppercase small mb-2">결제 안내</h6>
+      <p class="small text-muted">현재 <strong>한국(원화)</strong>·<strong>미국(달러)</strong> 계좌이체만 지원합니다. 카드·자동결제는 준비 중입니다.</p>
+      {% if settings.get('bank_transfer_activation_sla_ko') %}
+      <p class="small mb-3"><i class="fa-solid fa-clock me-1 text-primary"></i>{{ settings.bank_transfer_activation_sla_ko }}</p>
+      {% endif %}
+
+      <ul class="nav nav-tabs nav-tabs-sm mb-3" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#bt-kr" type="button">KRW · 한국</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#bt-us" type="button">USD · 미국</button></li>
+      </ul>
+      <div class="tab-content small">
+        <div class="tab-pane fade show active markdown-body" id="bt-kr">
+          {{ (settings.get('bank_transfer_notice_md_ko') or '')|md_html }}
+        </div>
+        <div class="tab-pane fade markdown-body" id="bt-us">
+          {{ (settings.get('bank_transfer_notice_usd_md_ko') or '')|md_html }}
+        </div>
+      </div>
+    </div>
+
+    {% if pending_claim %}
+    <div class="alert alert-info small">
+      <strong>입금 확인 대기 중</strong> — {{ pending_claim.plan_code }} / {{ pending_claim.currency }}
+      {{ "{:,}".format(pending_claim.amount_minor) }}{% if pending_claim.currency == 'USD' %} (cents){% endif %}
+      <form method="post" action="/account/billing/claim/{{ pending_claim.id }}/cancel" class="d-inline ms-2"
+            data-app-confirm="입금 신청을 취소할까요?">
+        <button type="submit" class="btn btn-xs btn-outline-secondary">신청 취소</button>
+      </form>
+    </div>
+    {% elif plan_options|length > 0 %}
+    <form method="post" action="/account/billing/claim" class="rfp-section p-3 mb-4">
+      <h6 class="mb-3">입금 신청</h6>
+      <div class="mb-3">
+        <label class="form-label small">청구 국가</label>
+        <select name="billing_country" class="form-select form-select-sm" id="billingCountry" required>
+          <option value="KR">한국 (KRW)</option>
+          <option value="US">미국 (USD)</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small">플랜</label>
+        <select name="plan_code" class="form-select form-select-sm" id="billingPlan" required>
+          {% for p in plan_options %}
+          <option value="{{ p.code }}" data-krw="{{ p.krw or 0 }}" data-usd="{{ p.usd_cents or 0 }}">{{ p.name }} ({{ p.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small">입금 금액 (플랜 요금과 동일)</label>
+        <input type="number" name="amount_minor" id="billingAmount" class="form-control form-control-sm" required readonly>
+        <p class="text-muted small mb-0 mt-1" id="billingAmountHint"></p>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small">입금자명</label>
+        <input type="text" name="depositor_name" class="form-control form-control-sm" required maxlength="200"
+               value="{{ user.full_name }}" placeholder="통장 표시 이름">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small">입금일</label>
+        <input type="date" name="transfer_date" class="form-control form-control-sm">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small">메모 (선택)</label>
+        <textarea name="member_note" class="form-control form-control-sm" rows="2" maxlength="500"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">입금 신청 제출</button>
+    </form>
+    {% endif %}
+
+    {% if claims|length > 0 %}
+    <div class="rfp-section p-3 mb-4">
+      <h6 class="text-muted text-uppercase small mb-2">입금 신청 이력</h6>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>일시</th><th>플랜</th><th>금액</th><th>상태</th></tr></thead>
+          <tbody>
+            {% for c in claims %}
+            <tr>
+              <td class="small text-muted">{{ c.created_at|local_dt_span }}</td>
+              <td><code>{{ c.plan_code }}</code></td>
+              <td class="font-monospace small">{{ c.currency }} {{ "{:,}".format(c.amount_minor) }}</td>
+              <td class="small">{{ c.status }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <p class="small text-muted mb-0">
+      <a href="/subscription-plans">구독 플랜 비교</a> ·
+      문의는 <a href="/reviews">문의/리뷰</a>를 이용해 주세요.
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var country = document.getElementById('billingCountry');
+  var plan = document.getElementById('billingPlan');
+  var amount = document.getElementById('billingAmount');
+  var hint = document.getElementById('billingAmountHint');
+  if (!country || !plan || !amount) return;
+  function sync() {
+    var opt = plan.options[plan.selectedIndex];
+    if (!opt) return;
+    var kr = parseInt(opt.getAttribute('data-krw') || '0', 10);
+    var us = parseInt(opt.getAttribute('data-usd') || '0', 10);
+    if (country.value === 'KR') {
+      amount.value = kr > 0 ? String(kr) : '';
+      hint.textContent = kr > 0 ? ('₩' + kr.toLocaleString('ko-KR') + ' 을 입금해 주세요.') : '원화 요금이 없는 플랜입니다.';
+    } else {
+      amount.value = us > 0 ? String(us) : '';
+      hint.textContent = us > 0 ? ('$' + (us / 100).toFixed(2) + ' USD (센트 단위 ' + us + ')') : 'USD 요금이 없는 플랜입니다.';
+    }
+  }
+  country.addEventListener('change', sync);
+  plan.addEventListener('change', sync);
+  sync();
+})();
+</script>
+{% endblock %}

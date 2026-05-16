@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}입금 신청 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="container">
+    <h3 class="mb-3"><i class="fa-solid fa-building-columns me-2"></i>계좌이체 입금 신청</h3>
+    {% if saved %}<div class="alert alert-success py-2">처리했습니다.</div>{% endif %}
+    {% if err %}<div class="alert alert-danger py-2">{{ err }}</div>{% endif %}
+
+    <div class="rfp-section p-3 mb-4">
+      <h6 class="mb-2">확인 대기 ({{ pending|length }}건)</h6>
+      {% if pending|length == 0 %}
+      <p class="text-muted small mb-0">대기 중인 신청이 없습니다.</p>
+      {% else %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>신청일</th><th>회원</th><th>플랜</th><th>금액</th><th>입금자</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in pending %}
+            <tr>
+              <td class="small text-muted">{{ c.created_at|local_dt_span }}</td>
+              <td>
+                <a href="/admin/users/{{ c.user_id }}/subscription">{{ c.user.full_name if c.user else c.user_id }}</a>
+                <div class="small text-muted font-monospace">{{ c.user.email if c.user else '' }}</div>
+              </td>
+              <td><code>{{ c.plan_account_kind }}/{{ c.plan_code }}</code><br><span class="small text-muted">{{ c.billing_country }}</span></td>
+              <td class="font-monospace small">{{ c.currency }} {{ "{:,}".format(c.amount_minor) }}</td>
+              <td class="small">{{ c.depositor_name }}{% if c.transfer_date %}<br><span class="text-muted">{{ c.transfer_date.strftime('%Y-%m-%d') if c.transfer_date else '' }}</span>{% endif %}</td>
+              <td class="text-end text-nowrap">
+                <form method="post" action="/admin/payment-claims/{{ c.id }}/confirm" class="d-inline"
+                      data-app-confirm="입금을 확인하고 구독을 활성화할까요?">
+                  <input type="hidden" name="period_days" value="31" />
+                  <button type="submit" class="btn btn-sm btn-success">확인·활성화</button>
+                </form>
+                <form method="post" action="/admin/payment-claims/{{ c.id }}/reject" class="d-inline ms-1"
+                      data-app-confirm="반려할까요?">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">반려</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="rfp-section p-3">
+      <h6 class="mb-2">최근 처리 이력</h6>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead><tr><th>일시</th><th>회원</th><th>플랜</th><th>상태</th></tr></thead>
+          <tbody>
+            {% for c in recent %}
+            <tr>
+              <td class="small">{{ c.updated_at|local_dt_span }}</td>
+              <td>{{ c.user.full_name if c.user else c.user_id }}</td>
+              <td><code>{{ c.plan_code }}</code></td>
+              <td>{{ c.status }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <a href="/admin/subscription-plans" class="btn btn-outline-secondary btn-sm mt-3">구독·입금 안내 설정</a>
+  </div>
+</div>
+{% endblock %}

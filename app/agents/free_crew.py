@@ -62,6 +62,12 @@ def _parse_analyst_gate_json(raw: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _kickoff_logged(crew, *, stage: str, agent_key: str | None = None):
+    from ..ai_usage_recorder import logged_crew_kickoff
+
+    return logged_crew_kickoff(crew, stage=stage, agent_key=agent_key)
+
+
 def run_interview_qa_enhancement(
     llm: LLM,
     rfp_data: dict,
@@ -140,7 +146,7 @@ def run_interview_qa_enhancement(
             process=Process.sequential,
             verbose=False,
         )
-        ok, issues = _parse_analyst_gate_json(str(gate_crew.kickoff()))
+        ok, issues = _parse_analyst_gate_json(str(_kickoff_logged(gate_crew, stage="interview", agent_key="f_analyst")))
     except Exception:
         ok, issues = True, ""
 
@@ -177,7 +183,7 @@ def run_interview_qa_enhancement(
                 process=Process.sequential,
                 verbose=False,
             )
-            rq, rsa = _parse_question_and_suggestions(str(rc.kickoff()))
+            rq, rsa = _parse_question_and_suggestions(str(_kickoff_logged(rc, stage="interview", agent_key="f_questioner")))
             if rq:
                 q, sa = rq, _normalize_suggested_answers(rsa)
                 if len(sa) < 2:
@@ -226,7 +232,7 @@ def run_interview_qa_enhancement(
             process=Process.sequential,
             verbose=False,
         )
-        fq, fsa = _parse_question_and_suggestions(str(rev_crew.kickoff()))
+        fq, fsa = _parse_question_and_suggestions(str(_kickoff_logged(rev_crew, stage="interview", agent_key="f_reviewer")))
         if fq:
             if len(fsa) < 2:
                 more = generate_suggested_answers_for_question(
@@ -681,7 +687,7 @@ JSON만 출력:
             expected_output='{"suggested_answers": []}',
         )
         crew = Crew(agents=[f_questioner], tasks=[t], process=Process.sequential, verbose=False)
-        raw = str(crew.kickoff())
+        raw = str(_kickoff_logged(crew, stage="interview", agent_key="f_questioner"))
         return _parse_suggested_answers_only(raw)
     except Exception:
         return []
@@ -836,7 +842,7 @@ def generate_sequential_start(
         verbose=False,
     )
     try:
-        result = crew.kickoff()
+        result = _kickoff_logged(crew, stage="proposal", agent_key="f_writer")
         q1, sugg = _parse_question_and_suggestions(str(result))
     except Exception:
         q1, sugg = "", []
@@ -991,7 +997,7 @@ RFP: {rfp_ctx}
         verbose=False,
     )
     try:
-        out = str(crew.kickoff())
+        out = str(_kickoff_logged(crew, stage="proposal", agent_key="f_analyst"))
         parsed = _parse_followup_result(out)
     except Exception:
         parsed = {"round_complete": False, "next_question": "", "suggested_answers": []}
@@ -1238,7 +1244,7 @@ def generate_proposal(
         verbose=True,
     )
 
-    result = crew.kickoff()
+    result = _kickoff_logged(crew, stage="proposal", agent_key="f_reviewer")
     raw = str(result).strip()
 
     if raw.startswith("[APPROVED]"):
@@ -1405,7 +1411,7 @@ def analyze_code_for_library(
         )
 
     try:
-        crew.kickoff()
+        _kickoff_logged(crew, stage="codelib", agent_key="f_analyst")
 
         analysis_raw = _crew_task_output_text(analysis_task)
         question_raw = _crew_task_output_text(question_task) if question_task else ""
@@ -1554,7 +1560,7 @@ def augment_abap_analysis_with_requirement(
             process=Process.sequential,
             verbose=False,
         )
-        aug_crew.kickoff()
+        _kickoff_logged(aug_crew, stage="codelib", agent_key="f_questioner")
         raw = _crew_task_output_text(aug_task)
         data = _parse_json_block(raw, default={})
         if not data:

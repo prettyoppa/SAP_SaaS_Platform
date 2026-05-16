@@ -33,6 +33,7 @@ from ..delivered_code_package import (
     delivered_package_has_body,
 )
 from ..gemini_model import get_gemini_model_id
+from ..ai_usage_recorder import logged_crew_kickoff
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
@@ -159,7 +160,7 @@ def generate_fs_markdown(
         process=Process.sequential,
         verbose=False,
     )
-    return str(crew.kickoff()).strip()
+    return str(logged_crew_kickoff(crew, stage="fs", agent_key="p_architect")).strip()
 
 
 def _monolithic_delivered_abap_markdown(
@@ -284,7 +285,7 @@ ABAP 작성 규칙:
         process=Process.sequential,
         verbose=False,
     )
-    out_k = str(crew_k.kickoff()).strip()
+    out_k = str(logged_crew_kickoff(crew_k, stage="delivered_code", agent_key="p_coder")).strip()
     _ph(f"{agent_label_ko('p_coder')} 단계 완료 · 출력 길이 약 {len(out_k)}자")
 
     young_task = Task(
@@ -312,7 +313,7 @@ ABAP 작성 규칙:
         process=Process.sequential,
         verbose=False,
     )
-    out_y = str(crew_y.kickoff()).strip()
+    out_y = str(logged_crew_kickoff(crew_y, stage="delivered_code", agent_key="p_inspector")).strip()
     _ph(f"{agent_label_ko('p_inspector')} 단계 완료 · 출력 길이 약 {len(out_y)}자")
 
     brian_task = Task(
@@ -339,7 +340,7 @@ ABAP 작성 규칙:
         process=Process.sequential,
         verbose=False,
     )
-    out_b = str(crew_b.kickoff()).strip()
+    out_b = str(logged_crew_kickoff(crew_b, stage="delivered_code", agent_key="p_tester")).strip()
     _ph(f"{agent_label_ko('p_tester')} 단계 완료 · 최종 길이 약 {len(out_b)}자")
     return out_b
 
@@ -485,7 +486,7 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
         process=Process.sequential,
         verbose=False,
     )
-    out_slots = str(crew_slots.kickoff()).strip()
+    out_slots = str(logged_crew_kickoff(crew_slots, stage="delivered_code", agent_key="p_coder")).strip()
     _ph(f"{agent_label_ko('p_coder')} JSON 초안 완료 · 약 {len(out_slots)}자")
 
     review_task = Task(
@@ -512,7 +513,7 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
         process=Process.sequential,
         verbose=False,
     )
-    out_rev = str(crew_rev.kickoff()).strip()
+    out_rev = str(logged_crew_kickoff(crew_rev, stage="delivered_code", agent_key="p_inspector")).strip()
     _ph(f"{agent_label_ko('p_inspector')} JSON 검수 완료 · 약 {len(out_rev)}자")
 
     data = extract_json_object_from_llm_text(out_rev)
@@ -558,7 +559,7 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
         process=Process.sequential,
         verbose=False,
     )
-    guide_md = str(crew_g.kickoff()).strip()
+    guide_md = str(logged_crew_kickoff(crew_g, stage="delivered_code", agent_key="p_coder")).strip()
     _ph("구현·운영 가이드 완료")
 
     test_task = Task(
@@ -585,7 +586,9 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
         process=Process.sequential,
         verbose=False,
     )
-    test_md = sanitize_test_scenarios_markdown(str(crew_t.kickoff()).strip())
+    test_md = sanitize_test_scenarios_markdown(
+        str(logged_crew_kickoff(crew_t, stage="delivered_code", agent_key="p_tester")).strip()
+    )
     _ph(f"{agent_label_ko('p_tester')} 테스트 시나리오 완료")
 
     pkg = merge_slots_json_with_extras(
