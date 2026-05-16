@@ -1694,18 +1694,27 @@ html[data-theme="light"] .auth-recovery-link:hover {
   padding: 1.25rem 0;
 }
 .admin-table .badge { font-size: .75rem; }
-.admin-users-table {
+.admin-users-table,
+.admin-agents-table {
   --bs-table-bg: var(--surface2);
   --bs-table-color: var(--text);
   --bs-table-border-color: var(--border);
+  --bs-table-striped-bg: rgba(0, 0, 0, .12);
+  --bs-table-hover-bg: rgba(99, 102, 241, .08);
 }
-.admin-users-table > :not(caption) > * > * {
+.admin-users-table > :not(caption) > * > *,
+.admin-agents-table > :not(caption) > * > * {
   border-color: var(--border);
+  background-color: var(--bs-table-bg);
+  color: var(--bs-table-color);
 }
-.admin-users-table thead th {
+.admin-users-table thead th,
+.admin-agents-table thead th {
   color: var(--muted);
+  background-color: var(--surface2);
 }
-.admin-users-table tbody tr:hover > * {
+.admin-users-table tbody tr:hover > *,
+.admin-agents-table tbody tr:hover > * {
   background: rgba(99, 102, 241, .08) !important;
   color: var(--text);
 }
@@ -1723,8 +1732,13 @@ html[data-theme="light"] .admin-current-user-badge {
   color: #1d4ed8;
   border-color: rgba(37, 99, 235, .35);
 }
-html[data-theme="light"] .admin-users-table tbody tr:hover > * {
+html[data-theme="light"] .admin-users-table tbody tr:hover > *,
+html[data-theme="light"] .admin-agents-table tbody tr:hover > * {
   background: rgba(79, 70, 229, .06) !important;
+}
+html[data-theme="light"] .admin-agents-table > :not(caption) > * > * {
+  background-color: var(--surface2);
+  color: var(--text);
 }
 html[data-theme="light"] .admin-users-table .admin-current-user-row > * {
   background: rgba(245, 158, 11, .12) !important;

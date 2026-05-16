@@ -31,7 +31,12 @@ from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
 from ..i18n_overrides import build_admin_grouped, invalidate_en_overrides_cache, load_i18n_baseline
 from ..i18n_admin_suggest import suggest_ui_english
 from ..agent_playbook import ALL_STAGE_CHOICES, stages_json_from_list
-from ..agent_registry import agent_registry_summary, all_agent_specs, pipeline_steps_ko
+from ..agent_registry import (
+    agent_registry_summary,
+    agents_overview_ui,
+    all_agent_specs,
+    pipeline_steps_ko,
+)
 
 router = APIRouter(prefix="/admin")
 
@@ -75,6 +80,7 @@ def admin_agents_overview(request: Request, db: Session = Depends(get_db)):
             "agents": all_agent_specs(),
             "summary": agent_registry_summary(),
             "pipeline_steps": pipeline_steps_ko(),
+            "ui": agents_overview_ui(),
         },
     )
 

@@ -201,3 +201,38 @@ def pipeline_steps_ko() -> tuple[str, ...]:
         "운영 규칙: Admin 에이전트 플레이북이 단계별 프롬프트에 주입",
         "실행 엔진: CrewAI + Google Gemini (GOOGLE_API_KEY)",
     )
+
+
+def agents_overview_ui() -> dict[str, object]:
+    """Admin /admin/agents 화면 정적 문구 (템플릿 인코딩 이슈 방지용)."""
+    return {
+        "page_title": "AI 에이전트 구성 – Admin",
+        "heading": "AI 에이전트 구성",
+        "intro": (
+            "Catchy Lab SAP Dev Hub에서 실제로 호출되는 8개 CrewAI 에이전트입니다. "
+            "회원 화면에는 대외명(예: 「요구분석」 에이전트)만 표시되고, "
+            "페르소나 이름은 프롬프트·운영 참고용입니다."
+        ),
+        "card_total": "전체",
+        "card_free_desc": "요구분석 · 질의 · 제안서 · 제안검수",
+        "card_paid_desc": "FS설계 · ABAP · 코드검수 · 테스트",
+        "pipeline_heading": "전체 파이프라인",
+        "playbook_link": "에이전트 플레이북",
+        "playbook_hint": "에서 단계별 운영 규칙을 추가하면 위 에이전트 프롬프트에 자동 주입됩니다.",
+        "detail_heading": "에이전트 상세",
+        "detail_badge": "역할 ID = 코드·로그 기준",
+        "col_role_id": "역할 ID",
+        "col_legacy": "구형 이름",
+        "col_persona": "페르소나",
+        "col_tier": "티어",
+        "col_label": "대외명",
+        "col_workflow": "역할·워크플로",
+        "col_menus": "적용 메뉴",
+        "col_playbook": "플레이북 단계",
+        "notes_heading": "참고",
+        "notes": (
+            "ABAP 분석·개선은 인터뷰 단계 없이 f_analyst(분석·연계) → f_writer·f_reviewer(제안서)로 이어집니다.",
+            "인터뷰 질문 품질 강화: 환경변수 INTERVIEW_QA_ENHANCE(기본 on) — f_analyst 합불 → f_questioner 재작성 → f_reviewer 최종.",
+            "납품 ABAP: p_coder JSON 슬롯 → p_inspector 검수 → p_tester 시나리오(순차 Gemini 호출).",
+        ),
+    }
