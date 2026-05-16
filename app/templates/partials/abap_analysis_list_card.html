@@ -48,9 +48,9 @@
   </div>
   <div class="rfp-list-right rfp-list-actions">
     <div class="d-flex flex-wrap gap-1 justify-content-end">
-      {% set workflow_rfp = row.workflow_rfp %}
-      {% set request_href = '/abap-analysis/' ~ row.id ~ '#abap-request-block' %}
+      {% with analysis_phase_row = row %}
       {% include "partials/workflow_phase_nav.html" %}
+      {% endwith %}
     </div>
   </div>
 </div>
@@ -72,9 +72,9 @@
     {% else %}
     <span class="badge bg-warning text-dark" data-i18n="detail.analysisPending">분석 오류/미완료</span>
     {% endif %}
-    {% set workflow_rfp = row.workflow_rfp %}
-    {% set request_href = '/abap-analysis/' ~ row.id ~ '#abap-request-block' %}
+    {% with analysis_phase_row = row %}
     {% include "partials/workflow_phase_nav.html" %}
+    {% endwith %}
   </div>
 </div>
 </div>

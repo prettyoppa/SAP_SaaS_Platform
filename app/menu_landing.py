@@ -94,10 +94,7 @@ def standard_menu_bucket_meta() -> dict[str, dict]:
 
 
 def abap_analysis_menu_bucket(row: models.AbapAnalysisRequest) -> str:
-    """홈 타일 분류. 레거시: workflow_rfp 연결 시 RFP 진행을 따름. 신규: 본 레코드의 제안·FS·납품."""
-    wr = getattr(row, "workflow_rfp", None)
-    if wr is not None:
-        return rfp_landing_bucket(wr)
+    """홈 타일 분류. 본 레코드(제안·FS·납품·개선)만 사용 — RFP 연결 여부와 무관하게 분석 메뉴에서 분리한다."""
     if row.is_draft:
         return "draft"
     fs_s = ((getattr(row, "fs_status", None) or "none").strip().lower() or "none")

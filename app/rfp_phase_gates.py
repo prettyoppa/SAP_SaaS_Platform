@@ -15,14 +15,7 @@ from .rfp_hub import rfp_hub_url
 from .rfp_reference_code import normalize_reference_code_payload
 
 
-def _reference_code_has_content(rfp: models.RFP) -> bool:
-    raw = normalize_reference_code_payload(getattr(rfp, "reference_code_payload", None))
-    if not raw:
-        return False
-    try:
-        data: dict[str, Any] = json.loads(raw)
-    except Exception:
-        return False
+def _reference_code_has_content_json(data: dict[str, Any]) -> bool:
     slots = data.get("slots")
     if not isinstance(slots, list):
         return False
@@ -35,6 +28,29 @@ def _reference_code_has_content(rfp: models.RFP) -> bool:
             if isinstance(sec, dict) and (sec.get("code") or "").strip():
                 return True
     return False
+
+
+def _reference_code_has_content(rfp: models.RFP) -> bool:
+    raw = normalize_reference_code_payload(getattr(rfp, "reference_code_payload", None))
+    if not raw:
+        return False
+    try:
+        data: dict[str, Any] = json.loads(raw)
+    except Exception:
+        return False
+    return _reference_code_has_content_json(data)
+
+
+def reference_code_payload_has_content(raw: str | None) -> bool:
+    """AbapAnalysisRequest.reference_code_payload 등 RFP 외 레코드용."""
+    norm = normalize_reference_code_payload(raw)
+    if not norm:
+        return False
+    try:
+        data: dict[str, Any] = json.loads(norm)
+    except Exception:
+        return False
+    return _reference_code_has_content_json(data)
 
 
 def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, Any]:
@@ -185,7 +201,7 @@ def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] =
     request_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="request")
 
     dc_started = dc_s != "none"
-    has_ref_dev = _reference_code_has_content(ir)
+    has_ref_dev = reference_code_payload_has_content(getattr(ir, "reference_code_payload", None))
 
     if dc_started:
         dev_code_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="devcode")
@@ -195,6 +211,55 @@ def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] =
         dev_code_href = None
 
     has_dev_code = dc_started or has_ref_dev
+
+    return {
+        "has_dev_code": has_dev_code,
+        "dev_code_href": dev_code_href,
+        "has_fs": has_fs,
+        "fs_href": fs_href,
+        "has_proposal": has_proposal,
+        "proposal_href": proposal_href,
+        "has_interview": has_interview,
+        "interview_href": interview_href,
+        "request_href": request_href,
+    }
+
+
+def abap_analysis_phase_gates(row: models.AbapAnalysisRequest, user: Optional[Any] = None) -> dict[str, Any]:
+    """
+    분석·개선(abap_analysis_requests) 목록 카드용 단계 링크.
+    RFP 통합 허브가 아닌 /abap-analysis/{id}(·/edit·console-readonly) + 본문 앵커만 사용한다.
+    """
+    aid = int(row.id)
+    owner_id = int(row.user_id)
+    draft = bool(getattr(row, "is_draft", False))
+    base = menu_abap_detail_url(user=user, owner_user_id=owner_id, request_id=aid, draft=draft)
+    request_href = f"{base}#abap-phase-request"
+    hub = f"{base}#abap-delivery-hub"
+
+    fs_s = ((getattr(row, "fs_status", None) or "none").strip().lower() or "none")
+    dc_s = ((getattr(row, "delivered_code_status", None) or "none").strip().lower() or "none")
+    pipeline = fs_s not in ("none", "") or dc_s not in ("none", "")
+    is_operator = bool(
+        user and (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
+    )
+    has_fs = pipeline or is_operator or fs_s == "ready"
+    fs_href = hub if has_fs else None
+
+    has_ref_dev = reference_code_payload_has_content(getattr(row, "reference_code_payload", None))
+    dc_started = dc_s not in ("none", "")
+    dev_code_href = hub if (dc_started or has_ref_dev) else None
+    has_dev_code = bool(dev_code_href)
+
+    iv = (getattr(row, "interview_status", None) or "").strip()
+    prop = (getattr(row, "proposal_text", None) or "").strip()
+    imp = (getattr(row, "improvement_request_text", None) or "").strip()
+    has_proposal = bool(prop) or iv == "generating_proposal" or bool(imp)
+    proposal_href = hub if has_proposal else None
+
+    analyzed = bool(getattr(row, "is_analyzed", False))
+    has_interview = analyzed and (not draft)
+    interview_href = f"{base}#abap-followup-chat" if has_interview else None
 
     return {
         "has_dev_code": has_dev_code,

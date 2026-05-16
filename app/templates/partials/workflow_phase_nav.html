@@ -1,10 +1,14 @@
 {# 개발코드 / FS / 납품관리 / 제안서 / 인터뷰 / 요청 #}
+{% if analysis_phase_row is defined and analysis_phase_row %}
+{% set ph = analysis_phase_row|abap_analysis_phase_gates(user if user is defined else none) %}
+{% else %}
 {% set wf = workflow_rfp if workflow_rfp is defined and workflow_rfp else none %}
 {% set int_ir = integration_list_ir if integration_list_ir is defined and integration_list_ir else none %}
 {% if int_ir %}
 {% set ph = int_ir|integration_phase_gates(user if user is defined else none) %}
 {% elif wf %}
 {% set ph = wf|phase_gates(user if user is defined else none) %}
+{% endif %}
 {% endif %}
 <div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
   {% if ph is defined %}
@@ -19,12 +23,16 @@
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.fs">FS</span></span>
   {% endif %}
   {% if user is defined and user.is_admin %}
-  {% if int_ir %}
+  {% if int_ir is defined and int_ir %}
   <a href="/integration/{{ int_ir.id }}?phase=fs" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="납품 관리">
     <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
-  {% elif wf %}
+  {% elif wf is defined and wf %}
   <a href="/admin/rfp/{{ wf.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="납품 관리">
+    <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
+  </a>
+  {% elif analysis_phase_row is defined and analysis_phase_row %}
+  <a href="/admin/abap-analysis/{{ analysis_phase_row.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="납품 관리" target="_blank" rel="noopener">
     <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
   {% endif %}
@@ -51,7 +59,9 @@
   {% else %}
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true" data-i18n-title="phase.interviewPending" title="인터뷰 단계는 준비 중입니다."><span data-i18n="phase.interview">인터뷰</span></span>
   {% endif %}
-  {% if request_href %}
+  {% if ph is defined and ph.request_href %}
+  <a href="{{ ph.request_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.request">요청</span></a>
+  {% elif request_href is defined and request_href %}
   <a href="{{ request_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.request">요청</span></a>
   {% endif %}
 </div>
