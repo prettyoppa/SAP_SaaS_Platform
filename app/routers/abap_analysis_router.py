@@ -103,6 +103,7 @@ from ..rfp_download_names import (
     delivered_abap_download_basename,
     delivered_code_zip_basename,
 )
+from ..rfp_reference_code import (
     MAX_REFERENCE_CODE_BYTES,
     abap_source_only_from_reference_payload,
     normalize_reference_code_payload,
