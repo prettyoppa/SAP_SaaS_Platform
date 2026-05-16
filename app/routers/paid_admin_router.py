@@ -28,6 +28,7 @@ from ..integration_generation import (
     run_integration_fs_job,
 )
 from ..delivery_fs_supplements import (
+    DELIVERY_FS_SUPPLEMENT_MAX_FILES,
     KIND_ANALYSIS,
     KIND_INTEGRATION,
     KIND_RFP,
@@ -84,9 +85,11 @@ def admin_rfp_delivery_page(
     )
     has_code_material = rfp_delivered_body_ready(rfp)
 
-    ph = rfp_phase_gates(rfp, actor)
+    ph = rfp_phase_gates(rfp, actor, db)
     dev_code_view_href = ph.get("dev_code_href")
     has_dev_code_nav = bool(ph.get("has_dev_code"))
+
+    from ..delivery_fs_supplements import fs_supplement_hub_template_ctx
 
     return templates.TemplateResponse(
         request,
@@ -97,6 +100,7 @@ def admin_rfp_delivery_page(
             "rfp": rfp,
             "delivery_err": err,
             "can_start_delivered_code": can_start_code,
+            "can_operate_delivery": True,
             "fs_codegen_preview_error": fs_src_err,
             "job_log_poll_ms": 2500,
             "fs_busy": fs_busy,
@@ -106,6 +110,12 @@ def admin_rfp_delivery_page(
             "has_code_material": has_code_material,
             "dev_code_view_href": dev_code_view_href,
             "has_dev_code_nav": has_dev_code_nav,
+            **fs_supplement_hub_template_ctx(
+                db,
+                request_kind=KIND_RFP,
+                request_id=int(rfp.id),
+                return_to=f"/admin/rfp/{rfp_id}/delivery",
+            ),
         },
     )
 
@@ -237,6 +247,11 @@ async def _handle_fs_supplement_upload(
             pending.append((raw, file.filename or "fs.md"))
     if not pending:
         return _delivery_redirect_after_fs_upload(kind, rid, err="fs_upload_empty", return_to=return_to)
+    existing_n = len(list_delivery_fs_supplements(db, kind, rid))
+    if existing_n + len(pending) > DELIVERY_FS_SUPPLEMENT_MAX_FILES:
+        return _delivery_redirect_after_fs_upload(kind, rid, err="fs_upload_limit", return_to=return_to)
+    if len(pending) > DELIVERY_FS_SUPPLEMENT_MAX_FILES:
+        return _delivery_redirect_after_fs_upload(kind, rid, err="fs_upload_batch_limit", return_to=return_to)
     rfp_fk = rid if kind == KIND_RFP else None
     for raw, fname in pending:
         path_stored, fname_stored = _store_rfp_file(int(owner_user_id), ".md", raw, fname)

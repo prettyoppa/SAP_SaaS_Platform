@@ -11,6 +11,9 @@ KIND_RFP = "rfp"
 KIND_ANALYSIS = "analysis"
 KIND_INTEGRATION = "integration"
 
+# 컨설턴트 FS .md: 요청당 누적 상한 · 1회 스테이징(드롭존) 상한
+DELIVERY_FS_SUPPLEMENT_MAX_FILES = 15
+
 _FS_PRIORITY_PREAMBLE = (
     "**코드 생성 FS 입력 안내:** 아래에 **컨설턴트 FS 첨부**가 있으면 "
     "에이전트 자동 FS와 충돌할 때 **첨부 FS를 최우선**으로 구현한다. "
@@ -105,6 +108,7 @@ def fs_supplement_hub_template_ctx(
         "fs_supplement_upload_url": paths["fs_supplement_upload_url"],
         "fs_supplement_delete_url_prefix": paths["fs_supplement_delete_url_prefix"],
         "fs_supplement_return_to": return_to,
+        "fs_supplement_max_files": DELIVERY_FS_SUPPLEMENT_MAX_FILES,
     }
 
 

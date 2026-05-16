@@ -49,6 +49,95 @@ def agents_ai_source_ko(*role_ids: str) -> str:
     return "AI 에이전트 생성 (" + ", ".join(agent_label_ko(r) for r in role_ids) + ")"
 
 
+# free_crew 내부 페르소나 — 고객 문서에 그대로 노출 금지
+_FREE_CREW_PERSONA_NAMES: dict[str, str] = {
+    "Hannah": "f_analyst",
+    "Mia": "f_questioner",
+    "Jun": "f_writer",
+    "Sara": "f_reviewer",
+}
+
+
+def prepare_member_facing_proposal_markdown(text: str) -> str:
+    """
+    제안서 본문을 회원 화면용으로 정리합니다.
+    wrap_unbracketed_agent_names + 페르소나 인명·1인칭 서두 제거.
+    """
+    out = wrap_unbracketed_agent_names(text or "")
+    out = _strip_proposal_persona_opening(out)
+    out = _replace_leaked_free_crew_personas(out)
+    return out
+
+
+def _strip_proposal_persona_opening(text: str) -> str:
+    """# Development Proposal 앞의 Jun 서두 등 제거."""
+    if not text:
+        return text
+    markers = ("# Development Proposal", "# Development", "## 1. 개발")
+    for marker in markers:
+        idx = text.find(marker)
+        if 0 < idx < 1200:
+            prefix = text[:idx].strip()
+            if prefix and not prefix.lstrip().startswith("#"):
+                lowered = prefix.lower()
+                if any(
+                    k in lowered
+                    for k in (
+                        "jun",
+                        "hannah",
+                        "mia",
+                        "sara",
+                        "컨설턴트",
+                        "입니다",
+                        "작성했습니다",
+                        "제안서를",
+                    )
+                ):
+                    return text[idx:].lstrip()
+        elif idx == 0:
+            break
+    return text
+
+
+def _replace_leaked_free_crew_personas(text: str) -> str:
+    if not text:
+        return text
+    out = str(text)
+    out = re.sub(
+        r"SAP\s*컨설턴트\s*Jun(?:입니다|이)?[\.。]?\s*",
+        "",
+        out,
+        flags=re.IGNORECASE,
+    )
+    out = re.sub(
+        r"컨설턴트\s*Jun(?:입니다|이)?[\.。]?\s*",
+        "",
+        out,
+        flags=re.IGNORECASE,
+    )
+    out = re.sub(
+        r"Hannah님이\s*정리(?:해\s*주신|한)\s*",
+        "요청·인터뷰에서 정리된 ",
+        out,
+        flags=re.IGNORECASE,
+    )
+    out = re.sub(
+        r"Hannah(?:님)?의\s*",
+        f"{agent_label_ko('f_analyst')} ",
+        out,
+        flags=re.IGNORECASE,
+    )
+    for persona, role_id in _FREE_CREW_PERSONA_NAMES.items():
+        label = agent_label_ko(role_id)
+        out = re.sub(
+            rf"\b{re.escape(persona)}(?:님)?\b",
+            label,
+            out,
+            flags=re.IGNORECASE,
+        )
+    return out
+
+
 def wrap_unbracketed_agent_names(text: str) -> str:
     """
     본문/HTML/마크다운에 남은 옛 표기를 「대외명」 에이전트 형태로 통일합니다.

@@ -1,40 +1,56 @@
-{# can_operate_delivery, fs_supplements, fs_supplement_upload_url, fs_supplement_delete_url_prefix, fs_supplement_return_to #}
+{# can_operate_delivery, fs_supplements, fs_supplement_upload_url, fs_supplement_delete_url_prefix, fs_supplement_return_to, fs_supplement_max_files #}
 {% if can_operate_delivery|default(false) %}
 <div class="proposal-card mb-3 border" style="border-color:var(--border)!important;background:var(--surface2);">
   <h6 class="text-muted small text-uppercase mb-2">
     <i class="fa-solid fa-paperclip me-1"></i>컨설턴트 FS 첨부 (.md)
   </h6>
   <p class="small text-muted mb-2">
-    에이전트 FS가 부족하면 직접 작성한 기능명세를 올리세요. 개발코드 생성 시 <strong>첨부 FS가 자동 FS보다 우선</strong> 적용됩니다.
+    에이전트 FS가 부족하면 직접 작성한 기능명세를 올리세요. 드래그하거나 클릭해 선택합니다.
+    <strong>개발코드 생성 시작</strong> 시 선택한 파일이 먼저 저장되며, 코드 생성에 <strong>첨부 FS가 자동 FS보다 우선</strong> 반영됩니다.
   </p>
 
   {% if fs_supplements %}
-  <ul class="mb-3 ps-3 small">
-    {% for s in fs_supplements %}
-    <li class="mb-2 d-flex flex-wrap align-items-center gap-2">
-      <span class="fw-medium">{{ s.filename }}</span>
-      <span class="text-muted">({% if s.uploaded_at %}{{ s.uploaded_at|local_dt_span }}{% else %}—{% endif %})</span>
-      <form method="post" action="{{ fs_supplement_delete_url_prefix }}/{{ s.id }}/delete" class="d-inline ms-auto"
-            data-app-confirm="이 FS 첨부를 삭제할까요?">
-        {% if fs_supplement_return_to %}
-        <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
-        {% endif %}
-        <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
-      </form>
-    </li>
-    {% endfor %}
-  </ul>
+  <div class="border rounded p-3 mb-3" style="background:rgba(0,0,0,.04);border-color:var(--border)!important;">
+    <div class="fw-semibold mb-2 small"><i class="fa-solid fa-check me-1"></i>저장된 첨부</div>
+    <ul class="mb-0 ps-3 small">
+      {% for s in fs_supplements %}
+      <li class="mb-2 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-medium">{{ s.filename }}</span>
+        <span class="text-muted">({% if s.uploaded_at %}{{ s.uploaded_at|local_dt_span }}{% else %}—{% endif %})</span>
+        <form method="post" action="{{ fs_supplement_delete_url_prefix }}/{{ s.id }}/delete" class="d-inline ms-auto"
+              data-app-confirm="이 FS 첨부를 삭제할까요?">
+          {% if fs_supplement_return_to %}
+          <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
+          {% endif %}
+          <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
   {% endif %}
 
-  <form method="post" enctype="multipart/form-data" action="{{ fs_supplement_upload_url }}">
-    {% if fs_supplement_return_to %}
-    <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
-    {% endif %}
-    <div class="mb-2">
-      <input type="file" name="files" class="form-control form-control-sm" accept=".md,text/markdown" multiple>
+  <div class="file-drop-zone"
+       data-fs-supplement-dropzone
+       data-max-files="{{ fs_supplement_max_files|default(15) }}"
+       data-upload-url="{{ fs_supplement_upload_url }}"
+       data-return-to="{{ fs_supplement_return_to|default('') }}">
+    <div class="position-relative mb-2 file-drop-hit-target" data-fs-drop-hit style="min-height: 8.5rem;">
+      <label class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
+        <input type="file" data-fs-file-input multiple
+               accept=".md,text/markdown"
+               class="file-drop-native-input"/>
+        <span class="file-drop-content d-block text-center py-4 px-2" data-fs-drop-content>
+          <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
+          <p class="fw-semibold mb-1">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+          <p class="text-muted small mb-0">Markdown (.md) · 파일당 최대 20MB · 1회 최대 {{ fs_supplement_max_files|default(15) }}개 · 요청당 누적 {{ fs_supplement_max_files|default(15) }}개</p>
+        </span>
+      </label>
     </div>
-    <p class="small text-muted mb-2">Markdown (.md) · 파일당 최대 20MB · 여러 파일 가능</p>
-    <button type="submit" class="btn btn-sm btn-secondary">FS 첨부 업로드</button>
-  </form>
+    <div data-fs-staging-list class="w-100 px-1"></div>
+  </div>
 </div>
+
+<script src="/static/js/fs_supplement_dropzone.js?v=20260516a"></script>
+<script src="/static/js/delivery_preflight_upload.js?v=20260516a"></script>
 {% endif %}

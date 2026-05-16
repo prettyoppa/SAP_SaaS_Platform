@@ -18,6 +18,7 @@ from .abap_analysis_crew_adapter import abap_analysis_request_to_crew_rfp_dict, 
 from .abap_analysis_proposal_service import abap_analysis_synthetic_conversation
 from .database import SessionLocal
 from .delivery_fs_supplements import KIND_ANALYSIS, resolved_delivery_fs_for_codegen
+from .delivery_proposal_supplements import resolved_delivery_proposal_for_downstream
 from .delivered_code_package import (
     delivered_package_has_body,
     parse_delivered_code_payload,
@@ -219,10 +220,16 @@ def run_abap_analysis_fs_job(analysis_id: int) -> None:
             PlaybookContext(entity="abap_analysis", stage=STAGE_FS_ABAP, workflow_origin="abap_analysis"),
         )
         try:
+            prop_merged = resolved_delivery_proposal_for_downstream(
+                db,
+                request_kind=KIND_ANALYSIS,
+                request_id=int(row.id),
+                agent_proposal_text=row.proposal_text,
+            )
             row.fs_text = generate_fs_markdown(
                 rfp_dict,
                 conv,
-                row.proposal_text or "",
+                prop_merged,
                 code_library_context=code_ctx or "",
                 member_safe_output=ms,
                 playbook_addon=pb_fs,
@@ -297,10 +304,16 @@ def run_abap_analysis_delivered_code_job(analysis_id: int) -> None:
             PlaybookContext(entity="abap_analysis", stage=STAGE_DELIVERED_ABAP, workflow_origin="abap_analysis"),
         )
         try:
+            prop_merged = resolved_delivery_proposal_for_downstream(
+                db,
+                request_kind=KIND_ANALYSIS,
+                request_id=int(row.id),
+                agent_proposal_text=row.proposal_text,
+            )
             pkg, legacy_md = generate_delivered_abap_artifact(
                 rfp_dict,
                 fs_body or "",
-                row.proposal_text or "",
+                prop_merged,
                 conv,
                 code_library_context=code_ctx or "",
                 member_safe_output=ms,

@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from . import models
 from .delivery_fs_supplements import KIND_RFP, resolved_delivery_fs_for_codegen
+from .delivery_proposal_supplements import KIND_RFP as _KIND_RFP, resolved_delivery_proposal_for_downstream
 from .agent_playbook import PlaybookContext, STAGE_DELIVERED_ABAP, STAGE_FS_ABAP, build_playbook_addon
 from .agent_display import agent_label_ko
 from .agents.agent_tools import get_code_library_context
@@ -118,10 +119,16 @@ def run_fs_generation_job(rfp_id: int) -> None:
         wo = (getattr(rfp, "workflow_origin", None) or "direct").strip()
         pb_fs = build_playbook_addon(db, PlaybookContext(entity="rfp", stage=STAGE_FS_ABAP, workflow_origin=wo))
         try:
+            prop_merged = resolved_delivery_proposal_for_downstream(
+                db,
+                request_kind=_KIND_RFP,
+                request_id=int(rfp.id),
+                agent_proposal_text=rfp.proposal_text,
+            )
             rfp.fs_text = generate_fs_markdown(
                 rfp_dict,
                 conv,
-                rfp.proposal_text or "",
+                prop_merged,
                 code_library_context=code_ctx or "",
                 member_safe_output=ms,
                 playbook_addon=pb_fs,
@@ -218,10 +225,16 @@ def run_delivered_code_job(rfp_id: int) -> None:
             db, PlaybookContext(entity="rfp", stage=STAGE_DELIVERED_ABAP, workflow_origin=wo_d)
         )
         try:
+            prop_merged = resolved_delivery_proposal_for_downstream(
+                db,
+                request_kind=_KIND_RFP,
+                request_id=int(rfp.id),
+                agent_proposal_text=rfp.proposal_text,
+            )
             pkg, legacy_md = generate_delivered_abap_artifact(
                 rfp_dict,
                 fs_body or "",
-                rfp.proposal_text or "",
+                prop_merged,
                 conv,
                 code_library_context=code_ctx or "",
                 member_safe_output=ms,

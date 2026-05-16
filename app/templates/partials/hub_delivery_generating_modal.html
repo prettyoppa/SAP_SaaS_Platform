@@ -1,0 +1,89 @@
+{# delivery_gen_active, delivery_gen_fs_busy, delivery_gen_dc_busy, delivery_gen_status_url, delivery_gen_request_title, delivery_gen_modal_id #}
+{% set _dg_active = delivery_gen_active|default(gen_busy|default(ana_gen_busy|default(false))) %}
+{% set _dg_fs = delivery_gen_fs_busy|default(fs_busy|default(ana_fs_busy|default(false))) %}
+{% set _dg_dc = delivery_gen_dc_busy|default(dc_busy|default(ana_dc_busy|default(false))) %}
+{% set _dg_modal_id = delivery_gen_modal_id|default('hubDeliveryProgressModal') %}
+{% set _dg_status_url = delivery_gen_status_url|default('') %}
+{% set _dg_title = delivery_gen_request_title|default('') %}
+{% if _dg_active %}
+<div class="modal fade hub-delivery-gen-modal" id="{{ _dg_modal_id }}" tabindex="-1" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false"
+     data-delivery-gen-status-url="{{ _dg_status_url }}"
+     data-delivery-gen-fs-busy="{{ '1' if _dg_fs else '0' }}"
+     data-delivery-gen-dc-busy="{{ '1' if _dg_dc else '0' }}"
+     data-delivery-gen-auto-show="1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:640px">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-body py-4 px-4 proposal-generating-wait">
+        <div class="text-center">
+          <div class="mb-4">
+            <div class="busy-spinner-ring" aria-hidden="true">
+              <div class="spinner-border text-primary" role="status" style="width:80px;height:80px;border-width:6px;"></div>
+              <span class="busy-spinner-icon" aria-hidden="true">🤖</span>
+            </div>
+          </div>
+
+          {% if _dg_fs and not _dg_dc %}
+          <h3 class="mb-2">기능명세(FS) 작성 중</h3>
+          <p class="text-muted mb-1 hub-delivery-gen-agents-line">
+            <strong>{{ 'p_architect'|agent_label }}</strong>가 RFP·인터뷰·제안서를 바탕으로
+            상세 기능명세서(FS)를 작성하고 있습니다.
+          </p>
+          <p class="text-muted small mb-4">약 1~3분 소요될 수 있습니다.</p>
+          <div class="d-flex justify-content-center gap-3 mb-4 hub-delivery-gen-steps" data-pipeline="fs">
+            <div class="text-center generating-step active" data-step-index="0">
+              <div class="step-icon">📐</div>
+              <div class="step-label small">{{ 'p_architect'|agent_label }}<br><span class="text-muted">기능명세 작성</span></div>
+            </div>
+          </div>
+          {% elif _dg_dc and not _dg_fs %}
+          <h3 class="mb-2">납품 코드 작성 중</h3>
+          <p class="text-muted mb-1 hub-delivery-gen-agents-line">
+            <strong>{{ 'p_coder'|agent_label }}</strong>가 기능명세를 바탕으로 납품 ABAP 초안을 작성하고,
+            <strong>{{ 'p_inspector'|agent_label }}</strong>가 검토·보완하며,
+            <strong>{{ 'p_tester'|agent_label }}</strong>가 단위 테스트 시나리오를 작성하고 있습니다.
+          </p>
+          <p class="text-muted small mb-4">AI 에이전트 3명이 순차적으로 작업 중입니다. 약 1~5분 소요될 수 있습니다.</p>
+          <div class="d-flex justify-content-center gap-3 mb-4 hub-delivery-gen-steps" data-pipeline="dc">
+            <div class="text-center generating-step active" data-step-index="0">
+              <div class="step-icon">✍️</div>
+              <div class="step-label small">{{ 'p_coder'|agent_label }}<br><span class="text-muted">ABAP 초안</span></div>
+            </div>
+            <div class="text-center text-muted" style="padding-top:12px">→</div>
+            <div class="text-center generating-step" data-step-index="1">
+              <div class="step-icon">🔍</div>
+              <div class="step-label small">{{ 'p_inspector'|agent_label }}<br><span class="text-muted">검토·수정</span></div>
+            </div>
+            <div class="text-center text-muted" style="padding-top:12px">→</div>
+            <div class="text-center generating-step" data-step-index="2">
+              <div class="step-icon">✅</div>
+              <div class="step-label small">{{ 'p_tester'|agent_label }}<br><span class="text-muted">테스트 시나리오</span></div>
+            </div>
+          </div>
+          {% else %}
+          <h3 class="mb-2">생성 진행 중</h3>
+          <p class="text-muted small mb-4">서버에서 작업이 진행 중입니다.</p>
+          {% endif %}
+
+          <p class="text-muted small mb-3">
+            다른 화면으로 이동해도 서버에서 계속되며, 완료 후 이 화면이 자동으로 갱신됩니다.
+          </p>
+          {% if _dg_title %}
+          <div class="text-muted small">
+            <i class="fa-solid fa-file-lines me-1"></i>
+            요청: <strong>{{ _dg_title }}</strong>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+.generating-step { opacity: 0.35; transition: opacity 0.5s; }
+.generating-step.active { opacity: 1; }
+.hub-delivery-gen-modal .step-icon { font-size: 2rem; margin-bottom: 4px; }
+.hub-delivery-gen-modal .proposal-generating-wait .step-label { color: var(--text, var(--bs-body-color)); }
+</style>
+<script src="/static/js/hub_delivery_generating.js?v=20260516d"></script>
+{% endif %}

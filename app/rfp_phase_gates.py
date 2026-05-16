@@ -53,7 +53,9 @@ def reference_code_payload_has_content(raw: str | None) -> bool:
     return _reference_code_has_content_json(data)
 
 
-def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, Any]:
+def rfp_phase_gates(
+    rfp: models.RFP, user: Optional[Any] = None, db: Session | None = None
+) -> dict[str, Any]:
     """
     Jinja 필터용. has_* / href 키는 템플릿에서 사용.
     FS: 결제 완료·FS/납품 파이프라인 시작 후 활성 — **관리자**는 결제 전에도 링크 허브로 진입 가능(납품 콘솔 테스트).
@@ -78,16 +80,21 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
     iv = (rfp.interview_status or "").strip()
     prop = (rfp.proposal_text or "").strip()
     nmsg = len(getattr(rfp, "messages", None) or [])
+    has_prop_sup = False
+    if db is not None:
+        from .delivery_proposal_supplements import KIND_RFP, has_delivery_proposal_supplements
+
+        has_prop_sup = has_delivery_proposal_supplements(db, KIND_RFP, int(rfp.id))
 
     wo = (getattr(rfp, "workflow_origin", None) or "").strip().lower()
     workflow_abap = wo == "abap_analysis"
 
-    has_proposal = bool(prop) or iv == "generating_proposal"
+    has_proposal = bool(prop) or has_prop_sup or iv == "generating_proposal"
     if workflow_abap and st != "draft":
         has_proposal = True
     if iv == "generating_proposal":
         proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="proposal")
-    elif prop:
+    elif prop or has_prop_sup:
         proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="proposal")
     elif workflow_abap and st != "draft":
         proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="proposal")
@@ -144,7 +151,9 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
     }
 
 
-def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] = None) -> dict[str, Any]:
+def integration_phase_gates(
+    ir: models.IntegrationRequest, user: Optional[Any] = None, db: Session | None = None
+) -> dict[str, Any]:
     """
     연동 개발(IntegrationRequest) 리스트용 — FS·개발코드·제안·인터뷰는 IR 레코드·연동 허브 URL 기준.
     (과거 workflow_rfp 연결이 있어도 연동 허브에서 진행한 단계를 반영한다.)
@@ -164,11 +173,16 @@ def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] =
     iv = (getattr(ir, "interview_status", None) or "").strip()
     prop = (getattr(ir, "proposal_text", None) or "").strip()
     nmsg = len(getattr(ir, "interview_messages", None) or [])
+    has_prop_sup = False
+    if db is not None:
+        from .delivery_proposal_supplements import KIND_INTEGRATION, has_delivery_proposal_supplements
 
-    has_proposal = bool(prop) or iv == "generating_proposal"
+        has_prop_sup = has_delivery_proposal_supplements(db, KIND_INTEGRATION, iid)
+
+    has_proposal = bool(prop) or has_prop_sup or iv == "generating_proposal"
     if iv == "generating_proposal":
         proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="proposal")
-    elif prop:
+    elif prop or has_prop_sup:
         proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="proposal")
     else:
         proposal_href = None

@@ -195,6 +195,21 @@ class RfpFsSupplement(Base):
     rfp = relationship("RFP", foreign_keys=[rfp_id], back_populates="fs_supplements")
 
 
+class RfpProposalSupplement(Base):
+    """요청자가 업로드한 수정 제안서(.md). R2 또는 로컬 uploads 경로에 저장."""
+
+    __tablename__ = "rfp_proposal_supplements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rfp_id = Column(Integer, ForeignKey("rfps.id", ondelete="CASCADE"), nullable=True, index=True)
+    request_kind = Column(String(32), nullable=False, default="rfp", index=True)
+    request_id = Column(Integer, nullable=False, index=True)
+    stored_path = Column(Text, nullable=False)
+    filename = Column(String(512), nullable=False)
+    uploaded_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class IntegrationRequest(Base):
     """SAP 연동 개발 요청 (비 ABAP 중심: VBA, Python, 배치, API 등)."""
 

@@ -1,0 +1,58 @@
+{# can_upload_proposal_supplement, proposal_supplements, proposal_supplement_* #}
+{% if can_upload_proposal_supplement|default(false) %}
+<div class="proposal-card mb-3 border" style="border-color:var(--border)!important;background:var(--surface2);">
+  <h6 class="text-muted small text-uppercase mb-2">
+    <i class="fa-solid fa-paperclip me-1"></i>수정 제안서 첨부 (.md)
+  </h6>
+  <p class="small text-muted mb-2">
+    에이전트 제안서를 직접 수정한 Markdown을 올리세요. 드래그하거나 클릭해 선택하면 <strong>즉시 저장</strong>됩니다.
+    FS·납품 코드 생성 시 <strong>첨부 제안서가 에이전트 제안서보다 우선</strong> 반영됩니다.
+  </p>
+
+  {% if proposal_supplements %}
+  <div class="border rounded p-3 mb-3" style="background:rgba(0,0,0,.04);border-color:var(--border)!important;">
+    <div class="fw-semibold mb-2 small"><i class="fa-solid fa-check me-1"></i>저장된 첨부</div>
+    <ul class="mb-0 ps-3 small" data-proposal-saved-list>
+      {% for s in proposal_supplements %}
+      <li class="mb-2 d-flex flex-wrap align-items-center gap-2" data-proposal-saved-id="{{ s.id }}">
+        <span class="fw-medium">{{ s.filename }}</span>
+        <span class="text-muted">({% if s.uploaded_at %}{{ s.uploaded_at|local_dt_span }}{% else %}—{% endif %})</span>
+        <form method="post" action="{{ proposal_supplement_delete_url_prefix }}/{{ s.id }}/delete" class="d-inline ms-auto"
+              data-app-confirm="이 제안서 첨부를 삭제할까요?">
+          {% if proposal_supplement_return_to %}
+          <input type="hidden" name="return_to" value="{{ proposal_supplement_return_to }}">
+          {% endif %}
+          <button type="submit" class="btn btn-sm btn-outline-danger py-0">삭제</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% else %}
+  <ul class="mb-0 ps-3 small d-none" data-proposal-saved-list></ul>
+  {% endif %}
+
+  <div class="file-drop-zone"
+       data-proposal-supplement-dropzone
+       data-max-files="{{ proposal_supplement_max_files|default(15) }}"
+       data-upload-url="{{ proposal_supplement_upload_url }}"
+       data-return-to="{{ proposal_supplement_return_to|default('') }}">
+    <div class="position-relative mb-2 file-drop-hit-target" data-proposal-drop-hit style="min-height: 8.5rem;">
+      <label class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
+        <input type="file" data-proposal-file-input multiple
+               accept=".md,text/markdown"
+               class="file-drop-native-input"/>
+        <span class="file-drop-content d-block text-center py-4 px-2" data-proposal-drop-content>
+          <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
+          <p class="fw-semibold mb-1">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+          <p class="text-muted small mb-0">Markdown (.md) · 파일당 최대 20MB · 1회 최대 {{ proposal_supplement_max_files|default(15) }}개 · 요청당 누적 {{ proposal_supplement_max_files|default(15) }}개</p>
+        </span>
+      </label>
+    </div>
+    <p class="small text-muted mb-2" data-proposal-upload-status></p>
+    <div data-proposal-staging-list class="w-100 px-1 d-none" aria-hidden="true"></div>
+  </div>
+</div>
+
+<script src="/static/js/proposal_supplement_dropzone.js?v=20260516b"></script>
+{% endif %}

@@ -142,7 +142,17 @@ def run_integration_fs_job(ir_id: int) -> None:
         impl = format_integration_impl_types_for_llm(db, ir.impl_types or "")
         rfp_dict = integration_request_to_crew_rfp_dict(db, ir)
         conv_txt = _fmt_conv_short(ir)
-        prop = (ir.proposal_text or "").strip()[:72000]
+        from .delivery_proposal_supplements import (
+            KIND_INTEGRATION,
+            resolved_delivery_proposal_for_downstream,
+        )
+
+        prop = resolved_delivery_proposal_for_downstream(
+            db,
+            request_kind=KIND_INTEGRATION,
+            request_id=int(ir.id),
+            agent_proposal_text=ir.proposal_text,
+        ).strip()[:72000]
         pb_fs = build_playbook_addon(
             db,
             PlaybookContext(
@@ -241,10 +251,18 @@ def run_integration_deliverable_job(ir_id: int) -> None:
         from .agents.integration_deliverable_crew import generate_integration_deliverable_artifact
 
         impl_codes = [x.strip() for x in (ir.impl_types or "").split(",") if x.strip()]
+        from .delivery_proposal_supplements import resolved_delivery_proposal_for_downstream
+
+        prop_merged = resolved_delivery_proposal_for_downstream(
+            db,
+            request_kind=KIND_INTEGRATION,
+            request_id=int(ir.id),
+            agent_proposal_text=ir.proposal_text,
+        )
         pkg, legacy_md = generate_integration_deliverable_artifact(
             rfp_dict,
             fs_body,
-            (ir.proposal_text or ""),
+            prop_merged,
             conv_txt,
             impl,
             playbook_addon=_pb_g,

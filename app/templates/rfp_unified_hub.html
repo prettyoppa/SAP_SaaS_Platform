@@ -276,7 +276,9 @@
       </div>
     </details>
 
-    {% include 'partials/rfp_hub_member_delivery_modal.html' %}
+    {% with delivery_gen_status_url='/rfp/' ~ (rfp.id|string) ~ '/paid-generation-status', delivery_gen_request_title=rfp.title %}
+    {% include 'partials/hub_delivery_generating_bundle.html' %}
+    {% endwith %}
 
     {% if user.id == rfp.user_id %}
     <p class="small text-muted mb-0 mt-2">
@@ -384,7 +386,7 @@
 {% if hub_include_proposal_scripts|default(false) %}
 {% include 'partials/proposal_workspace_scripts.html' %}
 {% endif %}
-{% include 'partials/rfp_hub_gen_poll_script.html' %}
+{# FS·코드 생성 폴링: hub_delivery_generating.js (모달 data 속성) #}
 {% if hub_rfp_ai_chat_enabled|default(false) %}
 <script>
 (function () {

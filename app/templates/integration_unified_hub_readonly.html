@@ -129,5 +129,7 @@
 {% endblock %}
 
 {% block extra_js %}
-{% include 'partials/integration_hub_gen_poll_script.html' %}
+{% with delivery_gen_status_url='/integration/' ~ (ir.id|string) ~ '/generation-status', delivery_gen_request_title=ir.title %}
+{% include 'partials/hub_delivery_generating_bundle.html' %}
+{% endwith %}
 {% endblock %}

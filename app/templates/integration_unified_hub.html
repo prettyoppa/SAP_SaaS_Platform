@@ -205,6 +205,10 @@
       </div>
     </details>
 
+    {% with delivery_gen_status_url='/integration/' ~ (ir.id|string) ~ '/generation-status', delivery_gen_request_title=ir.title %}
+    {% include 'partials/hub_delivery_generating_bundle.html' %}
+    {% endwith %}
+
     {% if hub_int_ai_chat_enabled|default(false) %}
     <p class="small text-muted mb-0 mt-2">
       <i class="fa-solid fa-comments me-1 text-primary-light"></i>
@@ -302,7 +306,7 @@
 {% if hub_include_proposal_scripts|default(false) %}
 {% include 'partials/proposal_workspace_scripts.html' %}
 {% endif %}
-{% include 'partials/integration_hub_gen_poll_script.html' %}
+{# FS·코드 생성 폴링: hub_delivery_generating.js #}
 {% if hub_int_ai_chat_enabled|default(false) %}
 <script>
 (function () {

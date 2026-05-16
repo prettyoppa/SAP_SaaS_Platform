@@ -390,5 +390,7 @@
 })();
 </script>
 {% endif %}
-{% include 'partials/abap_hub_gen_poll_script.html' %}
+{% with delivery_gen_status_url='/abap-analysis/' ~ (row.id|string) ~ '/generation-status', delivery_gen_request_title=row.title %}
+{% include 'partials/hub_delivery_generating_bundle.html' %}
+{% endwith %}
 {% endblock %}

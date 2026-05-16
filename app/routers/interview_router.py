@@ -11,7 +11,7 @@ from ..database import get_db
 from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
 from ..rfp_reference_code import format_reference_code_for_llm
-from ..agent_display import wrap_unbracketed_agent_names
+from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
@@ -336,7 +336,9 @@ def _run_proposal_background(rfp_id: int):
             )
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
-        rfp.proposal_text = proposal
+        rfp.proposal_text = (
+            prepare_member_facing_proposal_markdown(proposal) if ms else (proposal or "")
+        )
         rfp.interview_status = "completed"
         db.commit()
     finally:

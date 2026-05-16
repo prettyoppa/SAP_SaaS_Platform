@@ -91,13 +91,18 @@ from ..rfp_download_names import content_disposition_attachment, delivered_code_
 from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from ..delivery_fs_supplements import KIND_INTEGRATION, fs_supplement_hub_template_ctx
+from ..delivery_proposal_supplements import (
+    has_delivery_proposal_supplements,
+    proposal_ready_for_delivery,
+    proposal_supplement_hub_template_ctx,
+)
 from ..paid_tier import user_can_operate_delivery
 from ..integration_followup_chat import (
     generate_integration_followup_reply,
     integration_request_llm_summary,
     validate_integration_user_message,
 )
-from ..agent_display import wrap_unbracketed_agent_names
+from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
 from ..integration_hub import integration_hub_url, normalize_integration_hub_phase
 from ..integration_generation import maybe_fail_stale_integration_deliverable
 from ..integration_interview_service import serve_integration_interview_workspace
@@ -2018,7 +2023,9 @@ def _collect_integration_unified_hub_ctx(
 
     proposal_html = ""
     if (ir.interview_status or "") == "completed" and (ir.proposal_text or "").strip():
-        proposal_html = _markdown_to_html(wrap_unbracketed_agent_names(ir.proposal_text or ""))
+        proposal_html = _markdown_to_html(
+            prepare_member_facing_proposal_markdown(ir.proposal_text or "")
+        )
 
     fs_stat = (getattr(ir, "fs_status", None) or "none").strip() or "none"
     dc_stat = (getattr(ir, "delivered_code_status", None) or "none").strip() or "none"
@@ -2038,8 +2045,12 @@ def _collect_integration_unified_hub_ctx(
 
     fs_body = (getattr(ir, "fs_text", None) or "").strip()
     fs_ready = fs_stat == "ready" and bool(fs_body)
-    proposal_ready = bool((ir.proposal_text or "").strip()) or (
-        (ir.interview_status or "") == "completed"
+    proposal_ready = proposal_ready_for_delivery(
+        db,
+        request_kind=KIND_INTEGRATION,
+        request_id=int(ir.id),
+        agent_proposal_text=ir.proposal_text,
+        interview_status=ir.interview_status,
     )
     can_start_fs = proposal_ready or fs_stat in ("ready", "generating", "failed")
     can_start_delivered_code = (
@@ -2172,6 +2183,23 @@ def _collect_integration_unified_hub_ctx(
                 f"/integration/{ir.id}/console-readonly?phase=fs#int-phase-fs"
                 if readonly_console
                 else f"/integration/{ir.id}?phase=fs#int-phase-fs"
+            ),
+        ),
+        **proposal_supplement_hub_template_ctx(
+            db,
+            request_kind=KIND_INTEGRATION,
+            request_id=int(ir.id),
+            return_to=f"/integration/{ir.id}?phase=proposal#int-phase-proposal",
+            can_upload=bool(
+                user
+                and not readonly_console
+                and int(user.id) == int(ir.user_id)
+                and (ir.interview_status or "") != "generating_proposal"
+                and (
+                    bool(proposal_html)
+                    or (ir.interview_status or "") == "completed"
+                    or has_delivery_proposal_supplements(db, KIND_INTEGRATION, int(ir.id))
+                )
             ),
         ),
         "followup_turns": followup_turns,

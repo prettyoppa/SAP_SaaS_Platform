@@ -13,8 +13,8 @@
   {% include 'partials/hub_fs_supplement_panel.html' %}
 
   {% if ana_fs_busy %}
-  {% with job_label = 'FS' %}
-  {% include 'partials/hub_background_generating_hint.html' %}
+  {% with job_label = 'FS', delivery_gen_modal_id = 'hubDeliveryProgressModal' %}
+  {% include 'partials/hub_delivery_generating_compact_hint.html' %}
   {% endwith %}
   {% endif %}
 

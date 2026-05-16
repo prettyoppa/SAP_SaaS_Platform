@@ -86,6 +86,9 @@ def purge_user_and_owned_data(db: Session, target_user_id: int) -> None:
         db.query(models.RfpFsSupplement).filter(models.RfpFsSupplement.rfp_id == rfp.id).delete(
             synchronize_session=False
         )
+        db.query(models.RfpProposalSupplement).filter(
+            models.RfpProposalSupplement.rfp_id == rfp.id
+        ).delete(synchronize_session=False)
         db.delete(rfp)
 
     db.query(models.ABAPCode).filter(models.ABAPCode.uploaded_by == uid).delete(synchronize_session=False)

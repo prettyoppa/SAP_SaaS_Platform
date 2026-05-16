@@ -1,13 +1,13 @@
 {% if can_operate_delivery|default(false) %}
 <div class="alert alert-warning border mb-3">
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-    <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline"
+    <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline" data-preflight-fs-upload
           data-busy-agents='[{"agentKo":"「FS설계」","doingKo":"RFP·인터뷰·제안서를 바탕으로 상세 기능명세서(FS)를 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification from the RFP, interview, and proposal"}]'>
       <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy or not can_start_fs|default(false) %}disabled{% endif %}>
         {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
       </button>
     </form>
-    <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline"
+    <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline" data-preflight-fs-upload
           data-busy-agents='[{"agentKo":"「ABAP」","doingKo":"기능명세를 바탕으로 납품 ABAP 초안을 작성하고 있습니다","agentEn":"「ABAP」","doingEn":"drafting delivered ABAP from the FS"},{"agentKo":"「코드검수」","doingKo":"초안을 검토·보완하고 있습니다","agentEn":"「Code Review」","doingEn":"reviewing and refining the draft"},{"agentKo":"「테스트」","doingKo":"단위 테스트 시나리오를 작성하고 있습니다","agentEn":"「Test」","doingEn":"writing unit test scenarios"}]'>
       <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
         {% if has_delivered_preview|default(false) %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}

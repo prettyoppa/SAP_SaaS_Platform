@@ -1,13 +1,13 @@
 {% if can_operate_delivery|default(false) %}
 <div class="alert alert-warning border mb-3">
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-    <form method="post" action="/admin/integration/{{ ir.id }}/delivery/fs-start" class="d-inline"
+    <form method="post" action="/admin/integration/{{ ir.id }}/delivery/fs-start" class="d-inline" data-preflight-fs-upload
           data-busy-agents='[{"agentKo":"「FS」","doingKo":"연동 요청·인터뷰·제안을 바탕으로 비 ABAP 기능명세를 작성하고 있습니다","agentEn":"「FS」","doingEn":"drafting the non-ABAP integration functional spec"}]'>
       <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy or not can_start_fs|default(false) %}disabled{% endif %}>
         {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
       </button>
     </form>
-    <form method="post" action="/admin/integration/{{ ir.id }}/delivery/code-start" class="d-inline"
+    <form method="post" action="/admin/integration/{{ ir.id }}/delivery/code-start" class="d-inline" data-preflight-fs-upload
           data-busy-agents='[{"agentKo":"「구현」","doingKo":"FS를 바탕으로 구현 가이드·스켈레톤을 작성하고 있습니다","agentEn":"「Implementation」","doingEn":"drafting implementation guide from the FS"}]'>
       <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
         {% if has_delivered_preview|default(false) %}구현 산출물 재생성{% else %}구현 산출물 생성 시작{% endif %}

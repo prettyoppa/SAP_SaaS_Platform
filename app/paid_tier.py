@@ -50,8 +50,8 @@ def user_can_operate_delivery(user: _UserLike | None) -> bool:
     return bool(getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
 
 
-def rfp_eligible_for_stripe_checkout(rfp: models.RFP) -> bool:
-    if not ((rfp.proposal_text or "").strip()):
+def rfp_eligible_for_stripe_checkout(rfp: models.RFP, *, has_proposal_supplements: bool = False) -> bool:
+    if not ((rfp.proposal_text or "").strip()) and not has_proposal_supplements:
         return False
     if paid_engagement_is_active(rfp):
         return False

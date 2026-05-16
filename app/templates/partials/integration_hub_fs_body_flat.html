@@ -7,8 +7,8 @@
     <pre class="mb-0 small text-wrap" style="white-space:pre-wrap;">{{ ir.fs_error or '알 수 없는 오류' }}</pre>
   </div>
   {% elif fs_busy %}
-  {% with job_label = 'FS' %}
-  {% include 'partials/hub_background_generating_hint.html' %}
+  {% with job_label = 'FS', delivery_gen_modal_id = 'hubDeliveryProgressModal' %}
+  {% include 'partials/hub_delivery_generating_compact_hint.html' %}
   {% endwith %}
   {% elif fs_html %}
   <div class="proposal-body proposal-prose border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;">

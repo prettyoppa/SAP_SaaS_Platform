@@ -123,7 +123,11 @@ def _run_integration_proposal_background(integration_id: int):
             )
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
-        ir.proposal_text = proposal
+        from .agent_display import prepare_member_facing_proposal_markdown
+
+        ir.proposal_text = (
+            prepare_member_facing_proposal_markdown(proposal) if ms else (proposal or "")
+        )
         ir.interview_status = "completed"
         db.commit()
     finally:

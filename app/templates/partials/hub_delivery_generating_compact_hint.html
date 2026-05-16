@@ -1,0 +1,12 @@
+{# job_label: FS | 개발코드. delivery_gen_modal_id. wrap_class #}
+{% set _modal_id = delivery_gen_modal_id|default('hubDeliveryProgressModal') %}
+<button type="button"
+        class="btn btn-link p-0 text-start hub-delivery-gen-hint-open {{ wrap_class|default('mb-3') }}"
+        data-delivery-gen-modal="{{ _modal_id }}"
+        aria-label="{{ job_label }} 생성 진행 상세 보기">
+  <span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>
+  <span class="text-muted small">
+    {{ job_label }} 생성 중입니다. 다른 화면으로 이동해도 서버에서 계속됩니다.
+    <span class="text-primary fw-semibold ms-1">진행 상세 보기</span>
+  </span>
+</button>

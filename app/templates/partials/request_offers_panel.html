@@ -87,23 +87,9 @@
       <div class="collapse offer-inquiry-collapse w-100 mt-2" id="offer-inq-body-{{ of.id }}">
         <div class="border rounded p-3 small offer-inquiry-panel-inner">
           {% if inq_list|length > 0 %}
-          <div class="mb-3">
-            <div class="text-muted text-uppercase small mb-1">문의 이력</div>
-            <div class="vstack gap-2 offer-inquiry-history">
-              {% for inv in inq_list %}
-              <div class="border rounded p-2 small offer-inquiry-history-card">
-                <div class="d-flex flex-wrap justify-content-between gap-1 align-items-center mb-1">
-                  <span class="fw-semibold">{{ inv.author.full_name if inv.author else '요청자' }}</span>
-                  <span class="text-muted">{{ inv.created_at|local_dt_span }}</span>
-                </div>
-                <div class="text-break mb-1">{{ inv.body }}</div>
-                <div class="d-flex flex-wrap gap-2 text-muted">
-                  <span><i class="fa-solid fa-envelope fa-fw"></i> {% if inv.email_sent %}발송{% else %}미발송{% endif %}</span>
-                  <span><i class="fa-solid fa-sms fa-fw"></i> {% if inv.sms_sent %}발송{% else %}미발송{% endif %}</span>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
+          <div class="mb-3 offer-inquiry-history">
+            <div class="text-muted text-uppercase small mb-2">문의 대화</div>
+            {% include 'partials/offer_inquiry_messenger_log.html' %}
           </div>
           {% endif %}
           {% if can_send_inquiry %}

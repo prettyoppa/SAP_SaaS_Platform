@@ -13,7 +13,7 @@ from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
 from .. import models, auth, r2_storage, sap_fields
-from ..agent_display import wrap_unbracketed_agent_names
+from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
 from ..followup_thread_scope import filter_followup_messages_for_viewer
 from ..followup_messages_util import followup_created_at_sort_key
 from ..delivered_code_package import (
@@ -30,6 +30,11 @@ from ..offer_inquiry_service import (
     send_offer_inquiry_from_owner,
 )
 from ..delivery_fs_supplements import KIND_RFP, fs_supplement_hub_template_ctx
+from ..delivery_proposal_supplements import (
+    has_delivery_proposal_supplements,
+    proposal_ready_for_delivery,
+    proposal_supplement_hub_template_ctx,
+)
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..request_hub_access import consultant_has_request_offer, consultant_is_matched_on_request
@@ -853,8 +858,12 @@ def _collect_rfp_unified_hub_ctx(
 
     can_start_delivered_code = False
     can_operate_delivery = user_can_operate_delivery(user)
-    proposal_ready = bool((rfp.proposal_text or "").strip()) or (
-        (rfp.interview_status or "") == "completed"
+    proposal_ready = proposal_ready_for_delivery(
+        db,
+        request_kind=KIND_RFP,
+        request_id=int(rfp.id),
+        agent_proposal_text=rfp.proposal_text,
+        interview_status=rfp.interview_status,
     )
     can_start_fs = proposal_ready or fs_stat in ("ready", "generating", "failed")
     if can_operate_delivery:
@@ -877,7 +886,7 @@ def _collect_rfp_unified_hub_ctx(
     proposal_html = ""
     if (rfp.interview_status or "") == "completed" and (rfp.proposal_text or "").strip():
         proposal_html = _interview_views._markdown_to_html(
-            wrap_unbracketed_agent_names(rfp.proposal_text or "")
+            prepare_member_facing_proposal_markdown(rfp.proposal_text or "")
         )
 
     tabs_base_id = f"rfp-ref-src-{rfp.id}"
@@ -965,7 +974,12 @@ def _collect_rfp_unified_hub_ctx(
         "proposal_html": proposal_html,
         "billing_flash": _billing_flash_message(checkout),
         "paid_engagement_active": paid_engagement_is_active(rfp),
-        "rfp_eligible_for_checkout": rfp_eligible_for_stripe_checkout(rfp),
+        "rfp_eligible_for_checkout": rfp_eligible_for_stripe_checkout(
+            rfp,
+            has_proposal_supplements=has_delivery_proposal_supplements(
+                db, KIND_RFP, int(rfp.id)
+            ),
+        ),
         "stripe_checkout_ready": stripe_keys_configured(),
         "fs_html": fs_html,
         "fs_stat": fs_stat,
@@ -984,6 +998,27 @@ def _collect_rfp_unified_hub_ctx(
                 f"/rfp/{rfp.id}/console-readonly?phase=fs#rfp-phase-fs"
                 if readonly_console
                 else f"/rfp/{rfp.id}?phase=fs#rfp-phase-fs"
+            ),
+        ),
+        **proposal_supplement_hub_template_ctx(
+            db,
+            request_kind=KIND_RFP,
+            request_id=int(rfp.id),
+            return_to=(
+                f"/rfp/{rfp.id}?phase=proposal#rfp-phase-proposal"
+                if not readonly_console
+                else ""
+            ),
+            can_upload=bool(
+                user
+                and not readonly_console
+                and int(user.id) == int(rfp.user_id)
+                and (rfp.interview_status or "") != "generating_proposal"
+                and (
+                    bool(proposal_html)
+                    or (rfp.interview_status or "") == "completed"
+                    or has_delivery_proposal_supplements(db, KIND_RFP, int(rfp.id))
+                )
             ),
         ),
         "source_program_groups": groups,
@@ -1620,8 +1655,15 @@ def rfp_delete(rfp_id: int, request: Request, db: Session = Depends(get_db)):
         _remove_stored_file(ent.get("path"))
     for sup in db.query(models.RfpFsSupplement).filter(models.RfpFsSupplement.rfp_id == rfp_id).all():
         _remove_stored_file(sup.stored_path)
+    for sup in db.query(models.RfpProposalSupplement).filter(
+        models.RfpProposalSupplement.rfp_id == rfp_id
+    ).all():
+        _remove_stored_file(sup.stored_path)
     db.query(models.RFPMessage).filter(models.RFPMessage.rfp_id == rfp_id).delete(synchronize_session=False)
     db.query(models.RfpFsSupplement).filter(models.RfpFsSupplement.rfp_id == rfp_id).delete(
+        synchronize_session=False
+    )
+    db.query(models.RfpProposalSupplement).filter(models.RfpProposalSupplement.rfp_id == rfp_id).delete(
         synchronize_session=False
     )
     db.delete(rfp)

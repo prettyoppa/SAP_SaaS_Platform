@@ -87,8 +87,13 @@ from ..abap_analysis_generation import (
     resolved_abap_analysis_fs_for_codegen,
 )
 from ..delivery_fs_supplements import KIND_ANALYSIS, fs_supplement_hub_template_ctx
+from ..delivery_proposal_supplements import (
+    has_delivery_proposal_supplements,
+    proposal_ready_for_delivery,
+    proposal_supplement_hub_template_ctx,
+)
 from ..abap_analysis_proposal_service import run_abap_analysis_proposal_background
-from ..agent_display import wrap_unbracketed_agent_names
+from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..delivered_code_package import (
     delivered_package_has_body,
@@ -1159,7 +1164,9 @@ def _prepare_abap_analysis_detail_ctx(
     ana_hub_proposal_generating = ana_ist == "generating_proposal"
     ana_proposal_html = ""
     if ana_ist == "completed" and (getattr(row, "proposal_text", None) or "").strip():
-        ana_proposal_html = _markdown_to_html(wrap_unbracketed_agent_names(row.proposal_text or ""))
+        ana_proposal_html = _markdown_to_html(
+            prepare_member_facing_proposal_markdown(row.proposal_text or "")
+        )
 
     ana_fs_stat = (getattr(row, "fs_status", None) or "none").strip() or "none"
     ana_dc_stat = (getattr(row, "delivered_code_status", None) or "none").strip() or "none"
@@ -1168,7 +1175,13 @@ def _prepare_abap_analysis_detail_ctx(
         ana_fs_html = _markdown_to_html(row.fs_text or "")
 
     can_operate_delivery_flag = user_can_operate_delivery(user)
-    proposal_ready = bool((getattr(row, "proposal_text", None) or "").strip()) or ana_ist == "completed"
+    proposal_ready = proposal_ready_for_delivery(
+        db,
+        request_kind=KIND_ANALYSIS,
+        request_id=int(row.id),
+        agent_proposal_text=getattr(row, "proposal_text", None),
+        interview_status=ana_ist,
+    )
     can_start_fs = proposal_ready or ana_fs_stat in ("ready", "generating", "failed")
     can_start_delivered_code = False
     if can_operate_delivery_flag:
@@ -1234,6 +1247,23 @@ def _prepare_abap_analysis_detail_ctx(
                 f"/abap-analysis/{row.id}/console-readonly#abap-phase-fs"
                 if readonly_console
                 else f"/abap-analysis/{row.id}#abap-phase-fs"
+            ),
+        ),
+        **proposal_supplement_hub_template_ctx(
+            db,
+            request_kind=KIND_ANALYSIS,
+            request_id=int(row.id),
+            return_to=f"/abap-analysis/{row.id}#abap-phase-proposal",
+            can_upload=bool(
+                user
+                and not readonly_console
+                and int(user.id) == int(row.user_id)
+                and ana_ist != "generating_proposal"
+                and (
+                    bool(ana_proposal_html)
+                    or ana_ist == "completed"
+                    or has_delivery_proposal_supplements(db, KIND_ANALYSIS, int(row.id))
+                )
             ),
         ),
     }

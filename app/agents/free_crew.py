@@ -282,6 +282,14 @@ _MEMBER_FACING_NO_STORAGE_NAMES = """
 내부 패턴을 언급할 때는 '유사 구현 사례', '이전에 다룬 유사 흐름'처럼 중립적으로만 쓴다.
 """
 
+_MEMBER_FACING_NO_PERSONA_NAMES = """
+[고객 서면 필수 — 에이전트 인명·서두]
+- **Jun, Hannah, Mia, Sara** 등 내부 페르소나 이름·'SAP 컨설턴트 Jun' 같은 **인명 표기를 쓰지 마라.**
+- **1인칭 서두 금지:** "저는 ~입니다", "~작성했습니다" 등 인사·자기소개 문단 없이 **`# Development Proposal` 제목으로 바로 시작**한다.
+- AI 역할을 언급할 때만 **「요구분석」 에이전트**, **「제안서」 에이전트**, **「제안검수」 에이전트** 형식(대외명만 「」)을 쓴다.
+- 고객·요청자를 지칭할 때 **에이전트 인명을 붙이지 마라.** (예: "Hannah님이 정리해주신" → "요청·인터뷰에서 정리된")
+"""
+
 
 def _lib_block_heading(member_safe_output: bool) -> str:
     if member_safe_output:
@@ -1101,8 +1109,15 @@ def generate_proposal(
 {analysis_summary}
 """
     member_ref_block = _member_abap_block(member_ref)
-    _prop_ms = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
+    _prop_ms = (
+        _MEMBER_FACING_NO_STORAGE_NAMES + _MEMBER_FACING_NO_PERSONA_NAMES
+        if member_safe_output
+        else ""
+    )
     _pb_prop = playbook_prompt_wrap(playbook_addon)
+    _analyst_ref = agent_label_ko("f_analyst") if member_safe_output else "Hannah"
+    _writer_ref = agent_label_ko("f_writer") if member_safe_output else "Jun"
+    _reviewer_ref = agent_label_ko("f_reviewer") if member_safe_output else "Sara"
 
     # Task 1: Hannah – 최종 요구사항 명세
     final_analysis = Task(
@@ -1141,7 +1156,7 @@ def generate_proposal(
 
     # Task 2: Jun – Proposal 작성
     write_task = Task(
-        description=f"""Hannah의 요구사항 명세를 바탕으로 Development Proposal을 작성하세요.
+        description=f"""{_analyst_ref}가 정리한 요구사항 명세를 바탕으로 Development Proposal을 작성하세요.
 {customer_id_rule}
 {_prop_ms}
 
@@ -1176,20 +1191,23 @@ def generate_proposal(
 작성 원칙: IT 비전문가도 이해 가능한 언어, SAP 용어는 괄호 안에 간단한 설명 추가. 리스트/표가 길어지면 **짧은 문단 + 표**로 정리해 스캔하기 쉽게 한다.
 - **요구사항 ID 금지:** "FR001", "FR030" 등 **임의로 붙인** 기능/요구 코드·ID는 쓰지 마라. 필요하면 불릿 문장만.
 - **논리·SAP 정합:** Order **수량**은 주문/입력 데이터다. "수량이 **자재 마스터**와 일치하는지 검증"처럼 **업무에 맞지 않는** 검증 문구는 넣지 마라. 필요한 것은 **자재 마스터 존재·단위·판가/가용** 등 **인터뷰·RFP에 근거**한 것만.
-- **에이전트 표기:** AI 역할을 언급할 때는 인명/별명을 쓰지 말고, **「요구분석」 에이전트**, **「질의」 에이전트**, **「제안서」 에이전트**, **「제안검수」 에이전트**처럼 **대외명만「」** 로 감싼 뒤 공백 + **에이전트**로 쓴다.""",
+- **에이전트 표기:** AI 역할을 언급할 때는 인명/별명을 쓰지 말고, **「요구분석」 에이전트**, **「질의」 에이전트**, **「제안서」 에이전트**, **「제안검수」 에이전트**처럼 **대외명만「」** 로 감싼 뒤 공백 + **에이전트**로 쓴다.
+- **본문은 `# Development Proposal`로 시작**하고, 그 위에 인사·자기소개 문단을 두지 않는다.""",
         agent=f_writer,
         expected_output="완성된 Development Proposal (마크다운)",
         context=[final_analysis],
     )
 
     # Task 3: Sara – 검토 및 최종 승인
-    _rev_extra = (
-        "□ '코드 라이브러리', '서버 라이브러리', '내부 코드 DB' 등 저장소를 드러내는 문구가 있으면 중립적 표현으로 고친다\n"
-        if member_safe_output
-        else ""
-    )
+    _rev_extra = ""
+    if member_safe_output:
+        _rev_extra = (
+            "□ '코드 라이브러리', '서버 라이브러리', '내부 코드 DB' 등 저장소를 드러내는 문구가 있으면 중립적 표현으로 고친다\n"
+            "□ Jun/Hannah/Mia/Sara·'SAP 컨설턴트 ○○'·1인칭 인사 서두가 있으면 **삭제**하고 `# Development Proposal`부터 시작\n"
+            "□ 에이전트 역할은 **「대외명」 에이전트** 형식만 허용\n"
+        )
     review_task = Task(
-        description=f"""Jun이 작성한 Development Proposal을 검토하세요.
+        description=f"""{_writer_ref}가 작성한 Development Proposal을 검토하세요.
 {_prop_ms}
 
 체크리스트:

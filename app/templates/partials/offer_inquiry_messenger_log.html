@@ -1,0 +1,31 @@
+{# Context: inq_list, of (RequestOffer with consultant_user_id), user (viewer) #}
+{% if inq_list and inq_list|length > 0 %}
+{% set viewer_is_consultant = user and of.consultant_user_id is defined and user.id == of.consultant_user_id %}
+<div class="abap-msg-stream offer-inquiry-msg-stream interview-msg-stream mb-0" role="log" aria-label="문의 대화">
+  {% for inv in inq_list %}
+  {% set from_consultant = inv.author_user_id == of.consultant_user_id %}
+  {% set is_me = from_consultant == viewer_is_consultant %}
+  <div class="abap-msg-row {% if is_me %}abap-msg-row--me{% else %}abap-msg-row--them{% endif %}">
+    <div class="abap-msg-stack">
+      <div class="abap-msg-meta text-muted small {% if is_me %}text-end{% endif %}">
+        {% if from_consultant %}
+        <span class="fw-semibold">컨설턴트</span>
+        {% else %}
+        <span class="fw-semibold">요청자</span>
+        {% endif %}
+        <span class="mx-1" aria-hidden="true">·</span>
+        <time datetime="{{ inv.created_at.isoformat() if inv.created_at else '' }}">{{ inv.created_at|local_dt_span }}</time>
+      </div>
+      <div class="abap-msg-bubble {% if is_me %}abap-msg-bubble--me{% else %}abap-msg-bubble--them{% endif %} chat-md-body">{{ inv.body|md_html }}</div>
+      {% if inv.email_sent or inv.sms_sent %}
+      <div class="offer-inquiry-channel-hint text-muted {% if is_me %}text-end{% endif %}">
+        {% if inv.email_sent %}<span><i class="fa-solid fa-envelope fa-fw" aria-hidden="true"></i> 이메일</span>{% endif %}
+        {% if inv.email_sent and inv.sms_sent %}<span class="mx-1" aria-hidden="true">·</span>{% endif %}
+        {% if inv.sms_sent %}<span><i class="fa-solid fa-sms fa-fw" aria-hidden="true"></i> SMS</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

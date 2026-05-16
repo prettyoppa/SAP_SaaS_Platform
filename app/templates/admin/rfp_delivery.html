@@ -54,7 +54,9 @@
       {% endif %}
     </div>
 
-    <div class="admin-content-card mb-4">
+    {% include 'partials/hub_fs_supplement_panel.html' %}
+
+    <div class="admin-content-card mb-4 d-none" aria-hidden="true">
       <div class="rfp-section mb-0">
         <div class="rfp-section-header">
           <span class="rfp-section-num">01</span>
@@ -237,7 +239,6 @@
 
 {% block extra_js %}
 <script src="/static/js/file_preview.js?v=1"></script>
-<script src="/static/js/rfp_form.js?v=20260417a"></script>
 <script>
 (function () {
   const rfpId = {{ rfp.id }};

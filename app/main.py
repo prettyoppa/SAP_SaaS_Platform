@@ -34,7 +34,7 @@ from .subscription_quota import plan_row_for_entitlements, user_subscription_pla
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import site_content_router
-from .routers import payments_router, paid_admin_router
+from .routers import payments_router, paid_admin_router, proposal_supplements_router
 from .templates_config import templates
 
 _log = logging.getLogger("uvicorn.error")
@@ -644,6 +644,7 @@ app.include_router(integration_interview_router.router)
 app.include_router(integration_router.router)
 app.include_router(payments_router.router)
 app.include_router(paid_admin_router.router)
+app.include_router(proposal_supplements_router.router)
 
 
 @app.get("/", response_class=HTMLResponse)

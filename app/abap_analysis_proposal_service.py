@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from . import models
 from .abap_analysis_crew_adapter import abap_analysis_request_to_crew_rfp_dict, _member_safe_for_abap_analysis
 from .agent_playbook import PlaybookContext, STAGE_PROPOSAL, build_playbook_addon
-from .agent_display import wrap_unbracketed_agent_names
+from .agent_display import prepare_member_facing_proposal_markdown
 from .agents.agent_tools import get_code_library_context
 from .routers.interview_router import _fc
 from .workflow_rfp_bridge import build_workflow_seed_answer_abap
@@ -79,7 +79,9 @@ def run_abap_analysis_proposal_background(analysis_id: int) -> None:
             )
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
-        row.proposal_text = wrap_unbracketed_agent_names(proposal)
+        row.proposal_text = (
+            prepare_member_facing_proposal_markdown(proposal) if ms else (proposal or "")
+        )
         row.proposal_generated_at = datetime.utcnow()
         row.interview_status = "completed"
         db.commit()

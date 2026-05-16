@@ -330,6 +330,7 @@
             <div class="proposal-card mb-3">
               <div class="proposal-body">{{ ana_proposal_html|safe }}</div>
             </div>
+            {% include 'partials/hub_proposal_supplement_panel.html' %}
             {% if user.id == row.user_id and not hub_readonly_return_url %}
             <form method="post" action="/abap-analysis/{{ row.id }}/proposal/regenerate" class="d-inline mb-3"
                   data-busy-agents='[{"agentKo":"「제안서」","doingKo":"개발 제안서를 다시 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"regenerating the development proposal"}]'>
@@ -738,5 +739,7 @@
 })();
 </script>
 {% endif %}
-{% include 'partials/abap_hub_gen_poll_script.html' %}
+{% with delivery_gen_status_url='/abap-analysis/' ~ (row.id|string) ~ '/generation-status', delivery_gen_request_title=row.title %}
+{% include 'partials/hub_delivery_generating_bundle.html' %}
+{% endwith %}
 {% endblock %}

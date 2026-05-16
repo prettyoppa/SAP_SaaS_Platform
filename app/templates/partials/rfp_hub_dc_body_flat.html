@@ -6,8 +6,8 @@
   {% endif %}
 
   {% if dc_busy %}
-  {% with job_label = '개발코드' %}
-  {% include 'partials/hub_background_generating_hint.html' %}
+  {% with job_label = '개발코드', delivery_gen_modal_id = 'hubDeliveryProgressModal' %}
+  {% include 'partials/hub_delivery_generating_compact_hint.html' %}
   {% endwith %}
   {% endif %}
 

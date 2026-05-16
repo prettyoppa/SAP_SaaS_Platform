@@ -27,10 +27,10 @@
       <hr>
       <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
         <a href="/abap-analysis/{{ row.id }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">회원 상세</a>
-        <form method="post" action="/admin/abap-analysis/{{ row.id }}/delivery/fs-start" class="d-inline">
+        <form method="post" action="/admin/abap-analysis/{{ row.id }}/delivery/fs-start" class="d-inline" data-preflight-fs-upload>
           <button type="submit" class="btn btn-warning btn-sm" {% if fs_busy %}disabled{% endif %}>FS 생성 시작</button>
         </form>
-        <form method="post" action="/admin/abap-analysis/{{ row.id }}/delivery/code-start" class="d-inline">
+        <form method="post" action="/admin/abap-analysis/{{ row.id }}/delivery/code-start" class="d-inline" data-preflight-fs-upload>
           <button type="submit" class="btn btn-primary btn-sm" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>납품 코드 생성</button>
         </form>
       </div>

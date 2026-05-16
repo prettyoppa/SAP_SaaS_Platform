@@ -100,6 +100,10 @@
         {% include 'partials/rfp_hub_dc_body_flat.html' %}
       </div>
     </details>
+
+    {% with delivery_gen_status_url='/rfp/' ~ (rfp.id|string) ~ '/paid-generation-status', delivery_gen_request_title=rfp.title %}
+    {% include 'partials/hub_delivery_generating_bundle.html' %}
+    {% endwith %}
   </div>
 </div>
 
@@ -120,5 +124,4 @@
 {% endblock %}
 
 {% block extra_js %}
-{% include 'partials/rfp_hub_gen_poll_script.html' %}
 {% endblock %}
