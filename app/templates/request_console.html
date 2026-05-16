@@ -199,6 +199,9 @@ html[data-theme="dark"] .btn-console-offer:hover {
         <button type="submit" class="btn btn-sm btn-outline-secondary" data-no-busy="true">검색</button>
       </form>
     </div>
+    {% if console_offer_notify_warn is defined and console_offer_notify_warn %}
+    <div class="alert alert-warning small py-2 mb-2 mx-1">오퍼는 등록되었습니다. {{ console_offer_notify_warn }}</div>
+    {% endif %}
     {% if console_consultant_inquiry_err is defined and console_consultant_inquiry_err %}
     <div class="alert alert-danger small py-2 mb-2 mx-1">{{ console_consultant_inquiry_err }}</div>
     {% endif %}
@@ -371,7 +374,8 @@ html[data-theme="dark"] .btn-console-offer:hover {
         <div class="d-flex gap-1 align-items-start">
           <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
           {% if can_console_offer %}
-          <form method="post" action="/request-console/offer" id="console-offer-form" data-no-busy="true">
+          <form method="post" action="/request-console/offer" id="console-offer-form" data-no-busy="true"
+                data-offer-confirm-message="{{ console_offer_confirm_message }}">
             <input type="hidden" name="sel_key" value="{{ selected_row.sel_key }}" />
             <input type="hidden" name="return_kind" value="{{ kind }}" />
             <input type="hidden" name="return_bucket" value="{{ bucket }}" />
@@ -469,7 +473,8 @@ html[data-theme="dark"] .btn-console-offer:hover {
       }
       ev.preventDefault();
       const msg =
-        '선택한 요청에 오퍼가 등록됩니다. 수신에 동의한 요청자에게는 이메일·SMS로 알림이 전송되며, 프로필은 본문 텍스트로만 안내합니다(첨부 파일 없음).';
+        (offerForm.dataset.offerConfirmMessage || '').trim() ||
+        '요청자에게 이메일 및 SMS로 알림이 전송되며, 요청자는 오퍼한 컨설턴트님의 프로필 확인이 가능해집니다.';
       const proceed = () => {
         offerForm.dataset.consoleOfferSubmitting = '1';
         if (typeof showGlobalBusy === 'function') {

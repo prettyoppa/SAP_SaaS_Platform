@@ -6,7 +6,7 @@
   {% endif %}
 
   {% if fs_stat == 'none' or (fs_stat != 'generating' and fs_stat != 'ready' and fs_stat != 'failed') %}
-  <p class="text-muted small mb-3 mb-md-0">관리자가 FS 생성을 시작하면 이 영역에 표시됩니다.</p>
+  {% include 'partials/hub_fs_empty_hint.html' %}
   {% endif %}
 
   {% if rfp.fs_supplements %}
@@ -22,7 +22,9 @@
   {% endif %}
 
   {% if fs_busy %}
-  <p class="text-muted small mb-3"><span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>FS 생성 중입니다. 다른 화면으로 이동해도 서버에서 계속되며, 완료 후 새로고침하면 표시됩니다.</p>
+  {% with job_label = 'FS' %}
+  {% include 'partials/hub_background_generating_hint.html' %}
+  {% endwith %}
   {% endif %}
 
   {% if fs_stat == 'ready' and fs_html %}

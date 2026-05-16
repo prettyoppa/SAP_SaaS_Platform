@@ -357,7 +357,7 @@ class AbapAnalysisRequest(Base):
     delivered_code_error = Column(Text, nullable=True)
     delivered_job_log = Column(Text, nullable=True)
 
-    owner = relationship("User", back_populates="abap_analysis_requests")
+    owner = relationship("User", foreign_keys=[user_id], back_populates="abap_analysis_requests")
     workflow_rfp = relationship("RFP", foreign_keys=[workflow_rfp_id])
     followup_messages = relationship(
         "AbapAnalysisFollowupMessage",

@@ -16,6 +16,11 @@ from .sms_sender import send_offer_inquiry_sms
 
 # 플랫폼 내 1차 문의·답변 상한(다수 마켓플레이스 첫 메시지 수백~1,500자 수준). 상세 협의는 매칭 후 연락처로 이어가도록 유도.
 MAX_INQUIRY_BODY_LEN = 1000
+# 요청 Console 오퍼 확인창 (신규·분석·연동 공통 — 오퍼 버튼은 Console에만 있음)
+CONSOLE_OFFER_CONFIRM_MESSAGE_KO = (
+    "요청자에게 이메일 및 SMS로 알림이 전송되며, "
+    "요청자는 오퍼한 컨설턴트님의 프로필 확인이 가능해집니다."
+)
 logger = logging.getLogger(__name__)
 
 
@@ -82,7 +87,10 @@ def format_reply_via_console_ko(request: Any) -> str:
 
 
 def format_owner_reply_followup_ko(request: Any) -> str:
-    return f"답변 내용은 {site_public_origin(request)} 에서도 확인 가능하며 추가 문의도 가능합니다."
+    return (
+        f"로그인 후 해당 요청 상세(제안서 단계)에서도 확인·추가 문의가 가능합니다. "
+        f"({site_public_origin(request)})"
+    )
 
 
 def consultant_profile_email_lines(consultant: models.User) -> str:
@@ -100,6 +108,12 @@ def consultant_profile_email_lines(consultant: models.User) -> str:
     return "\n".join(lines)
 
 
+def _owner_ops_email_channel(owner: models.User) -> tuple[bool, str]:
+    """문의/답변 발송과 동일: 업무 이메일 수신 동의 + 등록 이메일."""
+    owner_email = (owner.email or "").strip()
+    return bool(getattr(owner, "ops_email_opt_in", False)) and bool(owner_email), owner_email
+
+
 def _member_ops_sms_target(user: models.User) -> tuple[bool, str | None]:
     sms_ok = bool(
         getattr(user, "ops_sms_opt_in", False)
@@ -110,21 +124,33 @@ def _member_ops_sms_target(user: models.User) -> tuple[bool, str | None]:
     return sms_ok, phone
 
 
+def _notify_delivery_err_short(exc: BaseException) -> str:
+    msg = str(exc).strip() or exc.__class__.__name__
+    if len(msg) > 100:
+        return msg[:97] + "..."
+    return msg
+
+
 def notify_request_owner_new_console_offer(
     *,
+    db: Session | None = None,
     request: Any,
     owner: models.User,
     consultant: models.User,
     request_kind: str,
     request_id: int,
     request_title: str,
-) -> None:
-    """요청 Console에서 새 오퍼 등록 시 요청자에게 이메일·SMS(수신 동의 시)."""
-    email_ok = bool(getattr(owner, "ops_email_opt_in", False))
+) -> str | None:
+    """
+    요청 Console에서 새 오퍼 등록 시 요청자에게 이메일·SMS(수신 동의 시).
+    부분 실패·미발송 사유가 있으면 컨설턴트용 안내 문구를 반환한다.
+    """
+    if db is not None and getattr(owner, "id", None):
+        fresh = db.query(models.User).filter(models.User.id == int(owner.id)).first()
+        if fresh is not None:
+            owner = fresh
+    email_ok, to_email = _owner_ops_email_channel(owner)
     sms_ok, phone_e164 = _member_ops_sms_target(owner)
-    to_email = (owner.email or "").strip()
-    if email_ok and not to_email:
-        email_ok = False
     if not email_ok and not (sms_ok and phone_e164):
         logger.info(
             "new offer notify skipped (no owner channel) owner_id=%s kind=%s rid=%s",
@@ -132,7 +158,7 @@ def notify_request_owner_new_console_offer(
             request_kind,
             request_id,
         )
-        return
+        return "요청자가 업무 이메일·SMS 수신에 동의하지 않았거나 연락처가 없어 알림을 보내지 못했습니다."
     hub = owner_hub_proposal_public_url(request, request_kind, request_id)
     label = inquiry_request_label(
         SimpleNamespace(request_kind=request_kind, request_id=request_id, id=0)
@@ -146,24 +172,48 @@ def notify_request_owner_new_console_offer(
         f"{consultant_profile_email_lines(consultant)}\n\n"
         f"요청·오퍼 확인:\n{hub}\n"
     )
-    try:
-        if email_ok and to_email:
+    sms_body = (
+        f"[SAP Dev Hub 오퍼]\n"
+        f"{request_title[:50]}\n"
+        "컨설턴트가 오퍼했습니다. 로그인 후 요청 상세(제안서)에서 오퍼·프로필을 확인해 주세요."
+    )
+    warnings: list[str] = []
+
+    if email_ok and to_email:
+        try:
             send_plain_notification_email(to_email, subject, body_email)
-        if sms_ok and phone_e164:
-            sms_body = (
-                f"[SAP Dev Hub 오퍼]\n"
-                f"{request_title[:50]}\n"
-                f"컨설턴트가 오퍼했습니다.\n"
-                f"{hub}"
+        except Exception as ex:
+            logger.exception(
+                "new offer notify email failed owner_id=%s kind=%s rid=%s",
+                getattr(owner, "id", None),
+                request_kind,
+                request_id,
             )
+            warnings.append(
+                f"요청자 이메일 발송에 실패했습니다. ({_notify_delivery_err_short(ex)})"
+            )
+    elif to_email and not getattr(owner, "ops_email_opt_in", False):
+        warnings.append("요청자가 업무 이메일 수신에 동의하지 않아 이메일은 보내지 않았습니다.")
+    elif not to_email:
+        warnings.append("요청자 이메일 주소가 없어 이메일은 보내지 않았습니다.")
+
+    if sms_ok and phone_e164:
+        try:
             send_offer_inquiry_sms(phone_e164, sms_body, sms_type="new_offer")
-    except Exception:
-        logger.exception(
-            "notify_request_owner_new_console_offer failed owner_id=%s kind=%s rid=%s",
-            getattr(owner, "id", None),
-            request_kind,
-            request_id,
-        )
+        except Exception as ex:
+            logger.exception(
+                "new offer notify sms failed owner_id=%s kind=%s rid=%s",
+                getattr(owner, "id", None),
+                request_kind,
+                request_id,
+            )
+            warnings.append(
+                f"요청자 SMS 발송에 실패했습니다. ({_notify_delivery_err_short(ex)})"
+            )
+
+    if not warnings:
+        return None
+    return " ".join(warnings)
 
 
 def notify_consultant_request_matched(
@@ -378,8 +428,8 @@ def send_offer_inquiry_from_owner(
     body_email = (
         f"요청 ID: {inquiry_request_label(offer)}\n"
         f"요청: {request_title}\n\n"
-        f"{console_line}\n\n"
-        f"문의 내용:\n{body}\n"
+        f"문의 내용:\n{body}\n\n"
+        f"{console_line}\n"
     )
 
     phone_e164 = phone_e164_for_sms(getattr(consultant, "phone_number", None)) if sms_ok else None
@@ -459,8 +509,8 @@ def send_consultant_matched_first_inquiry_to_owner(
     body_email = (
         f"요청 ID: {inquiry_request_label(offer)}\n"
         f"요청: {request_title}\n\n"
-        f"{follow_line}\n\n"
-        f"문의 내용:\n{body}\n"
+        f"문의 내용:\n{body}\n\n"
+        f"{follow_line}\n"
     )
 
     row = models.RequestOfferInquiry(
@@ -533,8 +583,8 @@ def send_consultant_offer_inquiry_reply(
     body_email = (
         f"요청 ID: {inquiry_request_label(offer)}\n"
         f"요청: {request_title}\n\n"
-        f"{follow_line}\n\n"
-        f"답변:\n{body}\n"
+        f"답변:\n{body}\n\n"
+        f"{follow_line}\n"
     )
 
     row = models.RequestOfferInquiry(

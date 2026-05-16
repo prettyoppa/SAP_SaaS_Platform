@@ -2,7 +2,9 @@
 <div class="border rounded p-3" style="background:var(--surface2);border-color:var(--border)!important;">
   {% set _st = (rfp.interview_status or '') %}
   {% if _st == 'generating_proposal' %}
-  <p class="text-muted small mb-3">개발 제안서를 생성하는 중입니다.</p>
+  {% with job_label = '개발 제안서' %}
+  {% include 'partials/hub_background_generating_hint.html' %}
+  {% endwith %}
   {% elif _st == 'in_progress' %}
   <p class="text-muted small mb-3">인터뷰가 진행 중이면 요약 라운드는 아직 없을 수 있습니다.</p>
   {% endif %}

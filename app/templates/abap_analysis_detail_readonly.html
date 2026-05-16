@@ -297,7 +297,9 @@
             {% endwith %}
             {% if ana_hub_proposal_generating|default(false) %}
             <div class="mb-3">
-              <p class="text-muted small mb-2"><span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>개발 제안서를 생성하고 있습니다…</p>
+              {% with job_label = '개발 제안서', wrap_class = 'mb-2' %}
+              {% include 'partials/hub_background_generating_hint.html' %}
+              {% endwith %}
             </div>
             {% elif ana_proposal_html|default('') %}
             <div class="proposal-card mb-3">

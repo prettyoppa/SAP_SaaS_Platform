@@ -9,7 +9,8 @@
 
         {% if rfp.interview_status == 'generating_proposal' %}
         <div class="alert alert-info small mb-3">
-          개발 제안서를 생성하는 중입니다. <a href="{{ ivb }}?phase=proposal">진행 상태</a>
+          개발 제안서 생성 중입니다. 다른 화면으로 이동해도 서버에서 계속되며, 완료 후 새로고침하면 표시됩니다.
+          <a href="{{ ivb }}?phase=proposal">진행 상태</a>
         </div>
         {% endif %}
 

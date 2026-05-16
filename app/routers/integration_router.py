@@ -58,6 +58,7 @@ from ..devtype_catalog import (
     integration_impl_labels_map,
 )
 from ..offer_inquiry_service import (
+    CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
     clear_match_notice_pending_for_consultant,
     consultant_has_pending_match_notice,
     inquiries_by_offer_id,
@@ -559,42 +560,48 @@ def _admin_pending_inquiry_monitor_rows(http_request: Request, db: Session) -> l
     return out
 
 
+def _console_owner_user(db: Session, user_id: int | None) -> models.User | None:
+    """요청 소유자 User — 문의/답변 라우트와 동일하게 user_id로 직접 조회(세션 캐시·relationship 회피)."""
+    if user_id is None:
+        return None
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return None
+    if uid < 1:
+        return None
+    return db.query(models.User).filter(models.User.id == uid).first()
+
+
 def _console_request_title_and_owner(
     db: Session, req_kind: str, req_id: int
 ) -> tuple[models.User | None, str]:
     if req_kind == "rfp":
-        row = (
-            db.query(models.RFP)
-            .options(joinedload(models.RFP.owner))
-            .filter(models.RFP.id == req_id)
-            .first()
-        )
+        row = db.query(models.RFP).filter(models.RFP.id == req_id).first()
         if not row:
             return None, ""
         title = (row.title or "").strip() or f"RFP #{req_id}"
-        return row.owner, title
+        return _console_owner_user(db, row.user_id), title
     if req_kind == "analysis":
         row = (
             db.query(models.AbapAnalysisRequest)
-            .options(joinedload(models.AbapAnalysisRequest.owner))
             .filter(models.AbapAnalysisRequest.id == req_id)
             .first()
         )
         if not row:
             return None, ""
         title = (row.title or "").strip() or f"분석 #{req_id}"
-        return row.owner, title
+        return _console_owner_user(db, row.user_id), title
     if req_kind == "integration":
         row = (
             db.query(models.IntegrationRequest)
-            .options(joinedload(models.IntegrationRequest.owner))
             .filter(models.IntegrationRequest.id == req_id)
             .first()
         )
         if not row:
             return None, ""
         title = (row.title or "").strip() or f"연동 #{req_id}"
-        return row.owner, title
+        return _console_owner_user(db, row.user_id), title
     return None, ""
 
 
@@ -963,6 +970,10 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             ).strip(),
             "console_consultant_inquiry_ok": (request.query_params.get("console_consultant_inquiry_ok") or "").strip()
             == "1",
+            "console_offer_notify_warn": (
+                request.query_params.get("console_offer_notify_warn") or ""
+            ).strip(),
+            "console_offer_confirm_message": CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
             "console_pending_inquiry_rows": console_pending_inquiry_rows,
             "console_matching_notice_pending": console_matching_notice_pending,
         },
@@ -1116,20 +1127,19 @@ def request_console_offer_submit(
         db.commit()
         created_new = True
 
+    notify_warn: str | None = None
     if created_new:
         owner, title = _console_request_title_and_owner(db, req_kind, req_id)
         if owner:
-            try:
-                notify_request_owner_new_console_offer(
-                    request=request,
-                    owner=owner,
-                    consultant=user,
-                    request_kind=req_kind,
-                    request_id=req_id,
-                    request_title=title,
-                )
-            except Exception:
-                pass
+            notify_warn = notify_request_owner_new_console_offer(
+                db=db,
+                request=request,
+                owner=owner,
+                consultant=user,
+                request_kind=req_kind,
+                request_id=req_id,
+                request_title=title,
+            )
 
     loc = _request_console_return_location(
         return_kind=return_kind,
@@ -1139,6 +1149,9 @@ def request_console_offer_submit(
         return_date_from=return_date_from,
         return_date_to=return_date_to,
     )
+    if notify_warn:
+        sep = "&" if "?" in loc else "?"
+        loc = f"{loc}{sep}console_offer_notify_warn={quote(notify_warn)}"
     return RedirectResponse(url=loc, status_code=303)
 
 

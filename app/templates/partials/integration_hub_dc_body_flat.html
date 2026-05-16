@@ -12,7 +12,9 @@
   {% endif %}
 
   {% if dc_busy %}
-  <p class="text-muted small mb-3"><span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>개발코드 생성 중입니다. 다른 화면으로 이동해도 서버에서 계속되며, 완료 후 새로고침하면 표시됩니다.</p>
+  {% with job_label = '개발코드' %}
+  {% include 'partials/hub_background_generating_hint.html' %}
+  {% endwith %}
   {% endif %}
 
   {% if delivered_package and delivered_package.slots %}

@@ -78,10 +78,9 @@
         {% include 'partials/request_offers_panel.html' %}
         {% endwith %}
         {% if hub_proposal_generating %}
-        <p class="text-muted small mb-0">
-          <span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>
-          제안서를 생성하고 있습니다.
-        </p>
+        {% with job_label = '제안서', wrap_class = 'mb-0' %}
+        {% include 'partials/hub_background_generating_hint.html' %}
+        {% endwith %}
         {% else %}
           {% set proposal_download_url = '/integration/' ~ (ir.id|string) ~ '/proposal/download' %}
           {% include 'partials/integration_hub_proposal_readonly.html' %}
