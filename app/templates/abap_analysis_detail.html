@@ -77,7 +77,7 @@
             <span class="badge bg-secondary" data-i18n="badge.draft">임시저장</span>
             {% endif %}
           </summary>
-          <div class="rfp-hub-phase-body pt-2">
+          <div class="rfp-hub-phase-body">
             <div class="proposal-card mb-4" id="abap-request-block">
               <div class="proposal-body">
                 <dl class="row mb-0 small">
@@ -153,7 +153,7 @@
             <span class="badge bg-success" data-i18n="detail.analysisOkBadge">분석 완료</span>
             {% endif %}
           </summary>
-          <div class="rfp-hub-phase-body pt-2">
+          <div class="rfp-hub-phase-body">
         {% if analysis.get('error') %}
         <div class="alert alert-danger mb-0">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
@@ -316,7 +316,7 @@
             {% endif %}
             <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
           </summary>
-          <div class="rfp-hub-phase-body pt-2">
+          <div class="rfp-hub-phase-body">
             {% with request_offer_panel_wrap_class = 'mb-3' %}
             {% include 'partials/request_offers_panel.html' %}
             {% endwith %}
@@ -364,7 +364,7 @@
             {% endif %}
             <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
           </summary>
-          <div class="rfp-hub-phase-body pt-2">
+          <div class="rfp-hub-phase-body">
             {% if user.is_admin %}
             <a href="/admin/abap-analysis/{{ row.id }}/delivery" class="btn btn-sm btn-outline-secondary mb-3" target="_blank" rel="noopener">관리자 납품 화면</a>
             {% endif %}
@@ -382,7 +382,7 @@
             {% endif %}
             <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
           </summary>
-          <div class="rfp-hub-phase-body pt-2">
+          <div class="rfp-hub-phase-body">
             {% include 'partials/abap_hub_dc_body.html' %}
           </div>
         </details>

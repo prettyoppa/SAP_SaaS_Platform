@@ -1276,6 +1276,15 @@ html {
 .interview-summary-header:hover { color: var(--text); }
 .interview-summary-body { padding: 0 1.25rem 1.25rem; }
 
+/* ABAP 분석·개선 상세 등 — 단계 본문: summary(.interview-summary-header)와 동일 좌우 여백 */
+.proposal-page .interview-summary-toggle.rfp-hub-phase > .rfp-hub-phase-body {
+  padding: 0.35rem 1.25rem 0.75rem;
+}
+.proposal-page .rfp-hub-phase-body > .interview-summary-body {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* FS·납품 “생성 진행 중” 모달 — 에이전트 라벨 (max-width:7rem 등으로 한글·「」 라벨이 단어 중간에서 끊기던 문제) */
 .delivery-gen-step {
   opacity: 0.35;

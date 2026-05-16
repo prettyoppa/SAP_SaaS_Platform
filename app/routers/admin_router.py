@@ -31,6 +31,7 @@ from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
 from ..i18n_overrides import build_admin_grouped, invalidate_en_overrides_cache, load_i18n_baseline
 from ..i18n_admin_suggest import suggest_ui_english
 from ..agent_playbook import ALL_STAGE_CHOICES, stages_json_from_list
+from ..agent_registry import agent_registry_summary, all_agent_specs, pipeline_steps_ko
 
 router = APIRouter(prefix="/admin")
 
@@ -58,6 +59,24 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse(request, "admin/dashboard.html", {"request": request, "user": user})
+
+
+@router.get("/agents", response_class=HTMLResponse)
+def admin_agents_overview(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "admin/agents_overview.html",
+        {
+            "request": request,
+            "user": user,
+            "agents": all_agent_specs(),
+            "summary": agent_registry_summary(),
+            "pipeline_steps": pipeline_steps_ko(),
+        },
+    )
 
 
 # ── 에이전트 플레이북 (테스트 피드백·운영 규칙 누적) ───────
