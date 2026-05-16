@@ -1262,7 +1262,6 @@ def _prepare_abap_analysis_detail_ctx(
         "abap_ai_inquiry_unlimited": snap_d["unlimited"],
         "abap_followup_cap": snap_d["cap"],
         "hub_readonly_return_url": hub_readonly_return_url,
-        "proposal_gate_err": proposal_gate_err,
         **ana_hub,
     }
 
