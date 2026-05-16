@@ -42,7 +42,7 @@
         {% endif %}
       </div>
       <div class="mt-2 small text-muted" style="max-height:2.8rem;overflow:hidden;">
-        {{ (row.requirement_text or '')[:180] }}{% if (row.requirement_text or '')|length > 180 %}…{% endif %}
+        {{ row|requirement_preview(180) }}
       </div>
     </div>
   </div>

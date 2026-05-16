@@ -1308,8 +1308,6 @@ def abap_analysis_improvement_proposal_post(
     row_el = _query_for_user(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
     if not row_el or row_el.is_draft or not row_el.is_analyzed:
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-    if getattr(row_el, "workflow_rfp_id", None):
-        return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=already", status_code=302)
     if (getattr(row_el, "proposal_text", None) or "").strip() or (
         (getattr(row_el, "interview_status", None) or "") == "generating_proposal"
     ):
@@ -1337,8 +1335,6 @@ def abap_analysis_request_proposal_now(
     row = _query_for_user(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
-    if getattr(row, "workflow_rfp_id", None):
-        return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=already", status_code=302)
     if (row.interview_status or "") == "generating_proposal":
         return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
     if (row.interview_status or "") == "completed" and (row.proposal_text or "").strip():
@@ -1374,8 +1370,6 @@ def abap_analysis_regenerate_proposal(
     row = _query_for_user(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
-    if getattr(row, "workflow_rfp_id", None):
-        return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=already", status_code=302)
     err_r = try_consume_per_request(db, user, METRIC_DEV_PROPOSAL_REGEN, "analysis", req_id, 1)
     if err_r == "disabled":
         return RedirectResponse(

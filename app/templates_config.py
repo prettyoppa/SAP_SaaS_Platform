@@ -143,6 +143,25 @@ def _req_analysis_li_filter(value) -> Markup:
 templates.env.filters["req_analysis_li"] = _req_analysis_li_filter
 
 
+def _requirement_preview_filter(row, limit: int = 180) -> str:
+    """목록 카드용 요구사항 한 줄 미리보기(HTML → plain)."""
+    from .requirement_rich_text import html_to_plain_text, is_html_format
+
+    raw = (getattr(row, "requirement_text", None) or "").strip()
+    if not raw:
+        return ""
+    fmt = (getattr(row, "requirement_text_format", None) or "plain").strip().lower()
+    plain = html_to_plain_text(raw) if is_html_format(fmt) else raw
+    plain = " ".join(plain.split())
+    lim = int(limit) if limit else 180
+    if len(plain) > lim:
+        return plain[:lim] + "…"
+    return plain
+
+
+templates.env.filters["requirement_preview"] = _requirement_preview_filter
+
+
 def _interview_answers_text_to_qa_pairs(text) -> list[dict[str, str]]:
     """인터뷰 라운드 answers_text(Q1:/A1: 블록) → 메신저용 Q/A 쌍."""
     import re

@@ -240,26 +240,21 @@ def abap_analysis_phase_gates(row: models.AbapAnalysisRequest, user: Optional[An
     fs_s = ((getattr(row, "fs_status", None) or "none").strip().lower() or "none")
     dc_s = ((getattr(row, "delivered_code_status", None) or "none").strip().lower() or "none")
     pipeline = fs_s not in ("none", "") or dc_s not in ("none", "")
-    is_operator = bool(
-        user and (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
-    )
-    has_fs = pipeline or is_operator or fs_s == "ready"
+    has_fs = pipeline
     fs_href = hub if has_fs else None
 
-    has_ref_dev = reference_code_payload_has_content(getattr(row, "reference_code_payload", None))
     dc_started = dc_s not in ("none", "")
-    dev_code_href = hub if (dc_started or has_ref_dev) else None
-    has_dev_code = bool(dev_code_href)
+    has_dev_code = dc_started
+    dev_code_href = hub if has_dev_code else None
 
     iv = (getattr(row, "interview_status", None) or "").strip()
     prop = (getattr(row, "proposal_text", None) or "").strip()
-    imp = (getattr(row, "improvement_request_text", None) or "").strip()
-    has_proposal = bool(prop) or iv == "generating_proposal" or bool(imp)
+    has_proposal = bool(prop) or iv == "generating_proposal"
     proposal_href = hub if has_proposal else None
 
-    analyzed = bool(getattr(row, "is_analyzed", False))
-    has_interview = analyzed and (not draft)
-    interview_href = f"{base}#abap-followup-chat" if has_interview else None
+    # 분석·개선 목록: RFP 인터뷰 단계와 분리(AI 문의는 상세 플로팅 버튼만 사용)
+    has_interview = False
+    interview_href = None
 
     return {
         "has_dev_code": has_dev_code,

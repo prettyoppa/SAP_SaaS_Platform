@@ -70,7 +70,7 @@
           </div>
         </div>
 
-        <details class="interview-summary-toggle rfp-hub-phase mb-5" id="abap-phase-request" open>
+        <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-request" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <span class="fw-semibold" data-i18n="detail.phaseRequest">1. 요청</span>
             {% if row.is_draft %}
@@ -322,9 +322,7 @@
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-improvement" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <span class="fw-semibold" data-i18n="detail.phaseImprove">4. 개선 제안 요청</span>
-            {% if row.workflow_rfp %}
-            <span class="badge bg-primary" data-i18n="common.workflowLinked">워크플로 연결</span>
-            {% elif (row.improvement_request_text or '')|trim %}
+            {% if (row.improvement_request_text or '')|trim %}
             <span class="badge bg-success">개선 요청 제출됨</span>
             {% else %}
             <span class="badge bg-secondary" data-i18n="common.notLinked">미제출</span>
@@ -334,30 +332,12 @@
         <div class="proposal-card mb-0 border border-warning border-opacity-50" id="abap-improvement-proposal" style="background:var(--surface2);">
           <div class="proposal-body{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
             <h4 class="mb-3" style="border-left:3px solid var(--warning);padding-left:.75rem" data-i18n="detail.improveTitle">개선 제안 요청</h4>
-            {% if wf_err == 'already' %}
-            <div class="alert alert-info small mb-3" data-i18n="detail.improveWorkflow">이미 워크플로가 연결되어 있습니다. 아래 링크에서 제안서를 확인하세요.</div>
-            {% endif %}
             {% if wf_err == 'short' %}
             <div class="alert alert-warning small mb-3" data-i18n="detail.improveShort">개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)</div>
             {% endif %}
             {% if wf_err == 'locked' %}
             <div class="alert alert-warning small mb-3">제안서가 생성 중이거나 완료된 뒤에는 개선 요청 내용을 수정할 수 없습니다.</div>
             {% endif %}
-            {% if row.workflow_rfp %}
-            {% set wr = row.workflow_rfp %}
-            <div class="d-flex flex-wrap gap-2 mb-3">
-              {% if (wr.proposal_text or '').strip() %}
-              <a href="/rfp/{{ wr.id }}/proposal" class="btn btn-sm btn-outline-primary"><span data-i18n="detail.viewProposal">제안서 보기</span></a>
-              {% elif wr.interview_status == 'generating_proposal' %}
-              <a href="/rfp/{{ wr.id }}/proposal/generating" class="btn btn-sm btn-outline-primary"><span data-i18n="detail.proposalGen">제안서 생성 중…</span></a>
-              {% endif %}
-              <a href="/rfp/{{ wr.id }}/request" class="btn btn-sm btn-outline-secondary"><span data-i18n="detail.linkedRfp">연결된 요청(RFP)</span></a>
-            </div>
-            <div class="alert alert-light border small mb-0 mt-3" role="status">
-              <i class="fa-solid fa-diagram-project me-1 text-primary" aria-hidden="true"></i>
-              <span data-i18n="detail.continueInLinkedRfp">이후 인터뷰·제안서·신규 개발 단계는 연결된 RFP 허브에서 이어집니다. 아래 버튼으로 이동하세요.</span>
-            </div>
-            {% else %}
             <p class="small text-muted mb-3 border-start border-3 ps-3" style="border-color:var(--primary-light)!important;line-height:1.65" data-i18n="detail.improveWorkflowExplain"></p>
             <form method="post" action="/abap-analysis/{{ row.id }}/improvement-proposal"
                   data-busy-title-ko="저장 중입니다…" data-busy-title-en="Saving…"
@@ -367,14 +347,13 @@
                 <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="common.submit">제출</span>
               </button>
             </form>
-            {% endif %}
           </div>
         </div>
           </div>
         </details>
         {% endif %}
 
-        {% if not row.is_draft and row.is_analyzed and not row.workflow_rfp_id %}
+        {% if not row.is_draft and row.is_analyzed %}
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-delivery-hub" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
             <span class="fw-semibold">5. 제안서 · FS · 납품 코드</span>
