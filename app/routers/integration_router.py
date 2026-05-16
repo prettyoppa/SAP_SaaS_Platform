@@ -256,8 +256,10 @@ def _console_unified_hub_embed_phase(bucket: str) -> str:
 
 def _console_abap_preview_suffix(bucket: str) -> str:
     b = (bucket or "").strip().lower()
-    if b in ("proposal", "delivery"):
-        return "#abap-delivery-hub"
+    if b == "proposal":
+        return "#abap-phase-proposal"
+    if b == "delivery":
+        return "#abap-phase-fs"
     return ""
 
 

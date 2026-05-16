@@ -49,7 +49,7 @@
   <div class="rfp-list-right rfp-list-actions">
     <div class="d-flex flex-wrap gap-1 justify-content-end">
       {% with analysis_phase_row = row %}
-      {% include "partials/workflow_phase_nav.html" %}
+      {% include "partials/abap_analysis_phase_nav.html" %}
       {% endwith %}
     </div>
   </div>
@@ -73,7 +73,9 @@
     <span class="badge bg-warning text-dark" data-i18n="detail.analysisPending">분석 오류/미완료</span>
     {% endif %}
     {% with analysis_phase_row = row %}
-    {% include "partials/workflow_phase_nav.html" %}
+    {% with analysis_phase_row = row %}
+    {% include "partials/abap_analysis_phase_nav.html" %}
+    {% endwith %}
     {% endwith %}
   </div>
 </div>

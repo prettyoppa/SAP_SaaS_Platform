@@ -228,33 +228,32 @@ def integration_phase_gates(ir: models.IntegrationRequest, user: Optional[Any] =
 def abap_analysis_phase_gates(row: models.AbapAnalysisRequest, user: Optional[Any] = None) -> dict[str, Any]:
     """
     분석·개선(abap_analysis_requests) 목록 카드용 단계 링크.
-    RFP 통합 허브가 아닌 /abap-analysis/{id}(·/edit·console-readonly) + 본문 앵커만 사용한다.
+    신규/연동과 동일: 요청 → 분석결과(인터뷰 대체) → 제안서 → FS → 개발코드.
     """
     aid = int(row.id)
     owner_id = int(row.user_id)
     draft = bool(getattr(row, "is_draft", False))
     base = menu_abap_detail_url(user=user, owner_user_id=owner_id, request_id=aid, draft=draft)
-    request_href = f"{base}#abap-phase-request"
-    hub = f"{base}#abap-delivery-hub"
+    request_href = f"{base}#abap-phase-request" if not draft else None
+
+    analyzed = bool(getattr(row, "is_analyzed", False)) and not draft
+    has_analysis = analyzed
+    analysis_href = f"{base}#abap-phase-analysis" if has_analysis else None
 
     fs_s = ((getattr(row, "fs_status", None) or "none").strip().lower() or "none")
     dc_s = ((getattr(row, "delivered_code_status", None) or "none").strip().lower() or "none")
     pipeline = fs_s not in ("none", "") or dc_s not in ("none", "")
     has_fs = pipeline
-    fs_href = hub if has_fs else None
+    fs_href = f"{base}#abap-phase-fs" if has_fs else None
 
     dc_started = dc_s not in ("none", "")
     has_dev_code = dc_started
-    dev_code_href = hub if has_dev_code else None
+    dev_code_href = f"{base}#abap-phase-devcode" if has_dev_code else None
 
     iv = (getattr(row, "interview_status", None) or "").strip()
     prop = (getattr(row, "proposal_text", None) or "").strip()
-    has_proposal = bool(prop) or iv == "generating_proposal"
-    proposal_href = hub if has_proposal else None
-
-    # 분석·개선 목록: RFP 인터뷰 단계와 분리(AI 문의는 상세 플로팅 버튼만 사용)
-    has_interview = False
-    interview_href = None
+    has_proposal = analyzed
+    proposal_href = f"{base}#abap-phase-proposal" if has_proposal else None
 
     return {
         "has_dev_code": has_dev_code,
@@ -263,8 +262,10 @@ def abap_analysis_phase_gates(row: models.AbapAnalysisRequest, user: Optional[An
         "fs_href": fs_href,
         "has_proposal": has_proposal,
         "proposal_href": proposal_href,
-        "has_interview": has_interview,
-        "interview_href": interview_href,
+        "has_analysis": has_analysis,
+        "analysis_href": analysis_href,
+        "has_interview": False,
+        "interview_href": None,
         "request_href": request_href,
     }
 

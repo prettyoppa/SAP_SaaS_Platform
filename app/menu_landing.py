@@ -112,8 +112,6 @@ def abap_analysis_menu_bucket(row: models.AbapAnalysisRequest) -> str:
         return "proposal"
     if (getattr(row, "interview_status", None) or "") == "generating_proposal":
         return "proposal"
-    if (getattr(row, "improvement_request_text", None) or "").strip():
-        return "proposal"
     if row.is_analyzed:
         return "in_progress"
     return "analysis"
