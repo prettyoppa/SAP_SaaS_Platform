@@ -9,7 +9,12 @@ from sqlalchemy import exists, or_
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
-from .delivered_code_package import integration_delivered_body_ready
+from .delivered_code_package import (
+    delivered_package_has_body,
+    integration_delivered_body_ready,
+    parse_delivered_code_payload,
+)
+from .request_hub_access import abap_analysis_consultant_read_scope
 from .rfp_landing import (
     BUCKET_ORDER,
     TILE_ORDER_WITH_ALL,
@@ -89,12 +94,29 @@ def standard_menu_bucket_meta() -> dict[str, dict]:
 
 
 def abap_analysis_menu_bucket(row: models.AbapAnalysisRequest) -> str:
-    """홈 타일 분류와 동일. 연결 RFP가 있으면 그 진행(납품·제안 등)을 따름."""
+    """홈 타일 분류. 레거시: workflow_rfp 연결 시 RFP 진행을 따름. 신규: 본 레코드의 제안·FS·납품."""
     wr = getattr(row, "workflow_rfp", None)
     if wr is not None:
         return rfp_landing_bucket(wr)
     if row.is_draft:
         return "draft"
+    fs_s = ((getattr(row, "fs_status", None) or "none").strip().lower() or "none")
+    dc_s = ((getattr(row, "delivered_code_status", None) or "none").strip().lower() or "none")
+    dc_ok = dc_s == "ready" and (
+        delivered_package_has_body(parse_delivered_code_payload(getattr(row, "delivered_code_payload", None)))
+        or (getattr(row, "delivered_code_text", None) or "").strip()
+    )
+    fs_ok = fs_s == "ready" and (getattr(row, "fs_text", None) or "").strip()
+    if dc_ok or fs_ok:
+        return "delivery"
+    if fs_s == "generating" or dc_s == "generating":
+        return "delivery"
+    if (getattr(row, "proposal_text", None) or "").strip():
+        return "proposal"
+    if (getattr(row, "interview_status", None) or "") == "generating_proposal":
+        return "proposal"
+    if (getattr(row, "improvement_request_text", None) or "").strip():
+        return "proposal"
     if row.is_analyzed:
         return "in_progress"
     return "analysis"
@@ -154,16 +176,10 @@ def _abap_analysis_base_query(
     if admin:
         return q
     if consultant_matched:
-        ro = models.RequestOffer
         return q.filter(
             or_(
                 models.AbapAnalysisRequest.user_id == user_id,
-                exists().where(
-                    ro.request_kind == "analysis",
-                    ro.request_id == models.AbapAnalysisRequest.id,
-                    ro.consultant_user_id == user_id,
-                    ro.status == "matched",
-                ),
+                abap_analysis_consultant_read_scope(user_id),
             )
         )
     return q.filter(models.AbapAnalysisRequest.user_id == user_id)
@@ -313,7 +329,11 @@ def user_proposal_pending_offer_badges(db: Session, user_id: int) -> dict[str, b
         .filter(models.AbapAnalysisRequest.user_id == user_id)
         .all()
     )
-    ana_ids = [r.id for r in analyses if abap_analysis_menu_bucket(r) == "proposal"]
+    ana_proposal = [r for r in analyses if abap_analysis_menu_bucket(r) == "proposal"]
+    ana_rfp_ids = list(
+        {int(r.workflow_rfp_id) for r in ana_proposal if getattr(r, "workflow_rfp_id", None)}
+    )
+    ana_row_ids = [int(r.id) for r in ana_proposal if not getattr(r, "workflow_rfp_id", None)]
 
     ints = (
         db.query(models.IntegrationRequest)
@@ -338,6 +358,6 @@ def user_proposal_pending_offer_badges(db: Session, user_id: int) -> dict[str, b
 
     return {
         "rfp": _has("rfp", rfp_ids),
-        "analysis": _has("analysis", ana_ids),
+        "analysis": _has("analysis", ana_row_ids) or (_has("rfp", ana_rfp_ids) if ana_rfp_ids else False),
         "integration": _has("integration", int_ids),
     }

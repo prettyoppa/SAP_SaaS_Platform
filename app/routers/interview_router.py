@@ -359,6 +359,13 @@ def serve_interview_workspace(
 ) -> InterviewWorkspaceOutcome:
     """GET /rfp/:id/interview 와 동일한 분기·부작용(라운드 생성 등). 통합 허브에서 phase=interview 일 때만 호출."""
     rid = rfp.id
+    wo = (getattr(rfp, "workflow_origin", None) or "").strip().lower()
+    if wo == "abap_analysis":
+        return InterviewWorkspaceOutcome(
+            kind="redirect",
+            redirect_url=rfp_hub_url(rid, "proposal"),
+        )
+
     if rfp.status == "draft":
         return InterviewWorkspaceOutcome(kind="redirect", redirect_url=f"/rfp/{rid}/edit")
 
@@ -563,6 +570,8 @@ def interview_summary_page(rfp_id: int, request: Request, db: Session = Depends(
         return RedirectResponse(url="/", status_code=302)
     if rfp.status == "draft":
         return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
+    if (getattr(rfp, "workflow_origin", None) or "").strip().lower() == "abap_analysis":
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
     return RedirectResponse(url=rfp_hub_url(rfp_id, "interview", view_summary=True), status_code=302)
 
 
@@ -610,21 +619,26 @@ def request_proposal_now(
     ).first()
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
+    wo = (getattr(rfp, "workflow_origin", None) or "").strip().lower()
+    hub_proposal_phase = "proposal" if wo == "abap_analysis" else "interview"
     if rfp.interview_status == "generating_proposal":
         return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
     if rfp.interview_status == "completed" and rfp.proposal_text:
         return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
     if not _interview_has_substance(rfp):
-        return RedirectResponse(url=f"{rfp_hub_url(rfp_id, 'interview')}&err=proposal", status_code=302)
+        return RedirectResponse(
+            url=f"{rfp_hub_url(rfp_id, hub_proposal_phase)}&err=proposal",
+            status_code=302,
+        )
     err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
     if err_p == "disabled":
         return RedirectResponse(
-            url=f"{rfp_hub_url(rfp_id, 'interview')}&quota_err=dev_proposal_disabled",
+            url=f"{rfp_hub_url(rfp_id, hub_proposal_phase)}&quota_err=dev_proposal_disabled",
             status_code=302,
         )
     if err_p == "monthly_limit":
         return RedirectResponse(
-            url=f"{rfp_hub_url(rfp_id, 'interview')}&quota_err=dev_proposal_limit",
+            url=f"{rfp_hub_url(rfp_id, hub_proposal_phase)}&quota_err=dev_proposal_limit",
             status_code=302,
         )
     rfp.interview_status = "generating_proposal"

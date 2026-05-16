@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import models
 from .menu_landing import abap_analysis_menu_bucket, integration_menu_bucket
+from .request_hub_access import abap_analysis_consultant_read_scope
 from .rfp_landing import BUCKET_ORDER, rfp_landing_bucket
 
 
@@ -58,16 +59,10 @@ def home_tile_counts(
     if is_admin:
         pass
     elif consultant_matched:
-        ro = models.RequestOffer
         a_q = a_q.filter(
             or_(
                 models.AbapAnalysisRequest.user_id == uid,
-                exists().where(
-                    ro.request_kind == "analysis",
-                    ro.request_id == models.AbapAnalysisRequest.id,
-                    ro.consultant_user_id == uid,
-                    ro.status == "matched",
-                ),
+                abap_analysis_consultant_read_scope(uid),
             )
         )
     else:

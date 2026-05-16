@@ -63,17 +63,24 @@ def rfp_phase_gates(rfp: models.RFP, user: Optional[Any] = None) -> dict[str, An
     prop = (rfp.proposal_text or "").strip()
     nmsg = len(getattr(rfp, "messages", None) or [])
 
+    wo = (getattr(rfp, "workflow_origin", None) or "").strip().lower()
+    workflow_abap = wo == "abap_analysis"
+
     has_proposal = bool(prop) or iv == "generating_proposal"
+    if workflow_abap and st != "draft":
+        has_proposal = True
     if iv == "generating_proposal":
         proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="proposal")
     elif prop:
+        proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="proposal")
+    elif workflow_abap and st != "draft":
         proposal_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="proposal")
     else:
         proposal_href = None
 
     has_interview = False
     interview_href: str | None = None
-    if st != "draft":
+    if not workflow_abap and st != "draft":
         if iv == "generating_proposal":
             has_interview = True
             interview_href = menu_entity_hub_url(

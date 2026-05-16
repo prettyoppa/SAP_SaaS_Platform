@@ -200,13 +200,14 @@ def build_workflow_seed_answer_integration(
 
 
 def build_workflow_description_abap(row: models.AbapAnalysisRequest, improvement_text: str) -> str:
-    """에이전트용 RFP 본문: 인터뷰 라운드와 분리된 요약(상세 단계는 허브에서 사람이 확인)."""
+    """에이전트용 RFP 본문: 분석·개선 단계 요약(신규 개발 허브 미러와 함께 제안서·FS 에이전트가 참고)."""
     return "\n".join(
         [
             "[워크플로: ABAP 분석·개선에서 연결된 신규 개발(RFP)]",
             "",
             "분석·개선 단계의 코드·분석 JSON·작성 중 AI 문의 내용은 RFP 허브 「1. 요청」에 동일하게 표시됩니다.",
-            "이하 필드는 신규 개발(인터뷰·제안서) 에이전트가 참고할 요약입니다.",
+            "인터뷰 단계는 생략되며, 분석 결과·요구사항 연계 분석·개선 제안 요청을 바탕으로 제안서·FS·납품이 진행됩니다.",
+            "이하 필드는 신규 개발(제안서·FS) 에이전트가 참고할 요약입니다.",
             "",
             "### 개선 제안 요청",
             (improvement_text or "").strip(),
@@ -268,6 +269,14 @@ def create_workflow_rfp_from_abap_analysis(
     title_base = (row.title or "").strip() or f"ABAP 분석 개선 #{row.id}"
     title = (title_base + " · 개선제안")[:512]
 
+    fmsgs = list(followup_messages) if followup_messages is not None else []
+    seed = build_workflow_seed_answer_abap(
+        requirement_text=row.requirement_text or "",
+        analysis_json_raw=getattr(row, "analysis_json", None),
+        followup_messages=fmsgs,
+        improvement_text=improvement_text,
+    )
+
     rfp = models.RFP(
         user_id=owner_user_id,
         program_id=pid or None,
@@ -284,6 +293,18 @@ def create_workflow_rfp_from_abap_analysis(
     )
     db.add(rfp)
     db.flush()
+
+    msg = models.RFPMessage(
+        rfp_id=rfp.id,
+        round_number=1,
+        questions_json=json.dumps(
+            ["[ABAP 분석·개선 연계] 제안서 작성용 통합 요약"], ensure_ascii=False
+        ),
+        answers_text=seed,
+        is_answered=True,
+        source_label="workflow_abap_analysis",
+    )
+    db.add(msg)
 
     row.workflow_rfp_id = rfp.id
     row.improvement_request_text = improvement_text.strip()

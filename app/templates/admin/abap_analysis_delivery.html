@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}납품 관리 · 분석·개선 {{ row.id }} — Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="container">
+    {% include 'partials/nav_prev_screen.html' %}
+
+    {% if delivery_err == 'fs_not_ready' %}
+    <div class="alert alert-warning">코드 생성에 사용할 FS가 없습니다. 먼저 FS 생성을 완료하세요.</div>
+    {% endif %}
+    {% if fs_codegen_preview_error %}
+    <div class="alert alert-secondary small mb-3">{{ fs_codegen_preview_error }}</div>
+    {% endif %}
+
+    <div class="admin-content-card mb-4">
+      <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+        <div>
+          <h4 class="mb-1">{{ row.title }}</h4>
+          <p class="text-muted small mb-0">작성자: {{ row.owner.full_name if row.owner else '—' }}</p>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-secondary me-1">fs: {{ row.fs_status or 'none' }}</span>
+          <span class="badge bg-secondary">code: {{ row.delivered_code_status or 'none' }}</span>
+        </div>
+      </div>
+      <hr>
+      <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+        <a href="/abap-analysis/{{ row.id }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">회원 상세</a>
+        <form method="post" action="/admin/abap-analysis/{{ row.id }}/delivery/fs-start" class="d-inline">
+          <button type="submit" class="btn btn-warning btn-sm" {% if fs_busy %}disabled{% endif %}>FS 생성 시작</button>
+        </form>
+        <form method="post" action="/admin/abap-analysis/{{ row.id }}/delivery/code-start" class="d-inline">
+          <button type="submit" class="btn btn-primary btn-sm" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>납품 코드 생성</button>
+        </form>
+      </div>
+      {% if row.fs_error %}
+      <pre class="small text-danger mt-2">{{ row.fs_error }}</pre>
+      {% endif %}
+      {% if row.delivered_code_error %}
+      <pre class="small text-danger mt-1">{{ row.delivered_code_error }}</pre>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="deliveryJobLogOpenBtn">
+        <i class="fa-solid fa-scroll me-1"></i>실행 로그</button>
+    </div>
+
+    <div id="deliveryJobLogPanel" class="delivery-job-log-overlay d-none" aria-hidden="true">
+      <div class="delivery-job-log-backdrop" data-close-delivery-log="1" aria-hidden="true"></div>
+      <div class="delivery-job-log-sheet border shadow" role="dialog" aria-modal="true" aria-labelledby="deliveryJobLogTitle">
+        <div class="d-flex align-items-center border-bottom px-3 py-2 flex-shrink-0 bg-body">
+          <h5 class="modal-title mb-0" id="deliveryJobLogTitle">생성 작업 실행 로그</h5>
+          <button type="button" class="btn-close ms-auto" data-close-delivery-log="1" aria-label="닫기"></button>
+        </div>
+        <div class="delivery-job-log-body p-3">
+          <div class="d-flex flex-wrap gap-2 mb-2 small">
+            <span id="jobLogFsBadge" class="badge bg-secondary">fs: —</span>
+            <span id="jobLogDcBadge" class="badge bg-secondary">code: —</span>
+          </div>
+          <ul class="nav nav-tabs small" id="jobLogTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="tab-fslog" data-bs-toggle="tab" data-bs-target="#paneFsLog" type="button" role="tab">FS</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-dclog" data-bs-toggle="tab" data-bs-target="#paneDcLog" type="button" role="tab">납품 코드</button>
+            </li>
+          </ul>
+          <div class="tab-content border border-top-0 rounded-bottom p-2" id="jobLogTabContent">
+            <div class="tab-pane fade show active" id="paneFsLog" role="tabpanel">
+              <pre id="jobLogFs" class="small mb-0 p-2 rounded" style="max-height:50vh;background:var(--surface2);white-space:pre-wrap;">(불러오는 중…)</pre>
+            </div>
+            <div class="tab-pane fade" id="paneDcLog" role="tabpanel">
+              <pre id="jobLogDc" class="small mb-0 p-2 rounded" style="max-height:50vh;background:var(--surface2);white-space:pre-wrap;">(불러오는 중…)</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if gen_busy %}
+    <div class="modal fade" id="deliveryProgressModal" tabindex="-1" aria-hidden="true"
+      data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title">생성 진행 중</h5>
+          </div>
+          <div class="modal-body pt-2 text-center">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="text-muted small mb-0">완료되면 화면이 자동으로 새로 고침됩니다.</p>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-3" id="admOpenJobLogBtn">실행 로그</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+.delivery-job-log-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+.delivery-job-log-backdrop { flex: 1; background: rgba(0,0,0,.35); }
+.delivery-job-log-sheet {
+  width: min(640px, 100%);
+  background: var(--bs-body-bg, #fff);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+.delivery-job-log-body { flex: 1; min-height: 0; overflow: auto; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const analysisId = {{ row.id }};
+  const pollMs = {{ job_log_poll_ms|default(2500) }};
+  const logUrl = '/admin/abap-analysis/' + analysisId + '/delivery/generation-log';
+  const genBusy = {{ gen_busy|tojson }};
+  const fsBusyStart = {{ fs_busy|tojson }};
+  const dcBusyStart = {{ dc_busy|tojson }};
+  let logTimer = null;
+  const logPanel = document.getElementById('deliveryJobLogPanel');
+  const logOpenBtn = document.getElementById('deliveryJobLogOpenBtn');
+  const progressModal = document.getElementById('deliveryProgressModal');
+
+  function isLogPanelOpen() {
+    return logPanel && !logPanel.classList.contains('d-none');
+  }
+  function openDeliveryJobLogPanel() {
+    if (!logPanel) return;
+    logPanel.classList.remove('d-none');
+    logPanel.setAttribute('aria-hidden', 'false');
+    pollJobLog();
+    if (logTimer) clearInterval(logTimer);
+    logTimer = setInterval(pollJobLog, pollMs);
+  }
+  function closeDeliveryJobLogPanel() {
+    if (!logPanel) return;
+    logPanel.classList.add('d-none');
+    logPanel.setAttribute('aria-hidden', 'true');
+    if (logTimer) { clearInterval(logTimer); logTimer = null; }
+  }
+  async function pollJobLog() {
+    try {
+      const r = await fetch(logUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+      if (!r.ok) return;
+      const j = await r.json();
+      const fsPre = document.getElementById('jobLogFs');
+      const dcPre = document.getElementById('jobLogDc');
+      const fsB = document.getElementById('jobLogFsBadge');
+      const dcB = document.getElementById('jobLogDcBadge');
+      if (fsPre) fsPre.textContent = (j.fs_job_log && j.fs_job_log.trim()) ? j.fs_job_log : '(아직 FS 작업 로그 없음)';
+      if (dcPre) dcPre.textContent = (j.delivered_job_log && j.delivered_job_log.trim()) ? j.delivered_job_log : '(아직 납품 코드 작업 로그 없음)';
+      if (fsB) fsB.textContent = 'fs: ' + (j.fs_status || 'none');
+      if (dcB) dcB.textContent = 'code: ' + (j.delivered_code_status || 'none');
+      return j;
+    } catch (e) { return null; }
+  }
+  if (logOpenBtn) logOpenBtn.addEventListener('click', openDeliveryJobLogPanel);
+  if (logPanel) {
+    logPanel.addEventListener('click', function (e) {
+      if (e.target.closest('[data-close-delivery-log="1"]')) closeDeliveryJobLogPanel();
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (isLogPanelOpen()) { closeDeliveryJobLogPanel(); e.stopPropagation(); }
+  }, true);
+
+  if (genBusy && progressModal && typeof bootstrap !== 'undefined') {
+    bootstrap.Modal.getOrCreateInstance(progressModal).show();
+    const openLogBtn = document.getElementById('admOpenJobLogBtn');
+    if (openLogBtn) openLogBtn.addEventListener('click', openDeliveryJobLogPanel);
+    const statusPoll = setInterval(async function () {
+      const j = await pollJobLog();
+      if (!j) return;
+      let done = true;
+      const fsSt = String(j.fs_status || '').trim();
+      const dcSt = String(j.delivered_code_status || '').trim();
+      if (fsBusyStart && fsSt === 'generating') done = false;
+      if (dcBusyStart && dcSt === 'generating') done = false;
+      if (done) {
+        clearInterval(statusPoll);
+        window.location.reload();
+      }
+    }, 5000);
+    pollJobLog();
+  }
+})();
+</script>
+{% endblock %}

@@ -257,7 +257,7 @@ def _console_unified_hub_embed_phase(bucket: str) -> str:
 def _console_abap_preview_suffix(bucket: str) -> str:
     b = (bucket or "").strip().lower()
     if b in ("proposal", "delivery"):
-        return "#abap-phase-offers"
+        return "#abap-delivery-hub"
     return ""
 
 
@@ -420,7 +420,7 @@ def _console_public_detail_url(request: Request, req_kind: str, req_id: int) -> 
     if req_kind == "rfp":
         return public_request_url(request, f"/rfp/{req_id}?phase=proposal")
     if req_kind == "analysis":
-        return public_request_url(request, f"/abap-analysis/{req_id}#abap-phase-offers")
+        return public_request_url(request, f"/abap-analysis/{req_id}")
     if req_kind == "integration":
         return public_request_url(request, f"/integration/{req_id}?phase=proposal")
     return public_request_url(request, "/")
@@ -995,10 +995,11 @@ def request_console_consultant_inquiry_submit(
     except Exception:
         return RedirectResponse(url="/request-console", status_code=303)
 
+    if prefix == "ana":
+        return RedirectResponse(url="/request-console", status_code=303)
+
     if prefix == "rfp":
         req_kind = "rfp"
-    elif prefix == "ana":
-        req_kind = "analysis"
     elif prefix == "int":
         req_kind = "integration"
     else:
@@ -1082,10 +1083,11 @@ def request_console_offer_submit(
     except Exception:
         return RedirectResponse(url="/request-console", status_code=303)
 
+    if prefix == "ana":
+        return RedirectResponse(url="/request-console", status_code=303)
+
     if prefix == "rfp":
         req_kind = "rfp"
-    elif prefix == "ana":
-        req_kind = "analysis"
     elif prefix == "int":
         req_kind = "integration"
     else:

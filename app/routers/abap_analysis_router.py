@@ -5,15 +5,17 @@ SAP ABAP 분석 요청 — abap_codes와 별도 테이블(abap_analysis_requests
 
 from __future__ import annotations
 
+import io
 import json
 import os
+import zipfile
 from datetime import datetime
 from typing import Any, List, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from sqlalchemy import exists, or_
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from .. import auth, models, r2_storage, sap_fields
@@ -21,7 +23,12 @@ from ..abap_followup_chat import (
     generate_followup_reply,
     validate_user_message,
 )
-from ..subscription_catalog import METRIC_DEV_REQUEST, METRIC_REQUEST_DUPLICATE
+from ..subscription_catalog import (
+    METRIC_DEV_PROPOSAL,
+    METRIC_DEV_PROPOSAL_REGEN,
+    METRIC_DEV_REQUEST,
+    METRIC_REQUEST_DUPLICATE,
+)
 from ..subscription_quota import (
     ai_inquiry_limit_reached,
     ai_inquiry_snapshot,
@@ -30,10 +37,15 @@ from ..subscription_quota import (
     monthly_quota_exceeded,
     record_ai_inquiry_user_turn,
     try_consume_monthly,
+    try_consume_per_request,
 )
 from ..database import get_db
 from ..followup_messages_util import followup_created_at_sort_key
-from ..request_hub_access import consultant_menu_matched_scope
+from ..request_hub_access import (
+    abap_analysis_consultant_read_scope,
+    consultant_is_matched_on_request,
+    consultant_menu_matched_scope,
+)
 from ..menu_landing import (
     DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO,
     TILE_ORDER_WITH_ALL,
@@ -70,18 +82,27 @@ from ..requirement_screenshots import (
     entries_to_json as requirement_screenshot_entries_to_json,
     remove_stored_entries as remove_requirement_screenshots,
 )
+from ..abap_analysis_proposal_service import run_abap_analysis_proposal_background
+from ..agent_display import wrap_unbracketed_agent_names
+from ..code_asset_access import user_may_copy_download_request_assets
+from ..delivered_code_package import (
+    delivered_package_has_body,
+    parse_delivered_code_payload,
+    rfp_delivered_body_ready,
+)
 from ..offer_inquiry_service import (
     inquiries_by_offer_id,
     notify_consultant_request_matched,
     public_request_url,
-    sanitize_console_readonly_return_url,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
 )
-from ..code_asset_access import user_may_copy_download_request_assets
-from ..request_hub_access import consultant_has_request_offer
 from ..request_offer_visibility import visible_request_offers_for_viewer
-from ..rfp_reference_code import (
+from ..rfp_download_names import (
+    content_disposition_attachment,
+    delivered_abap_download_basename,
+    delivered_code_zip_basename,
+)
     MAX_REFERENCE_CODE_BYTES,
     abap_source_only_from_reference_payload,
     normalize_reference_code_payload,
@@ -98,13 +119,47 @@ from .rfp_router import (
     _rfp_core_fields_incomplete_response,
     _rfp_missing_core_field_labels,
 )
-from ..rfp_hub import rfp_hub_url
-from ..workflow_rfp_bridge import create_workflow_rfp_from_abap_analysis
 
 router = APIRouter(prefix="/abap-analysis", tags=["abap_analysis"])
 
-MIN_IMPROVEMENT_PROPOSAL_LEN = 20
 
+def _analysis_offer_rows(db: Session, analysis_id: int) -> list[models.RequestOffer]:
+    return (
+        db.query(models.RequestOffer)
+        .filter(
+            models.RequestOffer.request_kind == "analysis",
+            models.RequestOffer.request_id == int(analysis_id),
+        )
+        .order_by(models.RequestOffer.id.desc())
+        .all()
+    )
+
+
+def _abap_analysis_hub_delivered_fields(row: models.AbapAnalysisRequest) -> dict[str, Any]:
+    raw_pkg = parse_delivered_code_payload(getattr(row, "delivered_code_payload", None))
+    has_pkg = bool(raw_pkg and delivered_package_has_body(raw_pkg))
+    dc_ready = (getattr(row, "delivered_code_status", None) or "").strip() == "ready"
+    txt = (getattr(row, "delivered_code_text", None) or "").strip()
+    delivered_package = raw_pkg if has_pkg else None
+    delivered_code_html = ""
+    if dc_ready and txt and not has_pkg:
+        delivered_code_html = _markdown_to_html(row.delivered_code_text or "")
+    impl_html = ""
+    test_html = ""
+    if delivered_package:
+        impl_html = _markdown_to_html(delivered_package.get("implementation_guide_md") or "")
+        test_html = _markdown_to_html(delivered_package.get("test_scenarios_md") or "")
+    has_delivered_preview = bool(dc_ready and (has_pkg or bool(txt)))
+    return {
+        "delivered_package": delivered_package,
+        "delivered_code_html": delivered_code_html,
+        "delivered_impl_guide_html": impl_html,
+        "delivered_test_scenarios_html": test_html,
+        "has_delivered_preview": has_delivered_preview,
+    }
+
+
+MIN_IMPROVEMENT_PROPOSAL_LEN = 20
 MIN_REQUIREMENT_LEN = 20
 MIN_ABAP_SOURCE_LEN = 50
 MIN_TITLE_LEN = 2
@@ -213,13 +268,12 @@ def _query_abap_readable(db: Session, user: models.User):
     if getattr(user, "is_admin", False):
         return q
     if getattr(user, "is_consultant", False):
-        ro = models.RequestOffer
-        offer_ok = exists().where(
-            ro.request_kind == "analysis",
-            ro.request_id == models.AbapAnalysisRequest.id,
-            ro.consultant_user_id == user.id,
+        return q.filter(
+            or_(
+                models.AbapAnalysisRequest.user_id == user.id,
+                abap_analysis_consultant_read_scope(user.id),
+            )
         )
-        return q.filter(or_(models.AbapAnalysisRequest.user_id == user.id, offer_ok))
     return q.filter(models.AbapAnalysisRequest.user_id == user.id)
 
 
@@ -315,32 +369,6 @@ def _merge_llm_digests(file_entries: list[dict], screenshot_entries: list[dict])
     if len(combined) > 24_000:
         combined = combined[:24_000] + "\n…(컨텍스트 상한)…"
     return combined
-
-
-def _analysis_offer_rows(db: Session, req_id: int) -> list[models.RequestOffer]:
-    return (
-        db.query(models.RequestOffer)
-        .options(joinedload(models.RequestOffer.consultant))
-        .filter(
-            models.RequestOffer.request_kind == "analysis",
-            models.RequestOffer.request_id == req_id,
-        )
-        .order_by(models.RequestOffer.created_at.desc())
-        .all()
-    )
-
-
-def _offered_analysis_id_set(db: Session, ids: list[int], *, pending_only: bool = False) -> set[int]:
-    if not ids:
-        return set()
-    q = db.query(models.RequestOffer.request_id).filter(
-        models.RequestOffer.request_kind == "analysis",
-        models.RequestOffer.request_id.in_(ids),
-    )
-    if pending_only:
-        q = q.filter(models.RequestOffer.status == "offered")
-    rows = q.distinct().all()
-    return {int(r[0]) for r in rows if r and r[0] is not None}
 
 
 def _effective_abap_source(row: models.AbapAnalysisRequest) -> str:
@@ -535,7 +563,6 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
     menu_tile_links: dict[str, str] = {}
     filtered_rows: list[models.AbapAnalysisRequest] = []
     show_request_owner = False
-    proposal_offer_notice_count = 0
 
     if user:
         admin_view = False
@@ -561,15 +588,6 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
                 date_to=date_to_dt,
                 consultant_matched=consultant_matched,
             )
-            offered_ids = _offered_analysis_id_set(
-                db, [int(x.id) for x in filtered_rows], pending_only=True
-            )
-            for row in filtered_rows:
-                ho = int(row.id) in offered_ids
-                setattr(row, "has_offer", ho)
-                if selected_bucket == "proposal" and ho:
-                    proposal_offer_notice_count += 1
-                setattr(row, "pulse_offer_bg", selected_bucket == "proposal" and ho)
 
     bucket_meta = standard_menu_bucket_meta()
     proposal_offer_badges = (
@@ -597,7 +615,6 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
             "show_request_owner": show_request_owner,
             "menu_landing_form_action": "/abap-analysis",
             "proposal_offer_badges": proposal_offer_badges,
-            "proposal_offer_notice_count": proposal_offer_notice_count,
         },
     )
 
@@ -1078,10 +1095,22 @@ def _prepare_abap_analysis_detail_ctx(
         except Exception:
             analysis = {}
     owner = None
+    wf_rid = getattr(row, "workflow_rfp_id", None)
     if getattr(user, "is_admin", False) or (
         readonly_console and getattr(user, "is_consultant", False)
-    ) or consultant_has_request_offer(
-        db, consultant_user_id=user.id, request_kind="analysis", request_id=row.id
+    ) or (
+        wf_rid
+        and consultant_is_matched_on_request(
+            db,
+            consultant_user_id=user.id,
+            request_kind="rfp",
+            request_id=int(wf_rid),
+        )
+    ) or consultant_is_matched_on_request(
+        db,
+        consultant_user_id=user.id,
+        request_kind="analysis",
+        request_id=int(row.id),
     ):
         owner = db.query(models.User).filter(models.User.id == row.user_id).first()
 
@@ -1098,17 +1127,11 @@ def _prepare_abap_analysis_detail_ctx(
         ]
 
     bucket = abap_analysis_menu_bucket(row)
-    ro_suffix = "#abap-phase-offers" if bucket in ("proposal", "delivery") else ""
+    ro_suffix = "#abap-delivery-hub" if bucket in ("proposal", "delivery") else ""
     hub_readonly_return_url = (
         f"/abap-analysis/{row.id}/console-readonly{ro_suffix}" if readonly_console else None
     )
 
-    vis_offers = visible_request_offers_for_viewer(
-        _analysis_offer_rows(db, row.id),
-        viewer=user,
-        owner_user_id=row.user_id,
-        privileged_operator=bool(user.is_admin),
-    )
     code_asset_unlocked = user_may_copy_download_request_assets(
         db,
         user,
@@ -1116,23 +1139,64 @@ def _prepare_abap_analysis_detail_ctx(
         request_id=int(row.id),
         owner_user_id=int(row.user_id),
     )
-    offer_panel_ctx = {
-        "request_offers": vis_offers,
-        "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_offers]),
-        "request_offer_inquiry_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/inquiry",
-        "request_offer_inquiry_reply_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/inquiry-reply",
-        "request_offer_can_inquire": bool(not readonly_console and user.id == row.user_id),
-        "offer_inquiry_request_detail_url": public_request_url(
-            request, f"/abap-analysis/{row.id}#abap-phase-offers"
-        ),
-        "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
-        "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
-        "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
-        "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip() == "1",
-        "hub_readonly_return_url": hub_readonly_return_url,
-    }
 
     req_ctx = _requirement_display_ctx(row, "abap", row.id)
+
+    ana_ist = (getattr(row, "interview_status", None) or "pending").strip()
+    ana_hub_proposal_generating = ana_ist == "generating_proposal"
+    ana_proposal_html = ""
+    if ana_ist == "completed" and (getattr(row, "proposal_text", None) or "").strip():
+        ana_proposal_html = _markdown_to_html(wrap_unbracketed_agent_names(row.proposal_text or ""))
+
+    offers_raw = _analysis_offer_rows(db, row.id)
+    vis_offers = visible_request_offers_for_viewer(
+        offers_raw,
+        viewer=user,
+        owner_user_id=int(row.user_id),
+        privileged_operator=bool(getattr(user, "is_admin", False)),
+    )
+    ana_hub: dict[str, Any] = {
+        "ana_hub_proposal_generating": ana_hub_proposal_generating,
+        "ana_proposal_html": ana_proposal_html,
+        "ana_interview_status": ana_ist,
+        "request_offers": vis_offers,
+        "request_offer_can_match": bool(
+            user and int(user.id) == int(row.user_id) and not readonly_console
+        ),
+        "request_offer_profile_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/profile",
+        "request_offer_match_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/match",
+        "request_offer_inquiry_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/inquiry",
+        "request_offer_inquiry_reply_url_builder": lambda oid, rid=row.id: f"/abap-analysis/{rid}/offers/{int(oid)}/inquiry-reply",
+        "request_offer_inquiries_by_offer_id": inquiries_by_offer_id(db, [int(o.id) for o in vis_offers]),
+        "request_offer_can_inquire": bool(user and int(user.id) == int(row.user_id) and not readonly_console),
+        "offer_inquiry_request_detail_url": public_request_url(
+            request, f"/abap-analysis/{row.id}#abap-delivery-hub"
+        ),
+        "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
+        "ana_fs_stat": (getattr(row, "fs_status", None) or "none").strip() or "none",
+        "ana_dc_stat": (getattr(row, "delivered_code_status", None) or "none").strip() or "none",
+        "ana_fs_busy": (getattr(row, "fs_status", None) or "").strip() == "generating",
+        "ana_dc_busy": (getattr(row, "delivered_code_status", None) or "").strip() == "generating",
+        "ana_gen_busy": ((getattr(row, "fs_status", None) or "").strip() == "generating")
+        or ((getattr(row, "delivered_code_status", None) or "").strip() == "generating"),
+        "ana_can_request_proposal": bool(
+            int(user.id) == int(row.user_id)
+            and not readonly_console
+            and (row.improvement_request_text or "").strip()
+            and not (row.proposal_text or "").strip()
+            and ana_ist != "generating_proposal"
+        ),
+        "ana_proposal_scripts": bool(ana_proposal_html)
+        and (not ana_hub_proposal_generating)
+        and (not readonly_console),
+        "ana_has_delivered_zip": rfp_delivered_body_ready(row),
+        "offer_inquiry_ok": (request.query_params.get("offer_inquiry_ok") or "").strip() == "1",
+        "offer_inquiry_reply_ok": (request.query_params.get("offer_inquiry_reply_ok") or "").strip()
+        == "1",
+        "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
+        "proposal_gate_err": (request.query_params.get("err") or "").strip() == "proposal",
+        **_abap_analysis_hub_delivered_fields(row),
+    }
 
     if readonly_console:
         return {
@@ -1145,10 +1209,7 @@ def _prepare_abap_analysis_detail_ctx(
             "owner": owner,
             "code_asset_unlocked": code_asset_unlocked,
             "source_program_groups": program_groups,
-            **offer_panel_ctx,
-            "request_offer_can_match": False,
-            "request_offer_profile_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/profile",
-            "request_offer_match_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/match",
+            **ana_hub,
         }
 
     followup_messages = sorted(
@@ -1172,6 +1233,14 @@ def _prepare_abap_analysis_detail_ctx(
         subscription_quota_flash = "이번 달(UTC) 개발 요청 생성 한도에 도달했습니다."
     elif qe == "dev_request_disabled":
         subscription_quota_flash = "현재 플랜에서 개발 요청을 더 만들 수 없습니다."
+    elif qe == "dev_proposal_limit":
+        subscription_quota_flash = "이번 달(UTC) 개발 제안서 생성 한도에 도달했습니다."
+    elif qe == "dev_proposal_disabled":
+        subscription_quota_flash = "현재 플랜에서 개발 제안서 생성을 사용할 수 없습니다."
+    elif qe == "proposal_regen_limit":
+        subscription_quota_flash = "이 요청에서 제안서 재생성 허용 횟수에 도달했습니다."
+    elif qe == "proposal_regen_disabled":
+        subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
     return {
         "request": request,
         "user": user,
@@ -1191,10 +1260,9 @@ def _prepare_abap_analysis_detail_ctx(
         "max_followup_user_turns": snap_d["max_turns_display"],
         "abap_ai_inquiry_unlimited": snap_d["unlimited"],
         "abap_followup_cap": snap_d["cap"],
-        **offer_panel_ctx,
-        "request_offer_can_match": bool(user and row and user.id == row.user_id),
-        "request_offer_profile_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/profile",
-        "request_offer_match_url_builder": lambda offer_id: f"/abap-analysis/{row.id}/offers/{int(offer_id)}/match",
+        "hub_readonly_return_url": hub_readonly_return_url,
+        "proposal_gate_err": proposal_gate_err,
+        **ana_hub,
     }
 
 
@@ -1242,24 +1310,154 @@ def abap_analysis_improvement_proposal_post(
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     if getattr(row_el, "workflow_rfp_id", None):
         return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=already", status_code=302)
+    if (getattr(row_el, "proposal_text", None) or "").strip() or (
+        (getattr(row_el, "interview_status", None) or "") == "generating_proposal"
+    ):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=locked", status_code=302)
     txt = (improvement_request_text or "").strip()
     if len(txt) < MIN_IMPROVEMENT_PROPOSAL_LEN:
         return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=short", status_code=302)
 
-    wf_q = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
-    if wf_q == "disabled":
-        return RedirectResponse(url=f"/abap-analysis/{req_id}?quota_err=dev_request_disabled", status_code=302)
-    if wf_q == "monthly_limit":
-        return RedirectResponse(url=f"/abap-analysis/{req_id}?quota_err=dev_request_limit", status_code=302)
+    row_el.improvement_request_text = txt
+    if (getattr(row_el, "interview_status", None) or "") in ("", "pending", None):
+        row_el.interview_status = "pending"
+    db.add(row_el)
+    db.commit()
+    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
 
-    rfp = create_workflow_rfp_from_abap_analysis(
+
+@router.post("/{req_id}/proposal/request-now")
+def abap_analysis_request_proposal_now(
+    req_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _query_for_user(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    if getattr(row, "workflow_rfp_id", None):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=already", status_code=302)
+    if (row.interview_status or "") == "generating_proposal":
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
+    if (row.interview_status or "") == "completed" and (row.proposal_text or "").strip():
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
+    if not (row.improvement_request_text or "").strip():
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?err=proposal#abap-delivery-hub", status_code=302)
+    err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
+    if err_p == "disabled":
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?quota_err=dev_proposal_disabled#abap-delivery-hub",
+            status_code=302,
+        )
+    if err_p == "monthly_limit":
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?quota_err=dev_proposal_limit#abap-delivery-hub",
+            status_code=302,
+        )
+    row.interview_status = "generating_proposal"
+    db.add(row)
+    db.commit()
+    background_tasks.add_task(run_abap_analysis_proposal_background, row.id)
+    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
+
+
+@router.post("/{req_id}/proposal/regenerate")
+def abap_analysis_regenerate_proposal(
+    req_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _query_for_user(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    if getattr(row, "workflow_rfp_id", None):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}?wf_err=already", status_code=302)
+    err_r = try_consume_per_request(db, user, METRIC_DEV_PROPOSAL_REGEN, "analysis", req_id, 1)
+    if err_r == "disabled":
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?quota_err=proposal_regen_disabled#abap-delivery-hub",
+            status_code=302,
+        )
+    if err_r == "per_request_limit":
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?quota_err=proposal_regen_limit#abap-delivery-hub",
+            status_code=302,
+        )
+    row.interview_status = "generating_proposal"
+    row.proposal_text = None
+    db.add(row)
+    db.commit()
+    background_tasks.add_task(run_abap_analysis_proposal_background, row.id)
+    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
+
+
+@router.get("/{req_id}/proposal/status")
+def abap_analysis_proposal_status(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row:
+        return JSONResponse({"status": "not_found"}, status_code=404)
+    return JSONResponse({"status": (row.interview_status or "pending")})
+
+
+@router.get("/{req_id}/delivered-code/download")
+def abap_analysis_delivered_code_download(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    if not user_may_copy_download_request_assets(
         db,
-        row=row_el,
-        improvement_text=txt,
-        owner_user_id=user.id,
-        followup_messages=None,
+        user,
+        request_kind="analysis",
+        request_id=req_id,
+        owner_user_id=int(row.user_id),
+    ):
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    if not rfp_delivered_body_ready(row):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
+    pkg = parse_delivered_code_payload(getattr(row, "delivered_code_payload", None))
+    if pkg and delivered_package_has_body(pkg):
+        buf = io.BytesIO()
+        used_names: set[str] = set()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(
+                "IMPLEMENTATION_GUIDE.md",
+                (pkg.get("implementation_guide_md") or "").encode("utf-8"),
+            )
+            zf.writestr(
+                "TEST_SCENARIOS.md",
+                (pkg.get("test_scenarios_md") or "").encode("utf-8"),
+            )
+            for idx, sl in enumerate(pkg.get("slots") or []):
+                if not isinstance(sl, dict):
+                    continue
+                base_fn = (str(sl.get("filename") or f"slot_{idx + 1}.abap")).strip() or f"slot_{idx + 1}.abap"
+                fn = base_fn
+                if fn in used_names:
+                    stem = base_fn.rsplit(".", 1)[0] if "." in base_fn else base_fn
+                    ext = base_fn.rsplit(".", 1)[-1] if "." in base_fn else "abap"
+                    fn = f"{idx + 1:02d}_{stem}.{ext}"
+                used_names.add(fn)
+                zf.writestr(fn, (sl.get("source") or "").encode("utf-8"))
+        body = buf.getvalue()
+        fname = delivered_code_zip_basename(getattr(row, "program_id", None), getattr(row, "title", None))
+        return Response(
+            content=body,
+            media_type="application/zip",
+            headers={"Content-Disposition": content_disposition_attachment(fname)},
+        )
+    body = (row.delivered_code_text or "").encode("utf-8")
+    fname = delivered_abap_download_basename(getattr(row, "program_id", None), getattr(row, "title", None))
+    return Response(
+        content=body,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
-    return RedirectResponse(url=rfp_hub_url(rfp.id, "request"), status_code=302)
 
 
 @router.post("/{req_id}/chat")
@@ -1353,8 +1551,11 @@ def abap_analysis_offer_match(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
-    row = _get_abap_row_readable(db, user, req_id)
-    if not row or row.user_id != user.id:
+    req_row = db.query(models.AbapAnalysisRequest).filter(
+        models.AbapAnalysisRequest.id == req_id,
+        models.AbapAnalysisRequest.user_id == user.id,
+    ).first()
+    if not req_row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
     offer = (
         db.query(models.RequestOffer)
@@ -1367,14 +1568,14 @@ def abap_analysis_offer_match(
         .first()
     )
     if not offer:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=303)
     if (offer.status or "") == "matched":
         offer.status = "offered"
         offer.matched_at = None
         offer.match_notice_pending = False
         db.add(offer)
         db.commit()
-        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=303)
     db.query(models.RequestOffer).filter(
         models.RequestOffer.request_kind == "analysis",
         models.RequestOffer.request_id == req_id,
@@ -1387,7 +1588,7 @@ def abap_analysis_offer_match(
     offer.match_notice_pending = True
     db.add(offer)
     db.commit()
-    title = (row.title or "").strip() or f"분석 #{req_id}"
+    title = (req_row.title or "").strip() or f"분석·개선 #{req_id}"
     c = offer.consultant
     if c:
         notify_consultant_request_matched(
@@ -1397,7 +1598,7 @@ def abap_analysis_offer_match(
             request_id=req_id,
             request_title=title,
         )
-    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
+    return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=303)
 
 
 @router.post("/{req_id}/offers/{offer_id}/inquiry")
@@ -1409,8 +1610,11 @@ def abap_analysis_offer_inquiry_post(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
-    row = _get_abap_row_readable(db, user, req_id)
-    if not row or row.user_id != user.id:
+    req_row = db.query(models.AbapAnalysisRequest).filter(
+        models.AbapAnalysisRequest.id == req_id,
+        models.AbapAnalysisRequest.user_id == user.id,
+    ).first()
+    if not req_row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
     offer = (
         db.query(models.RequestOffer)
@@ -1423,9 +1627,9 @@ def abap_analysis_offer_inquiry_post(
         .first()
     )
     if not offer or not offer.consultant:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
-    title = (row.title or "").strip() or f"분석 #{req_id}"
-    detail = public_request_url(request, f"/abap-analysis/{req_id}#abap-phase-offers")
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=303)
+    title = (req_row.title or "").strip() or f"분석·개선 #{req_id}"
+    detail = public_request_url(request, f"/abap-analysis/{req_id}#abap-delivery-hub")
     err, _row = send_offer_inquiry_from_owner(
         db,
         request=request,
@@ -1436,12 +1640,11 @@ def abap_analysis_offer_inquiry_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    base = f"/abap-analysis/{req_id}"
+    base = f"/abap-analysis/{req_id}#abap-delivery-hub"
     sep = "&" if "?" in base else "?"
-    suffix = "#abap-phase-offers"
     if err:
-        return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}{suffix}", status_code=303)
-    return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1{suffix}", status_code=303)
+        return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}", status_code=303)
+    return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1", status_code=303)
 
 
 @router.post("/{req_id}/offers/{offer_id}/inquiry-reply")
@@ -1456,8 +1659,8 @@ def abap_analysis_offer_inquiry_reply_post(
     user = _require_user(request, db)
     if not getattr(user, "is_consultant", False):
         return RedirectResponse(url="/", status_code=302)
-    row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == req_id).first()
-    if not row:
+    req_row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == req_id).first()
+    if not req_row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
     offer = (
         db.query(models.RequestOffer)
@@ -1470,12 +1673,12 @@ def abap_analysis_offer_inquiry_reply_post(
         .first()
     )
     if not offer:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
-    owner = db.query(models.User).filter(models.User.id == row.user_id).first()
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=303)
+    owner = db.query(models.User).filter(models.User.id == req_row.user_id).first()
     if not owner:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-offers", status_code=303)
-    title = (row.title or "").strip() or f"분석 #{req_id}"
-    detail = public_request_url(request, f"/abap-analysis/{req_id}#abap-phase-offers")
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=303)
+    title = (req_row.title or "").strip() or f"분석·개선 #{req_id}"
+    detail = public_request_url(request, f"/abap-analysis/{req_id}#abap-delivery-hub")
     err, _row = send_consultant_offer_inquiry_reply(
         db,
         request=request,
@@ -1486,23 +1689,13 @@ def abap_analysis_offer_inquiry_reply_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    safe = sanitize_console_readonly_return_url(return_hub)
-    frag = "#abap-phase-offers"
-    qerr = f"offer_inquiry_reply_err={quote(err)}"
-    qok = "offer_inquiry_reply_ok=1"
-    q = qerr if err else qok
-    if safe:
-        if "#" in safe:
-            path_part, hash_part = safe.split("#", 1)
-            sep = "&" if "?" in path_part else "?"
-            url = f"{path_part}{sep}{q}#{hash_part}"
-        else:
-            sep = "&" if "?" in safe else "?"
-            url = f"{safe}{sep}{q}{frag}"
-    else:
-        base = f"/abap-analysis/{req_id}"
-        url = f"{base}?{q}{frag}"
-    return RedirectResponse(url=url, status_code=303)
+    base = f"/abap-analysis/{req_id}#abap-delivery-hub"
+    sep = "&" if "?" in base else "?"
+    if err:
+        return RedirectResponse(
+            url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}", status_code=303
+        )
+    return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_ok=1", status_code=303)
 
 
 @router.get("/{req_id}/offers/{offer_id}/profile")
@@ -1513,9 +1706,11 @@ def abap_analysis_offer_profile_download(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
-    row = _get_abap_row_readable(db, user, req_id)
-    if not row or row.user_id != user.id:
+    req_row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == req_id).first()
+    if not req_row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
+    if int(user.id) != int(req_row.user_id) and not getattr(user, "is_admin", False):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     offer = (
         db.query(models.RequestOffer)
         .options(joinedload(models.RequestOffer.consultant))
@@ -1527,18 +1722,20 @@ def abap_analysis_offer_profile_download(
         .first()
     )
     if not offer or not offer.consultant:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
     path = (getattr(offer.consultant, "consultant_profile_file_path", None) or "").strip()
-    fname = (getattr(offer.consultant, "consultant_profile_file_name", None) or "consultant_profile").strip() or "consultant_profile"
+    fname = (
+        getattr(offer.consultant, "consultant_profile_file_name", None) or "consultant_profile"
+    ).strip() or "consultant_profile"
     if not path:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
     kind, ref = r2_storage.parse_storage_ref(path)
     if kind == "r2":
         if not r2_storage.is_configured():
-            return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+            return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
         return RedirectResponse(url=r2_storage.presigned_get_url(ref, fname), status_code=302)
     if not os.path.isfile(ref):
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
+        return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-delivery-hub", status_code=302)
     return FileResponse(ref, filename=fname)
 
 

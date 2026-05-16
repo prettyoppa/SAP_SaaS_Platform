@@ -8,7 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFi
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Tuple, Any
 
@@ -790,6 +790,19 @@ def _collect_rfp_unified_hub_ctx(
         return RedirectResponse(url="/", status_code=302)
 
     requested_phase = normalize_rfp_hub_phase(phase)
+    wo_hub = (getattr(rfp, "workflow_origin", None) or "").strip().lower()
+    hub_skip_interview = wo_hub == "abap_analysis"
+    if hub_skip_interview and requested_phase == "interview":
+        if readonly_console:
+            ro_qs: dict[str, str] = {"phase": "proposal"}
+            if (request.query_params.get("embed") or "").strip() == "1":
+                ro_qs["embed"] = "1"
+            return RedirectResponse(
+                url=f"/rfp/{rfp_id}/console-readonly?{urlencode(ro_qs)}",
+                status_code=302,
+            )
+        return RedirectResponse(url=rfp_hub_url(rfp_id, "proposal"), status_code=302)
+
     if readonly_console and (rfp.status or "").strip() == "draft":
         requested_phase = normalize_rfp_hub_phase("request")
 
@@ -918,6 +931,16 @@ def _collect_rfp_unified_hub_ctx(
             )
         )
 
+    hub_abap_proposal_start_eligible = bool(
+        hub_skip_interview
+        and (not readonly_console)
+        and user
+        and int(user.id) == int(rfp.user_id)
+        and _interview_views._interview_has_substance(rfp)
+        and not (rfp.proposal_text or "").strip()
+        and (rfp.interview_status or "") != "generating_proposal"
+    )
+
     ctx: dict[str, Any] = {
         "request": request,
         "user": user,
@@ -927,6 +950,8 @@ def _collect_rfp_unified_hub_ctx(
         "delete_blocked_reason": delete_blocked,
         "subscription_quota_flash": subscription_quota_flash,
         "hub_phase_open": display_phase,
+        "hub_skip_interview": hub_skip_interview,
+        "hub_abap_proposal_start_eligible": hub_abap_proposal_start_eligible,
         "hub_embedded": hub_embedded,
         "attachment_entries": _rfp_attachment_entries(rfp),
         "interview_summary_messages": interview_summary_messages,

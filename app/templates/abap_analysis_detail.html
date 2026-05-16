@@ -253,26 +253,10 @@
         </details>
         {% endif %}
 
-        <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-offers"
-          {% if request_offers is defined and request_offers|length > 0 %}open{% endif %}>
-          <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold">3. 제안 · 오퍼</span>
-            {% if request_offers is defined and request_offers|length > 0 %}
-            <span class="badge bg-secondary rounded-pill">오퍼 {{ request_offers|length }}건</span>
-            {% endif %}
-          </summary>
-          <div class="rfp-hub-phase-body pt-2">
-            {% include "partials/request_offers_panel.html" %}
-            {% if not request_offers or not request_offers|length %}
-            <p class="text-muted small mb-0">아직 오퍼가 없습니다.</p>
-            {% endif %}
-          </div>
-        </details>
-
         {% if not row.is_draft and analysis and (analysis.get('requirement_analysis_error') or analysis.get('requirement_analysis')) %}
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-requirement-analysis" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold" data-i18n="detail.phaseReqLink">4. 요구사항 연계 분석</span>
+            <span class="fw-semibold" data-i18n="detail.phaseReqLink">3. 요구사항 연계 분석</span>
             {% if analysis.get('requirement_analysis_error') %}
             <span class="badge bg-warning text-dark" data-i18n="detail.reqLinkErrBadge">오류</span>
             {% else %}
@@ -337,11 +321,13 @@
         {% if not row.is_draft and row.is_analyzed %}
         <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-phase-improvement" open>
           <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold" data-i18n="detail.phaseImprove">5. 개선 제안 요청</span>
+            <span class="fw-semibold" data-i18n="detail.phaseImprove">4. 개선 제안 요청</span>
             {% if row.workflow_rfp %}
             <span class="badge bg-primary" data-i18n="common.workflowLinked">워크플로 연결</span>
+            {% elif (row.improvement_request_text or '')|trim %}
+            <span class="badge bg-success">개선 요청 제출됨</span>
             {% else %}
-            <span class="badge bg-secondary" data-i18n="common.notLinked">미연결</span>
+            <span class="badge bg-secondary" data-i18n="common.notLinked">미제출</span>
             {% endif %}
           </summary>
           <div class="rfp-hub-phase-body pt-2">
@@ -353,6 +339,9 @@
             {% endif %}
             {% if wf_err == 'short' %}
             <div class="alert alert-warning small mb-3" data-i18n="detail.improveShort">개선 요청 내용을 더 자세히 입력해 주세요. (20자 이상)</div>
+            {% endif %}
+            {% if wf_err == 'locked' %}
+            <div class="alert alert-warning small mb-3">제안서가 생성 중이거나 완료된 뒤에는 개선 요청 내용을 수정할 수 없습니다.</div>
             {% endif %}
             {% if row.workflow_rfp %}
             {% set wr = row.workflow_rfp %}
@@ -371,16 +360,79 @@
             {% else %}
             <p class="small text-muted mb-3 border-start border-3 ps-3" style="border-color:var(--primary-light)!important;line-height:1.65" data-i18n="detail.improveWorkflowExplain"></p>
             <form method="post" action="/abap-analysis/{{ row.id }}/improvement-proposal"
-                  data-busy-title-ko="연결하는 중입니다…" data-busy-title-en="Connecting…"
+                  data-busy-title-ko="저장 중입니다…" data-busy-title-en="Saving…"
                   data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">
-              <textarea id="improvement_request_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" required>{{ row.improvement_request_text or '' }}</textarea>
-              <button type="submit" class="btn btn-primary btn-sm">
+              <textarea id="improvement_request_text" name="improvement_request_text" class="form-control form-control-sm mb-3" rows="5" minlength="20" maxlength="12000" {% if wf_err == 'locked' or (row.proposal_text or '')|trim or row.interview_status == 'generating_proposal' %}readonly{% else %}required{% endif %}>{{ row.improvement_request_text or '' }}</textarea>
+              <button type="submit" class="btn btn-primary btn-sm" {% if wf_err == 'locked' or (row.proposal_text or '')|trim or row.interview_status == 'generating_proposal' %}disabled{% endif %}>
                 <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="common.submit">제출</span>
               </button>
             </form>
             {% endif %}
           </div>
         </div>
+          </div>
+        </details>
+        {% endif %}
+
+        {% if not row.is_draft and row.is_analyzed and not row.workflow_rfp_id %}
+        <details class="interview-summary-toggle rfp-hub-phase mb-3" id="abap-delivery-hub" open>
+          <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+            <span class="fw-semibold">5. 제안서 · FS · 납품 코드</span>
+            {% if ana_fs_stat|default('none') == 'ready' %}
+            <span class="badge bg-success">FS 준비됨</span>
+            {% elif ana_fs_busy|default(false) %}
+            <span class="badge bg-info text-dark">FS 생성 중</span>
+            {% endif %}
+            {% if ana_has_delivered_zip|default(false) %}
+            <span class="badge bg-primary">납품 준비됨</span>
+            {% elif ana_dc_busy|default(false) %}
+            <span class="badge bg-info text-dark">납품 생성 중</span>
+            {% endif %}
+          </summary>
+          <div class="rfp-hub-phase-body pt-2">
+            {% if proposal_gate_err|default(false) %}
+            <div class="alert alert-warning small mb-3">먼저 위 단계에서 개선 제안 요청을 제출한 뒤 제안서를 생성할 수 있습니다.</div>
+            {% endif %}
+            {% with request_offer_panel_wrap_class = 'mb-3' %}
+            {% include 'partials/request_offers_panel.html' %}
+            {% endwith %}
+            {% if ana_hub_proposal_generating|default(false) %}
+            <div class="mb-3">
+              <p class="text-muted small mb-2"><span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>개발 제안서를 생성하고 있습니다…</p>
+            </div>
+            {% elif ana_proposal_html|default('') %}
+            <div class="proposal-card mb-3">
+              <div class="proposal-body">{{ ana_proposal_html|safe }}</div>
+            </div>
+            {% if user.id == row.user_id %}
+            <form method="post" action="/abap-analysis/{{ row.id }}/proposal/regenerate" class="d-inline mb-3"
+                  data-busy-agents='[{"agentKo":"「제안서」","doingKo":"개발 제안서를 다시 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"regenerating the development proposal"}]'>
+              <button type="submit" class="btn btn-outline-secondary btn-sm">제안서 다시 생성</button>
+            </form>
+            {% endif %}
+            {% elif ana_can_request_proposal|default(false) %}
+            <div class="mb-3">
+              <p class="text-muted small mb-2">분석·연계·개선 요청을 반영하여 개발 제안서 초안을 생성합니다.</p>
+              <form method="post" action="/abap-analysis/{{ row.id }}/proposal/request-now" class="d-inline"
+                    data-busy-agents='[{"agentKo":"「제안서」","doingKo":"개발 제안서 초안을 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"drafting the development proposal"}]'>
+                <button type="submit" class="btn btn-primary btn-sm">
+                  <i class="fa-solid fa-file-contract me-1"></i>개발 제안서 생성 시작
+                </button>
+              </form>
+            </div>
+            {% endif %}
+            <div class="border rounded p-3 mb-0" style="background:var(--surface2);border-color:var(--border)!important;">
+              <div class="fw-semibold small mb-2">기능명세(FS) · 납품 ABAP</div>
+              <p class="small text-muted mb-2 mb-0">FS·납품 코드는 운영자가 생성합니다. 진행 상태는 이 화면에서 확인하고, 준비되면 아래에서 납품 패키지를 받을 수 있습니다.</p>
+              {% if user.is_admin %}
+              <a href="/admin/abap-analysis/{{ row.id }}/delivery" class="btn btn-sm btn-outline-secondary mt-2" target="_blank" rel="noopener">관리자 납품 화면</a>
+              {% endif %}
+              {% if ana_has_delivered_zip|default(false) and code_asset_unlocked|default(false) %}
+              <div class="mt-3">
+                <a href="/abap-analysis/{{ row.id }}/delivered-code/download" class="btn btn-sm btn-primary">납품 패키지 다운로드</a>
+              </div>
+              {% endif %}
+            </div>
           </div>
         </details>
         {% endif %}
@@ -698,6 +750,25 @@
     }
   }
   if (shouldAutoOpen()) openPanel();
+})();
+</script>
+{% endif %}
+{% if ana_hub_proposal_generating|default(false) %}
+<script>
+(function () {
+  var id = {{ row.id }};
+  var u = '/abap-analysis/' + id + '/proposal/status';
+  var t = setInterval(function () {
+    fetch(u, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.status && j.status !== 'generating_proposal') {
+          clearInterval(t);
+          window.location.reload();
+        }
+      })
+      .catch(function () {});
+  }, 4000);
 })();
 </script>
 {% endif %}

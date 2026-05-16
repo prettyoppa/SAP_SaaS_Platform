@@ -1,6 +1,6 @@
 {# context: row (AbapAnalysisRequest), show_request_owner, user #}
 {% set abap_detail_href = '/abap-analysis/' ~ row.id ~ '/edit' if row.is_draft and (not show_request_owner|default(false) or (user and row.user_id == user.id)) else ('/abap-analysis/' ~ row.id ~ '/console-readonly' if show_request_owner|default(false) and user and (row.user_id != user.id) else '/abap-analysis/' ~ row.id) %}
-<div class="menu-list-card{% if row.pulse_offer_bg|default(false) %} menu-list-card--proposal-offer-pulse{% endif %}">
+<div class="menu-list-card">
 <div class="rfp-list-surface-tile">
 <div class="rfp-list-card rfp-list-card-v2">
   <div class="rfp-list-left">

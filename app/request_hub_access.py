@@ -8,6 +8,37 @@ from sqlalchemy.orm import Query, Session
 from . import models
 
 
+def abap_analysis_consultant_matched_on_linked_rfp(user_id: int):
+    """AbapAnalysisRequest에 대해: 연결된 신규개발(RFP)에 컨설턴트 매칭 오퍼가 있으면 True (exists)."""
+    ro = models.RequestOffer
+    return exists().where(
+        models.AbapAnalysisRequest.workflow_rfp_id.isnot(None),
+        ro.request_kind == "rfp",
+        ro.request_id == models.AbapAnalysisRequest.workflow_rfp_id,
+        ro.consultant_user_id == user_id,
+        ro.status == "matched",
+    )
+
+
+def abap_analysis_consultant_matched_on_row(user_id: int):
+    """분석·개선 요청 본건에 request_kind=analysis 매칭 오퍼가 있으면 True."""
+    ro = models.RequestOffer
+    return exists().where(
+        ro.request_kind == "analysis",
+        ro.request_id == models.AbapAnalysisRequest.id,
+        ro.consultant_user_id == user_id,
+        ro.status == "matched",
+    )
+
+
+def abap_analysis_consultant_read_scope(user_id: int):
+    """컨설턴트가 타인 분석 건을 볼 수 있는 조건: 본건 매칭 또는 (레거시) 연결 RFP 매칭."""
+    return or_(
+        abap_analysis_consultant_matched_on_row(user_id),
+        abap_analysis_consultant_matched_on_linked_rfp(user_id),
+    )
+
+
 def consultant_has_request_offer(
     db: Session, *, consultant_user_id: int, request_kind: str, request_id: int
 ) -> bool:
