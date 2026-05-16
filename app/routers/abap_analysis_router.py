@@ -82,6 +82,7 @@ from ..requirement_screenshots import (
     entries_to_json as requirement_screenshot_entries_to_json,
     remove_stored_entries as remove_requirement_screenshots,
 )
+from ..abap_analysis_generation import resolved_abap_analysis_fs_for_codegen
 from ..abap_analysis_proposal_service import run_abap_analysis_proposal_background
 from ..agent_display import wrap_unbracketed_agent_names
 from ..code_asset_access import user_may_copy_download_request_assets
@@ -90,6 +91,7 @@ from ..delivered_code_package import (
     parse_delivered_code_payload,
     rfp_delivered_body_ready,
 )
+from ..paid_tier import user_can_operate_delivery
 from ..offer_inquiry_service import (
     inquiries_by_offer_id,
     notify_consultant_request_matched,
@@ -1155,9 +1157,18 @@ def _prepare_abap_analysis_detail_ctx(
         ana_proposal_html = _markdown_to_html(wrap_unbracketed_agent_names(row.proposal_text or ""))
 
     ana_fs_stat = (getattr(row, "fs_status", None) or "none").strip() or "none"
+    ana_dc_stat = (getattr(row, "delivered_code_status", None) or "none").strip() or "none"
     ana_fs_html = ""
     if ana_fs_stat == "ready" and (getattr(row, "fs_text", None) or "").strip():
         ana_fs_html = _markdown_to_html(row.fs_text or "")
+
+    can_operate_delivery_flag = user_can_operate_delivery(user)
+    proposal_ready = bool((getattr(row, "proposal_text", None) or "").strip()) or ana_ist == "completed"
+    can_start_fs = proposal_ready or ana_fs_stat in ("ready", "generating", "failed")
+    can_start_delivered_code = False
+    if can_operate_delivery_flag:
+        fs_body, _fs_err = resolved_abap_analysis_fs_for_codegen(row)
+        can_start_delivered_code = bool((fs_body or "").strip()) and ana_dc_stat != "generating"
 
     offers_raw = _analysis_offer_rows(db, row.id)
     vis_offers = visible_request_offers_for_viewer(
@@ -1184,10 +1195,13 @@ def _prepare_abap_analysis_detail_ctx(
             request, f"/abap-analysis/{row.id}#abap-phase-proposal"
         ),
         "offer_inquiry_err": (request.query_params.get("offer_inquiry_err") or "").strip(),
-        "ana_fs_stat": (getattr(row, "fs_status", None) or "none").strip() or "none",
-        "ana_dc_stat": (getattr(row, "delivered_code_status", None) or "none").strip() or "none",
-        "ana_fs_busy": (getattr(row, "fs_status", None) or "").strip() == "generating",
-        "ana_dc_busy": (getattr(row, "delivered_code_status", None) or "").strip() == "generating",
+        "ana_fs_stat": ana_fs_stat,
+        "ana_dc_stat": ana_dc_stat,
+        "ana_fs_busy": ana_fs_stat == "generating",
+        "ana_dc_busy": ana_dc_stat == "generating",
+        "can_operate_delivery": can_operate_delivery_flag,
+        "can_start_fs": can_start_fs,
+        "can_start_delivered_code": can_start_delivered_code,
         "ana_gen_busy": ((getattr(row, "fs_status", None) or "").strip() == "generating")
         or ((getattr(row, "delivered_code_status", None) or "").strip() == "generating"),
         "ana_can_request_proposal": bool(

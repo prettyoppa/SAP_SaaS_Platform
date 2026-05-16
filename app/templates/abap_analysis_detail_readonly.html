@@ -331,6 +331,7 @@
             {% if user.is_admin %}
             <a href="/admin/abap-analysis/{{ row.id }}/delivery" class="btn btn-sm btn-outline-secondary mb-3" target="_blank" rel="noopener">관리자 납품 화면</a>
             {% endif %}
+            {% include 'partials/abap_hub_fs_admin_bar.html' %}
             {% include 'partials/abap_hub_fs_body.html' %}
           </div>
         </details>

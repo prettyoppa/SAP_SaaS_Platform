@@ -434,13 +434,13 @@ def admin_abap_analysis_start_fs_generation(
     if not row:
         return RedirectResponse(url="/admin", status_code=302)
     if (row.fs_status or "").strip() == "generating":
-        return RedirectResponse(url=f"/admin/abap-analysis/{analysis_id}/delivery", status_code=302)
+        return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-fs", status_code=302)
     row.fs_status = "generating"
     row.fs_error = None
     row.fs_job_log = None
     db.commit()
     background_tasks.add_task(run_abap_analysis_fs_job, analysis_id)
-    return RedirectResponse(url=f"/admin/abap-analysis/{analysis_id}/delivery", status_code=302)
+    return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-fs", status_code=302)
 
 
 @router.post("/abap-analysis/{analysis_id}/delivery/code-start")
@@ -459,14 +459,14 @@ def admin_abap_analysis_start_delivered_code(
     fs_body, fs_err = resolved_abap_analysis_fs_for_codegen(row)
     if fs_err or not (fs_body or "").strip():
         return RedirectResponse(
-            url=f"/admin/abap-analysis/{analysis_id}/delivery?err=fs_not_ready",
+            url=f"/abap-analysis/{analysis_id}?err=fs_not_ready#abap-phase-fs",
             status_code=302,
         )
     if (row.delivered_code_status or "").strip() == "generating":
-        return RedirectResponse(url=f"/admin/abap-analysis/{analysis_id}/delivery", status_code=302)
+        return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-devcode", status_code=302)
     row.delivered_code_status = "generating"
     row.delivered_code_error = None
     row.delivered_job_log = None
     db.commit()
     background_tasks.add_task(run_abap_analysis_delivered_code_job, analysis_id)
-    return RedirectResponse(url=f"/admin/abap-analysis/{analysis_id}/delivery", status_code=302)
+    return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-devcode", status_code=302)

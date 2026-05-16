@@ -71,7 +71,11 @@
     <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ delivered_code_html | safe }}</div>
   </div>
   {% elif ana_fs_stat == 'ready' and not ana_dc_busy %}
-  <p class="text-muted small mb-0">납품 코드는 FS 준비 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>
+  {% if can_operate_delivery|default(false) %}
+  <p class="text-muted small mb-0">FS 단계에서 개발코드 생성을 시작하면 이 영역에 표시됩니다.</p>
+  {% else %}
+  <p class="text-muted small mb-0">납품 코드는 FS 준비 후 컨설턴트가 생성하면 이 영역에 표시됩니다.</p>
+  {% endif %}
   {% elif ana_fs_stat != 'ready' and not ana_dc_busy %}
   <p class="text-muted small mb-0">기능명세(FS)가 준비된 뒤 개발코드를 생성할 수 있습니다.</p>
   {% endif %}

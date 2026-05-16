@@ -5,7 +5,9 @@
   {% endif %}
 
   {% if ana_fs_stat == 'none' or (ana_fs_stat != 'generating' and ana_fs_stat != 'ready' and ana_fs_stat != 'failed') %}
+  {% if not can_operate_delivery|default(false) %}
   {% include 'partials/hub_fs_empty_hint.html' %}
+  {% endif %}
   {% endif %}
 
   {% if ana_fs_busy %}
