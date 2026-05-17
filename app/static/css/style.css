@@ -71,6 +71,11 @@ html[data-theme="dark"] .brand-logo-dark-only {
   --bucket-analysis-fg: #6366f1;
   --bucket-in-progress-bg: rgba(234, 179, 8, 0.2);
   --bucket-in-progress-fg: #eab308;
+  /* 페이지 배경 텍스처(점 그리드 + 은은한 그라데이션) */
+  --page-dot: rgba(255, 255, 255, 0.055);
+  --page-dot-size: 22px;
+  --page-glow-top: rgba(99, 102, 241, 0.07);
+  --page-glow-corner: rgba(56, 189, 248, 0.04);
 }
 
 /* ── 라이트 테마 ────────────────────────────── */
@@ -103,6 +108,10 @@ html[data-theme="light"] {
   --abap-float-chat-border: #b8c5da;
   --review-star-outline: rgba(51, 65, 85, 0.75);
   --review-star-outline-strong: rgba(15, 23, 42, 0.9);
+  --page-dot: rgba(51, 65, 85, 0.09);
+  --page-dot-size: 22px;
+  --page-glow-top: rgba(79, 70, 229, 0.06);
+  --page-glow-corner: rgba(2, 132, 199, 0.04);
 }
 
 /* ── 라이트 테마 컴포넌트 오버라이드 ─────────── */
@@ -327,66 +336,33 @@ html[data-theme="light"] .theme-switch:hover .theme-switch-track { border-color:
 
 body {
   font-family: 'Inter', sans-serif;
-  background: var(--bg);
+  background: transparent;
   color: var(--text);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* 페이지 배경: 우상단 노란 빛 + 작은 해/달 (html 고정 레이어, FAB에는 영향 없음) */
+/* 페이지 배경: 짙은/밝은 단색 + 은은한 그라데이션 + 균일한 점 그리드 (콘텐츠 비침) */
 html::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(
-    ellipse 48% 38% at 100% 0%,
-    rgba(250, 204, 21, 0.09) 0%,
-    rgba(250, 204, 21, 0.035) 38%,
-    transparent 68%
-  );
-}
-
-html[data-theme="light"]::before {
-  background: radial-gradient(
-    ellipse 50% 40% at 100% 0%,
-    rgba(250, 204, 21, 0.12) 0%,
-    rgba(250, 204, 21, 0.045) 40%,
-    transparent 70%
-  );
-}
-
-html::after {
-  content: "";
-  position: fixed;
-  top: 4.25rem;
-  right: max(1.5rem, env(safe-area-inset-right, 0px));
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 998;
-}
-
-html[data-theme="light"]::after {
-  background: radial-gradient(
-    circle,
-    rgba(253, 224, 71, 0.38) 0%,
-    rgba(250, 204, 21, 0.16) 55%,
-    transparent 76%
-  );
-  box-shadow:
-    0 0 1.5rem 0.55rem rgba(250, 204, 21, 0.1),
-    0 0 2.75rem 1.1rem rgba(250, 204, 21, 0.05);
-}
-
-html[data-theme="dark"]::after {
-  background: rgba(253, 224, 71, 0.2);
-  box-shadow:
-    -0.48rem 0 0 0 rgba(253, 224, 71, 0.14),
-    0.52rem 0 0 0 var(--bg);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 110% 75% at 50% -20%, var(--page-glow-top) 0%, transparent 58%),
+    radial-gradient(ellipse 70% 55% at 100% 100%, var(--page-glow-corner) 0%, transparent 52%),
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--bg) 92%, var(--surface2)) 0%,
+      var(--bg) 42%,
+      color-mix(in srgb, var(--bg) 94%, var(--surface)) 100%
+    ),
+    radial-gradient(circle, var(--page-dot) 0.6px, transparent 0.6px);
+  background-size: auto, auto, auto, var(--page-dot-size) var(--page-dot-size);
+  background-attachment: fixed;
 }
 
 main { flex: 1; }
