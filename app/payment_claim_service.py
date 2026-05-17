@@ -8,11 +8,14 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from . import models
+from .ai_wallet import MIN_TOPUP_KRW, WALLET_TOPUP_PLAN_CODE, wallet_balance_krw
 from .payment_claim_messages import (
     ERR_AMOUNT_MISMATCH,
+    ERR_AMOUNT_TOO_LOW,
     ERR_CLAIM_NOT_FOUND,
     ERR_CLAIM_NOT_PENDING,
     ERR_DEPOSITOR_REQUIRED,
+    ERR_INVALID_AMOUNT,
     ERR_INVALID_COUNTRY,
     ERR_KRW_AMOUNT_MISSING,
     ERR_PENDING_CLAIM_EXISTS,
@@ -73,6 +76,48 @@ def user_pending_claim(db: Session, user_id: int) -> models.PaymentClaim | None:
         .order_by(models.PaymentClaim.created_at.desc())
         .first()
     )
+
+
+def create_wallet_topup_claim(
+    db: Session,
+    user: models.User,
+    *,
+    amount_minor: int,
+    depositor_name: str,
+    transfer_date: datetime | None,
+    member_note: str = "",
+) -> tuple[models.PaymentClaim | None, str | None]:
+    """원화 계좌이체 AI 잔액 충전 신청 (한국만)."""
+    try:
+        amt = int(amount_minor)
+    except (TypeError, ValueError):
+        return None, ERR_INVALID_AMOUNT
+    if amt < MIN_TOPUP_KRW:
+        return None, ERR_AMOUNT_TOO_LOW
+    if user_pending_claim(db, user.id):
+        return None, ERR_PENDING_CLAIM_EXISTS
+    dep = (depositor_name or "").strip()[:200]
+    if not dep:
+        return None, ERR_DEPOSITOR_REQUIRED
+    kind = account_kind_for_user(user)
+    row = models.PaymentClaim(
+        user_id=int(user.id),
+        status=CLAIM_STATUS_PENDING,
+        billing_country="KR",
+        currency="KRW",
+        amount_minor=amt,
+        plan_account_kind=kind,
+        plan_code=WALLET_TOPUP_PLAN_CODE,
+        billing_period="topup",
+        depositor_name=dep,
+        transfer_date=transfer_date,
+        member_note=(member_note or "").strip()[:2000] or None,
+    )
+    user.billing_country = "KR"
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row, None
 
 
 def create_payment_claim(
@@ -161,15 +206,19 @@ def confirm_payment_claim(
         return "회원을 찾을 수 없습니다."
     now = datetime.utcnow()
     end = now + timedelta(days=max(1, int(period_days)))
-    user.subscription_plan_code = row.plan_code
-    user.subscription_plan_source = SUBSCRIPTION_SOURCE_ADMIN
-    user.subscription_plan_expires_at = end
-    user.billing_country = row.billing_country
+    if (row.plan_code or "").strip() == WALLET_TOPUP_PLAN_CODE:
+        user.ai_wallet_balance_krw = wallet_balance_krw(user) + int(row.amount_minor)
+        user.billing_country = row.billing_country or user.billing_country
+    else:
+        user.subscription_plan_code = row.plan_code
+        user.subscription_plan_source = SUBSCRIPTION_SOURCE_ADMIN
+        user.subscription_plan_expires_at = end
+        user.billing_country = row.billing_country
+        row.subscription_period_start = now
+        row.subscription_period_end = end
     row.status = CLAIM_STATUS_CONFIRMED
     row.confirmed_at = now
     row.confirmed_by_user_id = int(admin_user.id)
-    row.subscription_period_start = now
-    row.subscription_period_end = end
     row.admin_note = (admin_note or "").strip()[:2000] or row.admin_note
     row.updated_at = now
     db.commit()

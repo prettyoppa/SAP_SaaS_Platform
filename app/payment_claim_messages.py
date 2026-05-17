@@ -12,6 +12,8 @@ ERR_PENDING_CLAIM_EXISTS = "pending_claim_exists"
 ERR_DEPOSITOR_REQUIRED = "depositor_required"
 ERR_CLAIM_NOT_FOUND = "claim_not_found"
 ERR_CLAIM_NOT_PENDING = "claim_not_pending"
+ERR_INVALID_AMOUNT = "invalid_amount"
+ERR_AMOUNT_TOO_LOW = "amount_too_low"
 
 STATUS_LABEL_KO: dict[str, str] = {
     "pending": "확인 대기",

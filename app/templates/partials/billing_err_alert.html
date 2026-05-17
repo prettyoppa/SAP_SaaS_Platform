@@ -33,6 +33,9 @@
   {% elif billing_err == 'invalid_amount' %}
   <span class="nav-ko">입금 금액 형식이 올바르지 않습니다.</span>
   <span class="nav-en" style="display:none">Invalid transfer amount.</span>
+  {% elif billing_err == 'amount_too_low' %}
+  <span class="nav-ko">최소 충전 금액보다 작습니다.</span>
+  <span class="nav-en" style="display:none">Amount is below the minimum top-up.</span>
   {% else %}
   {{ billing_err }}
   {% endif %}

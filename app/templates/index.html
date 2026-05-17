@@ -6,7 +6,7 @@
 <!-- Hero -->
 <section class="hero-section hero-compact">
   <div class="container">
-    <div class="row hero-home-split align-items-start g-4 g-lg-5">
+    <div class="row hero-home-split align-items-start g-3">
       <div class="col-12 hero-home-split__hero">
         <h1 class="hero-title">
           <span class="nav-ko">{{ settings.get('home_headline_ko', 'SAP 개발을 AI로 혁신하세요') }}<br/></span>
@@ -17,18 +17,6 @@
           <span class="nav-ko">{{ settings.get('home_subtitle_ko', '개발 요구사항을 제출하면 AI 에이전트가 심층 인터뷰를 진행하고 전문 수준의 개발 제안서를 무료로 제공합니다.') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_subtitle_en', '') or 'Submit requirements and our AI agents run a deep interview—then you get a professional development proposal, free.' }}</span>
         </p>
-        {% if not user %}
-        <div class="d-flex gap-3 flex-wrap">
-          <a href="/register" class="btn btn-primary btn-lg px-4">
-            <i class="fa-solid fa-rocket me-2"></i>
-            <span data-i18n="hero.cta.start">무료로 시작하기</span>
-          </a>
-          <a href="/subscription-plans" class="btn btn-outline-secondary btn-lg px-4">
-            <i class="fa-solid fa-lock-open me-2"></i>
-            <span data-i18n="hero.cta.plans">구독 플랜</span>
-          </a>
-        </div>
-        {% endif %}
       </div>
 
       <div class="col-12 hero-home-split__guide">
@@ -39,10 +27,9 @@
 </section>
 
 <!-- 홈 기능 타일 -->
-<section id="home-features" class="section-light py-5">
+<section id="home-features" class="section-light py-4">
   <div class="container">
-    <div class="home-features-row">
-      <div class="home-features-tiles" role="list">
+    <div class="home-features-tiles" role="list">
       <div class="home-feature-card" role="listitem">
         <div class="home-feature-card-top">
           <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-code"></i></div>
@@ -199,17 +186,16 @@
         </div>
         {% endif %}
       </div>
-    </div>
-      <div class="home-features-tabs">
-        {% include "partials/home_tabs_panel.html" %}
-      </div>
+    {% include "partials/home_tile_notice.html" %}
+    {% include "partials/home_tile_faq.html" %}
+    {% include "partials/home_tile_reviews.html" %}
     </div>
 
     {% if user and user.is_admin %}
     <div class="admin-home-tiles-editor card border mt-5" style="background:var(--surface2);border-color:var(--border)!important;">
       <div class="card-body">
         <h5 class="card-title"><i class="fa-solid fa-gear me-2"></i>홈 타일 문구 편집 (관리자)</h5>
-        <p class="small text-muted">홈 서비스 타일(3) · 사용 안내 동영상 · 타일 문구입니다. 저장 시 즉시 반영됩니다. PDF는 <code>/static/docs/</code>에 올린 뒤 URL을 맞추면 됩니다.</p>
+        <p class="small text-muted">홈 타일(6) · 사용 안내 동영상 · 타일 문구입니다. 저장 시 즉시 반영됩니다. PDF는 <code>/static/docs/</code>에 올린 뒤 URL을 맞추면 됩니다.</p>
         <div class="row g-2 small">
           <div class="col-md-6"><label class="form-label">사용 안내 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-gtko" value="{{ settings.get('home_tile_guide_title_ko', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">사용 안내 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-gten" value="{{ settings.get('home_tile_guide_title_en', '') }}"/></div>

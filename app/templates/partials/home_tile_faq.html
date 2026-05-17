@@ -1,0 +1,27 @@
+{# 홈 타일: FAQ #}
+<div class="home-feature-card home-feature-card--feed" role="listitem">
+  <div class="home-feature-card-top">
+    <div class="home-feature-icon home-feature-icon-outline" aria-hidden="true"><i class="fa-regular fa-circle-question"></i></div>
+    <a class="home-feature-detail-link" href="/faqs">
+      <span class="nav-ko" data-i18n="home.faq.all">FAQ 전체</span><span class="nav-en" style="display:none" data-i18n="home.faq.all">All FAQ</span><span aria-hidden="true"> →</span>
+    </a>
+  </div>
+  <h3 class="home-feature-title">FAQ</h3>
+  <div class="home-tile-feed">
+    {% if faqs %}
+    <div class="home-faq-link-list">
+      {% for faq in faqs %}
+      <a href="/faqs/{{ faq.id }}" class="home-faq-row d-flex align-items-center gap-2 text-decoration-none text-reset">
+        <i class="fa-solid fa-chevron-right fa-xs text-muted flex-shrink-0"></i>
+        <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-ko">{{ faq.question|md_html }}</span>
+        <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((faq.question_en or faq.question) or '')|md_html }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-tab-msg empty-tab-msg--compact">
+      <p class="text-muted small mb-0" data-i18n="home.faq.empty">등록된 FAQ가 없습니다.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>

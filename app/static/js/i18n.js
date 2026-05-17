@@ -15,6 +15,9 @@ const TRANSLATIONS = {
     "nav.menuIntegration": "Integration",
     "nav.codelib": "Code Gallery", "nav.admin": "Admin",
     "nav.login": "Login", "nav.signup": "Sign Up", "nav.logout": "Logout",
+    "nav.usageBalance": "Usage & balance",
+    "wallet.fabTopupTitle": "Top up AI credits",
+    "wallet.fabStartTitle": "Get started free",
     /* Footer */
     "footer.tagline": "AI-Powered SAP Development Automation Platform",
     "footer.copy": "© 2026 SAP Dev Hub. All rights reserved.",
@@ -441,6 +444,9 @@ const TRANSLATIONS = {
     "nav.menuIntegration": "연동 개발",
     "nav.codelib": "코드 라이브러리", "nav.admin": "관리자 메뉴",
     "nav.login": "로그인", "nav.signup": "회원가입", "nav.logout": "로그아웃",
+    "nav.usageBalance": "사용량 확인",
+    "wallet.fabTopupTitle": "AI 크레딧 충전",
+    "wallet.fabStartTitle": "무료로 시작하기",
     /* Footer */
     "footer.tagline": "AI 기반 SAP 개발 자동화 플랫폼",
     "footer.copy": "© 2026 SAP Dev Hub. All rights reserved.",

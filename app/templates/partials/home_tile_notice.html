@@ -1,0 +1,28 @@
+{# 홈 타일: 공지사항 #}
+<div class="home-feature-card home-feature-card--feed" role="listitem">
+  <div class="home-feature-card-top">
+    <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-bullhorn"></i></div>
+    <a class="home-feature-detail-link" href="/notices">
+      <span class="nav-ko" data-i18n="home.notice.all">공지사항 전체</span><span class="nav-en" style="display:none" data-i18n="home.notice.all">All notices</span><span aria-hidden="true"> →</span>
+    </a>
+  </div>
+  <h3 class="home-feature-title">
+    <span data-i18n="home.tab.notice">공지사항</span>
+  </h3>
+  <div class="home-tile-feed">
+    {% if notices %}
+      {% for n in notices %}
+      <a href="/notices/{{ n.id }}" class="notice-item notice-item-link text-decoration-none d-block text-reset">
+        <span class="notice-badge" data-i18n="home.noticeBadge">공지</span>
+        <span class="notice-title site-md-title-inline markdown-body i18n-ko">{{ n.title|md_html }}</span>
+        <span class="notice-title site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((n.title_en or n.title) or '')|md_html }}</span>
+        <span class="notice-date text-muted small">{{ n.created_at|local_dt_span('date_dots') }}</span>
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="empty-tab-msg empty-tab-msg--compact">
+        <p class="text-muted small mb-0" data-i18n="home.notice.empty">등록된 공지사항이 없습니다.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>

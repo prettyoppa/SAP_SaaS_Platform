@@ -34,7 +34,7 @@ from .subscription_quota import plan_row_for_entitlements, user_subscription_pla
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import site_content_router
-from .routers import payments_router, paid_admin_router, proposal_supplements_router, billing_router
+from .routers import payments_router, paid_admin_router, proposal_supplements_router, billing_router, ai_wallet_router
 from .templates_config import templates
 
 _log = logging.getLogger("uvicorn.error")
@@ -158,6 +158,7 @@ def _run_migrations():
         ("users", "subscription_plan_expires_at", "DATETIME", "TIMESTAMP"),
         ("users", "experience_trial_ends_at", "DATETIME", "TIMESTAMP"),
         ("users", "billing_country", "VARCHAR(2)", "VARCHAR(2)"),
+        ("users", "ai_wallet_balance_krw", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
         ("subscription_plans", "price_monthly_krw", "INTEGER", "INTEGER"),
         ("subscription_plans", "price_monthly_usd_cents", "INTEGER", "INTEGER"),
         ("notices", "title_en", "TEXT", "TEXT"),
@@ -658,6 +659,7 @@ app.include_router(payments_router.router)
 app.include_router(paid_admin_router.router)
 app.include_router(proposal_supplements_router.router)
 app.include_router(billing_router.router)
+app.include_router(ai_wallet_router.router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -742,7 +744,15 @@ def index(request: Request):
 
 @app.get("/subscription-plans", response_class=HTMLResponse)
 def subscription_plans_page(request: Request):
-    """구독 플랜 안내(표시 전용; 상단 프로모션 문구는 SiteSettings)."""
+    """레거시 URL → AI 잔액·사용량 페이지."""
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse(url="/account/ai-credits", status_code=302)
+
+
+@app.get("/subscription-plans-legacy", response_class=HTMLResponse)
+def subscription_plans_legacy_page(request: Request):
+    """구독 플랜 비교(Admin 미리보기용; 공개 메뉴에서는 사용 안 함)."""
     from .database import SessionLocal as _SL
     from .subscription_catalog import (
         CONSULTANT_PLAN_PUBLIC_ORDER,

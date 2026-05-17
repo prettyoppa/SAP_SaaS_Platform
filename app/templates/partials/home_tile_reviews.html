@@ -1,0 +1,30 @@
+{# 홈 타일: 문의/리뷰 #}
+<div class="home-feature-card home-feature-card--feed" role="listitem">
+  <div class="home-feature-card-top">
+    <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-comments"></i></div>
+    <a class="home-feature-detail-link" href="/reviews">
+      <span class="nav-ko" data-i18n="home.review.all">문의/리뷰 전체</span><span class="nav-en" style="display:none" data-i18n="home.review.all">All reviews</span><span aria-hidden="true"> →</span>
+    </a>
+  </div>
+  <h3 class="home-feature-title">
+    <span data-i18n="home.tab.review">문의/리뷰</span>
+  </h3>
+  <div class="home-tile-feed">
+    {% if reviews %}
+    <div class="review-list">
+      {% for r in reviews %}
+      {% set rlabel = r|review_author_label %}
+      <a href="/reviews/{{ r.id }}" class="review-item-card review-item-card--compact text-decoration-none text-reset d-flex align-items-center gap-2 w-100">
+        <span class="review-item-name small fw-semibold text-truncate">{{ rlabel }}</span>
+        <span class="review-item-body small text-muted text-truncate flex-grow-1 min-w-0">{{ r.content }}</span>
+        <span class="review-item-date small text-muted text-nowrap flex-shrink-0">{{ r.created_at|local_dt_span('date_dots') }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-tab-msg empty-tab-msg--compact">
+      <p class="text-muted small mb-0" data-i18n="home.review.empty">등록된 글이 없습니다.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>

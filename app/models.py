@@ -45,6 +45,8 @@ class User(Base):
     experience_trial_ends_at = Column(DateTime, nullable=True)
     # 계좌이체·청구: KR | US (수동 구독 운영)
     billing_country = Column(String(2), nullable=True)
+    # AI 선불 잔액(원, 정수). 계좌이체 충전 확인 시 적립.
+    ai_wallet_balance_krw = Column(Integer, nullable=False, default=0)
 
     rfps = relationship("RFP", back_populates="owner")
     integration_requests = relationship("IntegrationRequest", back_populates="owner")

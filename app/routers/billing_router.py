@@ -63,9 +63,14 @@ def _parse_transfer_date(raw: str) -> datetime | None:
 
 @router.get("/account/billing", response_class=HTMLResponse)
 def account_billing_page(request: Request, db: Session = Depends(get_db)):
+    return RedirectResponse(url="/account/ai-credits", status_code=302)
+
+
+@router.get("/account/billing-legacy", response_class=HTMLResponse)
+def account_billing_legacy_page(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
     if not user:
-        return RedirectResponse(url="/login?next=/account/billing", status_code=302)
+        return RedirectResponse(url="/login?next=/account/billing-legacy", status_code=302)
     settings = _load_billing_settings(db)
     kind = account_kind_for_user(user)
     order = CONSULTANT_PLAN_PUBLIC_ORDER if kind == "consultant" else MEMBER_PLAN_PUBLIC_ORDER
@@ -136,11 +141,11 @@ def account_billing_claim_post(
 ):
     user = auth.get_current_user(request, db)
     if not user:
-        return RedirectResponse(url="/login?next=/account/billing", status_code=302)
+        return RedirectResponse(url="/login?next=/account/ai-credits", status_code=302)
     try:
         amt = int((amount_minor or "").replace(",", "").strip())
     except ValueError:
-        return RedirectResponse(url="/account/billing?err=invalid_amount", status_code=303)
+        return RedirectResponse(url="/account/ai-credits?err=invalid_amount", status_code=303)
     err, _row = create_payment_claim(
         db,
         user,
@@ -158,11 +163,11 @@ def account_billing_claim_post(
             parts = str(err).split(":", 1)
             expected = parts[1] if len(parts) > 1 else ""
             return RedirectResponse(
-                url=f"/account/billing?err={ERR_AMOUNT_MISMATCH}&err_expected={quote(expected)}",
+                url=f"/account/ai-credits?err={ERR_AMOUNT_MISMATCH}&err_expected={quote(expected)}",
                 status_code=303,
             )
-        return RedirectResponse(url=f"/account/billing?err={quote(str(err))}", status_code=303)
-    return RedirectResponse(url="/account/billing?ok=1", status_code=303)
+        return RedirectResponse(url=f"/account/ai-credits?err={quote(str(err))}", status_code=303)
+    return RedirectResponse(url="/account/ai-credits?ok=1", status_code=303)
 
 
 @router.post("/account/billing/claim/{claim_id}/cancel")
@@ -173,10 +178,10 @@ def account_billing_claim_cancel(
 ):
     user = auth.get_current_user(request, db)
     if not user:
-        return RedirectResponse(url="/login?next=/account/billing", status_code=302)
+        return RedirectResponse(url="/login?next=/account/ai-credits", status_code=302)
     err = cancel_payment_claim(db, user, claim_id)
     if err:
         from urllib.parse import quote
 
-        return RedirectResponse(url=f"/account/billing?err={quote(err)}", status_code=303)
-    return RedirectResponse(url="/account/billing?ok=1", status_code=303)
+        return RedirectResponse(url=f"/account/ai-credits?err={quote(err)}", status_code=303)
+    return RedirectResponse(url="/account/ai-credits?ok=1", status_code=303)

@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}<span class="nav-ko">사용량 · 충전</span><span class="nav-en" style="display:none">Usage &amp; balance</span> – SAP Dev Hub{% endblock %}
+
+{% block content %}
+<div class="dashboard-page py-4 account-ai-credits-page">
+  <div class="container" style="max-width: 42rem;">
+    <div class="mb-4">
+      <a href="/" class="small text-decoration-none">
+        <i class="fa-solid fa-arrow-left me-1"></i>
+        <span class="nav-ko">홈</span><span class="nav-en" style="display:none">Home</span>
+      </a>
+      <h2 class="mt-2 mb-1">
+        <span class="nav-ko">사용량 · 충전</span><span class="nav-en" style="display:none">Usage &amp; balance</span>
+      </h2>
+      <p class="text-muted small mb-0">
+        <span class="nav-ko">AI 이용 잔액과 사용 내역을 확인하고, 계좌이체로 충전할 수 있습니다.</span>
+        <span class="nav-en" style="display:none">View your AI balance and usage, and top up via bank transfer (KRW, Korea).</span>
+      </p>
+    </div>
+
+    {% if billing_ok %}
+    <div class="alert alert-success small">
+      <span class="nav-ko">충전 신청을 접수했습니다. 입금 확인 후 잔액에 반영됩니다.</span>
+      <span class="nav-en" style="display:none">Your top-up request was submitted. Balance updates after we verify the transfer.</span>
+    </div>
+    {% endif %}
+    {% include 'partials/billing_err_alert.html' %}
+
+    <section class="rfp-section p-4 mb-4 account-ai-credits-balance" aria-labelledby="ai-balance-heading">
+      <h3 id="ai-balance-heading" class="h6 text-muted text-uppercase small mb-2">
+        <span class="nav-ko">충전 잔액</span><span class="nav-en" style="display:none">Prepaid balance</span>
+      </h3>
+      <p class="display-6 fw-semibold mb-0 font-monospace">₩{{ "{:,}".format(wallet_balance_krw) }}</p>
+      <p class="small text-muted mb-0 mt-2">
+        <span class="nav-ko">원화 선불 잔액입니다. AI 호출 비용은 추후 이 잔액에서 차감됩니다.</span>
+        <span class="nav-en" style="display:none">KRW prepaid balance. AI usage will be deducted from this balance in a future update.</span>
+      </p>
+    </section>
+
+    <section id="topup-form" class="rfp-section p-4 mb-4 account-ai-credits-topup">
+      <h3 class="h6 mb-3">
+        <i class="fa-solid fa-won-sign me-2 text-primary"></i>
+        <span class="nav-ko">AI 크레딧 충전</span><span class="nav-en" style="display:none">Top up AI credits</span>
+      </h3>
+      {% if pending_claim %}
+      <div class="alert alert-info small mb-0">
+        <span class="nav-ko"><strong>입금 확인 대기 중</strong></span>
+        <span class="nav-en" style="display:none"><strong>Pending verification</strong></span>
+        — ₩{{ "{:,}".format(pending_claim.amount_minor) }}
+        <form method="post" action="/account/ai-credits/claim/{{ pending_claim.id }}/cancel" class="d-inline ms-2"
+              data-app-confirm-i18n="billing.claimCancelConfirm">
+          <button type="submit" class="btn btn-xs btn-outline-secondary">
+            <span class="nav-ko">신청 취소</span><span class="nav-en" style="display:none">Cancel</span>
+          </button>
+        </form>
+      </div>
+      {% else %}
+      <p class="small text-muted">
+        <span class="nav-ko">아래 계좌로 입금한 뒤, 입금 금액과 입금자명을 입력해 신청해 주세요. 최소 ₩{{ "{:,}".format(min_topup_krw) }}.</span>
+        <span class="nav-en" style="display:none">Transfer to the account below, then submit the amount and depositor name. Minimum ₩{{ "{:,}".format(min_topup_krw) }}.</span>
+      </p>
+      <form method="post" action="/account/ai-credits/claim" class="mt-3">
+        <div class="mb-3">
+          <label class="form-label small">
+            <span class="nav-ko">충전 금액 (원)</span><span class="nav-en" style="display:none">Amount (KRW)</span>
+          </label>
+          <input type="number" name="amount_minor" class="form-control" min="{{ min_topup_krw }}" step="1000" required
+                 placeholder="{{ min_topup_krw }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small">
+            <span class="nav-ko">입금자명</span><span class="nav-en" style="display:none">Depositor name</span>
+          </label>
+          <input type="text" name="depositor_name" class="form-control" maxlength="200" required
+                 value="{{ user.full_name|e }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small">
+            <span class="nav-ko">입금일 (선택)</span><span class="nav-en" style="display:none">Transfer date (optional)</span>
+          </label>
+          <input type="date" name="transfer_date" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small">
+            <span class="nav-ko">메모 (선택)</span><span class="nav-en" style="display:none">Note (optional)</span>
+          </label>
+          <textarea name="member_note" class="form-control" rows="2" maxlength="2000"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">
+          <span class="nav-ko">충전 신청 제출</span><span class="nav-en" style="display:none">Submit top-up request</span>
+        </button>
+      </form>
+      {% endif %}
+    </section>
+
+    <section class="rfp-section p-4 mb-4 account-ai-credits-bank">
+      <h3 class="h6 text-muted text-uppercase small mb-2">
+        <span class="nav-ko">계좌이체 안내</span><span class="nav-en" style="display:none">Bank transfer (KRW)</span>
+      </h3>
+      {% if settings.get('bank_transfer_activation_sla_ko') or settings.get('bank_transfer_activation_sla_en') %}
+      <p class="small mb-3">
+        <i class="fa-solid fa-clock me-1 text-primary"></i>
+        <span class="nav-ko">{{ settings.get('bank_transfer_activation_sla_ko', '') }}</span>
+        <span class="nav-en" style="display:none">{{ settings.get('bank_transfer_activation_sla_en', settings.get('bank_transfer_activation_sla_ko', '')) }}</span>
+      </p>
+      {% endif %}
+      <div class="markdown-body small nav-ko">{{ (settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
+      <div class="markdown-body small nav-en" style="display:none">{{ (settings.get('bank_transfer_notice_md_en') or settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
+    </section>
+
+    <section class="rfp-section p-4 mb-4 account-ai-credits-history">
+      <h3 class="h6 text-muted text-uppercase small mb-3">
+        <span class="nav-ko">충전 이력</span><span class="nav-en" style="display:none">Top-up history</span>
+      </h3>
+      {% if claims|length == 0 %}
+      <p class="text-muted small mb-0">
+        <span class="nav-ko">아직 충전 신청 이력이 없습니다.</span>
+        <span class="nav-en" style="display:none">No top-up requests yet.</span>
+      </p>
+      {% else %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th><span class="nav-ko">일시</span><span class="nav-en" style="display:none">Date</span></th>
+              <th><span class="nav-ko">구분</span><span class="nav-en" style="display:none">Type</span></th>
+              <th class="text-end"><span class="nav-ko">금액</span><span class="nav-en" style="display:none">Amount</span></th>
+              <th><span class="nav-ko">상태</span><span class="nav-en" style="display:none">Status</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in claims %}
+            <tr>
+              <td class="small text-muted">{{ c.created_at|local_dt_span }}</td>
+              <td class="small">
+                <span class="nav-ko">{{ claim_plan_label_ko(c.plan_code) }}</span>
+                <span class="nav-en" style="display:none">{{ claim_plan_label_en(c.plan_code) }}</span>
+              </td>
+              <td class="text-end font-monospace small">₩{{ "{:,}".format(c.amount_minor) }}</td>
+              <td class="small">
+                <span class="nav-ko">{{ claim_status_label_ko(c.status) }}</span>
+                <span class="nav-en" style="display:none">{{ claim_status_label_en(c.status) }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="rfp-section p-4 mb-4 account-ai-credits-usage">
+      <h3 class="h6 text-muted text-uppercase small mb-2">
+        <span class="nav-ko">사용 정보</span><span class="nav-en" style="display:none">Usage</span>
+      </h3>
+      <p class="small text-muted">
+        <span class="nav-ko">추정 AI 이용 비용(누적, 참고용). API 토큰·모델 단가 기반이며 실제 청구액과 다를 수 있습니다.</span>
+        <span class="nav-en" style="display:none">Estimated cumulative AI cost (reference). Based on tokens and model rates; not exact billing.</span>
+      </p>
+      <p class="mb-3">
+        <span class="nav-ko">합계</span><span class="nav-en" style="display:none">Total</span>
+        <strong>{{ ai_usage_total_usd }}</strong>
+        <span class="text-muted">(<span class="nav-ko">약</span><span class="nav-en" style="display:none">approx.</span> {{ ai_usage_total_krw }})</span>
+        · <span class="nav-ko">이벤트</span><span class="nav-en" style="display:none">Events</span> {{ ai_usage_event_count }}
+      </p>
+      {% if ai_usage_stage_rows|length > 0 %}
+      <div class="ai-usage-stage-chart mb-4">
+        {% for row in ai_usage_stage_rows %}
+        <div class="ai-usage-stage-row mb-2">
+          <div class="d-flex justify-content-between small mb-1">
+            <span><span class="nav-ko">{{ row.label }}</span><span class="nav-en" style="display:none">{{ row.label_en }}</span></span>
+            <span class="font-monospace">{{ row.usd }} <span class="text-muted">({{ row.pct }}%)</span></span>
+          </div>
+          <div class="progress" style="height: 8px;" role="presentation">
+            <div class="progress-bar bg-primary" style="width: {% if row.pct > 100 %}100{% else %}{{ row.pct }}{% endif %}%;"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <h4 class="h6 mb-2">
+        <span class="nav-ko">이번 달 사용량</span><span class="nav-en" style="display:none">This month (UTC)</span>
+        <span class="text-muted font-monospace small">{{ usage_year_month }}</span>
+      </h4>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th><span class="nav-ko">항목</span><span class="nav-en" style="display:none">Metric</span></th>
+              <th class="text-end"><span class="nav-ko">사용</span><span class="nav-en" style="display:none">Used</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in metric_order %}
+            <tr>
+              <td class="small">
+                <span class="nav-ko">{{ metric_label_ko.get(m, m) }}</span>
+                <span class="nav-en" style="display:none">{{ metric_label_en.get(m, m) }}</span>
+                <code class="text-muted ms-1">{{ m }}</code>
+              </td>
+              <td class="text-end font-monospace">{{ usage_map.get(m, 0) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
