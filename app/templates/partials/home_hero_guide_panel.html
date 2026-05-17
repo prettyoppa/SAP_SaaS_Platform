@@ -1,7 +1,6 @@
-{# 히어로 우측: 사용 안내 + 동영상(YouTube) — URL 미설정 시 기본 ABAP 튜토리얼 #}
+{# 히어로 우측: 사용 안내 + 동영상(YouTube) — URL 미설정 시 ABAP 타이핑 데모 #}
 {% set guide_video_raw = (settings.get('home_guide_video_url') or settings.get('home_tile_guide_desc_ko') or '')|trim %}
-{% if not guide_video_raw %}{% set guide_video_raw = default_home_guide_video_url %}{% endif %}
-{% set guide_embed = guide_video_raw|youtube_embed %}
+{% set guide_embed = guide_video_raw|youtube_embed if guide_video_raw else none %}
 <div class="home-guide-card">
   <div class="home-guide-card-top">
     <div class="home-guide-icon home-feature-icon home-feature-icon-outline" aria-hidden="true">
@@ -30,6 +29,8 @@
         ></iframe>
       </div>
     </div>
+    {% else %}
+    {% include "partials/home_hero_guide_code_demo.html" %}
     {% endif %}
   </div>
 </div>

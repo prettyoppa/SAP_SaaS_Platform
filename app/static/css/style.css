@@ -1536,6 +1536,90 @@ html[data-theme="light"] .home-guide-video-stage {
   height: 100%;
 }
 
+/* URL 없을 때: ABAP 터미널 타이핑 데모 */
+.home-guide-video-stage--demo {
+  display: flex;
+  flex-direction: column;
+  min-height: 10.5rem;
+  background: #0d1117;
+}
+html[data-theme="light"] .home-guide-video-stage--demo {
+  background: #1e293b;
+}
+.home-guide-code-terminal {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.home-guide-code-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+html[data-theme="light"] .home-guide-code-titlebar {
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom-color: rgba(0, 0, 0, 0.15);
+}
+.home-guide-code-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.home-guide-code-dot--r { background: #ff5f57; }
+.home-guide-code-dot--y { background: #febc2e; }
+.home-guide-code-dot--g { background: #28c840; }
+.home-guide-code-titlebar-label {
+  margin-left: 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-guide-code-viewport {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+  padding: 0.45rem 0.55rem 0.5rem;
+  scroll-behavior: smooth;
+}
+.home-guide-code-lines {
+  margin: 0;
+  font-family: "Cascadia Code", "Consolas", "Monaco", "Courier New", monospace;
+  font-size: clamp(0.58rem, 1.45vw, 0.72rem);
+  line-height: 1.45;
+  color: #e6edf3;
+  white-space: pre;
+  tab-size: 2;
+}
+.home-guide-code-lines code {
+  display: block;
+}
+.home-guide-code-kw { color: #79c0ff; }
+.home-guide-code-cm { color: #8b949e; }
+.home-guide-code-str { color: #7ee787; }
+.home-guide-code-cursor {
+  display: inline-block;
+  width: 0.45em;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: #3fb950;
+  animation: home-guide-code-blink 1s step-end infinite;
+}
+@keyframes home-guide-code-blink {
+  50% { opacity: 0; }
+}
+
 /* 홈 히어로: 관리자 HTML 블록 — 기본 타이포 클래스 상속 */
 .home-hero-custom .hero-title,
 .home-hero-custom h1.hero-title,

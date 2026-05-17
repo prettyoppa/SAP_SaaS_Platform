@@ -1,9 +1,6 @@
-"""홈 히어로 기본 HTML·사용 안내 동영상 (관리자 미설정 시)."""
+"""홈 히어로 기본 HTML (관리자 미설정 시)."""
 
 from __future__ import annotations
-
-# ABAP 코딩 튜토리얼 (관리자 URL 미입력 시 히어로 패널 기본 임베드)
-DEFAULT_HOME_GUIDE_VIDEO_URL = "https://youtu.be/7lkdOdWdnS0"
 
 DEFAULT_HOME_HERO_HTML = """<h1 class="hero-title">
   SAP 개발, Catchy가<br>함께 하겠습니다.<br>

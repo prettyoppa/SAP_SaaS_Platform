@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
 from .agent_display import agent_label_ko
-from .home_hero_defaults import DEFAULT_HOME_GUIDE_VIDEO_URL, DEFAULT_HOME_HERO_HTML
+from .home_hero_defaults import DEFAULT_HOME_HERO_HTML
 from .youtube_embed import youtube_embed_info, youtube_video_id
 from .rfp_phase_gates import integration_phase_gates, rfp_phase_gates, abap_analysis_phase_gates
 
@@ -197,7 +197,6 @@ templates.env.filters["youtube_video_id"] = youtube_video_id
 templates.env.filters["youtube_embed"] = youtube_embed_info
 
 templates.env.globals["default_home_hero_html"] = DEFAULT_HOME_HERO_HTML
-templates.env.globals["default_home_guide_video_url"] = DEFAULT_HOME_GUIDE_VIDEO_URL
 
 
 def layout_template_from_embed_query(request) -> str:
