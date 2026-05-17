@@ -1203,6 +1203,10 @@ async def register(
     maybe_grant_experience_trial(db, new_user)
     db.commit()
 
+    from ..wallet_topup_notifications import job_notify_admins_new_registration, schedule_wallet_notification
+
+    schedule_wallet_notification(job_notify_admins_new_registration, int(new_user.id))
+
     if account_type_norm == "consultant":
         _schedule_bg(send_consultant_application_received_email, new_user.email)
 

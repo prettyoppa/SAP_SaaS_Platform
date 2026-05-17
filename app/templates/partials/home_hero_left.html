@@ -1,0 +1,25 @@
+{# 히어로 왼쪽: 관리자 HTML 또는 기본 마크업 #}
+{% set hero_html = (settings.get('home_hero_html') or '')|trim %}
+{% if not hero_html and (settings.get('home_headline_ko') or settings.get('home_headline_en') or settings.get('home_subtitle_ko') or settings.get('home_subtitle_en')) %}
+  {% set hl_ko = settings.get('home_headline_ko', '')|trim %}
+  {% set hl_en = settings.get('home_headline_en', '')|trim %}
+  {% set sub_ko = settings.get('home_subtitle_ko', '')|trim %}
+  {% set sub_en = settings.get('home_subtitle_en', '')|trim %}
+  <div class="home-hero-custom">
+    <h1 class="hero-title">
+      {% if hl_ko %}<span class="nav-ko">{{ hl_ko }}<br></span>{% endif %}
+      {% if hl_en %}<span class="nav-en" style="display:none">{{ hl_en }}<br></span>{% endif %}
+      <span class="hero-power-agents text-gradient" data-i18n="hero.powerAgents">with 8 Power Agents</span>
+    </h1>
+    {% if sub_ko or sub_en %}
+    <p class="hero-sub">
+      {% if sub_ko %}<span class="nav-ko">{{ sub_ko }}</span>{% endif %}
+      {% if sub_en %}<span class="nav-en" style="display:none">{{ sub_en }}</span>{% endif %}
+    </p>
+    {% endif %}
+  </div>
+{% elif hero_html %}
+  <div class="home-hero-custom">{{ hero_html|safe }}</div>
+{% else %}
+  <div class="home-hero-custom">{{ default_home_hero_html|safe }}</div>
+{% endif %}

@@ -1,5 +1,6 @@
-{# 히어로 우측: 사용 안내 + 동영상(YouTube) — 패널 높이 고정, URL 유형별 비율 #}
+{# 히어로 우측: 사용 안내 + 동영상(YouTube) — URL 미설정 시 기본 ABAP 튜토리얼 #}
 {% set guide_video_raw = (settings.get('home_guide_video_url') or settings.get('home_tile_guide_desc_ko') or '')|trim %}
+{% if not guide_video_raw %}{% set guide_video_raw = default_home_guide_video_url %}{% endif %}
 {% set guide_embed = guide_video_raw|youtube_embed %}
 <div class="home-guide-card">
   <div class="home-guide-card-top">
@@ -28,12 +29,6 @@
           referrerpolicy="strict-origin-when-cross-origin"
         ></iframe>
       </div>
-    </div>
-    {% else %}
-    <div class="home-guide-video-placeholder" id="home-guide-video-placeholder">
-      <i class="fa-brands fa-youtube fa-2x text-muted mb-2" aria-hidden="true"></i>
-      <p class="small text-muted mb-0 nav-ko">사용 방법 동영상이 곧 제공됩니다.</p>
-      <p class="small text-muted mb-0 nav-en" style="display:none">How-to video coming soon.</p>
     </div>
     {% endif %}
   </div>

@@ -125,6 +125,9 @@ def create_wallet_topup_claim(
     apply_wallet_credit(user, amt)
     db.commit()
     db.refresh(row)
+    from .wallet_topup_notifications import job_notify_admins_wallet_topup_submitted, schedule_wallet_notification
+
+    schedule_wallet_notification(job_notify_admins_wallet_topup_submitted, int(row.id))
     return row, None
 
 
@@ -250,6 +253,10 @@ def confirm_payment_claim(
     row.admin_note = (admin_note or "").strip()[:2000] or row.admin_note
     row.updated_at = now
     db.commit()
+    if is_wallet_topup_plan_code(row.plan_code):
+        from .wallet_topup_notifications import job_notify_member_wallet_topup_reviewed, schedule_wallet_notification
+
+        schedule_wallet_notification(job_notify_member_wallet_topup_reviewed, int(row.id), "confirmed")
     return None
 
 
@@ -269,9 +276,14 @@ def reject_payment_claim(
     if user and is_wallet_topup_plan_code(row.plan_code) and bool(row.wallet_credited_on_submit):
         apply_wallet_debit(user, int(row.amount_minor))
     row.status = CLAIM_STATUS_REJECTED
+    row.confirmed_amount_minor = 0
     row.admin_note = (admin_note or "").strip()[:2000] or None
     row.updated_at = datetime.utcnow()
     db.commit()
+    if is_wallet_topup_plan_code(row.plan_code):
+        from .wallet_topup_notifications import job_notify_member_wallet_topup_reviewed, schedule_wallet_notification
+
+        schedule_wallet_notification(job_notify_member_wallet_topup_reviewed, int(row.id), "rejected")
     return None
 
 

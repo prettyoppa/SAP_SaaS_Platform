@@ -1010,10 +1010,7 @@ def admin_devtype_delete(dt_id: int, request: Request, db: Session = Depends(get
 # ── 사이트 설정 관리 ────────────────────────────────────
 
 SITE_SETTING_KEYS = [
-    ("home_headline_ko", "홈 헤드라인 (한국어)"),
-    ("home_headline_en", "홈 헤드라인 (English)"),
-    ("home_subtitle_ko", "홈 부제목 (한국어)"),
-    ("home_subtitle_en", "홈 부제목 (English)"),
+    ("home_hero_html", "홈 히어로 HTML (왼쪽 영역)"),
     ("home_guide_video_url", "홈 사용 안내 동영상 URL (YouTube / Shorts)"),
     ("rfp_writing_tip", "개발 요청 작성 팁"),
     ("service_abap_intro_md_ko", "신규 개발(SAP ABAP) 첫 페이지 소개 (Markdown)"),
