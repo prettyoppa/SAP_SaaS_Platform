@@ -997,6 +997,7 @@ SITE_SETTING_KEYS = [
     ("home_headline_en", "홈 헤드라인 (English)"),
     ("home_subtitle_ko", "홈 부제목 (한국어)"),
     ("home_subtitle_en", "홈 부제목 (English)"),
+    ("home_guide_video_url", "홈 사용 안내 동영상 URL (YouTube / Shorts)"),
     ("rfp_writing_tip", "개발 요청 작성 팁"),
     ("service_abap_intro_md_ko", "신규 개발(SAP ABAP) 첫 페이지 소개 (Markdown)"),
     ("service_analysis_intro_md_ko", "분석·개선 첫 페이지 소개 (Markdown)"),

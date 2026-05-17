@@ -1444,6 +1444,14 @@ html {
   padding: 0.75rem 1rem 1rem;
   min-height: 0;
 }
+/* Bootstrap 5.3에는 ratio-9x16 없음 — Shorts 세로 임베드용 */
+.home-guide-video.ratio-9x16 {
+  --bs-aspect-ratio: 177.7777777778%;
+  width: 100%;
+  max-width: min(220px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
 .home-guide-video iframe {
   border: 0;
   border-radius: var(--radius-sm);
