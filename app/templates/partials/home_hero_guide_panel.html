@@ -1,6 +1,6 @@
-{# 히어로 우측: 사용 안내 + 동영상(YouTube) #}
+{# 히어로 우측: 사용 안내 + 동영상(YouTube) — 패널 높이 고정, URL 유형별 비율 #}
 {% set guide_video_raw = (settings.get('home_guide_video_url') or settings.get('home_tile_guide_desc_ko') or '')|trim %}
-{% set guide_video_id = guide_video_raw|youtube_video_id %}
+{% set guide_embed = guide_video_raw|youtube_embed %}
 <div class="home-guide-card">
   <div class="home-guide-card-top">
     <div class="home-guide-icon home-feature-icon home-feature-icon-outline" aria-hidden="true">
@@ -15,17 +15,19 @@
     </a>
   </div>
   <div class="home-guide-video-wrap">
-    {% if guide_video_id %}
-    <div class="home-guide-video ratio ratio-9x16">
-      <iframe
-        id="home-guide-video-iframe"
-        src="https://www.youtube-nocookie.com/embed/{{ guide_video_id }}?rel=0"
-        title="{% if settings.get('home_tile_guide_title_ko') %}{{ settings.get('home_tile_guide_title_ko') }}{% else %}사용 안내{% endif %}"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowfullscreen
-        loading="lazy"
-        referrerpolicy="strict-origin-when-cross-origin"
-      ></iframe>
+    {% if guide_embed %}
+    <div class="home-guide-video-stage home-guide-video-stage--{{ guide_embed.layout }}" role="region" aria-label="{% if settings.get('home_tile_guide_title_ko') %}{{ settings.get('home_tile_guide_title_ko') }}{% else %}사용 안내{% endif %}">
+      <div class="home-guide-video-inner">
+        <iframe
+          id="home-guide-video-iframe"
+          src="https://www.youtube-nocookie.com/embed/{{ guide_embed.id }}?rel=0"
+          title="{% if settings.get('home_tile_guide_title_ko') %}{{ settings.get('home_tile_guide_title_ko') }}{% else %}사용 안내{% endif %}"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen
+          loading="lazy"
+          referrerpolicy="strict-origin-when-cross-origin"
+        ></iframe>
+      </div>
     </div>
     {% else %}
     <div class="home-guide-video-placeholder" id="home-guide-video-placeholder">

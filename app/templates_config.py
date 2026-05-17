@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
 from .agent_display import agent_label_ko
-from .youtube_embed import youtube_video_id
+from .youtube_embed import youtube_embed_info, youtube_video_id
 from .rfp_phase_gates import integration_phase_gates, rfp_phase_gates, abap_analysis_phase_gates
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
@@ -193,6 +193,7 @@ def _interview_qa_pairs_filter(text) -> list[dict[str, str]]:
 templates.env.filters["interview_qa_pairs"] = _interview_qa_pairs_filter
 templates.env.filters["urlquote"] = lambda s: quote_plus(str(s or ""))
 templates.env.filters["youtube_video_id"] = youtube_video_id
+templates.env.filters["youtube_embed"] = youtube_embed_info
 
 
 def layout_template_from_embed_query(request) -> str:

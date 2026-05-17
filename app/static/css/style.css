@@ -1408,16 +1408,16 @@ html {
   }
 }
 
-/* 히어로 사용 안내 카드 */
+/* 히어로 사용 안내 카드 — 전체 높이 고정(히어로 탭 패널과 유사) */
 .home-guide-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
-  height: 100%;
   display: flex;
   flex-direction: column;
+  max-height: 22rem;
 }
 .home-guide-card-top {
   display: flex;
@@ -1426,6 +1426,7 @@ html {
   padding: 0.85rem 1rem;
   background: var(--surface2);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .home-guide-card-top .home-guide-icon {
   width: 2.25rem;
@@ -1440,21 +1441,51 @@ html {
   font-weight: 700;
 }
 .home-guide-video-wrap {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   padding: 0.75rem 1rem 1rem;
-  min-height: 0;
 }
-/* Bootstrap 5.3에는 ratio-9x16 없음 — Shorts 세로 임베드용 */
-.home-guide-video.ratio-9x16 {
-  --bs-aspect-ratio: 177.7777777778%;
+/* 동영상 뷰포트: 고정 높이, URL 유형별로 내부만 16:9 또는 9:16 */
+.home-guide-video-stage {
   width: 100%;
-  max-width: min(220px, 100%);
-  margin-left: auto;
-  margin-right: auto;
-}
-.home-guide-video iframe {
-  border: 0;
+  height: 11.25rem;
+  max-height: 11.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0f;
   border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+html[data-theme="light"] .home-guide-video-stage {
+  background: #111827;
+}
+.home-guide-video-inner {
+  position: relative;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.home-guide-video-inner iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+/* 일반 YouTube: 가로 16:9가 스테이지 너비에 맞게 */
+.home-guide-video-stage--standard .home-guide-video-inner {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  max-height: 100%;
+}
+/* Shorts: 세로 9:16, 스테이지 높이에 맞춤(좌우 레터박스) */
+.home-guide-video-stage--shorts .home-guide-video-inner {
+  width: auto;
+  height: 100%;
+  aspect-ratio: 9 / 16;
+  max-width: 100%;
 }
 .home-guide-video-placeholder {
   display: flex;
@@ -1462,7 +1493,8 @@ html {
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-height: 10rem;
+  height: 11.25rem;
+  max-height: 11.25rem;
   padding: 1.5rem 1rem;
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
