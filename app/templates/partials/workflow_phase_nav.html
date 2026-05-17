@@ -24,7 +24,7 @@
   {% endif %}
   {% if user is defined and user.is_admin %}
   {% if int_ir is defined and int_ir %}
-  <a href="/integration/{{ int_ir.id }}?phase=fs" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="납품 관리">
+  <a href="/integration/{{ int_ir.id }}?phase=fs" class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--delivery-manage" data-i18n-title="phase.deliveryTitle" title="납품 관리">
     <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
   {% elif wf is defined and wf %}
@@ -32,7 +32,7 @@
     <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
   {% elif analysis_phase_row is defined and analysis_phase_row %}
-  <a href="/admin/abap-analysis/{{ analysis_phase_row.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="납품 관리" target="_blank" rel="noopener">
+  <a href="/admin/abap-analysis/{{ analysis_phase_row.id }}/delivery" class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--delivery-manage" data-i18n-title="phase.deliveryTitle" title="납품 관리" target="_blank" rel="noopener">
     <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
   {% endif %}
@@ -46,7 +46,7 @@
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.devCode">개발코드</span></span>
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.fs">FS</span></span>
   {% if user is defined and user.is_admin %}
-  <span class="btn btn-sm btn-primary rfp-phase-btn disabled opacity-50" tabindex="-1" aria-disabled="true" data-i18n-title="phase.afterWorkflow" title="워크플로 연결 후 사용"><i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span></span>
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--delivery-manage rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true" data-i18n-title="phase.afterWorkflow" title="워크플로 연결 후 사용"><i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span></span>
   {% endif %}
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.proposal">제안서</span></span>
   {% endif %}

@@ -66,6 +66,11 @@ html[data-theme="dark"] .brand-logo-dark-only {
   /* 문의/리뷰 별점 입력 — 미선택 별 윤곽(내부는 비워 보이게) */
   --review-star-outline: rgba(232, 237, 245, 0.55);
   --review-star-outline-strong: rgba(248, 250, 252, 0.88);
+  /* 진행 상태 타일(standard_menu_bucket_meta)과 동일 톤 */
+  --bucket-analysis-bg: rgba(99, 102, 241, 0.18);
+  --bucket-analysis-fg: #6366f1;
+  --bucket-in-progress-bg: rgba(234, 179, 8, 0.2);
+  --bucket-in-progress-fg: #eab308;
 }
 
 /* ── 라이트 테마 ────────────────────────────── */
@@ -628,6 +633,13 @@ html[data-theme="light"] .codelib-source-pre {
 /* ── Sections ──────────────────────────────── */
 .section-light { background: var(--surface); }
 .section-dark  { background: var(--surface2); }
+/* 홈 타일 영역: 히어로와 동일한 페이지 배경(--bg) */
+#home-features.section-light {
+  background: var(--bg);
+}
+html[data-theme="light"] #home-features.section-light {
+  background: var(--bg);
+}
 .section-title { font-size: 2rem; font-weight: 700; }
 .section-sub   { font-size: 1.05rem; }
 
@@ -2203,12 +2215,12 @@ html[data-theme="light"] .rfp-unified-hub .wf-abap-mirror-phase .rfp-workflow-ab
   padding-bottom: 1rem !important;
 }
 .menu-list-view-btns .btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  background: var(--bucket-analysis-bg);
+  border-color: color-mix(in srgb, var(--bucket-analysis-fg) 38%, transparent);
+  color: var(--bucket-analysis-fg);
 }
 html[data-theme="light"] .menu-list-view-btns .btn.active {
-  color: #fff;
+  color: var(--bucket-analysis-fg);
 }
 .rfp-list-card--compact-row {
   display: flex;
@@ -2259,6 +2271,31 @@ span.btn.btn-sm.rfp-phase-btn.rfp-phase-btn--muted {
   pointer-events: none;
   cursor: not-allowed;
   user-select: none;
+}
+/* 이어쓰기 — 진행중 타일 아이콘 배경 톤 */
+a.btn.rfp-phase-btn.rfp-phase-btn--continue-draft,
+button.btn.rfp-phase-btn.rfp-phase-btn--continue-draft {
+  background: var(--bucket-in-progress-bg) !important;
+  border-color: color-mix(in srgb, var(--bucket-in-progress-fg) 40%, transparent) !important;
+  color: var(--bucket-in-progress-fg) !important;
+}
+a.btn.rfp-phase-btn.rfp-phase-btn--continue-draft:hover,
+button.btn.rfp-phase-btn.rfp-phase-btn--continue-draft:hover {
+  background: color-mix(in srgb, var(--bucket-in-progress-bg) 75%, var(--bucket-in-progress-fg)) !important;
+  border-color: color-mix(in srgb, var(--bucket-in-progress-fg) 55%, transparent) !important;
+  color: var(--bucket-in-progress-fg) !important;
+}
+/* 납품 관리 — 분석 타일 아이콘 배경 톤 */
+a.btn.rfp-phase-btn.rfp-phase-btn--delivery-manage,
+span.btn.rfp-phase-btn.rfp-phase-btn--delivery-manage {
+  background: var(--bucket-analysis-bg) !important;
+  border-color: color-mix(in srgb, var(--bucket-analysis-fg) 38%, transparent) !important;
+  color: var(--bucket-analysis-fg) !important;
+}
+a.btn.rfp-phase-btn.rfp-phase-btn--delivery-manage:hover {
+  background: color-mix(in srgb, var(--bucket-analysis-bg) 70%, var(--bucket-analysis-fg)) !important;
+  border-color: color-mix(in srgb, var(--bucket-analysis-fg) 50%, transparent) !important;
+  color: var(--bucket-analysis-fg) !important;
 }
 
 /* ── Admin Menu Cards ───────────────────────── */
@@ -3602,12 +3639,13 @@ html[data-theme="dark"] .navbar-custom .nav-item-request-console .nav-link-reque
   letter-spacing: -0.01em;
   color: #1e1b4b;
   background: linear-gradient(165deg, #eef2ff 0%, #e0e7ff 100%);
-  border: 1px solid #6366f1;
+  border: 1px solid color-mix(in srgb, #6366f1 32%, transparent);
   border-radius: 10px;
   padding: 0.35rem 0.55rem 0.4rem;
   position: relative;
   box-shadow: 0 2px 12px color-mix(in srgb, #4338ca 22%, transparent);
-  animation: nav-request-console-bobble 2.6s ease-in-out infinite;
+  animation: nav-request-console-bobble 2.6s ease-in-out 9;
+  animation-fill-mode: forwards;
   transform-origin: 50% 100%;
 }
 
@@ -3619,8 +3657,8 @@ html[data-theme="dark"] .navbar-custom .nav-item-request-console .nav-link-reque
   width: 10px;
   height: 10px;
   background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  border-left: 1px solid #6366f1;
-  border-top: 1px solid #6366f1;
+  border-left: 1px solid color-mix(in srgb, #6366f1 32%, transparent);
+  border-top: 1px solid color-mix(in srgb, #6366f1 32%, transparent);
   transform: rotate(45deg);
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
@@ -3628,14 +3666,14 @@ html[data-theme="dark"] .navbar-custom .nav-item-request-console .nav-link-reque
 html[data-theme="dark"] .navbar-custom .nav-request-console-bubble {
   color: #e0e7ff;
   background: linear-gradient(165deg, #312e81 0%, #1e1b4b 100%);
-  border-color: #818cf8;
+  border-color: color-mix(in srgb, #818cf8 35%, transparent);
   box-shadow: 0 2px 16px color-mix(in srgb, #000 45%, #6366f1 25%);
 }
 
 html[data-theme="dark"] .navbar-custom .nav-request-console-bubble::before {
   background: linear-gradient(135deg, #312e81 0%, #1e1b4b 100%);
-  border-left-color: #818cf8;
-  border-top-color: #818cf8;
+  border-left-color: color-mix(in srgb, #818cf8 35%, transparent);
+  border-top-color: color-mix(in srgb, #818cf8 35%, transparent);
 }
 
 @keyframes nav-request-console-bobble {
@@ -4282,7 +4320,8 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
   background: linear-gradient(135deg, var(--primary, #0d6efd), #6366f1);
 }
 .fab-action--topup {
-  background: linear-gradient(135deg, #198754, #20c997);
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  border: 1px solid rgba(99, 102, 241, 0.45);
 }
 @media (max-width: 575.98px) {
   .fab-action {

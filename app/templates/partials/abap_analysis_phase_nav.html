@@ -12,7 +12,7 @@
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.fs">FS</span></span>
   {% endif %}
   {% if user is defined and user.is_admin %}
-  <a href="/admin/abap-analysis/{{ analysis_phase_row.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="납품 관리" target="_blank" rel="noopener">
+  <a href="/admin/abap-analysis/{{ analysis_phase_row.id }}/delivery" class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--delivery-manage" data-i18n-title="phase.deliveryTitle" title="납품 관리" target="_blank" rel="noopener">
     <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
   {% endif %}

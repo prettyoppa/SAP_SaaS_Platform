@@ -9,7 +9,7 @@
   <link href="/static/vendor/bootstrap-5.3.3/css/bootstrap.min.css?v=20260512" rel="stylesheet"/>
   <link href="/static/vendor/fontawesome-free-6.5.1/css/all.min.css?v=20260512" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="/static/css/style.css?v=20260516home-tiles-grid" rel="stylesheet"/>
+  <link href="/static/css/style.css?v=20260516ui-tone" rel="stylesheet"/>
   <!-- 테마 깜빡임 방지: CSS 로드 전에 테마·파비콘 적용 -->
   <script>
     (function() {
@@ -74,7 +74,7 @@
         <li class="nav-item nav-item-request-console position-relative">
           <div class="nav-request-console-link-wrap position-relative">
             <a class="nav-link nav-link-request-console {% if path.startswith('/request-console') %}active{% endif %}" href="/request-console">
-              <span data-i18n="nav.menuRequestConsole">요청 Console</span>
+              <span data-i18n="nav.menuRequestConsole">요청 콘솔</span>
             </a>
             {% if nav_console_pending %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
           </div>
@@ -153,7 +153,7 @@
             {% if user.is_admin or user.is_consultant %}
             <li><a class="dropdown-item" href="/request-console">
               <i class="fa-solid fa-inbox me-2"></i>
-              <span class="nav-ko">요청 Console</span><span class="nav-en" style="display:none">Request Console</span>
+              <span class="nav-ko">요청 콘솔</span><span class="nav-en" style="display:none">Request Console</span>
             </a></li>
             {% endif %}
             <li><a class="dropdown-item" href="/account">

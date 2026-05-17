@@ -2,7 +2,7 @@
 {% set ph = rfp|phase_gates(user if user is defined else none) %}
 <div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
   {% if rfp.status == 'draft' %}
-  <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-warning text-dark">
+  <a href="/rfp/{{ rfp.id }}/edit" class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--continue-draft">
     <i class="fa-solid fa-pen me-1"></i><span data-i18n="phase.continueDraft">이어쓰기</span>
   </a>
   {% endif %}
@@ -17,7 +17,7 @@
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.fs">FS</span></span>
   {% endif %}
   {% if user is defined and user.is_admin %}
-  <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-sm btn-primary rfp-phase-btn" data-i18n-title="phase.deliveryTitle" title="FS·컨설턴트 수정본 업로드·납품 ABAP 생성 요청">
+  <a href="/admin/rfp/{{ rfp.id }}/delivery" class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--delivery-manage" data-i18n-title="phase.deliveryTitle" title="FS·컨설턴트 수정본 업로드·납품 ABAP 생성 요청">
     <i class="fa-solid fa-gears me-1"></i><span data-i18n="phase.deliveryManage">납품 관리</span>
   </a>
   {% endif %}
