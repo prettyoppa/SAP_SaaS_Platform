@@ -149,7 +149,7 @@ def account_ai_credits_claim_post(
         amt = int((amount_minor or "").replace(",", "").strip())
     except ValueError:
         return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=invalid_amount", status_code=303)
-    err, _row = create_wallet_topup_claim(
+    row, err = create_wallet_topup_claim(
         db,
         user,
         amount_minor=amt,

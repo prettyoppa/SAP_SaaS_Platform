@@ -20,8 +20,8 @@
 
     {% if billing_ok %}
     <div class="alert alert-success small">
-      <span class="nav-ko">충전 신청을 접수했습니다. 입금 확인 후 잔액에 반영됩니다.</span>
-      <span class="nav-en" style="display:none">Your top-up request was submitted. Balance updates after we verify the transfer.</span>
+      <span class="nav-ko">충전 신청이 접수되었고, 신청 금액이 잔액에 바로 반영되었습니다. 이제 AI를 이용하실 수 있습니다.</span>
+      <span class="nav-en" style="display:none">Your top-up was submitted and the amount was added to your balance immediately. You can use AI now.</span>
     </div>
     {% endif %}
     {% include 'partials/billing_err_alert.html' %}
@@ -40,9 +40,9 @@
       </h3>
       {% if pending_claim %}
       <div class="alert alert-info small mb-0">
-        <span class="nav-ko"><strong>입금 확인 대기 중</strong></span>
-        <span class="nav-en" style="display:none"><strong>Pending verification</strong></span>
-        — ₩{{ "{:,}".format(pending_claim.amount_minor) }}
+        <span class="nav-ko"><strong>입금 확인 대기 중</strong> — 잔액에는 이미 반영되었습니다.</span>
+        <span class="nav-en" style="display:none"><strong>Pending bank verification</strong> — balance already updated.</span>
+        · ₩{{ "{:,}".format(pending_claim.amount_minor) }}
         <form method="post" action="/account/ai-credits/claim/{{ pending_claim.id }}/cancel" class="d-inline ms-2"
               data-app-confirm-i18n="billing.claimCancelConfirm">
           <button type="submit" class="btn btn-xs btn-outline-secondary">
@@ -52,8 +52,8 @@
       </div>
       {% else %}
       <p class="small text-muted">
-        <span class="nav-ko">아래 계좌로 입금한 뒤, 입금 금액과 입금자명을 입력해 신청해 주세요. 최소 ₩{{ "{:,}".format(min_topup_krw) }}.</span>
-        <span class="nav-en" style="display:none">Transfer to the account below, then submit the amount and depositor name. Minimum ₩{{ "{:,}".format(min_topup_krw) }}.</span>
+        <span class="nav-ko">아래 계좌로 입금한 뒤 금액·입금자명을 입력해 신청해 주세요. 신청 즉시 잔액에 반영됩니다. 최소 ₩{{ "{:,}".format(min_topup_krw) }}.</span>
+        <span class="nav-en" style="display:none">Transfer to the account below, then submit amount and depositor name. Balance updates immediately. Minimum ₩{{ "{:,}".format(min_topup_krw) }}.</span>
       </p>
       <form method="post" action="/account/ai-credits/claim" class="mt-3 account-ai-credits-claim-form" id="ai-credits-claim-form">
         <div class="row g-2 align-items-end account-ai-credits-claim-row">

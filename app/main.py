@@ -159,6 +159,7 @@ def _run_migrations():
         ("users", "experience_trial_ends_at", "DATETIME", "TIMESTAMP"),
         ("users", "billing_country", "VARCHAR(2)", "VARCHAR(2)"),
         ("users", "ai_wallet_balance_krw", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
+        ("payment_claims", "wallet_credited_on_submit", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("subscription_plans", "price_monthly_krw", "INTEGER", "INTEGER"),
         ("subscription_plans", "price_monthly_usd_cents", "INTEGER", "INTEGER"),
         ("notices", "title_en", "TEXT", "TEXT"),
@@ -303,8 +304,15 @@ def _seed_home_tile_settings():
         ("bank_transfer_notice_md_en", ""),
         ("bank_transfer_notice_usd_md_ko", ""),
         ("bank_transfer_notice_usd_md_en", ""),
-        ("bank_transfer_activation_sla_ko", "영업일 1~2일 내 플랜을 활성화합니다."),
-        ("bank_transfer_activation_sla_en", "We activate your plan within 1–2 business days."),
+        (
+            "bank_transfer_activation_sla_ko",
+            "충전 신청 즉시 잔액에 반영되어 바로 AI를 이용할 수 있습니다. 입금이 확인되지 않으면 관리자가 잔액을 조정할 수 있습니다.",
+        ),
+        (
+            "bank_transfer_activation_sla_en",
+            "Your balance updates immediately when you submit a top-up, so you can use AI right away. "
+            "If the transfer is not verified, an admin may adjust your balance.",
+        ),
         ("usd_krw_rate", "1350"),
         ("experience_trial_days", "14"),
         ("service_abap_intro_md_ko", DEFAULT_SERVICE_ABAP_INTRO_MD_KO),
@@ -419,6 +427,33 @@ def _sync_admins():
         db.close()
 
 
+def _migrate_bank_transfer_sla_for_wallet():
+    """구독 플랜 시절 기본 SLA 문구 → AI 잔액 즉시 반영 안내."""
+    legacy = {
+        "bank_transfer_activation_sla_ko": "영업일 1~2일 내 플랜을 활성화합니다.",
+        "bank_transfer_activation_sla_en": "We activate your plan within 1–2 business days.",
+    }
+    updated = {
+        "bank_transfer_activation_sla_ko": (
+            "충전 신청 즉시 잔액에 반영되어 바로 AI를 이용할 수 있습니다. "
+            "입금이 확인되지 않으면 관리자가 잔액을 조정할 수 있습니다."
+        ),
+        "bank_transfer_activation_sla_en": (
+            "Your balance updates immediately when you submit a top-up, so you can use AI right away. "
+            "If the transfer is not verified, an admin may adjust your balance."
+        ),
+    }
+    db = SessionLocal()
+    try:
+        for key, old in legacy.items():
+            row = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
+            if row and (row.value or "").strip() == old:
+                row.value = updated[key]
+        db.commit()
+    finally:
+        db.close()
+
+
 def _bootstrap_database():
     """테이블 생성·마이그레이션·시드. 실패 시 로그에 전체 traceback이 남습니다."""
     _log.info("[DB] connecting: %s", db_target_log_line())
@@ -428,6 +463,7 @@ def _bootstrap_database():
     _ensure_integration_impl_devtypes()
     _seed_home_tile_settings()
     _seed_subscription_catalog()
+    _migrate_bank_transfer_sla_for_wallet()
     _sync_admins()
     _log.info("[DB] bootstrap complete")
 

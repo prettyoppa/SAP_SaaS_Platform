@@ -739,6 +739,7 @@ class PaymentClaim(Base):
     confirmed_at = Column(DateTime, nullable=True)
     subscription_period_start = Column(DateTime, nullable=True)
     subscription_period_end = Column(DateTime, nullable=True)
+    wallet_credited_on_submit = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

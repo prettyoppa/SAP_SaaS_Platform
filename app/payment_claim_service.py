@@ -8,7 +8,13 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from . import models
-from .ai_wallet import MIN_TOPUP_KRW, WALLET_TOPUP_PLAN_CODE, wallet_balance_krw
+from .ai_wallet import (
+    MIN_TOPUP_KRW,
+    WALLET_TOPUP_PLAN_CODE,
+    apply_wallet_credit,
+    apply_wallet_debit,
+    is_wallet_topup_plan_code,
+)
 from .payment_claim_messages import (
     ERR_AMOUNT_MISMATCH,
     ERR_AMOUNT_TOO_LOW,
@@ -114,7 +120,9 @@ def create_wallet_topup_claim(
         member_note=(member_note or "").strip()[:2000] or None,
     )
     user.billing_country = "KR"
+    row.wallet_credited_on_submit = True
     db.add(row)
+    apply_wallet_credit(user, amt)
     db.commit()
     db.refresh(row)
     return row, None
@@ -182,6 +190,8 @@ def cancel_payment_claim(db: Session, user: models.User, claim_id: int) -> str |
         return ERR_CLAIM_NOT_FOUND
     if row.status != CLAIM_STATUS_PENDING:
         return ERR_CLAIM_NOT_PENDING
+    if is_wallet_topup_plan_code(row.plan_code) and bool(row.wallet_credited_on_submit):
+        apply_wallet_debit(user, int(row.amount_minor))
     row.status = CLAIM_STATUS_CANCELLED
     row.updated_at = datetime.utcnow()
     db.commit()
@@ -206,8 +216,9 @@ def confirm_payment_claim(
         return "회원을 찾을 수 없습니다."
     now = datetime.utcnow()
     end = now + timedelta(days=max(1, int(period_days)))
-    if (row.plan_code or "").strip() == WALLET_TOPUP_PLAN_CODE:
-        user.ai_wallet_balance_krw = wallet_balance_krw(user) + int(row.amount_minor)
+    if is_wallet_topup_plan_code(row.plan_code):
+        if not bool(row.wallet_credited_on_submit):
+            apply_wallet_credit(user, int(row.amount_minor))
         user.billing_country = row.billing_country or user.billing_country
     else:
         user.subscription_plan_code = row.plan_code
@@ -237,6 +248,9 @@ def reject_payment_claim(
         return ERR_CLAIM_NOT_FOUND
     if row.status != CLAIM_STATUS_PENDING:
         return ERR_CLAIM_NOT_PENDING
+    user = db.query(models.User).filter(models.User.id == row.user_id).first()
+    if user and is_wallet_topup_plan_code(row.plan_code) and bool(row.wallet_credited_on_submit):
+        apply_wallet_debit(user, int(row.amount_minor))
     row.status = CLAIM_STATUS_REJECTED
     row.admin_note = (admin_note or "").strip()[:2000] or None
     row.updated_at = datetime.utcnow()

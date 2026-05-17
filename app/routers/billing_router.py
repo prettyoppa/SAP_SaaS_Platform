@@ -146,7 +146,7 @@ def account_billing_claim_post(
         amt = int((amount_minor or "").replace(",", "").strip())
     except ValueError:
         return RedirectResponse(url="/account/ai-credits?err=invalid_amount", status_code=303)
-    err, _row = create_payment_claim(
+    row, err = create_payment_claim(
         db,
         user,
         billing_country=billing_country,
