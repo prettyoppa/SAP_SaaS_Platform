@@ -336,33 +336,16 @@ html[data-theme="light"] .theme-switch:hover .theme-switch-track { border-color:
 
 body {
   font-family: 'Inter', sans-serif;
-  background: transparent;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -12%, var(--page-glow-top) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 55% at 100% 100%, var(--page-glow-corner) 0%, transparent 50%),
+    radial-gradient(circle, var(--page-dot) 0.55px, transparent 0.55px);
+  background-size: auto, auto, var(--page-dot-size) var(--page-dot-size);
   color: var(--text);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-/* 페이지 배경: 짙은/밝은 단색 + 은은한 그라데이션 + 균일한 점 그리드 (콘텐츠 비침) */
-html::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-color: var(--bg);
-  background-image:
-    radial-gradient(ellipse 110% 75% at 50% -20%, var(--page-glow-top) 0%, transparent 58%),
-    radial-gradient(ellipse 70% 55% at 100% 100%, var(--page-glow-corner) 0%, transparent 52%),
-    linear-gradient(
-      165deg,
-      color-mix(in srgb, var(--bg) 92%, var(--surface2)) 0%,
-      var(--bg) 42%,
-      color-mix(in srgb, var(--bg) 94%, var(--surface)) 100%
-    ),
-    radial-gradient(circle, var(--page-dot) 0.6px, transparent 0.6px);
-  background-size: auto, auto, auto, var(--page-dot-size) var(--page-dot-size);
-  background-attachment: fixed;
 }
 
 main { flex: 1; }
