@@ -327,82 +327,66 @@ html[data-theme="light"] .theme-switch:hover .theme-switch-track { border-color:
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: var(--bg);
-  background-image: radial-gradient(
-    ellipse 85% 55% at 100% 0%,
-    rgba(250, 204, 21, 0.04) 0%,
-    transparent 52%
-  );
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--text);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  position: relative;
-  isolation: isolate;
 }
 
-/* 우상단 은은한 해(라이트) / 달(다크) — 콘텐츠·네비 위에 겹치지 않음 */
-body::before {
+/* 페이지 배경: 우상단 노란 빛 + 작은 해/달 (html 고정 레이어, FAB에는 영향 없음) */
+html::before {
   content: "";
   position: fixed;
-  top: 4.35rem;
-  right: max(1.35rem, env(safe-area-inset-right, 0px));
-  width: 1.15rem;
-  height: 1.15rem;
+  inset: 0;
   pointer-events: none;
   z-index: 0;
+  background: radial-gradient(
+    ellipse 48% 38% at 100% 0%,
+    rgba(250, 204, 21, 0.09) 0%,
+    rgba(250, 204, 21, 0.035) 38%,
+    transparent 68%
+  );
 }
 
-html[data-theme="light"] body {
-  background-image:
-    radial-gradient(
-      ellipse 90% 58% at 100% 0%,
-      rgba(250, 204, 21, 0.055) 0%,
-      transparent 50%
-    );
+html[data-theme="light"]::before {
+  background: radial-gradient(
+    ellipse 50% 40% at 100% 0%,
+    rgba(250, 204, 21, 0.12) 0%,
+    rgba(250, 204, 21, 0.045) 40%,
+    transparent 70%
+  );
 }
 
-html[data-theme="light"] body::before {
+html::after {
+  content: "";
+  position: fixed;
+  top: 4.25rem;
+  right: max(1.5rem, env(safe-area-inset-right, 0px));
+  width: 1.35rem;
+  height: 1.35rem;
   border-radius: 50%;
+  pointer-events: none;
+  z-index: 998;
+}
+
+html[data-theme="light"]::after {
   background: radial-gradient(
     circle,
-    rgba(253, 224, 71, 0.22) 0%,
-    rgba(250, 204, 21, 0.1) 58%,
-    transparent 72%
+    rgba(253, 224, 71, 0.38) 0%,
+    rgba(250, 204, 21, 0.16) 55%,
+    transparent 76%
   );
   box-shadow:
-    0 0 1.25rem 0.45rem rgba(250, 204, 21, 0.06),
-    0 0 2.5rem 1rem rgba(250, 204, 21, 0.03);
+    0 0 1.5rem 0.55rem rgba(250, 204, 21, 0.1),
+    0 0 2.75rem 1.1rem rgba(250, 204, 21, 0.05);
 }
 
-html[data-theme="dark"] body::before {
-  border-radius: 50%;
-  background: rgba(253, 224, 71, 0.1);
-  box-shadow: -0.42rem 0 0 0 rgba(253, 224, 71, 0.08);
-}
-
-html[data-theme="dark"] body::after {
-  content: "";
-  position: fixed;
-  top: 4.35rem;
-  right: max(1.35rem, env(safe-area-inset-right, 0px));
-  width: 1.15rem;
-  height: 1.15rem;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 0;
-  box-shadow: 0.55rem 0 0 0 var(--bg);
-}
-
-body > main,
-body > nav,
-body > footer,
-body > .fab-action,
-body > .abap-float-chat,
-body > #global-busy-overlay {
-  position: relative;
-  z-index: 1;
+html[data-theme="dark"]::after {
+  background: rgba(253, 224, 71, 0.2);
+  box-shadow:
+    -0.48rem 0 0 0 rgba(253, 224, 71, 0.14),
+    0.52rem 0 0 0 var(--bg);
 }
 
 main { flex: 1; }
