@@ -1437,9 +1437,31 @@ html {
 
 /* ── Hero (compact) ────────────────────────── */
 .hero-compact { padding: 1.25rem 0 1rem; }
+/* HTML 콘텐츠 래퍼와 무관하게 히어로 점 그리드·그라데이션 유지 */
+.hero-section.hero-compact {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99, 102, 241, 0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 120% 80% at 50% -12%, var(--page-glow-top) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 55% at 100% 100%, var(--page-glow-corner) 0%, transparent 50%),
+    radial-gradient(circle, var(--page-dot) 1px, transparent 1px);
+  background-size: auto, auto, auto, var(--page-dot-size) var(--page-dot-size);
+}
+html[data-theme="light"] .hero-section.hero-compact {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(79, 70, 229, 0.1) 0%, transparent 70%),
+    radial-gradient(ellipse 120% 80% at 50% -12%, var(--page-glow-top) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 55% at 100% 100%, var(--page-glow-corner) 0%, transparent 50%),
+    radial-gradient(circle, var(--page-dot) 1px, transparent 1px);
+  background-size: auto, auto, auto, var(--page-dot-size) var(--page-dot-size);
+}
 .hero-compact .hero-title { margin-bottom: 0.65rem; }
 .hero-compact .hero-sub { margin-bottom: 0; line-height: 1.55; }
 .hero-compact .hero-home-split { --bs-gutter-y: 1rem; }
+.hero-home-split__hero {
+  background: transparent;
+}
 @media (min-width: 992px) {
   .hero-compact .hero-home-split { --bs-gutter-y: 1.25rem; }
 }
@@ -1620,7 +1642,14 @@ html[data-theme="light"] .home-guide-code-titlebar {
   50% { opacity: 0; }
 }
 
-/* 홈 히어로: 관리자 HTML 블록 — 기본 타이포 클래스 상속 */
+/* 홈 히어로: 관리자 HTML — 글자만, 배경은 .hero-section 점 그리드 */
+.home-hero-custom {
+  display: contents;
+}
+.home-hero-custom :is(div, section, article, header, footer, main, aside):not(.text-gradient):not(.hero-power-agents) {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
 .home-hero-custom .hero-title,
 .home-hero-custom h1.hero-title,
 .home-hero-custom > h1 {

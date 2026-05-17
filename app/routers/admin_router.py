@@ -1083,8 +1083,12 @@ async def admin_settings_save(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     form = await request.form()
+    from ..home_hero_defaults import sanitize_home_hero_html
+
     for key, _ in SITE_SETTING_KEYS:
         val = (form.get(key) or "").strip()
+        if key == "home_hero_html":
+            val = sanitize_home_hero_html(val)
         existing = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
         if existing:
             existing.value = val
