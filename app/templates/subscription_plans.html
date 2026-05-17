@@ -47,6 +47,20 @@
       </header>
 
       {% if subscription_notice_md_ko or subscription_notice_md_en %}
+      <div class="subscription-plans-notice-outer mx-auto mt-4" style="max-width: 48rem;">
+        {% if subscription_notice_md_ko %}
+        <div class="nav-ko subscription-plans-notice markdown-body">
+          {{ subscription_notice_md_ko|md_html }}
+        </div>
+        {% endif %}
+        {% if subscription_notice_md_en %}
+        <div class="nav-en subscription-plans-notice markdown-body" style="display:none">
+          {{ subscription_notice_md_en|md_html }}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
       <div class="subscription-plans-notice-outer mx-auto mt-3" style="max-width: 48rem;">
         <h6 class="text-muted text-uppercase small mb-2">
           <span class="nav-ko">결제 방법 · 계좌이체 (KR / US)</span>
