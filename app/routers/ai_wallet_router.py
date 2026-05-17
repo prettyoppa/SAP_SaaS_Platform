@@ -17,20 +17,20 @@ from ..ai_usage_recorder import (
     format_krw_from_micro,
     format_usd_from_micro,
 )
-from ..ai_wallet import claim_plan_label_en, claim_plan_label_ko, min_topup_krw, wallet_balance_krw
+from ..ai_wallet import (
+    build_wallet_topup_history_rows,
+    krw_from_usage_usd_micro,
+    min_topup_krw,
+    wallet_balance_krw,
+)
 from ..bank_transfer_settings import BANK_TRANSFER_SETTING_KEYS
 from ..database import get_db
 from ..payment_claim_messages import ERR_AMOUNT_MISMATCH
 from ..payment_claim_service import (
     cancel_payment_claim,
-    claim_status_label_en,
-    claim_status_label_ko,
-    claims_for_user,
     create_wallet_topup_claim,
     user_pending_claim,
 )
-from ..subscription_catalog import METRIC_LABEL_EN, METRIC_LABEL_KO, METRIC_ORDER
-from ..subscription_quota import utc_year_month
 from ..templates_config import templates
 
 router = APIRouter(tags=["ai-wallet"])
@@ -64,6 +64,7 @@ def _usage_context(db: Session, user: models.User) -> dict:
     except ValueError:
         usd_krw = 1350.0
     total_micro = int(usage_agg.get("total_usd_micro") or 0)
+    usage_krw_int = krw_from_usage_usd_micro(total_micro, usd_krw)
     stage_rows = []
     for st, micro in sorted(
         (usage_agg.get("by_stage_micro") or {}).items(),
@@ -77,27 +78,14 @@ def _usage_context(db: Session, user: models.User) -> dict:
                 "label_en": STAGE_LABEL_EN.get(st, st),
                 "usd": format_usd_from_micro(micro),
                 "krw": format_krw_from_micro(micro, usd_krw),
+                "krw_int": krw_from_usage_usd_micro(micro, usd_krw),
                 "pct": round(pct, 1),
             }
         )
-    ym = utc_year_month()
-    usage_rows = (
-        db.query(models.SubscriptionUsageMonthly)
-        .filter(
-            models.SubscriptionUsageMonthly.user_id == user.id,
-            models.SubscriptionUsageMonthly.year_month == ym,
-        )
-        .all()
-    )
-    usage_map = {r.metric_key: int(r.used) for r in usage_rows}
     return {
-        "usage_year_month": ym,
-        "usage_map": usage_map,
-        "metric_order": METRIC_ORDER,
-        "metric_label_ko": METRIC_LABEL_KO,
-        "metric_label_en": METRIC_LABEL_EN,
         "ai_usage_total_usd": format_usd_from_micro(total_micro),
         "ai_usage_total_krw": format_krw_from_micro(total_micro, usd_krw),
+        "ai_usage_total_krw_int": usage_krw_int,
         "ai_usage_event_count": usage_agg.get("event_count", 0),
         "ai_usage_stage_rows": stage_rows,
         "usd_krw_rate": usd_krw,
@@ -121,14 +109,16 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
             "settings": settings,
             "wallet_balance_krw": wallet_balance_krw(user),
             "min_topup_krw": min_topup_krw(db),
-            "claims": claims_for_user(db, user.id, limit=30),
+            "topup_history_rows": build_wallet_topup_history_rows(
+                db,
+                user.id,
+                usd_krw_rate=ctx["usd_krw_rate"],
+                current_wallet_krw=wallet_balance_krw(user),
+                limit=50,
+            ),
             "pending_claim": user_pending_claim(db, user.id),
             "billing_err": err,
             "billing_ok": ok,
-            "claim_status_label_ko": claim_status_label_ko,
-            "claim_status_label_en": claim_status_label_en,
-            "claim_plan_label_ko": claim_plan_label_ko,
-            "claim_plan_label_en": claim_plan_label_en,
             **ctx,
         },
     )

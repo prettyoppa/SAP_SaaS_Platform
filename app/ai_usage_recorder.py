@@ -187,6 +187,11 @@ def log_ai_usage_event(
                 idempotency_key=idempotency_key,
             )
         )
+        user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+        if user:
+            from .ai_wallet import debit_wallet_for_usage_micro
+
+            debit_wallet_for_usage_micro(db, user, micro)
         db.commit()
     except Exception:
         _log.exception("ai_usage_event write failed")

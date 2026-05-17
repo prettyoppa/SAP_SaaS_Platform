@@ -32,10 +32,17 @@
               <td class="font-monospace small">{{ c.currency }} {{ "{:,}".format(c.amount_minor) }}</td>
               <td class="small">{{ c.depositor_name }}{% if c.transfer_date %}<br><span class="text-muted">{{ c.transfer_date.strftime('%Y-%m-%d') if c.transfer_date else '' }}</span>{% endif %}</td>
               <td class="text-end text-nowrap">
-                <form method="post" action="/admin/payment-claims/{{ c.id }}/confirm" class="d-inline"
-                      data-app-confirm="입금을 확인하고 구독을 활성화할까요?">
+                <form method="post" action="/admin/payment-claims/{{ c.id }}/confirm" class="d-inline-flex flex-wrap align-items-center gap-1 justify-content-end"
+                      data-app-confirm="{% if c.plan_code == 'ai_wallet_topup' %}입금 확인 금액으로 처리할까요?{% else %}입금을 확인하고 구독을 활성화할까요?{% endif %}">
                   <input type="hidden" name="period_days" value="31" />
+                  {% if c.plan_code == 'ai_wallet_topup' %}
+                  <input type="text" name="confirmed_amount_minor" class="form-control form-control-sm font-monospace"
+                         style="width:6.5rem" value="{{ c.amount_minor }}" inputmode="numeric"
+                         title="확인 금액(원). 미입금 0, 일부 입금 시 실제 금액">
+                  <button type="submit" class="btn btn-sm btn-success">확인</button>
+                  {% else %}
                   <button type="submit" class="btn btn-sm btn-success">확인·활성화</button>
+                  {% endif %}
                 </form>
                 <form method="post" action="/admin/payment-claims/{{ c.id }}/reject" class="d-inline ms-1"
                       data-app-confirm="반려할까요?">

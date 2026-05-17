@@ -205,6 +205,7 @@ def confirm_payment_claim(
     *,
     admin_note: str = "",
     period_days: int = 31,
+    confirmed_amount_minor: int | None = None,
 ) -> str | None:
     row = db.query(models.PaymentClaim).filter(models.PaymentClaim.id == int(claim_id)).first()
     if not row:
@@ -217,8 +218,23 @@ def confirm_payment_claim(
     now = datetime.utcnow()
     end = now + timedelta(days=max(1, int(period_days)))
     if is_wallet_topup_plan_code(row.plan_code):
-        if not bool(row.wallet_credited_on_submit):
-            apply_wallet_credit(user, int(row.amount_minor))
+        submitted = int(row.amount_minor)
+        if confirmed_amount_minor is None:
+            confirmed = submitted
+        else:
+            try:
+                confirmed = int(confirmed_amount_minor)
+            except (TypeError, ValueError):
+                return "확인 금액 형식이 올바르지 않습니다."
+        if confirmed < 0 or confirmed > submitted:
+            return f"확인 금액은 0원 이상 신청 금액(₩{submitted:,}) 이하여야 합니다."
+        if bool(row.wallet_credited_on_submit):
+            diff = submitted - confirmed
+            if diff > 0:
+                apply_wallet_debit(user, diff)
+        elif confirmed > 0:
+            apply_wallet_credit(user, confirmed)
+        row.confirmed_amount_minor = confirmed
         user.billing_country = row.billing_country or user.billing_country
     else:
         user.subscription_plan_code = row.plan_code
@@ -227,6 +243,7 @@ def confirm_payment_claim(
         user.billing_country = row.billing_country
         row.subscription_period_start = now
         row.subscription_period_end = end
+        row.confirmed_amount_minor = int(row.amount_minor)
     row.status = CLAIM_STATUS_CONFIRMED
     row.confirmed_at = now
     row.confirmed_by_user_id = int(admin_user.id)

@@ -1797,7 +1797,36 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   gap: 0.35rem;
 }
 .account-ai-credits-bank-inline.markdown-body {
-  color: var(--text-muted, #6c757d);
+  color: var(--text);
+}
+.account-ai-credits-bank-inline.markdown-body p,
+.account-ai-credits-bank-inline.markdown-body li,
+.account-ai-credits-bank-inline.markdown-body strong {
+  color: inherit;
+}
+.account-ai-credits-page .account-ai-credits-table {
+  --bs-table-bg: var(--surface2);
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border);
+  --bs-table-striped-bg: rgba(0, 0, 0, 0.08);
+  --bs-table-hover-bg: rgba(99, 102, 241, 0.08);
+}
+.account-ai-credits-page .account-ai-credits-table > :not(caption) > * > * {
+  background-color: var(--bs-table-bg);
+  color: var(--bs-table-color);
+  border-color: var(--bs-table-border-color);
+}
+.account-ai-credits-page .account-ai-credits-table thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+.account-ai-credits-stat {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+html[data-theme="light"] .account-ai-credits-page .account-ai-credits-table {
+  --bs-table-bg: var(--surface);
+  --bs-table-striped-bg: rgba(0, 0, 0, 0.03);
 }
 .account-ai-credits-claim-row .form-label {
   margin-bottom: 0.15rem;

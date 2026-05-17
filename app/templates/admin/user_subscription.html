@@ -47,18 +47,41 @@
       {% endif %}
     </div>
 
+    {% if wallet_pending_claims|length > 0 %}
+    <div class="rfp-section p-3 mb-4 border border-warning">
+      <h5 class="mb-3">AI 크레딧 충전 — 입금 확인 대기</h5>
+      {% for c in wallet_pending_claims %}
+      <div class="border rounded p-2 mb-2 small">
+        <div class="mb-2">신청 {{ c.created_at|local_dt_span }} · ₩{{ "{:,}".format(c.amount_minor) }} · {{ c.depositor_name }}</div>
+        <form method="post" action="/admin/payment-claims/{{ c.id }}/confirm?return=/admin/users/{{ target.id }}/subscription"
+              class="d-flex flex-wrap align-items-center gap-2"
+              data-app-confirm="확인 금액으로 입금을 처리할까요? (미입금 0, 일부 입금 시 실제 금액)">
+          <label class="mb-0">확인 금액(원)</label>
+          <input type="text" name="confirmed_amount_minor" class="form-control form-control-sm font-monospace"
+                 style="max-width:8rem" value="{{ c.amount_minor }}" inputmode="numeric">
+          <input type="hidden" name="period_days" value="31">
+          <button type="submit" class="btn btn-sm btn-success">확인</button>
+          <button type="submit" formaction="/admin/payment-claims/{{ c.id }}/reject?return=/admin/users/{{ target.id }}/subscription"
+                  class="btn btn-sm btn-outline-danger" data-app-confirm="반려할까요? 신청 즉시 반영된 잔액이 회수됩니다.">반려</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {% if payment_claims|length > 0 %}
     <div class="rfp-section p-3 mb-4">
       <h5 class="mb-3">입금 신청 이력</h5>
       <div class="table-responsive">
         <table class="table table-sm">
-          <thead><tr><th>일시</th><th>플랜</th><th>금액</th><th>상태</th></tr></thead>
+          <thead><tr><th>일시</th><th>플랜</th><th>금액</th><th>확인금액</th><th>상태</th></tr></thead>
           <tbody>
             {% for c in payment_claims %}
             <tr>
               <td class="small text-muted">{{ c.created_at|local_dt_span }}</td>
               <td><code>{{ c.plan_code }}</code></td>
               <td class="font-monospace small">{{ c.currency }} {{ "{:,}".format(c.amount_minor) }}</td>
+              <td class="font-monospace small">{% if c.status == 'confirmed' %}{{ "{:,}".format(c.confirmed_amount_minor if c.confirmed_amount_minor is not none else c.amount_minor) }}{% else %}—{% endif %}</td>
               <td>{{ c.status }}</td>
             </tr>
             {% endfor %}

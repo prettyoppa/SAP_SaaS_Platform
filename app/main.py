@@ -160,6 +160,7 @@ def _run_migrations():
         ("users", "billing_country", "VARCHAR(2)", "VARCHAR(2)"),
         ("users", "ai_wallet_balance_krw", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
         ("payment_claims", "wallet_credited_on_submit", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("payment_claims", "confirmed_amount_minor", "INTEGER", "INTEGER"),
         ("subscription_plans", "price_monthly_krw", "INTEGER", "INTEGER"),
         ("subscription_plans", "price_monthly_usd_cents", "INTEGER", "INTEGER"),
         ("notices", "title_en", "TEXT", "TEXT"),
@@ -428,6 +429,55 @@ def _sync_admins():
         db.close()
 
 
+def _backfill_payment_claim_confirmed_amounts():
+    """확인 완료 건: 확인 금액이 비어 있으면 신청 금액으로 채움."""
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(models.PaymentClaim)
+            .filter(
+                models.PaymentClaim.status == "confirmed",
+                models.PaymentClaim.confirmed_amount_minor.is_(None),
+            )
+            .all()
+        )
+        for row in rows:
+            row.confirmed_amount_minor = int(row.amount_minor)
+        if rows:
+            db.commit()
+    finally:
+        db.close()
+
+
+def _migrate_wallet_deduct_historical_ai_usage():
+    """기존 AI 사용 추정 비용을 지갑에 1회 반영(이후 호출분은 log_ai_usage_event에서 차감)."""
+    from .ai_usage_recorder import aggregate_usage_for_user
+    from .ai_wallet import apply_wallet_debit, krw_from_usage_usd_micro, usd_krw_rate_from_db
+
+    flag_key = "ai_wallet_usage_deduct_v1"
+    db: Session = SessionLocal()
+    try:
+        flag = db.query(models.SiteSettings).filter(models.SiteSettings.key == flag_key).first()
+        if flag and (flag.value or "").strip() == "1":
+            return
+        rate = usd_krw_rate_from_db(db)
+        for user in db.query(models.User).all():
+            agg = aggregate_usage_for_user(db, user.id)
+            micro = int(agg.get("total_usd_micro") or 0)
+            if micro <= 0:
+                continue
+            krw = krw_from_usage_usd_micro(micro, rate)
+            if krw > 0:
+                apply_wallet_debit(user, krw)
+        if not flag:
+            db.add(models.SiteSettings(key=flag_key, value="1"))
+        else:
+            flag.value = "1"
+        db.commit()
+    finally:
+        db.close()
+
+
 def _migrate_bank_transfer_sla_for_wallet():
     """구독 플랜 시절 기본 SLA 문구 → AI 잔액 즉시 반영 안내."""
     legacy = {
@@ -465,6 +515,8 @@ def _bootstrap_database():
     _seed_home_tile_settings()
     _seed_subscription_catalog()
     _migrate_bank_transfer_sla_for_wallet()
+    _backfill_payment_claim_confirmed_amounts()
+    _migrate_wallet_deduct_historical_ai_usage()
     _sync_admins()
     _log.info("[DB] bootstrap complete")
 

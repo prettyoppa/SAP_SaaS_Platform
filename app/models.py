@@ -737,6 +737,8 @@ class PaymentClaim(Base):
     admin_note = Column(Text, nullable=True)
     confirmed_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     confirmed_at = Column(DateTime, nullable=True)
+    # Admin 입금 확인 금액(원). 미확인·반려·취소 시 null. AI 충전은 신청액 이하(0=미입금).
+    confirmed_amount_minor = Column(Integer, nullable=True)
     subscription_period_start = Column(DateTime, nullable=True)
     subscription_period_end = Column(DateTime, nullable=True)
     wallet_credited_on_submit = Column(Boolean, nullable=False, default=False)

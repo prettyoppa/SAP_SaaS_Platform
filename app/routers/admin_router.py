@@ -33,6 +33,7 @@ from ..bank_transfer_settings import (
     ALL_BANK_BILLING_SETTING_KEYS,
     BANK_TRANSFER_SETTING_KEYS,
 )
+from ..ai_wallet import WALLET_TOPUP_PLAN_CODE, is_wallet_topup_plan_code
 from ..payment_claim_service import (
     CLAIM_STATUS_PENDING,
     confirm_payment_claim,
@@ -741,6 +742,16 @@ def admin_user_subscription_page(user_id: int, request: Request, db: Session = D
         .limit(20)
         .all()
     )
+    wallet_pending_claims = (
+        db.query(models.PaymentClaim)
+        .filter(
+            models.PaymentClaim.user_id == target.id,
+            models.PaymentClaim.status == CLAIM_STATUS_PENDING,
+            models.PaymentClaim.plan_code == WALLET_TOPUP_PLAN_CODE,
+        )
+        .order_by(models.PaymentClaim.created_at.desc())
+        .all()
+    )
     return templates.TemplateResponse(
         request,
         "admin/user_subscription.html",
@@ -761,6 +772,8 @@ def admin_user_subscription_page(user_id: int, request: Request, db: Session = D
             "ai_usage_disclaimer_ko": "추정치이며 API 토큰·모델 단가 기반입니다. 환불·손익 판단용 참고 지표입니다.",
             "ai_usage_disclaimer_en": "Estimated from API tokens and model rates. For reference only—not exact billing or refund amounts.",
             "payment_claims": payment_claims,
+            "wallet_pending_claims": wallet_pending_claims,
+            "wallet_topup_plan_code": WALLET_TOPUP_PLAN_CODE,
         },
     )
 
@@ -1532,6 +1545,7 @@ def admin_payment_claim_confirm(
     request: Request,
     period_days: str = Form("31"),
     admin_note: str = Form(""),
+    confirmed_amount_minor: str = Form(""),
     db: Session = Depends(get_db),
 ):
     actor = _require_admin(request, db)
@@ -1541,11 +1555,36 @@ def admin_payment_claim_confirm(
         days = max(1, int((period_days or "31").strip()))
     except ValueError:
         days = 31
-    err = confirm_payment_claim(db, claim_id, actor, admin_note=admin_note, period_days=days)
+    confirmed_amt: int | None = None
+    raw_confirmed = (confirmed_amount_minor or "").strip().replace(",", "")
+    if raw_confirmed:
+        try:
+            confirmed_amt = int(raw_confirmed)
+        except ValueError:
+            from urllib.parse import quote
+
+            return RedirectResponse(
+                url=f"/admin/payment-claims?err={quote('확인 금액 형식이 올바르지 않습니다.')}",
+                status_code=303,
+            )
+    err = confirm_payment_claim(
+        db,
+        claim_id,
+        actor,
+        admin_note=admin_note,
+        period_days=days,
+        confirmed_amount_minor=confirmed_amt,
+    )
     if err:
         from urllib.parse import quote
 
+        return_url = (request.query_params.get("return") or request.headers.get("referer") or "").strip()
+        if return_url.startswith("/admin/users/") and "/subscription" in return_url:
+            return RedirectResponse(url=f"{return_url.split('?')[0]}?err={quote(err)}", status_code=303)
         return RedirectResponse(url=f"/admin/payment-claims?err={quote(err)}", status_code=303)
+    return_url = (request.query_params.get("return") or "").strip()
+    if return_url.startswith("/admin/"):
+        return RedirectResponse(url=f"{return_url.split('?')[0]}?saved=1", status_code=303)
     return RedirectResponse(url="/admin/payment-claims?saved=1", status_code=303)
 
 
@@ -1563,7 +1602,13 @@ def admin_payment_claim_reject(
     if err:
         from urllib.parse import quote
 
+        return_url = (request.query_params.get("return") or "").strip()
+        if return_url.startswith("/admin/users/") and "/subscription" in return_url:
+            return RedirectResponse(url=f"{return_url.split('?')[0]}?err={quote(err)}", status_code=303)
         return RedirectResponse(url=f"/admin/payment-claims?err={quote(err)}", status_code=303)
+    return_url = (request.query_params.get("return") or "").strip()
+    if return_url.startswith("/admin/"):
+        return RedirectResponse(url=f"{return_url.split('?')[0]}?saved=1", status_code=303)
     return RedirectResponse(url="/admin/payment-claims?saved=1", status_code=303)
 
 

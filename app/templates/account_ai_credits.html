@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block title %}<span class="nav-ko">사용량 · 충전</span><span class="nav-en" style="display:none">Usage &amp; balance</span> – SAP Dev Hub{% endblock %}
-
 {% block content %}
 <div class="dashboard-page account-ai-credits-page">
   <div class="container account-ai-credits-container">
@@ -17,7 +16,6 @@
         <span class="nav-en" style="display:none">View your AI balance and usage, and top up via bank transfer (KRW, Korea).</span>
       </p>
     </div>
-
     {% if billing_ok %}
     <div class="alert alert-success small account-ai-credits-alert">
       <span class="nav-ko">충전이 반영되었습니다.</span>
@@ -25,17 +23,19 @@
     </div>
     {% endif %}
     {% include 'partials/billing_err_alert.html' %}
-
     <section class="rfp-section account-ai-credits-panel account-ai-credits-balance" aria-labelledby="ai-balance-heading">
       <h3 id="ai-balance-heading" class="h6 text-muted text-uppercase small mb-2">
-        <span class="nav-ko">충전 잔액</span><span class="nav-en" style="display:none">Prepaid balance</span>
+        <span class="nav-ko">이용 가능 잔액</span><span class="nav-en" style="display:none">Available balance</span>
       </h3>
-      <p class="display-6 fw-semibold mb-0 account-ai-credits-balance-amount">
+      <p class="display-6 fw-semibold mb-1 account-ai-credits-balance-amount">
         <span class="account-ai-credits-balance-currency" aria-hidden="true">₩</span>
         <span class="account-ai-credits-balance-value font-monospace">{{ "{:,}".format(wallet_balance_krw) }}</span>
       </p>
+      <p class="small text-muted mb-0">
+        <span class="nav-ko">충전·입금 확인·취소와 <strong>AI 사용(추정 비용)</strong>이 반영된 남은 금액입니다. AI 호출이 기록될 때마다 차감됩니다.</span>
+        <span class="nav-en" style="display:none">Remaining balance after top-ups, transfer verification, cancellations, and <strong>estimated AI usage</strong> (deducted when each call is logged).</span>
+      </p>
     </section>
-
     <section id="topup-form" class="rfp-section account-ai-credits-panel account-ai-credits-topup">
       <h3 class="h6 mb-2 account-ai-credits-topup-title">
         <i class="fa-solid fa-won-sign me-2 text-primary"></i>
@@ -92,69 +92,87 @@
       </form>
       {% endif %}
     </section>
-
     <section class="rfp-section account-ai-credits-panel account-ai-credits-history">
       <h3 class="h6 text-muted text-uppercase small mb-2">
         <span class="nav-ko">충전 이력</span><span class="nav-en" style="display:none">Top-up history</span>
       </h3>
-      {% if claims|length == 0 %}
+      {% if topup_history_rows|length == 0 %}
       <p class="text-muted small mb-0">
         <span class="nav-ko">아직 충전 신청 이력이 없습니다.</span>
         <span class="nav-en" style="display:none">No top-up requests yet.</span>
       </p>
       {% else %}
       <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
+        <table class="table table-sm align-middle mb-0 account-ai-credits-table">
           <thead>
             <tr>
-              <th><span class="nav-ko">일시</span><span class="nav-en" style="display:none">Date</span></th>
-              <th><span class="nav-ko">구분</span><span class="nav-en" style="display:none">Type</span></th>
-              <th class="text-end"><span class="nav-ko">금액</span><span class="nav-en" style="display:none">Amount</span></th>
-              <th><span class="nav-ko">상태</span><span class="nav-en" style="display:none">Status</span></th>
+              <th><span class="nav-ko">신청 일시</span><span class="nav-en" style="display:none">Applied</span></th>
+              <th class="text-end"><span class="nav-ko">신청 금액</span><span class="nav-en" style="display:none">Requested</span></th>
+              <th><span class="nav-ko">확인 일시</span><span class="nav-en" style="display:none">Verified</span></th>
+              <th class="text-end"><span class="nav-ko">확인 금액</span><span class="nav-en" style="display:none">Verified amt.</span></th>
+              <th class="text-end"><span class="nav-ko">누적 충전</span><span class="nav-en" style="display:none">Cum. top-up</span></th>
+              <th class="text-end"><span class="nav-ko">누적 사용</span><span class="nav-en" style="display:none">Cum. usage</span></th>
+              <th class="text-end"><span class="nav-ko">잔액</span><span class="nav-en" style="display:none">Balance</span></th>
             </tr>
           </thead>
           <tbody>
-            {% for c in claims %}
+            {% for row in topup_history_rows %}
             <tr>
-              <td class="small text-muted">{{ c.created_at|local_dt_span }}</td>
-              <td class="small">
-                <span class="nav-ko">{{ claim_plan_label_ko(c.plan_code) }}</span>
-                <span class="nav-en" style="display:none">{{ claim_plan_label_en(c.plan_code) }}</span>
-              </td>
-              <td class="text-end font-monospace small">₩{{ "{:,}".format(c.amount_minor) }}</td>
-              <td class="small">
-                <span class="nav-ko">{{ claim_status_label_ko(c.status) }}</span>
-                <span class="nav-en" style="display:none">{{ claim_status_label_en(c.status) }}</span>
-              </td>
+              <td class="small text-muted">{{ row.applied_at|local_dt_span }}</td>
+              <td class="text-end font-monospace small">₩{{ "{:,}".format(row.amount_minor) }}</td>
+              <td class="small text-muted">{% if row.confirmed_at %}{{ row.confirmed_at|local_dt_span }}{% else %}—{% endif %}</td>
+              <td class="text-end font-monospace small">{% if row.confirmed_at %}₩{{ "{:,}".format(row.confirmed_amount_minor) }}{% else %}—{% endif %}</td>
+              <td class="text-end font-monospace small">₩{{ "{:,}".format(row.cum_topup_krw) }}</td>
+              <td class="text-end font-monospace small">₩{{ "{:,}".format(row.cum_usage_krw) }}</td>
+              <td class="text-end font-monospace small">₩{{ "{:,}".format(row.balance_krw) }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      <p class="small text-muted mb-0 mt-2">
+        <span class="nav-ko">가장 위(최근) 행의 <strong>잔액</strong>은 상단 이용 가능 잔액과 같습니다. 이전 행은 해당 시점 기준 추정치입니다.</span>
+        <span class="nav-en" style="display:none">The top row balance matches the header. Older rows are point-in-time estimates.</span>
+      </p>
       {% endif %}
     </section>
-
     <section class="rfp-section account-ai-credits-panel account-ai-credits-usage">
       <h3 class="h6 text-muted text-uppercase small mb-2">
-        <span class="nav-ko">사용 정보</span><span class="nav-en" style="display:none">Usage</span>
+        <span class="nav-ko">AI 사용 내역</span><span class="nav-en" style="display:none">AI usage</span>
       </h3>
-      <p class="small text-muted mb-2">
-        <span class="nav-ko">추정 AI 이용 비용(누적, 참고용). API 토큰·모델 단가 기반이며 실제 청구액과 다를 수 있습니다.</span>
-        <span class="nav-en" style="display:none">Estimated cumulative AI cost (reference). Based on tokens and model rates; not exact billing.</span>
+      <p class="small text-muted mb-3">
+        <span class="nav-ko">AI 호출마다 토큰·모델 단가로 <strong>추정 비용</strong>을 누적합니다. Admin 환율로 원화 환산하며, 실제 청구와 다를 수 있습니다.</span>
+        <span class="nav-en" style="display:none">Each AI call adds an <strong>estimated cost</strong> (tokens × model rates), shown in KRW. May differ from actual billing.</span>
       </p>
-      <p class="mb-2">
-        <span class="nav-ko">합계</span><span class="nav-en" style="display:none">Total</span>
-        <strong>{{ ai_usage_total_usd }}</strong>
-        <span class="text-muted">(<span class="nav-ko">약</span><span class="nav-en" style="display:none">approx.</span> {{ ai_usage_total_krw }})</span>
-        · <span class="nav-ko">이벤트</span><span class="nav-en" style="display:none">Events</span> {{ ai_usage_event_count }}
-      </p>
+      <div class="row g-2 mb-3 account-ai-credits-usage-summary">
+        <div class="col-md-6">
+          <div class="account-ai-credits-stat p-2 rounded">
+            <div class="small text-muted"><span class="nav-ko">누적 추정 사용</span><span class="nav-en" style="display:none">Estimated usage (total)</span></div>
+            <div class="font-monospace fw-semibold">₩{{ "{:,}".format(ai_usage_total_krw_int) }}</div>
+            <div class="small text-muted">{{ ai_usage_total_usd }} · {{ ai_usage_event_count }}<span class="nav-ko">회 호출</span><span class="nav-en" style="display:none"> calls</span></div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="account-ai-credits-stat p-2 rounded">
+            <div class="small text-muted"><span class="nav-ko">환산 기준</span><span class="nav-en" style="display:none">FX rate</span></div>
+            <div class="font-monospace fw-semibold">1 USD = ₩{{ "{:,.0f}".format(usd_krw_rate) }}</div>
+            <div class="small text-muted">
+              <span class="nav-ko">토큰·모델 단가 → USD → 원화</span>
+              <span class="nav-en" style="display:none">Tokens &amp; model rates → USD → KRW</span>
+            </div>
+          </div>
+        </div>
+      </div>
       {% if ai_usage_stage_rows|length > 0 %}
-      <div class="ai-usage-stage-chart mb-2">
+      <h4 class="h6 mb-2">
+        <span class="nav-ko">기능별 추정 사용</span><span class="nav-en" style="display:none">Usage by feature</span>
+      </h4>
+      <div class="ai-usage-stage-chart mb-0">
         {% for row in ai_usage_stage_rows %}
         <div class="ai-usage-stage-row mb-2">
           <div class="d-flex justify-content-between small mb-1">
             <span><span class="nav-ko">{{ row.label }}</span><span class="nav-en" style="display:none">{{ row.label_en }}</span></span>
-            <span class="font-monospace">{{ row.usd }} <span class="text-muted">({{ row.pct }}%)</span></span>
+            <span class="font-monospace">₩{{ "{:,}".format(row.krw_int) }} <span class="text-muted">({{ row.pct }}% · {{ row.usd }})</span></span>
           </div>
           <div class="progress" style="height: 8px;" role="presentation">
             <div class="progress-bar bg-primary" style="width: {% if row.pct > 100 %}100{% else %}{{ row.pct }}{% endif %}%;"></div>
@@ -162,39 +180,16 @@
         </div>
         {% endfor %}
       </div>
+      {% else %}
+      <p class="text-muted small mb-0">
+        <span class="nav-ko">아직 기록된 AI 사용이 없습니다.</span>
+        <span class="nav-en" style="display:none">No AI usage recorded yet.</span>
+      </p>
       {% endif %}
-
-      <h4 class="h6 mb-2">
-        <span class="nav-ko">이번 달 사용량</span><span class="nav-en" style="display:none">This month (UTC)</span>
-        <span class="text-muted font-monospace small">{{ usage_year_month }}</span>
-      </h4>
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead>
-            <tr>
-              <th><span class="nav-ko">항목</span><span class="nav-en" style="display:none">Metric</span></th>
-              <th class="text-end"><span class="nav-ko">사용</span><span class="nav-en" style="display:none">Used</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for m in metric_order %}
-            <tr>
-              <td class="small">
-                <span class="nav-ko">{{ metric_label_ko.get(m, m) }}</span>
-                <span class="nav-en" style="display:none">{{ metric_label_en.get(m, m) }}</span>
-                <code class="text-muted ms-1">{{ m }}</code>
-              </td>
-              <td class="text-end font-monospace">{{ usage_map.get(m, 0) }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
     </section>
   </div>
 </div>
 {% endblock %}
-
 {% block extra_js %}
 <script src="/static/js/ai-credits-topup.js?v=20260517topup-ui"></script>
 {% endblock %}
