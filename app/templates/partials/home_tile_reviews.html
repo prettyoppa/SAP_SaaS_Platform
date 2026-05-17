@@ -1,14 +1,14 @@
 {# 홈 타일: 문의/리뷰 #}
 <div class="home-feature-card home-feature-card--feed" role="listitem">
   <div class="home-feature-card-top">
-    <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-comments"></i></div>
+    <div class="home-feature-heading">
+      <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-comments"></i></div>
+      <h3 class="home-feature-title"><span data-i18n="home.tab.review">문의/리뷰</span></h3>
+    </div>
     <a class="home-feature-detail-link" href="/reviews">
       <span class="nav-ko" data-i18n="home.review.all">문의/리뷰 전체</span><span class="nav-en" style="display:none" data-i18n="home.review.all">All reviews</span><span aria-hidden="true"> →</span>
     </a>
   </div>
-  <h3 class="home-feature-title">
-    <span data-i18n="home.tab.review">문의/리뷰</span>
-  </h3>
   <div class="home-tile-feed">
     {% if reviews %}
     <div class="review-list">

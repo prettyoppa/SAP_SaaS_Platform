@@ -26,25 +26,30 @@
   </div>
 </section>
 
-<!-- 홈 기능 타일 -->
+<!-- 홈 타일 3×2: 1행 공지·FAQ·리뷰 / 2행 신규·분석·연동 -->
 <section id="home-features" class="section-light py-4">
   <div class="container">
     <div class="home-features-tiles" role="list">
+    {% include "partials/home_tile_notice.html" %}
+    {% include "partials/home_tile_faq.html" %}
+    {% include "partials/home_tile_reviews.html" %}
       <div class="home-feature-card" role="listitem">
         <div class="home-feature-card-top">
-          <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-code"></i></div>
+          <div class="home-feature-heading">
+            <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-code"></i></div>
+            <h3 class="home-feature-title">
+              <span class="nav-ko">{{ settings.get('home_tile_abap_title_ko', '신규 개발') }}</span>
+              <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_title_en', 'New development') }}</span>
+              {% if user and home_counts %}
+              <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.rfp_total }}</span>
+              <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.rfp_total }}</span>
+              {% endif %}
+            </h3>
+          </div>
           <a class="home-feature-detail-link" href="/services/abap">
             <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
-        <h3 class="home-feature-title">
-          <span class="nav-ko">{{ settings.get('home_tile_abap_title_ko', '신규 개발') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_title_en', 'New development') }}</span>
-          {% if user and home_counts %}
-          <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.rfp_total }}</span>
-          <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.rfp_total }}</span>
-          {% endif %}
-        </h3>
         <p class="home-feature-desc text-muted small">
           <span class="nav-ko">{{ settings.get('home_tile_abap_desc_ko', '') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_desc_en', '') }}</span>
@@ -83,22 +88,24 @@
       </div>
       <div class="home-feature-card" role="listitem">
         <div class="home-feature-card-top">
-          <div class="home-feature-icon home-feature-icon-analysis" aria-hidden="true">
-            <i class="fa-solid fa-hospital home-feature-icon-analysis-light"></i>
-            <i class="fa-regular fa-hospital home-feature-icon-analysis-dark"></i>
+          <div class="home-feature-heading">
+            <div class="home-feature-icon home-feature-icon-analysis" aria-hidden="true">
+              <i class="fa-solid fa-hospital home-feature-icon-analysis-light"></i>
+              <i class="fa-regular fa-hospital home-feature-icon-analysis-dark"></i>
+            </div>
+            <h3 class="home-feature-title">
+              <span class="nav-ko">{{ settings.get('home_tile_analysis_title_ko', '분석·개선') }}</span>
+              <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_title_en', 'Analyze · improve') }}</span>
+              {% if user and home_counts %}
+              <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.abap_analysis_total }}</span>
+              <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.abap_analysis_total }}</span>
+              {% endif %}
+            </h3>
           </div>
           <a class="home-feature-detail-link" href="/abap-analysis">
             <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
-        <h3 class="home-feature-title">
-          <span class="nav-ko">{{ settings.get('home_tile_analysis_title_ko', '분석·개선') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_title_en', 'Analyze · improve') }}</span>
-          {% if user and home_counts %}
-          <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.abap_analysis_total }}</span>
-          <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.abap_analysis_total }}</span>
-          {% endif %}
-        </h3>
         <p class="home-feature-desc text-muted small">
           <span class="nav-ko">{{ settings.get('home_tile_analysis_desc_ko', '') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_desc_en', '') }}</span>
@@ -137,19 +144,21 @@
       </div>
       <div class="home-feature-card" role="listitem">
         <div class="home-feature-card-top">
-          <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-link"></i></div>
+          <div class="home-feature-heading">
+            <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-link"></i></div>
+            <h3 class="home-feature-title">
+              <span class="nav-ko">{{ settings.get('home_tile_integration_title_ko', '연동 개발') }}</span>
+              <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_title_en', 'Integration') }}</span>
+              {% if user and home_counts %}
+              <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.integration_total }}</span>
+              <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.integration_total }}</span>
+              {% endif %}
+            </h3>
+          </div>
           <a class="home-feature-detail-link" href="/integration">
             <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
-        <h3 class="home-feature-title">
-          <span class="nav-ko">{{ settings.get('home_tile_integration_title_ko', '연동 개발') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_title_en', 'Integration') }}</span>
-          {% if user and home_counts %}
-          <span class="nav-ko text-muted small fw-normal">: <span data-i18n="home.tile.totalLabel">전체</span> {{ home_counts.integration_total }}</span>
-          <span class="nav-en text-muted small fw-normal" style="display:none">: <span data-i18n="home.tile.totalLabel">Total</span> {{ home_counts.integration_total }}</span>
-          {% endif %}
-        </h3>
         <p class="home-feature-desc text-muted small">
           <span class="nav-ko">{{ settings.get('home_tile_integration_desc_ko', '') }}</span>
           <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_desc_en', '') }}</span>
@@ -186,9 +195,6 @@
         </div>
         {% endif %}
       </div>
-    {% include "partials/home_tile_notice.html" %}
-    {% include "partials/home_tile_faq.html" %}
-    {% include "partials/home_tile_reviews.html" %}
     </div>
 
     {% if user and user.is_admin %}

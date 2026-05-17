@@ -1,12 +1,14 @@
 {# 홈 타일: FAQ #}
 <div class="home-feature-card home-feature-card--feed" role="listitem">
   <div class="home-feature-card-top">
-    <div class="home-feature-icon home-feature-icon-outline" aria-hidden="true"><i class="fa-regular fa-circle-question"></i></div>
+    <div class="home-feature-heading">
+      <div class="home-feature-icon home-feature-icon-outline" aria-hidden="true"><i class="fa-regular fa-circle-question"></i></div>
+      <h3 class="home-feature-title">FAQ</h3>
+    </div>
     <a class="home-feature-detail-link" href="/faqs">
       <span class="nav-ko" data-i18n="home.faq.all">FAQ 전체</span><span class="nav-en" style="display:none" data-i18n="home.faq.all">All FAQ</span><span aria-hidden="true"> →</span>
     </a>
   </div>
-  <h3 class="home-feature-title">FAQ</h3>
   <div class="home-tile-feed">
     {% if faqs %}
     <div class="home-faq-link-list">
