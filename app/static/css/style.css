@@ -17,12 +17,12 @@ html[data-theme="dark"] .brand-logo-dark-only {
   display: block !important;
 }
 .navbar-brand-logo {
-  max-height: 44px;
+  max-height: 29px;
   width: auto;
   vertical-align: middle;
 }
 .footer-brand-logo {
-  max-height: 36px;
+  max-height: var(--site-footer-logo-max);
   width: auto;
   vertical-align: middle;
   flex-shrink: 0;
@@ -48,6 +48,10 @@ html[data-theme="dark"] .brand-logo-dark-only {
   --radius-sm:    8px;
   --shadow:       0 4px 24px rgba(0,0,0,.4);
   --navbar-bg:    rgba(15,17,23,.92);
+  --site-navbar-padding-y: 0.67rem;
+  --site-navbar-logo-height: 1.833rem;
+  --site-footer-padding-y: 1rem;
+  --site-footer-logo-max: 24px;
   --code-text:    #cdd6f4;
   --code-bg:      #161622;
   --input-bg:     var(--surface2);
@@ -345,24 +349,28 @@ a:hover { color: var(--primary); }
   background: var(--navbar-bg);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
-  padding: 1rem 0;
+  padding: var(--site-navbar-padding-y) 0;
   position: sticky;
   top: 0;
   z-index: 999;
   overflow: visible;
 }
+.navbar-custom .navbar-nav .nav-link {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
 .navbar-brand {
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   color: var(--text) !important;
   letter-spacing: -.3px;
 }
 /* 로고 PNG 투명만 보이도록: 정사각형 박스·레터백스 제거, 배경색 없음 */
 .navbar-brand-logo {
   display: block;
-  height: 2.75rem;
+  height: var(--site-navbar-logo-height);
   width: auto;
-  max-height: 2.75rem;
+  max-height: var(--site-navbar-logo-height);
   object-fit: contain;
   flex-shrink: 0;
   background: none !important;
@@ -476,6 +484,14 @@ html[data-theme="light"] .theme-switch-icon-wrap--right { color: #ea580c; opacit
 .footer {
   background: var(--surface);
   border-top: 1px solid var(--border);
+  padding-top: var(--site-footer-padding-y);
+  padding-bottom: var(--site-footer-padding-y);
+}
+.footer p {
+  margin-bottom: 0.35rem;
+}
+.footer p:last-child {
+  margin-bottom: 0;
 }
 
 /* ── Hero ──────────────────────────────────── */
@@ -1379,6 +1395,18 @@ html {
 
 /* ── Hero (compact) ────────────────────────── */
 .hero-compact { padding: 2.5rem 0 2rem; }
+
+/* 홈 히어로: 마케팅(썸네일) 3 · 공지/FAQ/리뷰 패널 2 */
+@media (min-width: 992px) {
+  .hero-home-split > .hero-home-split__hero {
+    flex: 0 0 60%;
+    max-width: 60%;
+  }
+  .hero-home-split > .hero-home-split__tabs {
+    flex: 0 0 40%;
+    max-width: 40%;
+  }
+}
 
 /* ── Navbar active state ────────────────────── */
 .nav-link.active { color: var(--text) !important; position: relative; }
