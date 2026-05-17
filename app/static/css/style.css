@@ -3644,9 +3644,13 @@ html[data-theme="dark"] .navbar-custom .nav-item-request-console .nav-link-reque
   padding: 0.35rem 0.55rem 0.4rem;
   position: relative;
   box-shadow: 0 2px 12px color-mix(in srgb, #4338ca 22%, transparent);
-  animation: nav-request-console-bobble 2.6s ease-in-out 9;
+  animation: nav-request-console-bobble 2.6s ease-in-out 5;
   animation-fill-mode: forwards;
   transform-origin: 50% 100%;
+}
+
+.navbar-custom .nav-request-console-bubble.nav-request-console-bubble--settled {
+  animation: none !important;
 }
 
 .navbar-custom .nav-request-console-bubble::before {

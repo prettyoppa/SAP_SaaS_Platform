@@ -517,7 +517,35 @@ document.addEventListener('DOMContentLoaded', () => {
       el.setAttribute('hidden', '');
     });
   });
+
+  settleRequestConsoleNavBubble();
 });
+
+/** 컨설턴트 네비 말풍선: 5회 통통 튀기 후 정지 */
+function settleRequestConsoleNavBubble() {
+  const BOBBLE_MS = 2600;
+  const MAX_ITER = 5;
+  document.querySelectorAll('.nav-request-console-bubble').forEach((bubble) => {
+    if (!(bubble instanceof HTMLElement)) return;
+    if (bubble.dataset.bobbleSettled === '1') return;
+
+    const stop = () => {
+      if (bubble.dataset.bobbleSettled === '1') return;
+      bubble.dataset.bobbleSettled = '1';
+      bubble.classList.add('nav-request-console-bubble--settled');
+      bubble.style.animation = 'none';
+    };
+
+    bubble.addEventListener(
+      'animationend',
+      (e) => {
+        if (e.animationName === 'nav-request-console-bobble') stop();
+      },
+      { once: true },
+    );
+    window.setTimeout(stop, BOBBLE_MS * MAX_ITER + 50);
+  });
+}
 
 /* 참고·개발 코드 등: 잠금 영역에서 복사/잘라내기 차단(허용 사용자는 .code-asset-locked 없음) */
 document.addEventListener(
