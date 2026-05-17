@@ -282,8 +282,7 @@ def _seed_home_tile_settings():
     defaults = [
         ("home_tile_guide_title_ko", "사용 안내"),
         ("home_tile_guide_title_en", "Getting started"),
-        ("home_tile_guide_desc_ko", "PDF와 서비스 이용 방법을 확인하세요."),
-        ("home_tile_guide_desc_en", "Open the PDF and learn how to use the hub."),
+        ("home_guide_video_url", ""),
         ("home_tile_abap_title_ko", "신규 개발"),
         ("home_tile_abap_title_en", "New development"),
         ("home_tile_abap_desc_ko", "RFP·AI 인터뷰·제안서 기반 전형적인 ABAP 개발 요청"),

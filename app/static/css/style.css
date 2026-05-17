@@ -1396,16 +1396,111 @@ html {
 /* ── Hero (compact) ────────────────────────── */
 .hero-compact { padding: 2.5rem 0 2rem; }
 
-/* 홈 히어로: 마케팅(썸네일) 3 · 공지/FAQ/리뷰 패널 2 */
+/* 홈 히어로: 마케팅(썸네일) 3 · 사용 안내(동영상) 2 */
 @media (min-width: 992px) {
   .hero-home-split > .hero-home-split__hero {
     flex: 0 0 60%;
     max-width: 60%;
   }
-  .hero-home-split > .hero-home-split__tabs {
+  .hero-home-split > .hero-home-split__guide {
     flex: 0 0 40%;
     max-width: 40%;
   }
+}
+
+/* 히어로 사용 안내 카드 */
+.home-guide-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.home-guide-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.home-guide-card-top .home-guide-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: 1.1rem;
+  margin: 0;
+}
+.home-guide-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.home-guide-video-wrap {
+  flex: 1 1 auto;
+  padding: 0.75rem 1rem 1rem;
+  min-height: 0;
+}
+.home-guide-video iframe {
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+.home-guide-video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 10rem;
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+}
+
+/* 홈 기능 영역: 서비스 타일(3/4 폭) + 공지/FAQ/리뷰 패널 */
+.home-features-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+@media (min-width: 992px) {
+  .home-features-row {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .home-features-tiles {
+    flex: 0 0 56.25%;
+    max-width: 56.25%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    align-content: start;
+  }
+  .home-features-tabs {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .home-features-tabs .home-tabs-card {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+  .home-features-tabs .home-tab-content {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 12rem;
+  }
+}
+.home-features-tiles .home-feature-card {
+  aspect-ratio: 1;
 }
 
 /* ── Navbar active state ────────────────────── */

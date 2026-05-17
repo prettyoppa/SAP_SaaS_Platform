@@ -1,0 +1,87 @@
+{# 공지 · FAQ · 문의/리뷰 탭 패널 (홈 기능 영역) #}
+<div class="home-tabs-card">
+  <ul class="nav nav-tabs home-nav-tabs" id="homeTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-notice" type="button">
+        <i class="fa-solid fa-bullhorn me-1"></i>
+        <span data-i18n="home.tab.notice">공지사항</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-faq" type="button">
+        <i class="fa-solid fa-circle-question me-1"></i>FAQ
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-reviews" type="button">
+        <i class="fa-solid fa-user me-1"></i>
+        <span data-i18n="home.tab.review">문의/리뷰</span>
+      </button>
+    </li>
+  </ul>
+  <div class="tab-content home-tab-content p-3">
+    <div class="tab-pane fade show active" id="tab-notice">
+      {% if notices %}
+        {% for n in notices %}
+        <a href="/notices/{{ n.id }}" class="notice-item notice-item-link text-decoration-none d-block text-reset">
+          <span class="notice-badge" data-i18n="home.noticeBadge">공지</span>
+          <span class="notice-title site-md-title-inline markdown-body i18n-ko">{{ n.title|md_html }}</span>
+          <span class="notice-title site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((n.title_en or n.title) or '')|md_html }}</span>
+          <span class="notice-date text-muted small">{{ n.created_at|local_dt_span('date_dots') }}</span>
+        </a>
+        {% endfor %}
+      {% else %}
+      <div class="empty-tab-msg">
+        <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
+        <p class="text-muted small" data-i18n="home.notice.empty">등록된 공지사항이 없습니다.</p>
+      </div>
+      {% endif %}
+      <div class="text-end mt-2 pt-2">
+        <a href="/notices" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.notice.all">공지사항 전체 목록</a>
+      </div>
+    </div>
+    <div class="tab-pane fade" id="tab-faq">
+      {% if faqs %}
+      <div class="home-faq-link-list">
+        {% for faq in faqs %}
+        <a href="/faqs/{{ faq.id }}" class="home-faq-row d-flex align-items-center gap-2 text-decoration-none text-reset py-2">
+          <i class="fa-solid fa-chevron-right fa-xs text-muted flex-shrink-0"></i>
+          <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-ko">{{ faq.question|md_html }}</span>
+          <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((faq.question_en or faq.question) or '')|md_html }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-tab-msg">
+        <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
+        <p class="text-muted small" data-i18n="home.faq.empty">등록된 FAQ가 없습니다.</p>
+      </div>
+      {% endif %}
+      <div class="text-end mt-2 pt-2">
+        <a href="/faqs" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.faq.all">FAQ 전체 목록</a>
+      </div>
+    </div>
+    <div class="tab-pane fade" id="tab-reviews">
+      {% if reviews %}
+      <div class="review-list">
+        {% for r in reviews %}
+        {% set rlabel = r|review_author_label %}
+        <a href="/reviews/{{ r.id }}" class="review-item-card review-item-card--compact text-decoration-none text-reset d-flex align-items-center gap-2 w-100">
+          <span class="review-item-name small fw-semibold text-truncate">{{ rlabel }}</span>
+          <span class="review-item-body small text-muted text-truncate flex-grow-1 min-w-0">{{ r.content }}</span>
+          <span class="review-item-date small text-muted text-nowrap flex-shrink-0">{{ r.created_at|local_dt_span('date_dots') }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-tab-msg">
+        <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
+        <p class="text-muted small" data-i18n="home.review.empty">등록된 글이 없습니다.</p>
+      </div>
+      {% endif %}
+      <div class="text-end mt-2 pt-2">
+        <a href="/reviews" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.review.all">문의/리뷰 전체 목록</a>
+      </div>
+    </div>
+  </div>
+</div>

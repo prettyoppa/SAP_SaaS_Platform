@@ -31,93 +31,8 @@
         {% endif %}
       </div>
 
-      <div class="col-12 hero-home-split__tabs">
-        <div class="home-tabs-card">
-          <ul class="nav nav-tabs home-nav-tabs" id="homeTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-notice" type="button">
-                <i class="fa-solid fa-bullhorn me-1"></i>
-                <span data-i18n="home.tab.notice">공지사항</span>
-              </button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-faq" type="button">
-                <i class="fa-solid fa-circle-question me-1"></i>FAQ
-              </button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-reviews" type="button">
-                <i class="fa-solid fa-user me-1"></i>
-                <span data-i18n="home.tab.review">문의/리뷰</span>
-              </button>
-            </li>
-          </ul>
-          <div class="tab-content home-tab-content p-3">
-            <div class="tab-pane fade show active" id="tab-notice">
-              {% if notices %}
-                {% for n in notices %}
-                <a href="/notices/{{ n.id }}" class="notice-item notice-item-link text-decoration-none d-block text-reset">
-                  <span class="notice-badge" data-i18n="home.noticeBadge">공지</span>
-                  <span class="notice-title site-md-title-inline markdown-body i18n-ko">{{ n.title|md_html }}</span>
-                  <span class="notice-title site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((n.title_en or n.title) or '')|md_html }}</span>
-                  <span class="notice-date text-muted small">{{ n.created_at|local_dt_span('date_dots') }}</span>
-                </a>
-                {% endfor %}
-              {% else %}
-              <div class="empty-tab-msg">
-                <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
-                <p class="text-muted small" data-i18n="home.notice.empty">등록된 공지사항이 없습니다.</p>
-              </div>
-              {% endif %}
-              <div class="text-end mt-2 pt-2">
-                <a href="/notices" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.notice.all">공지사항 전체 목록</a>
-              </div>
-            </div>
-            <div class="tab-pane fade" id="tab-faq">
-              {% if faqs %}
-              <div class="home-faq-link-list">
-                {% for faq in faqs %}
-                <a href="/faqs/{{ faq.id }}" class="home-faq-row d-flex align-items-center gap-2 text-decoration-none text-reset py-2">
-                  <i class="fa-solid fa-chevron-right fa-xs text-muted flex-shrink-0"></i>
-                  <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-ko">{{ faq.question|md_html }}</span>
-                  <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((faq.question_en or faq.question) or '')|md_html }}</span>
-                </a>
-                {% endfor %}
-              </div>
-              {% else %}
-              <div class="empty-tab-msg">
-                <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
-                <p class="text-muted small" data-i18n="home.faq.empty">등록된 FAQ가 없습니다.</p>
-              </div>
-              {% endif %}
-              <div class="text-end mt-2 pt-2">
-                <a href="/faqs" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.faq.all">FAQ 전체 목록</a>
-              </div>
-            </div>
-            <div class="tab-pane fade" id="tab-reviews">
-              {% if reviews %}
-              <div class="review-list">
-                {% for r in reviews %}
-                {% set rlabel = r|review_author_label %}
-                <a href="/reviews/{{ r.id }}" class="review-item-card review-item-card--compact text-decoration-none text-reset d-flex align-items-center gap-2 w-100">
-                  <span class="review-item-name small fw-semibold text-truncate">{{ rlabel }}</span>
-                  <span class="review-item-body small text-muted text-truncate flex-grow-1 min-w-0">{{ r.content }}</span>
-                  <span class="review-item-date small text-muted text-nowrap flex-shrink-0">{{ r.created_at|local_dt_span('date_dots') }}</span>
-                </a>
-                {% endfor %}
-              </div>
-              {% else %}
-              <div class="empty-tab-msg">
-                <i class="fa-solid fa-inbox fa-2x text-muted mb-2"></i>
-                <p class="text-muted small" data-i18n="home.review.empty">등록된 글이 없습니다.</p>
-              </div>
-              {% endif %}
-              <div class="text-end mt-2 pt-2">
-                <a href="/reviews" class="small text-decoration-none site-home-tab-more-link" data-i18n="home.review.all">문의/리뷰 전체 목록</a>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="col-12 hero-home-split__guide">
+        {% include "partials/home_hero_guide_panel.html" %}
       </div>
     </div>
   </div>
@@ -126,23 +41,8 @@
 <!-- 홈 기능 타일 -->
 <section id="home-features" class="section-light py-5">
   <div class="container">
-    <div class="home-feature-tiles" role="list">
-      <div class="home-feature-card" role="listitem">
-        <div class="home-feature-card-top">
-          <div class="home-feature-icon home-feature-icon-outline" aria-hidden="true"><i class="fa-regular fa-circle-question"></i></div>
-          <a class="home-feature-detail-link" id="home-guide-pdf-link" href="{{ settings.get('user_guide_pdf_url', '/static/docs/user-guide.pdf') }}" target="_blank" rel="noopener">
-            <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
-          </a>
-        </div>
-        <h3 class="home-feature-title">
-          <span class="nav-ko">{{ settings.get('home_tile_guide_title_ko', '사용 안내') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_title_en', 'Getting started') }}</span>
-        </h3>
-        <p class="home-feature-desc text-muted small">
-          <span class="nav-ko">{{ settings.get('home_tile_guide_desc_ko', '') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_desc_en', '') }}</span>
-        </p>
-      </div>
+    <div class="home-features-row">
+      <div class="home-features-tiles" role="list">
       <div class="home-feature-card" role="listitem">
         <div class="home-feature-card-top">
           <div class="home-feature-icon" aria-hidden="true"><i class="fa-solid fa-code"></i></div>
@@ -300,17 +200,20 @@
         {% endif %}
       </div>
     </div>
+      <div class="home-features-tabs">
+        {% include "partials/home_tabs_panel.html" %}
+      </div>
+    </div>
 
     {% if user and user.is_admin %}
     <div class="admin-home-tiles-editor card border mt-5" style="background:var(--surface2);border-color:var(--border)!important;">
       <div class="card-body">
         <h5 class="card-title"><i class="fa-solid fa-gear me-2"></i>홈 타일 문구 편집 (관리자)</h5>
-        <p class="small text-muted">홈 4개 타일 문구입니다. 저장 시 즉시 반영됩니다. PDF는 <code>/static/docs/</code>에 올린 뒤 URL을 맞추면 됩니다.</p>
+        <p class="small text-muted">홈 서비스 타일(3) · 사용 안내 동영상 · 타일 문구입니다. 저장 시 즉시 반영됩니다. PDF는 <code>/static/docs/</code>에 올린 뒤 URL을 맞추면 됩니다.</p>
         <div class="row g-2 small">
           <div class="col-md-6"><label class="form-label">사용 안내 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-gtko" value="{{ settings.get('home_tile_guide_title_ko', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">사용 안내 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-gten" value="{{ settings.get('home_tile_guide_title_en', '') }}"/></div>
-          <div class="col-md-6"><label class="form-label">사용 안내 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-gdko" rows="3">{{ settings.get('home_tile_guide_desc_ko', '') }}</textarea></div>
-          <div class="col-md-6"><label class="form-label">사용 안내 설명 EN</label><textarea class="form-control form-control-sm" id="adm-ht-gden" rows="3">{{ settings.get('home_tile_guide_desc_en', '') }}</textarea></div>
+          <div class="col-12"><label class="form-label">사용 안내 동영상 URL (YouTube / Shorts)</label><input class="form-control form-control-sm" id="adm-ht-video" type="url" placeholder="https://www.youtube.com/shorts/..." value="{{ settings.get('home_guide_video_url', '') }}"/><div class="form-text">관리자가 설정한 URL이 히어로 사용 안내 영역에 임베드됩니다. 미입력 시 준비 중 안내가 표시됩니다.</div></div>
           <div class="col-md-6"><label class="form-label">신규 개발 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-akko" value="{{ settings.get('home_tile_abap_title_ko', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">신규 개발 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-aken" value="{{ settings.get('home_tile_abap_title_en', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">신규 개발 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-adko" rows="3">{{ settings.get('home_tile_abap_desc_ko', '') }}</textarea></div>
@@ -340,8 +243,7 @@
         var body = {
           home_tile_guide_title_ko: document.getElementById('adm-ht-gtko').value,
           home_tile_guide_title_en: document.getElementById('adm-ht-gten').value,
-          home_tile_guide_desc_ko: document.getElementById('adm-ht-gdko').value,
-          home_tile_guide_desc_en: document.getElementById('adm-ht-gden').value,
+          home_guide_video_url: document.getElementById('adm-ht-video').value,
           home_tile_abap_title_ko: document.getElementById('adm-ht-akko').value,
           home_tile_abap_title_en: document.getElementById('adm-ht-aken').value,
           home_tile_abap_desc_ko: document.getElementById('adm-ht-adko').value,

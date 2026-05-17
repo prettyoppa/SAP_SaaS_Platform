@@ -1,0 +1,37 @@
+{# 히어로 우측: 사용 안내 + 동영상(YouTube) #}
+{% set guide_video_id = settings.get('home_guide_video_url', '')|youtube_video_id %}
+<div class="home-guide-card">
+  <div class="home-guide-card-top">
+    <div class="home-guide-icon home-feature-icon home-feature-icon-outline" aria-hidden="true">
+      <i class="fa-regular fa-circle-question"></i>
+    </div>
+    <h3 class="home-guide-title mb-0">
+      <span class="nav-ko">{{ settings.get('home_tile_guide_title_ko', '사용 안내') }}</span>
+      <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_title_en', 'Getting started') }}</span>
+    </h3>
+    <a class="home-feature-detail-link home-guide-detail-link flex-shrink-0" id="home-guide-pdf-link" href="{{ settings.get('user_guide_pdf_url', '/static/docs/user-guide.pdf') }}" target="_blank" rel="noopener">
+      <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
+    </a>
+  </div>
+  <div class="home-guide-video-wrap">
+    {% if guide_video_id %}
+    <div class="home-guide-video ratio ratio-9x16 mx-auto" style="max-width: 220px;">
+      <iframe
+        id="home-guide-video-iframe"
+        src="https://www.youtube-nocookie.com/embed/{{ guide_video_id }}"
+        title="{% if settings.get('home_tile_guide_title_ko') %}{{ settings.get('home_tile_guide_title_ko') }}{% else %}사용 안내{% endif %}"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen
+        loading="lazy"
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
+    </div>
+    {% else %}
+    <div class="home-guide-video-placeholder" id="home-guide-video-placeholder">
+      <i class="fa-brands fa-youtube fa-2x text-muted mb-2" aria-hidden="true"></i>
+      <p class="small text-muted mb-0 nav-ko">사용 방법 동영상이 곧 제공됩니다.</p>
+      <p class="small text-muted mb-0 nav-en" style="display:none">How-to video coming soon.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>

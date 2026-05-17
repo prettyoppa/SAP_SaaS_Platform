@@ -1008,8 +1008,7 @@ SITE_SETTING_KEYS = [
 HOME_TILE_API_KEYS = [
     "home_tile_guide_title_ko",
     "home_tile_guide_title_en",
-    "home_tile_guide_desc_ko",
-    "home_tile_guide_desc_en",
+    "home_guide_video_url",
     "home_tile_abap_title_ko",
     "home_tile_abap_title_en",
     "home_tile_abap_desc_ko",
