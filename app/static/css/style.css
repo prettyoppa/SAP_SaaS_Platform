@@ -1628,13 +1628,36 @@ html[data-theme="light"] .home-guide-video-stage {
 }
 .home-feature-card-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.35rem;
   margin-bottom: 0.12rem;
 }
 .home-features-tiles .home-feature-card-top {
-  margin-bottom: 0.08rem;
+  margin-bottom: 0.28rem;
+}
+.home-feature-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.home-features-tiles .home-feature-heading .home-feature-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin: 0;
+}
+.home-features-tiles .home-feature-heading .home-feature-title {
+  margin-bottom: 0;
+  font-size: clamp(0.88rem, 2vw, 1rem);
+  line-height: 1.2;
+  min-width: 0;
+}
+.home-features-tiles .home-feature-detail-link {
+  margin-top: 0;
+  align-self: center;
 }
 .home-feature-detail-link {
   font-size: clamp(0.68rem, 1.35vw, 0.8rem);
@@ -1711,6 +1734,19 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 .empty-tab-msg--compact {
   padding: 0.75rem 0.25rem;
   text-align: center;
+}
+
+.account-ai-credits-claim-row .form-label {
+  margin-bottom: 0.15rem;
+}
+.account-ai-credits-claim-row .form-control-sm {
+  min-height: 2rem;
+}
+@media (min-width: 768px) {
+  .account-ai-credits-claim-row .col-md-4 {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 /* 홈 타일: 진행 건수 — 세로 목록 (영문 라벨 대비) */

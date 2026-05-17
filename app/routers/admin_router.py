@@ -28,7 +28,11 @@ from ..subscription_catalog import (
     format_monthly_usd_display,
 )
 from ..subscription_quota import SUBSCRIPTION_SOURCE_ADMIN, utc_year_month
-from ..bank_transfer_settings import ALL_BANK_BILLING_SETTING_KEYS, BANK_TRANSFER_SETTING_KEYS
+from ..bank_transfer_settings import (
+    AI_CREDITS_BANK_ADMIN_KEYS,
+    ALL_BANK_BILLING_SETTING_KEYS,
+    BANK_TRANSFER_SETTING_KEYS,
+)
 from ..payment_claim_service import (
     CLAIM_STATUS_PENDING,
     confirm_payment_claim,
@@ -1488,11 +1492,7 @@ def _parse_optional_usd_to_cents(raw) -> int | None:
         return None
 
 
-SUBSCRIPTION_PLAN_NOTICE_KEYS = (
-    "subscription_plans_notice_md_ko",
-    "subscription_plans_notice_md_en",
-    *BANK_TRANSFER_SETTING_KEYS,
-)
+SUBSCRIPTION_PLAN_NOTICE_KEYS = AI_CREDITS_BANK_ADMIN_KEYS
 
 
 @router.get("/payment-claims", response_class=HTMLResponse)
@@ -1573,22 +1573,6 @@ def admin_subscription_plans_settings(request: Request, db: Session = Depends(ge
     if not user:
         return RedirectResponse(url="/", status_code=302)
     raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    plans = (
-        db.query(models.SubscriptionPlan)
-        .options(joinedload(models.SubscriptionPlan.entitlements))
-        .order_by(models.SubscriptionPlan.account_kind, models.SubscriptionPlan.sort_order)
-        .all()
-    )
-    plan_views: list[dict] = []
-    for p in plans:
-        emap = {e.metric_key: e for e in (p.entitlements or [])}
-        rows = [emap[k] for k in METRIC_ORDER if k in emap]
-        plan_views.append({"plan": p, "rows": rows})
-    default_price_hints: dict[str, str] = {}
-    for (kind, code), (krw, usdc) in DEFAULT_PLAN_MONTHLY_PRICES.items():
-        default_price_hints[f"{kind}:{code}"] = (
-            f"미입력 시: {format_monthly_krw_display(krw)} · {format_monthly_usd_display(usdc)}"
-        )
     return templates.TemplateResponse(
         request,
         "admin/subscription_plans_settings.html",
@@ -1596,11 +1580,6 @@ def admin_subscription_plans_settings(request: Request, db: Session = Depends(ge
             "request": request,
             "user": user,
             "settings": raw,
-            "plan_views": plan_views,
-            "has_plans": len(plan_views) > 0,
-            "metric_labels": METRIC_LABEL_KO,
-            "metric_order": METRIC_ORDER,
-            "default_price_hints": default_price_hints,
         },
     )
 

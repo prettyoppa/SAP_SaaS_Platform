@@ -20,6 +20,15 @@ ALL_BANK_BILLING_SETTING_KEYS: tuple[str, ...] = (
     *REFUND_POLICY_SETTING_KEYS,
 )
 
+# Admin 「AI 크레딧 · 계좌이체」 화면에서 저장하는 키
+AI_CREDITS_BANK_ADMIN_KEYS: tuple[str, ...] = (
+    "bank_transfer_notice_md_ko",
+    "bank_transfer_notice_md_en",
+    "bank_transfer_activation_sla_ko",
+    "bank_transfer_activation_sla_en",
+    "usd_krw_rate",
+)
+
 DEFAULT_BANK_TRANSFER_NOTICE_KO = """### 계좌이체 (원화, KRW)
 
 - **은행·계좌·예금주**: (Admin에서 이 문구를 수정하세요)

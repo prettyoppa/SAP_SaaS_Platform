@@ -141,7 +141,6 @@ def account_ai_credits_claim_post(
     amount_minor: str = Form(""),
     depositor_name: str = Form(""),
     transfer_date: str = Form(""),
-    member_note: str = Form(""),
 ):
     user = auth.get_current_user(request, db)
     if not user:
@@ -156,7 +155,6 @@ def account_ai_credits_claim_post(
         amount_minor=amt,
         depositor_name=depositor_name,
         transfer_date=_parse_transfer_date(transfer_date),
-        member_note=member_note,
     )
     if err:
         if str(err).startswith(f"{ERR_AMOUNT_MISMATCH}:"):
