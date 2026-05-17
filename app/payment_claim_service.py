@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .ai_wallet import (
-    MIN_TOPUP_KRW,
+    min_topup_krw,
     WALLET_TOPUP_PLAN_CODE,
     apply_wallet_credit,
     apply_wallet_debit,
@@ -98,7 +98,7 @@ def create_wallet_topup_claim(
         amt = int(amount_minor)
     except (TypeError, ValueError):
         return None, ERR_INVALID_AMOUNT
-    if amt < MIN_TOPUP_KRW:
+    if amt < min_topup_krw(db):
         return None, ERR_AMOUNT_TOO_LOW
     if user_pending_claim(db, user.id):
         return None, ERR_PENDING_CLAIM_EXISTS

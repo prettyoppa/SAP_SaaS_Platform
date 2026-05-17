@@ -314,6 +314,7 @@ def _seed_home_tile_settings():
             "If the transfer is not verified, an admin may adjust your balance.",
         ),
         ("usd_krw_rate", "1350"),
+        ("ai_wallet_min_topup_krw", "30000"),
         ("experience_trial_days", "14"),
         ("service_abap_intro_md_ko", DEFAULT_SERVICE_ABAP_INTRO_MD_KO),
         ("service_analysis_intro_md_ko", DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO),

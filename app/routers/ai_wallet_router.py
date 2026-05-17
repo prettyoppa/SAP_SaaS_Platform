@@ -17,7 +17,7 @@ from ..ai_usage_recorder import (
     format_krw_from_micro,
     format_usd_from_micro,
 )
-from ..ai_wallet import MIN_TOPUP_KRW, claim_plan_label_en, claim_plan_label_ko, wallet_balance_krw
+from ..ai_wallet import claim_plan_label_en, claim_plan_label_ko, min_topup_krw, wallet_balance_krw
 from ..bank_transfer_settings import BANK_TRANSFER_SETTING_KEYS
 from ..database import get_db
 from ..payment_claim_messages import ERR_AMOUNT_MISMATCH
@@ -120,7 +120,7 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "settings": settings,
             "wallet_balance_krw": wallet_balance_krw(user),
-            "min_topup_krw": MIN_TOPUP_KRW,
+            "min_topup_krw": min_topup_krw(db),
             "claims": claims_for_user(db, user.id, limit=30),
             "pending_claim": user_pending_claim(db, user.id),
             "billing_err": err,

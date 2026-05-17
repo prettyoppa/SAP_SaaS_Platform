@@ -9,7 +9,7 @@
         {% include 'partials/nav_prev_screen.html' %}
         <div>
           <h4 class="mb-0"><i class="fa-solid fa-won-sign me-2 text-warning"></i>AI 크레딧 · 계좌이체 안내</h4>
-          <small class="text-muted">회원 <strong>사용량 · 충전</strong> 화면의 계좌이체 안내(Markdown)와 반영 SLA를 편집합니다.</small>
+          <small class="text-muted">회원 <strong>사용량 · 충전</strong> 화면의 계좌이체 안내(Markdown), 최소 충전 금액, 환율을 편집합니다.</small>
         </div>
       </div>
     </div>
@@ -25,7 +25,7 @@
     <div class="admin-content-card mb-4">
       <h6 class="mb-3 text-warning"><i class="fa-solid fa-building-columns me-2"></i>계좌이체 입금 안내 (KRW)</h6>
       <p class="text-muted small mb-3">
-        <strong>/account/ai-credits</strong> 페이지 <strong>계좌이체 안내</strong> 영역에 표시됩니다. Markdown 지원(굵게, 목록, 링크 등).
+        <strong>/account/ai-credits</strong> 충전 패널에서 제목 아래에 표시됩니다. Markdown 지원(굵게, 목록, 링크 등).
         은행명·계좌번호·예금주 등을 여기에 작성하세요.
       </p>
       <form method="post" action="/admin/subscription-plans">
@@ -40,20 +40,16 @@
             <textarea id="bank_transfer_notice_md_en" name="bank_transfer_notice_md_en" class="form-control font-monospace small" rows="12"
               placeholder="### Bank transfer (KRW)…">{{ settings.get('bank_transfer_notice_md_en', '') }}</textarea>
           </div>
-          <div class="col-md-6">
-            <label class="form-label small" for="bank_transfer_activation_sla_ko">충전 반영 안내 (한국어)</label>
-            <input type="text" id="bank_transfer_activation_sla_ko" name="bank_transfer_activation_sla_ko" class="form-control form-control-sm"
-              value="{{ settings.get('bank_transfer_activation_sla_ko', '') }}" placeholder="예: 영업일 1~2일 내 잔액에 반영됩니다.">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small" for="bank_transfer_activation_sla_en">Credit SLA (English)</label>
-            <input type="text" id="bank_transfer_activation_sla_en" name="bank_transfer_activation_sla_en" class="form-control form-control-sm"
-              value="{{ settings.get('bank_transfer_activation_sla_en', '') }}">
-          </div>
           <div class="col-md-4">
             <label class="form-label small" for="usd_krw_rate">USD→KRW 환율 (사용량 화면 KRW 환산)</label>
             <input type="text" id="usd_krw_rate" name="usd_krw_rate" class="form-control form-control-sm font-monospace"
               value="{{ settings.get('usd_krw_rate', '') }}" placeholder="1350">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small" for="ai_wallet_min_topup_krw">최소 충전 금액 (원)</label>
+            <input type="text" id="ai_wallet_min_topup_krw" name="ai_wallet_min_topup_krw" class="form-control form-control-sm font-monospace"
+              value="{{ settings.get('ai_wallet_min_topup_krw', '30000') }}" placeholder="30000">
+            <div class="form-text small text-muted">회원이 「충전 확인」 시 검증하는 최소 금액입니다. 기본 권장: 30,000원.</div>
           </div>
         </div>
         <div class="mt-3">

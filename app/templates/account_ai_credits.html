@@ -2,9 +2,9 @@
 {% block title %}<span class="nav-ko">사용량 · 충전</span><span class="nav-en" style="display:none">Usage &amp; balance</span> – SAP Dev Hub{% endblock %}
 
 {% block content %}
-<div class="dashboard-page py-4 account-ai-credits-page">
-  <div class="container" style="max-width: 42rem;">
-    <div class="mb-4">
+<div class="dashboard-page account-ai-credits-page">
+  <div class="container account-ai-credits-container">
+    <div class="account-ai-credits-header">
       <a href="/" class="small text-decoration-none">
         <i class="fa-solid fa-arrow-left me-1"></i>
         <span class="nav-ko">홈</span><span class="nav-en" style="display:none">Home</span>
@@ -19,29 +19,32 @@
     </div>
 
     {% if billing_ok %}
-    <div class="alert alert-success small">
-      <span class="nav-ko">충전 신청이 접수되었고, 신청 금액이 잔액에 바로 반영되었습니다. 이제 AI를 이용하실 수 있습니다.</span>
-      <span class="nav-en" style="display:none">Your top-up was submitted and the amount was added to your balance immediately. You can use AI now.</span>
+    <div class="alert alert-success small account-ai-credits-alert">
+      <span class="nav-ko">충전이 반영되었습니다.</span>
+      <span class="nav-en" style="display:none">Top-up applied to your balance.</span>
     </div>
     {% endif %}
     {% include 'partials/billing_err_alert.html' %}
 
-    <section class="rfp-section p-4 mb-4 account-ai-credits-balance" aria-labelledby="ai-balance-heading">
+    <section class="rfp-section account-ai-credits-panel account-ai-credits-balance" aria-labelledby="ai-balance-heading">
       <h3 id="ai-balance-heading" class="h6 text-muted text-uppercase small mb-2">
         <span class="nav-ko">충전 잔액</span><span class="nav-en" style="display:none">Prepaid balance</span>
       </h3>
-      <p class="display-6 fw-semibold mb-0 font-monospace">₩{{ "{:,}".format(wallet_balance_krw) }}</p>
+      <p class="display-6 fw-semibold mb-0 account-ai-credits-balance-amount">
+        <span class="account-ai-credits-balance-currency" aria-hidden="true">₩</span>
+        <span class="account-ai-credits-balance-value font-monospace">{{ "{:,}".format(wallet_balance_krw) }}</span>
+      </p>
     </section>
 
-    <section id="topup-form" class="rfp-section p-4 mb-4 account-ai-credits-topup">
-      <h3 class="h6 mb-3">
+    <section id="topup-form" class="rfp-section account-ai-credits-panel account-ai-credits-topup">
+      <h3 class="h6 mb-2 account-ai-credits-topup-title">
         <i class="fa-solid fa-won-sign me-2 text-primary"></i>
         <span class="nav-ko">AI 크레딧 충전</span><span class="nav-en" style="display:none">Top up AI credits</span>
       </h3>
       {% if pending_claim %}
       <div class="alert alert-info small mb-0">
-        <span class="nav-ko"><strong>입금 확인 대기 중</strong> — 잔액에는 이미 반영되었습니다.</span>
-        <span class="nav-en" style="display:none"><strong>Pending bank verification</strong> — balance already updated.</span>
+        <span class="nav-ko"><strong>입금 확인 대기</strong></span>
+        <span class="nav-en" style="display:none"><strong>Pending verification</strong></span>
         · ₩{{ "{:,}".format(pending_claim.amount_minor) }}
         <form method="post" action="/account/ai-credits/claim/{{ pending_claim.id }}/cancel" class="d-inline ms-2"
               data-app-confirm-i18n="billing.claimCancelConfirm">
@@ -51,27 +54,30 @@
         </form>
       </div>
       {% else %}
-      <p class="small text-muted">
-        <span class="nav-ko">아래 계좌로 입금한 뒤 금액·입금자명을 입력해 신청해 주세요. 신청 즉시 잔액에 반영됩니다. 최소 ₩{{ "{:,}".format(min_topup_krw) }}.</span>
-        <span class="nav-en" style="display:none">Transfer to the account below, then submit amount and depositor name. Balance updates immediately. Minimum ₩{{ "{:,}".format(min_topup_krw) }}.</span>
-      </p>
-      <form method="post" action="/account/ai-credits/claim" class="mt-3 account-ai-credits-claim-form" id="ai-credits-claim-form">
-        <div class="row g-2 align-items-end account-ai-credits-claim-row">
+      {% if settings.get('bank_transfer_notice_md_ko') or settings.get('bank_transfer_notice_md_en') %}
+      <div class="account-ai-credits-bank-inline markdown-body small mb-2">
+        <div class="nav-ko">{{ (settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
+        <div class="nav-en" style="display:none">{{ (settings.get('bank_transfer_notice_md_en') or settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
+      </div>
+      {% endif %}
+      <form method="post" action="/account/ai-credits/claim" class="account-ai-credits-claim-form" id="ai-credits-claim-form" novalidate>
+        <div class="row g-2 align-items-start account-ai-credits-claim-row">
           <div class="col-md-4 col-sm-4">
             <label class="form-label small mb-1" for="topup-amount">
               <span class="nav-ko">충전 금액 (원)</span><span class="nav-en" style="display:none">Amount (KRW)</span>
             </label>
             <input type="text" id="topup-amount" name="amount_minor" class="form-control form-control-sm font-monospace"
-                   inputmode="numeric" autocomplete="off" required
-                   data-min="{{ min_topup_krw }}"
-                   placeholder="{{ '{:,}'.format(min_topup_krw) }}">
+                   inputmode="numeric" autocomplete="off"
+                   data-min="{{ min_topup_krw }}">
+            <div id="topup-amount-error" class="invalid-feedback d-none" role="alert"></div>
           </div>
           <div class="col-md-4 col-sm-4">
             <label class="form-label small mb-1" for="topup-depositor">
               <span class="nav-ko">입금자명</span><span class="nav-en" style="display:none">Depositor name</span>
             </label>
-            <input type="text" id="topup-depositor" name="depositor_name" class="form-control form-control-sm" maxlength="200" required
+            <input type="text" id="topup-depositor" name="depositor_name" class="form-control form-control-sm" maxlength="200"
                    value="{{ user.full_name|e }}">
+            <div id="topup-depositor-error" class="invalid-feedback d-none" role="alert"></div>
           </div>
           <div class="col-md-4 col-sm-4">
             <label class="form-label small mb-1" for="topup-date">
@@ -80,30 +86,15 @@
             <input type="date" id="topup-date" name="transfer_date" class="form-control form-control-sm">
           </div>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm mt-3">
-          <span class="nav-ko">충전 신청 제출</span><span class="nav-en" style="display:none">Submit top-up request</span>
+        <button type="button" class="btn btn-primary btn-sm mt-2" id="topup-confirm-btn">
+          <span class="nav-ko">충전 확인</span><span class="nav-en" style="display:none">Confirm top-up</span>
         </button>
       </form>
       {% endif %}
     </section>
 
-    <section class="rfp-section p-4 mb-4 account-ai-credits-bank">
+    <section class="rfp-section account-ai-credits-panel account-ai-credits-history">
       <h3 class="h6 text-muted text-uppercase small mb-2">
-        <span class="nav-ko">계좌이체 안내</span><span class="nav-en" style="display:none">Bank transfer (KRW)</span>
-      </h3>
-      {% if settings.get('bank_transfer_activation_sla_ko') or settings.get('bank_transfer_activation_sla_en') %}
-      <p class="small mb-3">
-        <i class="fa-solid fa-clock me-1 text-primary"></i>
-        <span class="nav-ko">{{ settings.get('bank_transfer_activation_sla_ko', '') }}</span>
-        <span class="nav-en" style="display:none">{{ settings.get('bank_transfer_activation_sla_en', settings.get('bank_transfer_activation_sla_ko', '')) }}</span>
-      </p>
-      {% endif %}
-      <div class="markdown-body small nav-ko">{{ (settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
-      <div class="markdown-body small nav-en" style="display:none">{{ (settings.get('bank_transfer_notice_md_en') or settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
-    </section>
-
-    <section class="rfp-section p-4 mb-4 account-ai-credits-history">
-      <h3 class="h6 text-muted text-uppercase small mb-3">
         <span class="nav-ko">충전 이력</span><span class="nav-en" style="display:none">Top-up history</span>
       </h3>
       {% if claims|length == 0 %}
@@ -143,22 +134,22 @@
       {% endif %}
     </section>
 
-    <section class="rfp-section p-4 mb-4 account-ai-credits-usage">
+    <section class="rfp-section account-ai-credits-panel account-ai-credits-usage">
       <h3 class="h6 text-muted text-uppercase small mb-2">
         <span class="nav-ko">사용 정보</span><span class="nav-en" style="display:none">Usage</span>
       </h3>
-      <p class="small text-muted">
+      <p class="small text-muted mb-2">
         <span class="nav-ko">추정 AI 이용 비용(누적, 참고용). API 토큰·모델 단가 기반이며 실제 청구액과 다를 수 있습니다.</span>
         <span class="nav-en" style="display:none">Estimated cumulative AI cost (reference). Based on tokens and model rates; not exact billing.</span>
       </p>
-      <p class="mb-3">
+      <p class="mb-2">
         <span class="nav-ko">합계</span><span class="nav-en" style="display:none">Total</span>
         <strong>{{ ai_usage_total_usd }}</strong>
         <span class="text-muted">(<span class="nav-ko">약</span><span class="nav-en" style="display:none">approx.</span> {{ ai_usage_total_krw }})</span>
         · <span class="nav-ko">이벤트</span><span class="nav-en" style="display:none">Events</span> {{ ai_usage_event_count }}
       </p>
       {% if ai_usage_stage_rows|length > 0 %}
-      <div class="ai-usage-stage-chart mb-4">
+      <div class="ai-usage-stage-chart mb-2">
         {% for row in ai_usage_stage_rows %}
         <div class="ai-usage-stage-row mb-2">
           <div class="d-flex justify-content-between small mb-1">
@@ -205,5 +196,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/ai-credits-topup.js?v=20260516topup"></script>
+<script src="/static/js/ai-credits-topup.js?v=20260517topup-ui"></script>
 {% endblock %}

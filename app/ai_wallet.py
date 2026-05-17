@@ -3,7 +3,25 @@
 from __future__ import annotations
 
 WALLET_TOPUP_PLAN_CODE = "ai_wallet_topup"
-MIN_TOPUP_KRW = 10_000
+DEFAULT_MIN_TOPUP_KRW = 30_000
+MIN_TOPUP_KRW = DEFAULT_MIN_TOPUP_KRW  # backward-compatible alias
+MIN_TOPUP_SETTING_KEY = "ai_wallet_min_topup_krw"
+
+
+def min_topup_krw(db) -> int:
+    from . import models
+
+    row = (
+        db.query(models.SiteSettings)
+        .filter(models.SiteSettings.key == MIN_TOPUP_SETTING_KEY)
+        .first()
+    )
+    raw = (row.value if row else "") or ""
+    try:
+        n = int(str(raw).strip().replace(",", ""))
+    except (TypeError, ValueError):
+        return DEFAULT_MIN_TOPUP_KRW
+    return n if n > 0 else DEFAULT_MIN_TOPUP_KRW
 
 
 def wallet_balance_krw(user) -> int:

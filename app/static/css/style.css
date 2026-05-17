@@ -1787,6 +1787,18 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   text-align: center;
 }
 
+.account-ai-credits-page .account-ai-credits-panel {
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.account-ai-credits-balance-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.account-ai-credits-bank-inline.markdown-body {
+  color: var(--text-muted, #6c757d);
+}
 .account-ai-credits-claim-row .form-label {
   margin-bottom: 0.15rem;
 }

@@ -24,9 +24,8 @@ ALL_BANK_BILLING_SETTING_KEYS: tuple[str, ...] = (
 AI_CREDITS_BANK_ADMIN_KEYS: tuple[str, ...] = (
     "bank_transfer_notice_md_ko",
     "bank_transfer_notice_md_en",
-    "bank_transfer_activation_sla_ko",
-    "bank_transfer_activation_sla_en",
     "usd_krw_rate",
+    "ai_wallet_min_topup_krw",
 )
 
 DEFAULT_BANK_TRANSFER_NOTICE_KO = """### 계좌이체 (원화, KRW)
