@@ -119,15 +119,58 @@ html[data-theme="dark"] .console-resizer:hover::after {
   background: rgba(99,102,241,.2);
   box-decoration-break: clone;
 }
+.console-tree .lvl2 {
+  margin-top: .45rem;
+  padding-left: 1.35rem;
+}
 .console-tree .lvl2 a {
   display: flex; justify-content: space-between; align-items: center;
-  text-decoration: none; color: inherit; padding: .35rem .35rem; border-radius: 8px;
+  text-decoration: none; color: inherit; padding: .35rem .5rem; border-radius: 8px;
+  transition: background .12s ease, transform .1s ease, box-shadow .12s ease;
 }
 .console-tree .lvl2 a.active { background: rgba(99,102,241,.2); }
+.console-tree .lvl2 a.is-console-pending,
+.console-tree .lvl1-link.is-console-pending {
+  background: rgba(99,102,241,.26);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .14);
+}
+.console-tree .lvl2 a:active,
+.console-tree .lvl1-link:active {
+  transform: scale(0.98);
+  background: rgba(99,102,241,.22);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .16);
+}
 .console-tree .lvl2 .lvl2-label { display: inline-flex; align-items: center; gap: .4rem; }
-.mail-row { cursor: pointer; border-bottom: 1px solid var(--border); padding: .55rem .75rem; }
+.console-tree .lvl1-link {
+  transition: background .12s ease, transform .1s ease, box-shadow .12s ease;
+}
+.console-tree .lvl1 summary.is-console-summary-pressed .lvl1-label {
+  transform: scale(0.98);
+  opacity: 0.88;
+}
+.console-tree .lvl1 .lvl1-label {
+  transition: transform .1s ease, opacity .1s ease;
+}
+.mail-row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  padding: .55rem .75rem;
+  transition: background .12s ease, transform .1s ease, box-shadow .12s ease;
+}
 .mail-row.active { background: rgba(99,102,241,.15); }
 .mail-row:hover { background: rgba(99,102,241,.1); }
+.mail-row.is-console-pending {
+  background: rgba(99,102,241,.22);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .12);
+}
+.mail-row:active {
+  transform: scale(0.992);
+  background: rgba(99,102,241,.2);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .14);
+}
+.request-console-shell .btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
 .mail-sub { font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mail-kind-icon {
   width: 1.15rem;
@@ -291,7 +334,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
               </span>
             </a>
           </summary>
-          <div class="lvl2 mt-2">
+          <div class="lvl2">
             {% for b in ('delivery','proposal','analysis','in_progress','draft') %}
             <a href="/request-console?kind={{ k }}&bucket={{ b }}" class="{% if kind == k and bucket == b %}active{% endif %} console-nav-link" data-no-busy="true">
               <span class="lvl2-label">
@@ -442,24 +485,43 @@ html[data-theme="dark"] .btn-console-offer:hover {
       inlineLoading.style.right = 'auto';
     }
   };
+  const markConsolePending = (el) => {
+    if (!el) return;
+    document.querySelectorAll('.is-console-pending').forEach((node) => {
+      node.classList.remove('is-console-pending');
+    });
+    el.classList.add('is-console-pending');
+  };
   const params = new URLSearchParams(window.location.search);
   const rows = document.querySelectorAll('.mail-row[data-sel]');
   rows.forEach((row) => {
     row.addEventListener('click', (ev) => {
+      document.querySelectorAll('.mail-row.active').forEach((r) => r.classList.remove('active'));
+      row.classList.add('active');
+      markConsolePending(row);
       showInlineLoading(ev);
       params.set('sel', row.dataset.sel);
       window.location.search = params.toString();
     });
     row.addEventListener('dblclick', (ev) => {
       if (row.dataset.href) {
+        markConsolePending(row);
         showInlineLoading(ev);
         window.location.href = row.dataset.href;
       }
     });
   });
+  document.querySelectorAll('.console-tree .lvl1 summary').forEach((summary) => {
+    summary.addEventListener('click', (ev) => {
+      if (ev.target.closest('a.console-nav-link')) return;
+      summary.classList.add('is-console-summary-pressed');
+      window.setTimeout(() => summary.classList.remove('is-console-summary-pressed'), 160);
+    });
+  });
   const openBtn = document.getElementById('console-open-detail');
   if (openBtn) {
     openBtn.addEventListener('click', (ev) => {
+      markConsolePending(openBtn);
       showInlineLoading(ev);
     });
   }
@@ -501,7 +563,10 @@ html[data-theme="dark"] .btn-console-offer:hover {
     });
   }
   document.querySelectorAll('.console-nav-link').forEach((a) => {
-    a.addEventListener('click', (ev) => showInlineLoading(ev));
+    a.addEventListener('click', (ev) => {
+      markConsolePending(a);
+      showInlineLoading(ev);
+    });
   });
   window.addEventListener('pageshow', () => {
     if (inlineLoading) inlineLoading.hidden = true;
