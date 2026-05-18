@@ -1695,10 +1695,6 @@ html[data-theme="light"] .home-guide-code-titlebar {
   --hero-mkt-desc-gap: 1.4rem;
   --hero-mkt-title-color: #e8edf5;
   --hero-mkt-desc-color: #aeb8c6;
-  --hero-mkt-depth-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.14),
-    0 2px 4px rgba(0, 0, 0, 0.55),
-    0 4px 14px rgba(0, 0, 0, 0.38);
   --hero-mkt-subcopy-gradient: linear-gradient(135deg, #a5b4fc 0%, #c4b5fd 48%, #7dd3fc 100%);
 }
 html[data-theme="light"] .hero-compact .home-hero-marketing {
@@ -1717,6 +1713,9 @@ html[data-theme="light"] .hero-compact .home-hero-marketing {
   line-height: 1.18;
   letter-spacing: -0.4px;
   color: var(--hero-mkt-title-color);
+  text-shadow: none;
+}
+html[data-theme="light"] .hero-compact .home-hero-marketing .hero-title {
   text-shadow: var(--hero-mkt-depth-shadow);
 }
 .hero-compact .home-hero-marketing .hero-subcopy {
