@@ -1436,13 +1436,15 @@ html {
 }
 
 /* ── Hero (compact) ────────────────────────── */
-/* 홈 히어로: 기본 대비 약 2/3 높이 + 점 그리드 배경 */
+/* 홈 히어로: 사용 안내 패널 높이에 맞춘 컴팩트 레이아웃 */
 .hero-section.hero-compact {
-  --hero-compact-pad-top: 0.85rem;
-  --hero-compact-pad-bottom: 0.65rem;
-  --hero-compact-gutter-y: 0.65rem;
-  --hero-compact-title-gap: 0.45rem;
-  --home-guide-card-height: 14.75rem;
+  --hero-compact-pad-top: 0.5rem;
+  --hero-compact-pad-bottom: 0.35rem;
+  --hero-compact-gutter-y: 0;
+  --hero-compact-title-gap: 0.28rem;
+  --home-guide-card-height: 12.5rem;
+  padding: var(--hero-compact-pad-top) 0 var(--hero-compact-pad-bottom) !important;
+  min-height: 0;
   background-color: var(--bg);
   background-image:
     radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99, 102, 241, 0.18) 0%, transparent 70%),
@@ -1450,9 +1452,6 @@ html {
     radial-gradient(ellipse 75% 55% at 100% 100%, var(--page-glow-corner) 0%, transparent 50%),
     radial-gradient(circle, var(--page-dot) 1px, transparent 1px);
   background-size: auto, auto, auto, var(--page-dot-size) var(--page-dot-size);
-}
-.hero-compact {
-  padding: var(--hero-compact-pad-top) 0 var(--hero-compact-pad-bottom);
 }
 html[data-theme="light"] .hero-section.hero-compact {
   background-color: var(--bg);
@@ -1489,26 +1488,33 @@ html[data-theme="light"] .hero-section.hero-compact {
 }
 .hero-compact .hero-home-split {
   align-items: flex-start;
+  --bs-gutter-y: 0;
+  margin-bottom: 0;
+}
+.hero-compact .hero-home-split > [class*="col-"] {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 @media (min-width: 992px) {
-  .hero-compact .hero-home-split {
-    --bs-gutter-y: 0.85rem;
-    align-items: flex-start;
+  .hero-compact .hero-home-split.row {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    column-gap: 1rem;
+    row-gap: 0;
+    align-items: start;
+  }
+  .hero-compact .hero-home-split > .hero-home-split__hero,
+  .hero-compact .hero-home-split > .hero-home-split__guide {
+    width: auto !important;
+    max-width: none !important;
+    flex: none !important;
   }
 }
 
 /* 홈 히어로: 마케팅(썸네일) 3 · 사용 안내(동영상) 2 */
 @media (min-width: 992px) {
   .hero-home-split > .hero-home-split__hero {
-    flex: 0 0 60%;
-    max-width: 60%;
-    width: 60%;
     align-self: flex-start !important;
-  }
-  .hero-home-split > .hero-home-split__guide {
-    flex: 0 0 40%;
-    max-width: 40%;
-    width: 40%;
   }
 }
 
@@ -1738,6 +1744,12 @@ html[data-theme="light"] .home-guide-code-titlebar {
 }
 .hero-compact .hero-home-split__hero h1 br + br {
   display: none;
+}
+
+/* 히어로 바로 아래 타일 — 간격 축소 */
+.hero-section.hero-compact + #home-features.section-light {
+  padding-top: 0.5rem !important;
+  padding-bottom: 1rem !important;
 }
 
 /* 홈 기능 영역: 3×2 타일 그리드 */
