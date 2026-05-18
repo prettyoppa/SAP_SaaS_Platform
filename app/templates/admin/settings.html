@@ -31,14 +31,22 @@
             <h6 class="mb-3 text-warning"><i class="fa-solid fa-house me-2"></i>홈 화면</h6>
             <div class="row g-3">
               <div class="col-12">
-                <label class="form-label small">홈 히어로 HTML (왼쪽 영역 전체)</label>
-                <textarea name="home_hero_html" class="form-control font-monospace" rows="12"
-                          placeholder="비우면 기본 문구가 표시됩니다.">{{ settings.get('home_hero_html', '') }}</textarea>
-                <div class="form-text">
-                  <code>h1.hero-title</code>, <code>p.hero-sub</code>, <code>span.hero-power-agents.text-gradient</code> 등을 사용할 수 있습니다.
-                  배경색·배경 이미지는 넣지 마세요(히어로 점 그리드가 그대로 보입니다).
-                  비우면 «SAP 개발, Catchy가» + 줄바꿈 + «함께 하겠습니다.» 기본 화면이 나옵니다.
-                </div>
+                <label class="form-label small">홈페이지 제목</label>
+                <textarea name="home_hero_title" class="form-control" rows="3"
+                          placeholder="SAP 개발,&lt;br&gt;&#10;Catchy가 함께 하겠습니다.">{{ settings.get('home_hero_title', '') }}</textarea>
+                <div class="form-text">최대 2줄. 줄바꿈은 <code>&lt;br&gt;</code> 또는 Enter로 구분합니다. 비우면 기본 제목이 사용됩니다.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">홈페이지 서브카피</label>
+                <input type="text" name="home_hero_subcopy" class="form-control"
+                       value="{{ settings.get('home_hero_subcopy', '') }}"
+                       placeholder="with 8 Power Agents"/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">홈페이지 부제(설명)</label>
+                <input type="text" name="home_hero_desc" class="form-control"
+                       value="{{ settings.get('home_hero_desc', '') }}"
+                       placeholder="AI 에이전트가 요구사항을 분석하여…"/>
               </div>
               <div class="col-12">
                 <label class="form-label small">사용 안내 동영상 URL (YouTube / Shorts)</label>

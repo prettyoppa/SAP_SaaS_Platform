@@ -1676,74 +1676,70 @@ html[data-theme="light"] .home-guide-code-titlebar {
   50% { opacity: 0; }
 }
 
-/* 홈 히어로: 관리자 HTML — 열(60%) 안 좌상단 정렬, 배경은 점 그리드 */
-.home-hero-custom {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  background: transparent;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-.home-hero-custom :is(div, section, article, header, footer, main, aside):not(.text-gradient):not(.hero-power-agents) {
-  background-color: transparent !important;
-  box-shadow: none !important;
-  max-width: 100%;
-  min-height: 0 !important;
-  height: auto !important;
-}
-.home-hero-custom > * {
-  max-width: 100%;
-}
-/* 왼쪽 HTML: 상단부터 쌓이도록(아래 정렬·빈 상단 여백 방지) */
+/* 홈 히어로 마케팅 문구 — 다크 톤 고정 + 입체감(라이트 모드 가독) */
 .hero-compact .hero-home-split > .hero-home-split__hero {
   align-self: flex-start !important;
   justify-content: flex-start !important;
 }
-.hero-compact .hero-home-split__hero .home-hero-custom {
-  display: block;
-  height: auto;
-  min-height: 0;
-  max-height: none;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-.hero-compact .hero-home-split__hero .home-hero-custom :is(div, section, article, main, header, footer, aside) {
-  justify-content: flex-start !important;
-  align-items: flex-start !important;
-  align-content: flex-start !important;
-  align-self: flex-start !important;
-  margin-top: 0 !important;
-  padding-top: 0 !important;
-}
-.hero-compact .hero-home-split__hero :is(h1, .hero-title) {
+.home-hero-marketing {
   width: 100%;
   max-width: 100%;
-  font-size: clamp(1.05rem, 2.2vw, 2rem);
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.hero-compact .home-hero-marketing {
+  --hero-mkt-title-size: clamp(1.26rem, 2.64vw, 2.4rem);
+  --hero-mkt-desc-size: 0.86rem;
+  --hero-mkt-title-color: #e8edf5;
+  --hero-mkt-desc-color: #aeb8c6;
+  --hero-mkt-depth-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.14),
+    0 2px 4px rgba(0, 0, 0, 0.55),
+    0 4px 14px rgba(0, 0, 0, 0.38);
+  --hero-mkt-subcopy-gradient: linear-gradient(135deg, #a5b4fc 0%, #c4b5fd 48%, #7dd3fc 100%);
+}
+html[data-theme="light"] .hero-compact .home-hero-marketing {
+  --hero-mkt-depth-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.42),
+    0 2px 5px rgba(15, 17, 23, 0.72),
+    0 5px 16px rgba(15, 17, 23, 0.48);
+}
+.hero-compact .home-hero-marketing .hero-title {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 0.28rem;
+  padding: 0;
+  font-size: var(--hero-mkt-title-size);
   font-weight: 800;
   line-height: 1.08;
-  letter-spacing: -.4px;
-  margin: 0 0 0.3rem;
-  padding: 0;
-  color: var(--text);
+  letter-spacing: -0.4px;
+  color: var(--hero-mkt-title-color);
+  text-shadow: var(--hero-mkt-depth-shadow);
 }
-.hero-compact .hero-home-split__hero :is(p, .hero-sub) {
+.hero-compact .home-hero-marketing .hero-subcopy {
+  margin: 0 0 0.35rem;
+  padding: 0;
+  font-size: calc(var(--hero-mkt-title-size) * 0.8);
+  font-weight: 600;
+  line-height: 1.12;
+  background: var(--hero-mkt-subcopy-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.65)) drop-shadow(0 3px 10px rgba(0, 0, 0, 0.4));
+}
+.hero-compact .home-hero-marketing .hero-desc {
   width: 100%;
   max-width: min(100%, 26rem);
-  font-size: 0.86rem;
-  color: var(--muted);
-  line-height: 1.38;
   margin: 0;
+  padding: 0;
+  font-size: var(--hero-mkt-desc-size);
+  line-height: 1.38;
+  color: var(--hero-mkt-desc-color);
+  text-shadow: var(--hero-mkt-depth-shadow);
 }
-.hero-compact .hero-home-split__hero .hero-power-agents,
-.hero-compact .hero-home-split__hero h1 .text-gradient {
-  font-size: 0.76em;
-  font-weight: 600;
-  display: inline-block;
-  line-height: 1.15;
-}
-.hero-compact .hero-home-split__hero h1 br + br {
+.hero-compact .home-hero-marketing .hero-title br + br {
   display: none;
 }
 
