@@ -1354,6 +1354,249 @@ def admin_faq_delete(faq_id: int, request: Request, db: Session = Depends(get_db
     return RedirectResponse(url="/admin/faqs", status_code=302)
 
 
+# ── 지식베이스(KB) — SEO 실무 가이드 ─────────────────────────────────
+
+def _form_bool(val: str) -> bool:
+    return (val or "").strip().lower() in ("1", "on", "true", "yes")
+
+
+@router.get("/kb", response_class=HTMLResponse)
+def admin_kb(request: Request, db: Session = Depends(get_db)):
+    from ..routers.site_content_router import KB_CATEGORIES
+    from ..kb_request_topics import collect_kb_topic_suggestions
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    articles = (
+        db.query(models.KnowledgeArticle)
+        .order_by(
+            models.KnowledgeArticle.sort_order.asc(),
+            models.KnowledgeArticle.updated_at.desc(),
+            models.KnowledgeArticle.id.desc(),
+        )
+        .all()
+    )
+    topic_suggestions = collect_kb_topic_suggestions(db)
+    return templates.TemplateResponse(
+        request,
+        "admin/kb.html",
+        {
+            "request": request,
+            "user": user,
+            "articles": articles,
+            "kb_categories": KB_CATEGORIES,
+            "topic_suggestions": topic_suggestions,
+        },
+    )
+
+
+@router.post("/kb/add")
+def admin_kb_add(
+    request: Request,
+    title: str = Form(...),
+    slug: str = Form(""),
+    excerpt: str = Form(""),
+    body_md: str = Form(""),
+    meta_description: str = Form(""),
+    category: str = Form("general"),
+    tags: str = Form(""),
+    sort_order: int = Form(0),
+    is_published: str = Form(""),
+    source_kind: str = Form(""),
+    source_note: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
+    from ..routers.site_content_router import KB_CATEGORIES
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    cat = (category or "general").strip().lower()
+    if cat not in KB_CATEGORIES:
+        cat = "general"
+    base_slug = (slug or "").strip() or slugify_kb_title(title)
+    final_slug = ensure_unique_kb_slug(db, base_slug)
+    published = _form_bool(is_published)
+    now = datetime.utcnow()
+    db.add(
+        models.KnowledgeArticle(
+            slug=final_slug,
+            title=title.strip(),
+            excerpt=(excerpt or "").strip(),
+            body_md=(body_md or "").strip(),
+            meta_description=(meta_description or "").strip()[:320] or None,
+            category=cat,
+            tags=(tags or "").strip() or None,
+            sort_order=max(0, int(sort_order)),
+            is_published=published,
+            published_at=now if published else None,
+            source_kind=(source_kind or "").strip() or None,
+            source_note=(source_note or "").strip() or None,
+        )
+    )
+    db.commit()
+    return RedirectResponse(url="/admin/kb", status_code=302)
+
+
+@router.post("/kb/add-from-topic")
+def admin_kb_add_from_topic(
+    request: Request,
+    title: str = Form(...),
+    slug: str = Form(...),
+    excerpt: str = Form(""),
+    body_md: str = Form(""),
+    meta_description: str = Form(""),
+    category: str = Form("general"),
+    source_note: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
+    from ..routers.site_content_router import KB_CATEGORIES
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    cat = (category or "general").strip().lower()
+    if cat not in KB_CATEGORIES:
+        cat = "general"
+    base_slug = (slug or "").strip() or slugify_kb_title(title)
+    final_slug = ensure_unique_kb_slug(db, base_slug)
+    db.add(
+        models.KnowledgeArticle(
+            slug=final_slug,
+            title=title.strip(),
+            excerpt=(excerpt or "").strip(),
+            body_md=(body_md or "").strip(),
+            meta_description=(meta_description or "").strip()[:320] or None,
+            category=cat,
+            sort_order=0,
+            is_published=False,
+            published_at=None,
+            source_kind="request_insight",
+            source_note=(source_note or "").strip() or None,
+        )
+    )
+    db.commit()
+    return RedirectResponse(url="/admin/kb?draft_from_topic=1", status_code=303)
+
+
+@router.post("/kb/add-bulk")
+async def admin_kb_add_bulk(request: Request, db: Session = Depends(get_db)):
+    from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
+    from ..routers.site_content_router import KB_CATEGORIES
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    n_saved = 0
+    for i in range(10):
+        title = (form.get(f"title_{i}") or "").strip()
+        if not title:
+            continue
+        cat = (form.get(f"category_{i}") or "general").strip().lower()
+        if cat not in KB_CATEGORIES:
+            cat = "general"
+        slug_raw = (form.get(f"slug_{i}") or "").strip()
+        base_slug = slug_raw or slugify_kb_title(title)
+        final_slug = ensure_unique_kb_slug(db, base_slug)
+        published = _form_bool(str(form.get(f"is_published_{i}") or ""))
+        now = datetime.utcnow()
+        db.add(
+            models.KnowledgeArticle(
+                slug=final_slug,
+                title=title,
+                excerpt=(form.get(f"excerpt_{i}") or "").strip(),
+                body_md=(form.get(f"body_md_{i}") or "").strip(),
+                meta_description=((form.get(f"meta_description_{i}") or "").strip()[:320] or None),
+                category=cat,
+                tags=(form.get(f"tags_{i}") or "").strip() or None,
+                sort_order=max(0, int(form.get(f"sort_order_{i}") or 0)),
+                is_published=published,
+                published_at=now if published else None,
+                source_kind="manual",
+            )
+        )
+        n_saved += 1
+    if n_saved:
+        db.commit()
+    return RedirectResponse(url=f"/admin/kb?bulk_saved={n_saved}", status_code=303)
+
+
+@router.post("/kb/{article_id}/update")
+def admin_kb_update(
+    article_id: int,
+    request: Request,
+    title: str = Form(...),
+    slug: str = Form(...),
+    excerpt: str = Form(""),
+    body_md: str = Form(""),
+    meta_description: str = Form(""),
+    category: str = Form("general"),
+    tags: str = Form(""),
+    sort_order: int = Form(0),
+    is_published: str = Form(""),
+    source_note: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
+    from ..routers.site_content_router import KB_CATEGORIES
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
+    if not a:
+        return RedirectResponse(url="/admin/kb", status_code=302)
+    cat = (category or "general").strip().lower()
+    if cat not in KB_CATEGORIES:
+        cat = "general"
+    slug_clean = (slug or "").strip() or slugify_kb_title(title)
+    a.slug = ensure_unique_kb_slug(db, slug_clean, exclude_id=a.id)
+    a.title = title.strip()
+    a.excerpt = (excerpt or "").strip()
+    a.body_md = (body_md or "").strip()
+    a.meta_description = (meta_description or "").strip()[:320] or None
+    a.category = cat
+    a.tags = (tags or "").strip() or None
+    a.sort_order = max(0, int(sort_order))
+    was_published = bool(a.is_published)
+    a.is_published = _form_bool(is_published)
+    if a.is_published and not was_published and not a.published_at:
+        a.published_at = datetime.utcnow()
+    a.source_note = (source_note or "").strip() or None
+    db.commit()
+    return RedirectResponse(url="/admin/kb", status_code=302)
+
+
+@router.post("/kb/{article_id}/toggle-publish")
+def admin_kb_toggle_publish(article_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
+    if a:
+        a.is_published = not a.is_published
+        if a.is_published and not a.published_at:
+            a.published_at = datetime.utcnow()
+        db.commit()
+    return RedirectResponse(url="/admin/kb", status_code=302)
+
+
+@router.post("/kb/{article_id}/delete")
+def admin_kb_delete(article_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
+    if a:
+        db.delete(a)
+        db.commit()
+    return RedirectResponse(url="/admin/kb", status_code=302)
+
+
 # ── 문의/리뷰 전체 모니터링 (관리자 비노출·삭제) ─────────────────────
 
 @router.get("/reviews", response_class=HTMLResponse)

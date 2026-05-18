@@ -1,5 +1,7 @@
-{# expects: page, total_pages, q, list_base e.g. /notices #}
-{% set qpart = ('q=' ~ (q|urlquote) ~ '&') if q else '' %}
+{# expects: page, total_pages, q, list_base; optional category (KB) #}
+{% set qpart = '' %}
+{% if q %}{% set qpart = qpart ~ 'q=' ~ (q|urlquote) ~ '&' %}{% endif %}
+{% if category is defined and category %}{% set qpart = qpart ~ 'category=' ~ (category|urlquote) ~ '&' %}{% endif %}
 <nav aria-label="페이지" class="site-list-pagination">
   <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
     <li class="page-item {% if page <= 1 %}disabled{% endif %}">

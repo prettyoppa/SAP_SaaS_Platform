@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
@@ -13,12 +14,35 @@ from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
+from ..offer_inquiry_service import public_request_url
 from ..templates_config import templates
 from .interview_router import _markdown_to_html
 
 router = APIRouter(tags=["site_content"])
 
 PER_PAGE = 10
+
+KB_CATEGORIES = {
+    "general": "일반",
+    "abap": "신규 개발",
+    "analysis": "분석·개선",
+    "integration": "연동 개발",
+}
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _kb_published_filter(query):
+    now = _utc_now()
+    return query.filter(
+        models.KnowledgeArticle.is_published == True,
+        or_(
+            models.KnowledgeArticle.published_at.is_(None),
+            models.KnowledgeArticle.published_at <= now,
+        ),
+    )
 
 
 def _meta_title_from_markdown(md: str, fallback: str = "") -> str:
@@ -243,5 +267,143 @@ def faq_public_detail(faq_id: int, request: Request, db: Session = Depends(get_d
             "answer_html": answer_html,
             "answer_html_en": answer_html_en,
             "meta_title": meta_title,
+        },
+    )
+
+
+@router.get("/kb", response_class=HTMLResponse)
+def kb_public_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str = "",
+    category: str = "",
+    page: int = 1,
+):
+    user = auth.get_current_user(request, db)
+    page = max(1, page)
+    term = (q or "").strip()
+    cat = (category or "").strip().lower()
+    if cat and cat not in KB_CATEGORIES:
+        cat = ""
+
+    base = _kb_published_filter(db.query(models.KnowledgeArticle))
+    if cat:
+        base = base.filter(models.KnowledgeArticle.category == cat)
+    if term:
+        like = f"%{term}%"
+        base = base.filter(
+            or_(
+                models.KnowledgeArticle.title.ilike(like),
+                models.KnowledgeArticle.excerpt.ilike(like),
+                models.KnowledgeArticle.tags.ilike(like),
+            )
+        )
+
+    total = base.count()
+    total_pages = max(1, math.ceil(total / PER_PAGE)) if total else 1
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * PER_PAGE
+    rows = (
+        base.order_by(
+            models.KnowledgeArticle.sort_order.asc(),
+            models.KnowledgeArticle.published_at.desc(),
+            models.KnowledgeArticle.id.desc(),
+        )
+        .offset(offset)
+        .limit(PER_PAGE)
+        .all()
+    )
+
+    list_rows: list[dict[str, Any]] = []
+    for a in rows:
+        list_rows.append(
+            {
+                "article": a,
+                "title_html": _markdown_to_html(a.title or ""),
+                "excerpt_html": _markdown_to_html(a.excerpt or ""),
+            }
+        )
+
+    canonical_url = public_request_url(request, "/kb")
+    meta_description = (
+        "SAP 실무 가이드 — 신규 개발, 분석·개선, 연동 개발 요청 패턴과 체크리스트."
+    )
+    return templates.TemplateResponse(
+        request,
+        "site/kb_list.html",
+        {
+            "request": request,
+            "user": user,
+            "q": term,
+            "category": cat,
+            "kb_categories": KB_CATEGORIES,
+            "page": page,
+            "per_page": PER_PAGE,
+            "total": total,
+            "total_pages": total_pages,
+            "list_rows": list_rows,
+            "page_nums": _pagination_window(page, total_pages),
+            "canonical_url": canonical_url,
+            "meta_description": meta_description,
+        },
+    )
+
+
+@router.get("/kb/{slug}", response_class=HTMLResponse)
+def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    now = _utc_now()
+    a = (
+        db.query(models.KnowledgeArticle)
+        .filter(
+            models.KnowledgeArticle.slug == slug,
+            models.KnowledgeArticle.is_published == True,
+            or_(
+                models.KnowledgeArticle.published_at.is_(None),
+                models.KnowledgeArticle.published_at <= now,
+            ),
+        )
+        .first()
+    )
+    if not a:
+        return templates.TemplateResponse(
+            request,
+            "errors/simple_message.html",
+            {
+                "request": request,
+                "user": user,
+                "title": "실무 가이드",
+                "message": "존재하지 않거나 비공개된 글입니다.",
+            },
+            status_code=404,
+        )
+    title_html = _markdown_to_html(a.title or "")
+    title_en_md = (a.title_en or "").strip() or (a.title or "")
+    title_html_en = _markdown_to_html(title_en_md)
+    body_html = _markdown_to_html(a.body_md or "")
+    body_en_md = (a.body_md_en or "").strip() or (a.body_md or "")
+    body_html_en = _markdown_to_html(body_en_md)
+    meta_title = _meta_title_from_markdown(a.title, "실무 가이드")
+    meta_description = (a.meta_description or "").strip() or _meta_title_from_markdown(
+        a.excerpt or a.body_md, meta_title
+    )[:160]
+    canonical_url = public_request_url(request, f"/kb/{a.slug}")
+    return templates.TemplateResponse(
+        request,
+        "site/kb_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "article": a,
+            "kb_categories": KB_CATEGORIES,
+            "title_html": title_html,
+            "title_html_en": title_html_en,
+            "body_html": body_html,
+            "body_html_en": body_html_en,
+            "meta_title": meta_title,
+            "meta_description": meta_description,
+            "canonical_url": canonical_url,
         },
     )

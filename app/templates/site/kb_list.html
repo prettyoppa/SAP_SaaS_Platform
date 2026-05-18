@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}SAP 실무 가이드{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+{% block meta_canonical %}{{ canonical_url }}{% endblock %}
+{% block content %}
+<div class="site-content-page py-4 py-md-5">
+  <div class="container site-list-page">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+      <h1 class="h4 mb-0 fw-semibold">SAP 실무 가이드</h1>
+      {% set active = 'kb' %}
+      {% include 'site/content_subnav.html' %}
+    </div>
+
+    <form method="get" action="/kb" class="site-list-search mb-3">
+      <div class="input-group input-group-lg shadow-sm rounded-3 overflow-hidden" style="border: 1px solid var(--border);">
+        <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+        <input type="search" name="q" value="{{ q }}" class="form-control border-0" placeholder="제목·요약·태그 검색" autocomplete="off"/>
+        <select name="category" class="form-select border-0" style="max-width: 11rem;">
+          <option value="">전체 분류</option>
+          {% for key, label in kb_categories.items() %}
+          <option value="{{ key }}" {% if category == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <input type="hidden" name="page" value="1"/>
+        <button type="submit" class="btn btn-primary px-4 rounded-0">검색</button>
+      </div>
+    </form>
+
+    {% if total > 0 %}
+    {% set show_start = (page - 1) * per_page + 1 %}
+    {% set show_end = page * per_page if page * per_page < total else total %}
+    {% set list_base = '/kb' %}
+    <div class="d-flex flex-wrap justify-content-end align-items-center gap-3 mb-2 small text-muted">
+      <span>{{ show_start }} – {{ show_end }} / {{ total }}</span>
+    </div>
+    {% endif %}
+
+    {% if list_rows %}
+    <div class="vstack gap-3 mt-2">
+      {% for row in list_rows %}
+      <article class="card border shadow-sm">
+        <div class="card-body">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small text-muted">
+            <span class="badge rounded-pill bg-primary bg-opacity-75">{{ kb_categories.get(row.article.category, row.article.category) }}</span>
+            {% if row.article.published_at %}<time>{{ row.article.published_at|local_dt_span('date') }}</time>{% endif %}
+          </div>
+          <h2 class="h5 mb-2">
+            <a href="/kb/{{ row.article.slug }}" class="text-reset text-decoration-none site-list-title-link">
+              <span class="site-md-title-inline markdown-body">{{ row.title_html|safe }}</span>
+            </a>
+          </h2>
+          {% if row.excerpt_html %}
+          <div class="small text-muted markdown-body mb-0">{{ row.excerpt_html|safe }}</div>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% if total > 0 %}
+    <div class="mt-3">
+      {% set list_base = '/kb' %}
+      {% include 'site/pagination_nav.html' %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state py-5 text-center">
+      <i class="fa-solid fa-book fa-2x text-muted mb-2"></i>
+      <p class="text-muted mb-0">{% if q or category %}검색 결과가 없습니다.{% else %}아직 발행된 가이드가 없습니다.{% endif %}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

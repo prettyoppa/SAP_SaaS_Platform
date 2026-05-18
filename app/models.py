@@ -461,6 +461,32 @@ class Notice(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class KnowledgeArticle(Base):
+    """SEO·실무 가이드용 지식베이스(공개). 회원 요청 원문은 저장·노출하지 않음."""
+
+    __tablename__ = "knowledge_articles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(200), unique=True, nullable=False, index=True)
+    title = Column(Text, nullable=False)
+    title_en = Column(Text, nullable=True)
+    excerpt = Column(Text, nullable=True)
+    excerpt_en = Column(Text, nullable=True)
+    body_md = Column(Text, nullable=False, default="")
+    body_md_en = Column(Text, nullable=True)
+    meta_description = Column(String(320), nullable=True)
+    meta_description_en = Column(String(320), nullable=True)
+    category = Column(String(64), nullable=False, default="general")
+    tags = Column(String(512), nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+    is_published = Column(Boolean, default=False, nullable=False)
+    published_at = Column(DateTime, nullable=True)
+    source_kind = Column(String(32), nullable=True)
+    source_note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class FAQ(Base):
     """자주 묻는 질문"""
     __tablename__ = "faqs"

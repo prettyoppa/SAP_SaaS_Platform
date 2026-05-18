@@ -8,6 +8,7 @@ from xml.sax.saxutils import escape
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -64,6 +65,8 @@ def robots_txt(request: Request) -> PlainTextResponse:
             "Allow: /",
             "Allow: /notices",
             "Allow: /faqs",
+            "Allow: /kb",
+            "Allow: /kb/",
             disallow,
             "",
             f"Sitemap: {origin}/sitemap.xml",
@@ -79,6 +82,7 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
 
     static_pages = [
         (f"{origin}/", today, "weekly", "1.0"),
+        (f"{origin}/kb", today, "weekly", "0.85"),
         (f"{origin}/notices", today, "weekly", "0.7"),
         (f"{origin}/faqs", today, "weekly", "0.7"),
     ]
@@ -118,6 +122,30 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
                 "0.6",
             )
         )
+
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    articles = (
+        db.query(models.KnowledgeArticle)
+        .filter(
+            models.KnowledgeArticle.is_published == True,
+            or_(
+                models.KnowledgeArticle.published_at.is_(None),
+                models.KnowledgeArticle.published_at <= now_naive,
+            ),
+        )
+        .order_by(models.KnowledgeArticle.updated_at.desc(), models.KnowledgeArticle.id.desc())
+        .all()
+    )
+    for a in articles:
+        lm = _lastmod_iso(getattr(a, "updated_at", None) or a.published_at or a.created_at) or today
+        entries.append(
+            _sitemap_url_block(
+                f"{origin}/kb/{a.slug}",
+                lm,
+                "monthly",
+                "0.8",
+            )
+        )
     return entries
 
 
@@ -141,6 +169,7 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         fallback = [
             _sitemap_url_block(f"{origin}/", today, "weekly", "1.0"),
+            _sitemap_url_block(f"{origin}/kb", today, "weekly", "0.85"),
             _sitemap_url_block(f"{origin}/notices", today, "weekly", "0.7"),
             _sitemap_url_block(f"{origin}/faqs", today, "weekly", "0.7"),
         ]
