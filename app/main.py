@@ -33,7 +33,7 @@ from .i18n_overrides import get_en_overrides_for_client
 from .subscription_quota import plan_row_for_entitlements, user_subscription_plan_display_names
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
-from .routers import site_content_router
+from .routers import site_content_router, seo_router
 from .routers import payments_router, paid_admin_router, proposal_supplements_router, billing_router, ai_wallet_router
 from .templates_config import templates
 
@@ -745,6 +745,7 @@ def google_search_console_verify():
     return FileResponse(_GSC_VERIFY_HTML, media_type="text/html")
 
 
+app.include_router(seo_router.router)
 app.include_router(auth_router.router)
 app.include_router(rfp_router.router)
 app.include_router(interview_router.router)
