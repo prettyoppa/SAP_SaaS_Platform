@@ -1471,18 +1471,29 @@ html[data-theme="light"] .hero-section.hero-compact {
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
+  align-self: flex-start;
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  height: auto;
+  min-height: 0;
+  flex-grow: 0;
+  flex-shrink: 0;
   background: transparent;
 }
 .hero-home-split__guide {
   min-width: 0;
+  align-self: flex-start;
+  height: auto;
+  flex-grow: 0;
+}
+.hero-compact .hero-home-split {
+  align-items: flex-start;
 }
 @media (min-width: 992px) {
   .hero-compact .hero-home-split {
     --bs-gutter-y: 0.85rem;
-    align-items: stretch;
+    align-items: flex-start;
   }
 }
 
@@ -1676,32 +1687,38 @@ html[data-theme="light"] .home-guide-code-titlebar {
 .home-hero-custom > * {
   max-width: 100%;
 }
-.hero-compact .home-hero-custom .hero-title,
-.hero-compact .home-hero-custom h1.hero-title,
-.hero-compact .home-hero-custom > h1 {
+/* 왼쪽 HTML: 오른쪽 가이드 카드(14.75rem)와 비슷한 총 높이로 타이포 축소 */
+.hero-compact .hero-home-split__hero .home-hero-custom {
+  height: auto;
+  min-height: 0;
+  max-height: var(--home-guide-card-height);
+}
+.hero-compact .hero-home-split__hero :is(h1, .hero-title) {
   width: 100%;
   max-width: 100%;
-  font-size: clamp(1.15rem, 2.55vw, 2.35rem);
+  font-size: clamp(1.05rem, 2.2vw, 2rem);
   font-weight: 800;
-  line-height: 1.12;
-  letter-spacing: -.5px;
-  margin: 0 0 var(--hero-compact-title-gap, 0.45rem);
+  line-height: 1.08;
+  letter-spacing: -.4px;
+  margin: 0 0 0.3rem;
 }
-.hero-compact .home-hero-custom .hero-sub,
-.hero-compact .home-hero-custom > p.hero-sub,
-.hero-compact .home-hero-custom p.hero-sub {
+.hero-compact .hero-home-split__hero :is(p, .hero-sub) {
   width: 100%;
-  max-width: min(100%, 28rem);
-  font-size: 0.92rem;
+  max-width: min(100%, 26rem);
+  font-size: 0.86rem;
   color: var(--muted);
-  line-height: 1.45;
+  line-height: 1.38;
   margin: 0;
 }
-.hero-compact .home-hero-custom .hero-power-agents {
-  font-size: 0.78em;
+.hero-compact .hero-home-split__hero .hero-power-agents,
+.hero-compact .hero-home-split__hero h1 .text-gradient {
+  font-size: 0.76em;
   font-weight: 600;
   display: inline-block;
-  line-height: 1.25;
+  line-height: 1.15;
+}
+.hero-compact .hero-home-split__hero h1 br + br {
+  display: none;
 }
 
 /* 홈 기능 영역: 3×2 타일 그리드 */

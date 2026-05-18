@@ -9,6 +9,10 @@ _BG_DECL_RE = re.compile(
     r"background(?:-color|-image|-size|-position|-repeat|-attachment)?\s*:[^;\"']+;?\s*",
     re.IGNORECASE,
 )
+_HEIGHT_DECL_RE = re.compile(
+    r"(?:min-)?height\s*:\s*[^;\"']+;?\s*",
+    re.IGNORECASE,
+)
 
 
 def sanitize_home_hero_html(raw: str) -> str:
@@ -19,7 +23,8 @@ def sanitize_home_hero_html(raw: str) -> str:
 
     def _clean_style(match: re.Match[str]) -> str:
         quote, body = match.group(1), match.group(2)
-        cleaned = _BG_DECL_RE.sub("", body).strip().strip(";")
+        cleaned = _BG_DECL_RE.sub("", body)
+        cleaned = _HEIGHT_DECL_RE.sub("", cleaned).strip().strip(";")
         if not cleaned:
             return ""
         return f' style={quote}{cleaned}{quote}'
