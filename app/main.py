@@ -165,6 +165,7 @@ def _run_migrations():
         ("subscription_plans", "price_monthly_usd_cents", "INTEGER", "INTEGER"),
         ("notices", "title_en", "TEXT", "TEXT"),
         ("notices", "content_en", "TEXT", "TEXT"),
+        ("notices", "updated_at", "DATETIME", "TIMESTAMP"),
         ("faqs", "question_en", "TEXT", "TEXT"),
         ("faqs", "answer_en", "TEXT", "TEXT"),
         ("rfp_fs_supplements", "request_kind", "VARCHAR(32) DEFAULT 'rfp'", "VARCHAR(32) DEFAULT 'rfp'"),

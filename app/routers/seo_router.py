@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
 
@@ -14,6 +15,7 @@ from ..database import get_db
 from ..offer_inquiry_service import site_public_origin
 
 router = APIRouter(tags=["seo"])
+_log = logging.getLogger("uvicorn.error")
 
 _DISALLOW_PREFIXES = (
     "/admin",
@@ -71,9 +73,7 @@ def robots_txt(request: Request) -> PlainTextResponse:
     return PlainTextResponse(body, media_type="text/plain; charset=utf-8")
 
 
-@router.get("/sitemap.xml")
-def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
-    origin = site_public_origin(request)
+def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     entries: list[str] = []
 
@@ -88,11 +88,11 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
     notices = (
         db.query(models.Notice)
         .filter(models.Notice.is_active == True)
-        .order_by(models.Notice.updated_at.desc(), models.Notice.id.desc())
+        .order_by(models.Notice.created_at.desc(), models.Notice.id.desc())
         .all()
     )
     for n in notices:
-        lm = _lastmod_iso(n.updated_at or n.created_at) or today
+        lm = _lastmod_iso(getattr(n, "updated_at", None) or n.created_at) or today
         entries.append(
             _sitemap_url_block(
                 f"{origin}/notices/{n.id}",
@@ -118,7 +118,10 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
                 "0.6",
             )
         )
+    return entries
 
+
+def _sitemap_xml_response(entries: list[str]) -> Response:
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -126,3 +129,19 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
         + "\n</urlset>\n"
     )
     return Response(content=xml, media_type="application/xml; charset=utf-8")
+
+
+@router.get("/sitemap.xml")
+def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
+    origin = site_public_origin(request)
+    try:
+        return _sitemap_xml_response(_build_sitemap_entries(origin, db))
+    except Exception:
+        _log.exception("sitemap_xml failed; returning static URLs only")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        fallback = [
+            _sitemap_url_block(f"{origin}/", today, "weekly", "1.0"),
+            _sitemap_url_block(f"{origin}/notices", today, "weekly", "0.7"),
+            _sitemap_url_block(f"{origin}/faqs", today, "weekly", "0.7"),
+        ]
+        return _sitemap_xml_response(fallback)
