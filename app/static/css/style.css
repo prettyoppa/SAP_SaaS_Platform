@@ -1503,6 +1503,7 @@ html[data-theme="light"] .hero-section.hero-compact {
     flex: 0 0 60%;
     max-width: 60%;
     width: 60%;
+    align-self: flex-start !important;
   }
   .hero-home-split > .hero-home-split__guide {
     flex: 0 0 40%;
@@ -1689,11 +1690,26 @@ html[data-theme="light"] .home-guide-code-titlebar {
 .home-hero-custom > * {
   max-width: 100%;
 }
-/* 왼쪽 HTML: 오른쪽 가이드 카드(14.75rem)와 비슷한 총 높이로 타이포 축소 */
+/* 왼쪽 HTML: 상단부터 쌓이도록(아래 정렬·빈 상단 여백 방지) */
+.hero-compact .hero-home-split > .hero-home-split__hero {
+  align-self: flex-start !important;
+  justify-content: flex-start !important;
+}
 .hero-compact .hero-home-split__hero .home-hero-custom {
+  display: block;
   height: auto;
   min-height: 0;
-  max-height: var(--home-guide-card-height);
+  max-height: none;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.hero-compact .hero-home-split__hero .home-hero-custom :is(div, section, article, main, header, footer, aside) {
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  align-content: flex-start !important;
+  align-self: flex-start !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }
 .hero-compact .hero-home-split__hero :is(h1, .hero-title) {
   width: 100%;
@@ -1703,6 +1719,7 @@ html[data-theme="light"] .home-guide-code-titlebar {
   line-height: 1.08;
   letter-spacing: -.4px;
   margin: 0 0 0.3rem;
+  padding: 0;
 }
 .hero-compact .hero-home-split__hero :is(p, .hero-sub) {
   width: 100%;

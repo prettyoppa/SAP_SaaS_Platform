@@ -13,6 +13,14 @@ _HEIGHT_DECL_RE = re.compile(
     r"(?:min-)?height\s*:\s*[^;\"']+;?\s*",
     re.IGNORECASE,
 )
+_FLEX_ALIGN_DECL_RE = re.compile(
+    r"(?:justify-content|align-items|align-content|place-content|place-items)\s*:\s*[^;\"']+;?\s*",
+    re.IGNORECASE,
+)
+_MARGIN_TOP_AUTO_RE = re.compile(
+    r"margin-top\s*:\s*auto\s*;?\s*",
+    re.IGNORECASE,
+)
 
 
 def sanitize_home_hero_html(raw: str) -> str:
@@ -24,7 +32,9 @@ def sanitize_home_hero_html(raw: str) -> str:
     def _clean_style(match: re.Match[str]) -> str:
         quote, body = match.group(1), match.group(2)
         cleaned = _BG_DECL_RE.sub("", body)
-        cleaned = _HEIGHT_DECL_RE.sub("", cleaned).strip().strip(";")
+        cleaned = _HEIGHT_DECL_RE.sub("", cleaned)
+        cleaned = _FLEX_ALIGN_DECL_RE.sub("", cleaned)
+        cleaned = _MARGIN_TOP_AUTO_RE.sub("", cleaned).strip().strip(";")
         if not cleaned:
             return ""
         return f' style={quote}{cleaned}{quote}'
