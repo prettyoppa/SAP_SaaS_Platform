@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, inspect, text
@@ -733,6 +733,17 @@ async def no_store_html_for_logged_in_views(request: Request, call_next):
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+_GSC_VERIFY_HTML = (
+    Path(__file__).resolve().parent / "google_site_verification" / "google693a7398e24fb256.html"
+)
+
+
+@app.get("/google693a7398e24fb256.html")
+def google_search_console_verify():
+    """Google Search Console URL-prefix ownership (HTML file)."""
+    return FileResponse(_GSC_VERIFY_HTML, media_type="text/html")
+
 
 app.include_router(auth_router.router)
 app.include_router(rfp_router.router)
