@@ -1683,6 +1683,8 @@ html[data-theme="light"] .home-guide-code-titlebar {
   background-color: transparent !important;
   box-shadow: none !important;
   max-width: 100%;
+  min-height: 0 !important;
+  height: auto !important;
 }
 .home-hero-custom > * {
   max-width: 100%;
