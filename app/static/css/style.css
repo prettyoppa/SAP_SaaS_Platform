@@ -1726,6 +1726,7 @@ html[data-theme="light"] .home-guide-code-titlebar {
   letter-spacing: -.4px;
   margin: 0 0 0.3rem;
   padding: 0;
+  color: var(--text);
 }
 .hero-compact .hero-home-split__hero :is(p, .hero-sub) {
   width: 100%;
