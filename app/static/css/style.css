@@ -1460,10 +1460,23 @@ html[data-theme="light"] .hero-section.hero-compact {
 .hero-compact .hero-sub { margin-bottom: 0; line-height: 1.55; }
 .hero-compact .hero-home-split { --bs-gutter-y: 1rem; }
 .hero-home-split__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   background: transparent;
 }
+.hero-home-split__guide {
+  min-width: 0;
+}
 @media (min-width: 992px) {
-  .hero-compact .hero-home-split { --bs-gutter-y: 1.25rem; }
+  .hero-compact .hero-home-split {
+    --bs-gutter-y: 1.25rem;
+    align-items: stretch;
+  }
 }
 
 /* 홈 히어로: 마케팅(썸네일) 3 · 사용 안내(동영상) 2 */
@@ -1471,15 +1484,18 @@ html[data-theme="light"] .hero-section.hero-compact {
   .hero-home-split > .hero-home-split__hero {
     flex: 0 0 60%;
     max-width: 60%;
+    width: 60%;
   }
   .hero-home-split > .hero-home-split__guide {
     flex: 0 0 40%;
     max-width: 40%;
+    width: 40%;
   }
 }
 
-/* 히어로 사용 안내 카드 — 전체 높이 고정(히어로 탭 패널과 유사) */
+/* 히어로 사용 안내 카드 — 높이 고정(코딩 데모·동영상 내부 스크롤) */
 .home-guide-card {
+  --home-guide-card-height: 22rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1487,7 +1503,9 @@ html[data-theme="light"] .hero-section.hero-compact {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 22rem;
+  height: var(--home-guide-card-height);
+  min-height: var(--home-guide-card-height);
+  max-height: var(--home-guide-card-height);
 }
 .home-guide-card-top {
   display: flex;
@@ -1512,17 +1530,20 @@ html[data-theme="light"] .hero-section.hero-compact {
   line-height: 1.25;
 }
 .home-guide-video-wrap {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
-/* 동영상: 패널 본문을 가로·세로로 꽉 채움 */
+/* 동영상·데모: 고정 카드 본문 안에서만 표시 */
 .home-guide-video-stage {
-  flex: 1 1 auto;
+  position: relative;
+  flex: 1 1 0;
   width: 100%;
-  min-height: 10.5rem;
+  min-height: 0;
+  height: 100%;
   display: block;
   background: #0a0a0f;
   border-radius: 0;
@@ -1532,10 +1553,10 @@ html[data-theme="light"] .home-guide-video-stage {
   background: #111827;
 }
 .home-guide-video-inner {
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  min-height: 10.5rem;
   overflow: hidden;
 }
 .home-guide-video-inner iframe {
@@ -1545,35 +1566,21 @@ html[data-theme="light"] .home-guide-video-stage {
   height: 100%;
   border: 0;
 }
-.home-guide-video-stage--standard .home-guide-video-inner {
-  aspect-ratio: 16 / 9;
-  min-height: 0;
-  height: auto;
-}
-.home-guide-video-stage--shorts .home-guide-video-inner {
-  aspect-ratio: 9 / 16;
-  max-width: 100%;
-  margin: 0 auto;
-  min-height: 10.5rem;
-  height: 100%;
-}
 
 /* URL 없을 때: ABAP 터미널 타이핑 데모 */
 .home-guide-video-stage--demo {
-  display: flex;
-  flex-direction: column;
-  min-height: 10.5rem;
   background: #0d1117;
 }
 html[data-theme="light"] .home-guide-video-stage--demo {
   background: #1e293b;
 }
 .home-guide-code-terminal {
-  flex: 1 1 auto;
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: 100%;
+  overflow: hidden;
 }
 .home-guide-code-titlebar {
   display: flex;
@@ -1608,9 +1615,11 @@ html[data-theme="light"] .home-guide-code-titlebar {
   text-overflow: ellipsis;
 }
 .home-guide-code-viewport {
-  flex: 1 1 auto;
-  overflow: auto;
+  flex: 1 1 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   min-height: 0;
+  max-height: 100%;
   padding: 0.45rem 0.55rem 0.5rem;
   scroll-behavior: smooth;
 }
@@ -1642,30 +1651,44 @@ html[data-theme="light"] .home-guide-code-titlebar {
   50% { opacity: 0; }
 }
 
-/* 홈 히어로: 관리자 HTML — 글자만, 배경은 .hero-section 점 그리드 */
+/* 홈 히어로: 관리자 HTML — 열(60%) 안 좌상단 정렬, 배경은 점 그리드 */
 .home-hero-custom {
-  display: contents;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: transparent;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 .home-hero-custom :is(div, section, article, header, footer, main, aside):not(.text-gradient):not(.hero-power-agents) {
   background-color: transparent !important;
   box-shadow: none !important;
+  max-width: 100%;
+}
+.home-hero-custom > * {
+  max-width: 100%;
 }
 .home-hero-custom .hero-title,
 .home-hero-custom h1.hero-title,
 .home-hero-custom > h1 {
-  font-size: clamp(2.2rem, 5vw, 3.5rem);
+  width: 100%;
+  max-width: 100%;
+  font-size: clamp(1.75rem, 3.8vw, 3.5rem);
   font-weight: 800;
   line-height: 1.15;
   letter-spacing: -.5px;
-  margin-bottom: 0.65rem;
+  margin: 0 0 0.65rem;
 }
 .home-hero-custom .hero-sub,
-.home-hero-custom > p.hero-sub {
+.home-hero-custom > p.hero-sub,
+.home-hero-custom p.hero-sub {
+  width: 100%;
+  max-width: min(100%, 32rem);
   font-size: 1.1rem;
   color: var(--muted);
   line-height: 1.55;
-  margin-bottom: 0;
-  max-width: 500px;
+  margin: 0;
 }
 .home-hero-custom .hero-power-agents {
   font-size: 0.8em;
