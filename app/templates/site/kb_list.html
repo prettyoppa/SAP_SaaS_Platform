@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% block title %}SAP 지식갤러리{% endblock %}
-{% block meta_description %}{{ meta_description }}{% endblock %}
-{% block meta_canonical %}{{ canonical_url }}{% endblock %}
+{% block head_meta %}
+{% if meta_description and meta_description|trim %}
+<meta name="description" content="{{ meta_description|trim|e }}" />
+{% endif %}
+{% if canonical_url and canonical_url|trim %}
+<link rel="canonical" href="{{ canonical_url|trim|e }}" />
+{% endif %}
+{% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">
   <div class="container site-list-page">
