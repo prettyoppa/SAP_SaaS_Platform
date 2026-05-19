@@ -170,6 +170,10 @@ def _run_migrations():
         ("faqs", "answer_en", "TEXT", "TEXT"),
         ("rfp_fs_supplements", "request_kind", "VARCHAR(32) DEFAULT 'rfp'", "VARCHAR(32) DEFAULT 'rfp'"),
         ("rfp_fs_supplements", "request_id", "INTEGER", "INTEGER"),
+        ("knowledge_articles", "workflow_status", "VARCHAR(32) DEFAULT 'draft'", "VARCHAR(32) DEFAULT 'draft'"),
+        ("knowledge_articles", "reviewed_at", "DATETIME", "TIMESTAMP"),
+        ("knowledge_articles", "seed_keyword", "VARCHAR(200)", "VARCHAR(200)"),
+        ("knowledge_articles", "research_summary", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -518,8 +522,21 @@ def _bootstrap_database():
     _migrate_bank_transfer_sla_for_wallet()
     _backfill_payment_claim_confirmed_amounts()
     _migrate_wallet_deduct_historical_ai_usage()
+    _migrate_kb_workflow_statuses()
     _sync_admins()
     _log.info("[DB] bootstrap complete")
+
+
+def _migrate_kb_workflow_statuses():
+    from .kb_workflow import migrate_legacy_workflow_statuses
+
+    db = SessionLocal()
+    try:
+        migrate_legacy_workflow_statuses(db)
+    except Exception:
+        _log.exception("[DB] kb workflow_status backfill skipped")
+    finally:
+        db.close()
 
 
 @asynccontextmanager

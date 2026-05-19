@@ -429,6 +429,11 @@ const TRANSLATIONS = {
     "offers.inquiryReply": "Inquiry / reply",
     "offers.inquiryHistory": "History",
     "offers.profile": "Profile",
+    "admin.kb.confirmGenerate": "Generate up to 5 AI drafts (uses API credits)? They will go to the review queue, not public.",
+    "admin.kb.confirmApprove": "Approve and publish this article? It will be visible at /kb and in the sitemap.",
+    "admin.kb.confirmReject": "Reject this article? It will stay unpublished.",
+    "admin.kb.confirmDelete": "Delete this article permanently?",
+    "kb.searchPlaceholder": "Search title, excerpt, tags",
   },
 
   ko: {
@@ -854,6 +859,11 @@ const TRANSLATIONS = {
     "offers.inquiryReply": "문의 / 답변",
     "offers.inquiryHistory": "문의 내역",
     "offers.profile": "프로필",
+    "admin.kb.confirmGenerate": "키워드당 AI 초안을 생성합니다(API 사용). 검수 대기로만 저장되며 공개되지 않습니다. 계속할까요?",
+    "admin.kb.confirmApprove": "이 글을 승인·발행할까요? /kb 에 공개되고 sitemap에 포함됩니다.",
+    "admin.kb.confirmReject": "이 글을 반려할까요? 공개되지 않습니다.",
+    "admin.kb.confirmDelete": "이 글을 삭제할까요?",
+    "kb.searchPlaceholder": "제목·요약·태그 검색",
   }
 };
 

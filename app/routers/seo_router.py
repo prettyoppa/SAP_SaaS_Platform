@@ -124,10 +124,13 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
         )
 
     now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    from ..kb_workflow import STATUS_PUBLISHED
+
     articles = (
         db.query(models.KnowledgeArticle)
         .filter(
             models.KnowledgeArticle.is_published == True,
+            models.KnowledgeArticle.workflow_status == STATUS_PUBLISHED,
             or_(
                 models.KnowledgeArticle.published_at.is_(None),
                 models.KnowledgeArticle.published_at <= now_naive,

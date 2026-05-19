@@ -1354,7 +1354,7 @@ def admin_faq_delete(faq_id: int, request: Request, db: Session = Depends(get_db
     return RedirectResponse(url="/admin/faqs", status_code=302)
 
 
-# ── 지식베이스(KB) — SEO 실무 가이드 ─────────────────────────────────
+# ── SAP 지식갤러리 (/kb) ─────────────────────────────────────────────
 
 def _form_bool(val: str) -> bool:
     return (val or "").strip().lower() in ("1", "on", "true", "yes")
@@ -1362,6 +1362,12 @@ def _form_bool(val: str) -> bool:
 
 @router.get("/kb", response_class=HTMLResponse)
 def admin_kb(request: Request, db: Session = Depends(get_db)):
+    from ..kb_workflow import (
+        STATUS_LABEL_EN,
+        STATUS_LABEL_KO,
+        STATUS_PENDING_REVIEW,
+        STATUS_PUBLISHED,
+    )
     from ..routers.site_content_router import KB_CATEGORIES
     from ..kb_request_topics import collect_kb_topic_suggestions
 
@@ -1377,16 +1383,33 @@ def admin_kb(request: Request, db: Session = Depends(get_db)):
         )
         .all()
     )
+    review_queue = [a for a in articles if (a.workflow_status or "") == STATUS_PENDING_REVIEW]
+    published_articles = [a for a in articles if (a.workflow_status or "") == STATUS_PUBLISHED]
+    other_articles = [
+        a
+        for a in articles
+        if (a.workflow_status or "") not in (STATUS_PENDING_REVIEW, STATUS_PUBLISHED)
+    ]
     topic_suggestions = collect_kb_topic_suggestions(db)
+    qp = request.query_params
     return templates.TemplateResponse(
         request,
         "admin/kb.html",
         {
             "request": request,
             "user": user,
-            "articles": articles,
+            "review_queue": review_queue,
+            "published_articles": published_articles,
+            "other_articles": other_articles,
             "kb_categories": KB_CATEGORIES,
+            "status_labels_ko": STATUS_LABEL_KO,
+            "status_labels_en": STATUS_LABEL_EN,
+            "wf_pending": STATUS_PENDING_REVIEW,
+            "wf_published": STATUS_PUBLISHED,
             "topic_suggestions": topic_suggestions,
+            "generate_ok": int(qp.get("generate_ok") or 0),
+            "generate_fail": int(qp.get("generate_fail") or 0),
+            "generate_errors": (qp.get("generate_errors") or "").strip()[:2000],
         },
     )
 
@@ -1419,25 +1442,116 @@ def admin_kb_add(
     base_slug = (slug or "").strip() or slugify_kb_title(title)
     final_slug = ensure_unique_kb_slug(db, base_slug)
     published = _form_bool(is_published)
+    from ..kb_workflow import STATUS_DRAFT, STATUS_PUBLISHED, STATUS_PENDING_REVIEW, sync_publish_flags
+
     now = datetime.utcnow()
-    db.add(
-        models.KnowledgeArticle(
-            slug=final_slug,
-            title=title.strip(),
-            excerpt=(excerpt or "").strip(),
-            body_md=(body_md or "").strip(),
-            meta_description=(meta_description or "").strip()[:320] or None,
-            category=cat,
-            tags=(tags or "").strip() or None,
-            sort_order=max(0, int(sort_order)),
-            is_published=published,
-            published_at=now if published else None,
-            source_kind=(source_kind or "").strip() or None,
-            source_note=(source_note or "").strip() or None,
-        )
+    wf = STATUS_PUBLISHED if published else STATUS_DRAFT
+    row = models.KnowledgeArticle(
+        slug=final_slug,
+        title=title.strip(),
+        excerpt=(excerpt or "").strip(),
+        body_md=(body_md or "").strip(),
+        meta_description=(meta_description or "").strip()[:320] or None,
+        category=cat,
+        tags=(tags or "").strip() or None,
+        sort_order=max(0, int(sort_order)),
+        workflow_status=wf,
+        is_published=published,
+        published_at=now if published else None,
+        source_kind=(source_kind or "").strip() or None,
+        source_note=(source_note or "").strip() or None,
     )
+    sync_publish_flags(row)
+    db.add(row)
     db.commit()
     return RedirectResponse(url="/admin/kb", status_code=302)
+
+
+@router.post("/kb/generate-drafts")
+async def admin_kb_generate_drafts(request: Request, db: Session = Depends(get_db)):
+    from urllib.parse import quote
+
+    from ..ai_usage_recorder import AiUsageContext, ai_usage_scope, log_ai_usage_event
+    from ..kb_article_generator import generate_kb_draft_from_keyword, parse_keyword_lines
+    from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
+    from ..kb_workflow import STATUS_PENDING_REVIEW
+    from ..routers.site_content_router import KB_CATEGORIES
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    keywords = parse_keyword_lines(str(form.get("keywords") or ""))
+    if not keywords:
+        return RedirectResponse(
+            url="/admin/kb?generate_fail=1&generate_errors=" + quote("키워드를 1개 이상 입력하세요."),
+            status_code=303,
+        )
+    ref_notes = (form.get("reference_notes") or "").strip()
+    cat = (form.get("category_default") or "general").strip().lower()
+    if cat not in KB_CATEGORIES:
+        cat = "general"
+
+    ok_n = 0
+    fail_n = 0
+    errors: list[str] = []
+    with ai_usage_scope(AiUsageContext(user_id=user.id, request_kind="kb_gallery")):
+        for kw in keywords:
+            try:
+                payload = generate_kb_draft_from_keyword(
+                    keyword=kw,
+                    reference_notes=ref_notes,
+                    category_hint=cat,
+                )
+                title = payload["title"]
+                base_slug = slugify_kb_title(title) or slugify_kb_title(kw)
+                final_slug = ensure_unique_kb_slug(db, base_slug)
+                art_cat = payload.get("category") or cat
+                if art_cat not in KB_CATEGORIES:
+                    art_cat = cat
+                db.add(
+                    models.KnowledgeArticle(
+                        slug=final_slug,
+                        title=title,
+                        excerpt=payload.get("excerpt") or "",
+                        body_md=payload.get("body_md") or "",
+                        meta_description=(payload.get("meta_description") or "")[:320] or None,
+                        category=art_cat,
+                        tags=(payload.get("tags") or "").strip() or None,
+                        sort_order=0,
+                        workflow_status=STATUS_PENDING_REVIEW,
+                        is_published=False,
+                        published_at=None,
+                        seed_keyword=kw,
+                        research_summary=(payload.get("research_summary") or "").strip() or None,
+                        source_kind="ai_gallery",
+                        source_note=(
+                            "Google Search grounding"
+                            if payload.get("search_grounding_used")
+                            else "Gemini (search fallback)"
+                        ),
+                    )
+                )
+                db.commit()
+                log_ai_usage_event(
+                    user_id=user.id,
+                    stage="kb_gallery",
+                    request_kind="kb_gallery",
+                    model_id=payload.get("model_id"),
+                    input_tokens=payload.get("input_tokens"),
+                    output_tokens=payload.get("output_tokens"),
+                    agent_key="gallery_writer",
+                )
+                ok_n += 1
+            except Exception as exc:
+                db.rollback()
+                fail_n += 1
+                errors.append(f"{kw}: {exc}")
+    err_q = quote("; ".join(errors)[:1500]) if errors else ""
+    return RedirectResponse(
+        url=f"/admin/kb?generate_ok={ok_n}&generate_fail={fail_n}&generate_errors={err_q}",
+        status_code=303,
+    )
 
 
 @router.post("/kb/add-from-topic")
@@ -1463,6 +1577,8 @@ def admin_kb_add_from_topic(
         cat = "general"
     base_slug = (slug or "").strip() or slugify_kb_title(title)
     final_slug = ensure_unique_kb_slug(db, base_slug)
+    from ..kb_workflow import STATUS_PENDING_REVIEW
+
     db.add(
         models.KnowledgeArticle(
             slug=final_slug,
@@ -1472,6 +1588,7 @@ def admin_kb_add_from_topic(
             meta_description=(meta_description or "").strip()[:320] or None,
             category=cat,
             sort_order=0,
+            workflow_status=STATUS_PENDING_REVIEW,
             is_published=False,
             published_at=None,
             source_kind="request_insight",
@@ -1485,6 +1602,7 @@ def admin_kb_add_from_topic(
 @router.post("/kb/add-bulk")
 async def admin_kb_add_bulk(request: Request, db: Session = Depends(get_db)):
     from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
+    from ..kb_workflow import STATUS_DRAFT, STATUS_PUBLISHED
     from ..routers.site_content_router import KB_CATEGORIES
 
     user = _require_admin(request, db)
@@ -1504,21 +1622,22 @@ async def admin_kb_add_bulk(request: Request, db: Session = Depends(get_db)):
         final_slug = ensure_unique_kb_slug(db, base_slug)
         published = _form_bool(str(form.get(f"is_published_{i}") or ""))
         now = datetime.utcnow()
-        db.add(
-            models.KnowledgeArticle(
-                slug=final_slug,
-                title=title,
-                excerpt=(form.get(f"excerpt_{i}") or "").strip(),
-                body_md=(form.get(f"body_md_{i}") or "").strip(),
-                meta_description=((form.get(f"meta_description_{i}") or "").strip()[:320] or None),
-                category=cat,
-                tags=(form.get(f"tags_{i}") or "").strip() or None,
-                sort_order=max(0, int(form.get(f"sort_order_{i}") or 0)),
-                is_published=published,
-                published_at=now if published else None,
-                source_kind="manual",
-            )
+        wf = STATUS_PUBLISHED if published else STATUS_DRAFT
+        row = models.KnowledgeArticle(
+            slug=final_slug,
+            title=title,
+            excerpt=(form.get(f"excerpt_{i}") or "").strip(),
+            body_md=(form.get(f"body_md_{i}") or "").strip(),
+            meta_description=((form.get(f"meta_description_{i}") or "").strip()[:320] or None),
+            category=cat,
+            tags=(form.get(f"tags_{i}") or "").strip() or None,
+            sort_order=max(0, int(form.get(f"sort_order_{i}") or 0)),
+            workflow_status=wf,
+            is_published=published,
+            published_at=now if published else None,
+            source_kind="manual",
         )
+        db.add(row)
         n_saved += 1
     if n_saved:
         db.commit()
@@ -1562,25 +1681,80 @@ def admin_kb_update(
     a.category = cat
     a.tags = (tags or "").strip() or None
     a.sort_order = max(0, int(sort_order))
+    from ..kb_workflow import STATUS_DRAFT, STATUS_PUBLISHED, sync_publish_flags
+
     was_published = bool(a.is_published)
-    a.is_published = _form_bool(is_published)
-    if a.is_published and not was_published and not a.published_at:
-        a.published_at = datetime.utcnow()
+    want_pub = _form_bool(is_published)
+    a.is_published = want_pub
+    if want_pub:
+        a.workflow_status = STATUS_PUBLISHED
+        if not was_published and not a.published_at:
+            a.published_at = datetime.utcnow()
+    elif (a.workflow_status or "") == STATUS_PUBLISHED:
+        a.workflow_status = STATUS_DRAFT
+    sync_publish_flags(a)
     a.source_note = (source_note or "").strip() or None
     db.commit()
     return RedirectResponse(url="/admin/kb", status_code=302)
 
 
-@router.post("/kb/{article_id}/toggle-publish")
-def admin_kb_toggle_publish(article_id: int, request: Request, db: Session = Depends(get_db)):
+@router.post("/kb/{article_id}/approve")
+def admin_kb_approve(article_id: int, request: Request, db: Session = Depends(get_db)):
+    from ..kb_workflow import approve_article
+
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
     a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
     if a:
-        a.is_published = not a.is_published
-        if a.is_published and not a.published_at:
-            a.published_at = datetime.utcnow()
+        approve_article(a)
+        db.commit()
+    return RedirectResponse(url="/admin/kb?review=approved", status_code=303)
+
+
+@router.post("/kb/{article_id}/reject")
+def admin_kb_reject(article_id: int, request: Request, db: Session = Depends(get_db)):
+    from ..kb_workflow import reject_article
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
+    if a:
+        reject_article(a)
+        db.commit()
+    return RedirectResponse(url="/admin/kb?review=rejected", status_code=303)
+
+
+@router.post("/kb/{article_id}/submit-review")
+def admin_kb_submit_review(article_id: int, request: Request, db: Session = Depends(get_db)):
+    from ..kb_workflow import submit_for_review
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
+    if a:
+        submit_for_review(a)
+        db.commit()
+    return RedirectResponse(url="/admin/kb?review=submitted", status_code=303)
+
+
+@router.post("/kb/{article_id}/toggle-publish")
+def admin_kb_toggle_publish(article_id: int, request: Request, db: Session = Depends(get_db)):
+    from ..kb_workflow import STATUS_DRAFT, STATUS_PUBLISHED, approve_article, sync_publish_flags
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
+    if a:
+        if a.is_published:
+            a.is_published = False
+            a.workflow_status = STATUS_DRAFT
+        else:
+            approve_article(a)
+        sync_publish_flags(a)
         db.commit()
     return RedirectResponse(url="/admin/kb", status_code=302)
 

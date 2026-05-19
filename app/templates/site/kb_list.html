@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}SAP 실무 가이드{% endblock %}
+{% block title %}SAP 지식갤러리{% endblock %}
 {% block meta_description %}{{ meta_description }}{% endblock %}
 {% block meta_canonical %}{{ canonical_url }}{% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">
   <div class="container site-list-page">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
-      <h1 class="h4 mb-0 fw-semibold">SAP 실무 가이드</h1>
+      <h1 class="h4 mb-0 fw-semibold"><span class="nav-ko">SAP 지식갤러리</span><span class="nav-en" style="display:none">SAP Knowledge Gallery</span></h1>
       {% set active = 'kb' %}
       {% include 'site/content_subnav.html' %}
     </div>
@@ -14,7 +14,7 @@
     <form method="get" action="/kb" class="site-list-search mb-3">
       <div class="input-group input-group-lg shadow-sm rounded-3 overflow-hidden" style="border: 1px solid var(--border);">
         <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-        <input type="search" name="q" value="{{ q }}" class="form-control border-0" placeholder="제목·요약·태그 검색" autocomplete="off"/>
+        <input type="search" name="q" value="{{ q }}" class="form-control border-0" placeholder="제목·요약·태그 검색" autocomplete="off" data-i18n-placeholder="kb.searchPlaceholder"/>
         <select name="category" class="form-select border-0" style="max-width: 11rem;">
           <option value="">전체 분류</option>
           {% for key, label in kb_categories.items() %}
@@ -22,7 +22,7 @@
           {% endfor %}
         </select>
         <input type="hidden" name="page" value="1"/>
-        <button type="submit" class="btn btn-primary px-4 rounded-0">검색</button>
+        <button type="submit" class="btn btn-primary px-4 rounded-0"><span class="nav-ko">검색</span><span class="nav-en" style="display:none">Search</span></button>
       </div>
     </form>
 
@@ -65,7 +65,13 @@
     {% else %}
     <div class="empty-state py-5 text-center">
       <i class="fa-solid fa-book fa-2x text-muted mb-2"></i>
-      <p class="text-muted mb-0">{% if q or category %}검색 결과가 없습니다.{% else %}아직 발행된 가이드가 없습니다.{% endif %}</p>
+      <p class="text-muted mb-0">
+        {% if q or category %}
+        <span class="nav-ko">검색 결과가 없습니다.</span><span class="nav-en" style="display:none">No results found.</span>
+        {% else %}
+        <span class="nav-ko">아직 발행된 글이 없습니다.</span><span class="nav-en" style="display:none">No published articles yet.</span>
+        {% endif %}
+      </p>
     </div>
     {% endif %}
   </div>

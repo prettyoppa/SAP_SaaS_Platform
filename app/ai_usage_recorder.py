@@ -24,6 +24,7 @@ STAGE_LABEL_KO: dict[str, str] = {
     "ai_inquiry": "AI 문의",
     "codelib": "코드 라이브러리",
     "integration_deliverable": "연동 산출물",
+    "kb_gallery": "지식갤러리",
     "other": "기타",
 }
 
@@ -35,6 +36,7 @@ STAGE_LABEL_EN: dict[str, str] = {
     "ai_inquiry": "AI Q&A",
     "codelib": "Code library",
     "integration_deliverable": "Integration deliverable",
+    "kb_gallery": "Knowledge gallery",
     "other": "Other",
 }
 
@@ -46,6 +48,7 @@ FALLBACK_COST_USD_MICRO: dict[str, int] = {
     "ai_inquiry": 25_000,
     "codelib": 40_000,
     "integration_deliverable": 100_000,
+    "kb_gallery": 55_000,
     "other": 35_000,
 }
 

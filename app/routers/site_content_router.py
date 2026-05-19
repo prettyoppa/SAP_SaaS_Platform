@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
+from ..kb_workflow import STATUS_PUBLISHED
 from ..offer_inquiry_service import public_request_url
 from ..templates_config import templates
 from .interview_router import _markdown_to_html
@@ -38,6 +39,7 @@ def _kb_published_filter(query):
     now = _utc_now()
     return query.filter(
         models.KnowledgeArticle.is_published == True,
+        models.KnowledgeArticle.workflow_status == STATUS_PUBLISHED,
         or_(
             models.KnowledgeArticle.published_at.is_(None),
             models.KnowledgeArticle.published_at <= now,
@@ -328,7 +330,7 @@ def kb_public_list(
 
     canonical_url = public_request_url(request, "/kb")
     meta_description = (
-        "SAP 실무 가이드 — 신규 개발, 분석·개선, 연동 개발 요청 패턴과 체크리스트."
+        "SAP 지식갤러리 — 신규 개발, 분석·개선, 연동 개발 실무 가이드와 체크리스트."
     )
     return templates.TemplateResponse(
         request,
@@ -374,8 +376,9 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
             {
                 "request": request,
                 "user": user,
-                "title": "실무 가이드",
+                "title": "SAP 지식갤러리",
                 "message": "존재하지 않거나 비공개된 글입니다.",
+                "message_en": "This article does not exist or is not published.",
             },
             status_code=404,
         )
@@ -385,7 +388,7 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
     body_html = _markdown_to_html(a.body_md or "")
     body_en_md = (a.body_md_en or "").strip() or (a.body_md or "")
     body_html_en = _markdown_to_html(body_en_md)
-    meta_title = _meta_title_from_markdown(a.title, "실무 가이드")
+    meta_title = _meta_title_from_markdown(a.title, "SAP 지식갤러리")
     meta_description = (a.meta_description or "").strip() or _meta_title_from_markdown(
         a.excerpt or a.body_md, meta_title
     )[:160]

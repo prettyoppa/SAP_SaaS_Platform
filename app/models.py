@@ -462,7 +462,7 @@ class Notice(Base):
 
 
 class KnowledgeArticle(Base):
-    """SEO·실무 가이드용 지식베이스(공개). 회원 요청 원문은 저장·노출하지 않음."""
+    """SAP 지식갤러리(/kb). 검수 승인 후 공개. 회원 요청 원문은 저장·노출하지 않음."""
 
     __tablename__ = "knowledge_articles"
 
@@ -479,8 +479,12 @@ class KnowledgeArticle(Base):
     category = Column(String(64), nullable=False, default="general")
     tags = Column(String(512), nullable=True)
     sort_order = Column(Integer, default=0, nullable=False)
+    workflow_status = Column(String(32), nullable=False, default="draft", index=True)
     is_published = Column(Boolean, default=False, nullable=False)
     published_at = Column(DateTime, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    seed_keyword = Column(String(200), nullable=True)
+    research_summary = Column(Text, nullable=True)
     source_kind = Column(String(32), nullable=True)
     source_note = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
