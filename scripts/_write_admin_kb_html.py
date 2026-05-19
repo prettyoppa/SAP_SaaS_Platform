@@ -1,4 +1,8 @@
-{% extends "base.html" %}
+# -*- coding: utf-8 -*-
+"""Rewrite admin/kb.html as valid UTF-8 (fixes UnicodeDecodeError on deploy)."""
+from pathlib import Path
+
+CONTENT = r"""{% extends "base.html" %}
 {% block title %}SAP 지식갤러리 – Admin{% endblock %}
 {% block content %}
 <div class="py-4">
@@ -136,3 +140,14 @@
 <script src="/static/js/kb_admin_preview.js?v=1"></script>
 <script src="/static/js/kb_admin_publish_switch.js?v=1"></script>
 {% endblock %}
+"""
+
+CONTENT = CONTENT.replace("<div", "<div").replace("</motion>", "</motion>")
+CONTENT = CONTENT.replace("<div", "<div").replace("</motion>", "</motion>")
+CONTENT = CONTENT.replace("<div", "<div").replace("</motion>", "</div>")
+
+out = Path(__file__).resolve().parents[1] / "app/templates/admin/kb.html"
+out.write_text(CONTENT, encoding="utf-8")
+# verify
+out.read_text(encoding="utf-8")
+print("wrote", out, "chars", len(CONTENT))
