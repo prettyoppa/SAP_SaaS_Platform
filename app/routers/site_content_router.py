@@ -17,6 +17,11 @@ from ..database import get_db
 from ..kb_workflow import STATUS_PUBLISHED
 from ..offer_inquiry_service import public_request_url
 from ..templates_config import templates
+from ..kb_public_content import (
+    sanitize_meta_description,
+    strip_leading_title_from_body_md,
+    texts_overlap,
+)
 from .interview_router import _markdown_to_html
 
 router = APIRouter(tags=["site_content"])
@@ -382,16 +387,22 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
             },
             status_code=404,
         )
+    meta_title = _meta_title_from_markdown(a.title, "SAP 지식갤러리")
+    body_md = strip_leading_title_from_body_md(a.body_md or "", meta_title)
+    body_en_md_raw = (a.body_md_en or "").strip() or (a.body_md or "")
+    body_en_md = strip_leading_title_from_body_md(body_en_md_raw, meta_title)
     title_html = _markdown_to_html(a.title or "")
     title_en_md = (a.title_en or "").strip() or (a.title or "")
     title_html_en = _markdown_to_html(title_en_md)
-    body_html = _markdown_to_html(a.body_md or "")
-    body_en_md = (a.body_md_en or "").strip() or (a.body_md or "")
+    body_html = _markdown_to_html(body_md)
     body_html_en = _markdown_to_html(body_en_md)
-    meta_title = _meta_title_from_markdown(a.title, "SAP 지식갤러리")
-    meta_description = (a.meta_description or "").strip() or _meta_title_from_markdown(
-        a.excerpt or a.body_md, meta_title
-    )[:160]
+    raw_meta = (a.meta_description or "").strip() or _meta_title_from_markdown(
+        a.excerpt or body_md, meta_title
+    )
+    meta_description = sanitize_meta_description(raw_meta)
+    show_excerpt = bool((a.excerpt or "").strip()) and not texts_overlap(
+        a.excerpt, meta_title
+    ) and not texts_overlap(a.excerpt, meta_description)
     canonical_url = public_request_url(request, f"/kb/{a.slug}")
     return templates.TemplateResponse(
         request,
@@ -408,5 +419,6 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
             "meta_title": meta_title,
             "meta_description": meta_description,
             "canonical_url": canonical_url,
+            "show_excerpt": show_excerpt,
         },
     )

@@ -12,6 +12,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from .delivered_code_package import extract_json_object_from_llm_text
+from .kb_public_content import sanitize_meta_description, strip_leading_title_from_body_md
 from .gemini_model import get_gemini_model_id
 
 _log = logging.getLogger(__name__)
@@ -25,8 +26,8 @@ _ARTICLE_JSON_SCHEMA_HINT = """
 Respond with a single JSON object only (no markdown fence), keys:
 - title (string, Korean, SEO-friendly, max 120 chars)
 - excerpt (string, Korean, 1-2 sentences for list card)
-- meta_description (string, Korean, max 155 chars for search snippet)
-- body_md (string, Korean markdown article 800-1500 words: ## headings, bullet lists, practical SAP focus)
+- meta_description (string, Korean, max 155 chars for Google snippet — no URLs)
+- body_md (string, Korean markdown 800-1500 words: start with ## section headings only — do NOT repeat the title as # or H1 at the top)
 - tags (string, comma-separated, lowercase)
 - category (one of: general, abap, analysis, integration)
 - research_notes (string, Korean: 3-5 bullet points citing what you learned from search — URLs or doc names if known)
@@ -152,11 +153,18 @@ def _normalize_article_payload(data: dict[str, Any], *, keyword: str, research: 
     tags = (str(data.get("tags") or "")).strip()[:512]
     notes = (str(data.get("research_notes") or "")).strip()
     combined_research = "\n\n".join(p for p in (research, notes) if p).strip()
+    title = (str(data.get("title") or keyword)).strip()[:500]
+    body_md = strip_leading_title_from_body_md(
+        (str(data.get("body_md") or "")).strip(), title
+    )
+    meta_raw = (str(data.get("meta_description") or "")).strip()
+    if not meta_raw:
+        meta_raw = (str(data.get("excerpt") or "")).strip()
     return {
-        "title": (str(data.get("title") or keyword)).strip()[:500],
+        "title": title,
         "excerpt": (str(data.get("excerpt") or "")).strip()[:2000],
-        "meta_description": (str(data.get("meta_description") or "")).strip()[:320],
-        "body_md": (str(data.get("body_md") or "")).strip(),
+        "meta_description": sanitize_meta_description(meta_raw, max_len=320),
+        "body_md": body_md,
         "tags": tags,
         "category": cat,
         "research_summary": combined_research[:8000],

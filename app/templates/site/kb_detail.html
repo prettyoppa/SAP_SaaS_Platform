@@ -24,11 +24,8 @@
             <span class="badge rounded-pill bg-primary bg-opacity-75">{{ kb_categories.get(article.category, article.category) }}</span>
             {% if article.published_at %}<time class="text-muted small">{{ article.published_at|local_dt_span('date_dots') }}</time>{% endif %}
           </div>
-          <h1 class="h3 mb-0 fw-semibold site-md-title-inline markdown-body">
-            <span class="i18n-ko d-block">{{ title_html|safe }}</span>
-            <span class="i18n-en d-block" style="display:none">{{ title_html_en|safe }}</span>
-          </h1>
-          {% if article.excerpt %}
+          <h1 class="h3 mb-0 fw-semibold">{{ meta_title }}</h1>
+          {% if show_excerpt %}
           <p class="text-muted mt-3 mb-0 small">{{ article.excerpt }}</p>
           {% endif %}
         </header>

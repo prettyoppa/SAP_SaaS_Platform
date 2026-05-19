@@ -4,11 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{% block title %}SAP 개발 파트너{% endblock %}</title>
-  {%- block meta_description -%}{%- endblock -%}
   {% if self.meta_description() | trim %}
   <meta name="description" content="{{ self.meta_description() | trim | e }}" />
   {% endif %}
-  {%- block meta_canonical -%}{%- endblock -%}
   {% if self.meta_canonical() | trim %}
   <link rel="canonical" href="{{ self.meta_canonical() | trim | e }}" />
   {% endif %}
