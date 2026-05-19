@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}SAP ì§€ì‹ê°¤ëŸ¬ë¦¬ â€“ Admin{% endblock %}
+{% block title %}SAP ì§?ì?ê°¤ë?¬ë¦¬ â?? Admin{% endblock %}
 {% block content %}
 <div class="py-4">
   <div class="container">
     <h4 class="mb-2">
       <i class="fa-solid fa-book me-2 text-primary"></i>
-      <span class="nav-ko">SAP ì§€ì‹ê°¤ëŸ¬ë¦¬</span>
+      <span class="nav-ko">SAP ì§?ì?ê°¤ë?¬ë¦¬</span>
       <span class="nav-en" style="display:none">SAP Knowledge Gallery</span>
     </h4>
     <p class="small text-muted mb-3">
-      <span class="nav-ko">URLì€ <code>/kb</code> ì…ë‹ˆë‹¤. ìŠ¹ì¸Â·ë°œí–‰ëœ ê¸€ë§Œ íšŒì›Â·ë¹„íšŒì›ì—ê²Œ ê³µê°œë˜ë©°, ê²€ìƒ‰(sitemap)ì—ë„ í¬í•¨ë©ë‹ˆë‹¤. íšŒì› ìš”ì²­ <strong>ì›ë¬¸ì€ ì €ì¥Â·ê³µê°œí•˜ì§€ ì•ŠìŠµë‹ˆë‹¤</strong>.</span>
-      <span class="nav-en" style="display:none">Public URL: <code>/kb</code>. Only approved &amp; published articles are visible to everyone and included in the sitemap. Member request <strong>text is never stored or shown</strong>.</span>
+      <span class="nav-ko">URLì? <code>/kb</code> ì??ë??ë?¤. <strong>ë°?í??</strong>ë? ê¸?ë§? í??ì?Â·ë¹?í??ì?ì?ê²? ê³µê°?ë?ë©°, ê²?ì??(sitemap)ì?ë? í¬í?¨ë©ë??ë?¤. í??ì? ì??ì²­ <strong>ì?ë¬¸ì? ì ?ì?¥Â·ê³µê°?í??ì§? ì??ì?µë??ë?¤</strong>.</span>
+      <span class="nav-en" style="display:none">Public URL: <code>/kb</code>. Only published articles are visible to everyone and included in the sitemap.</span>
     </p>
 
     {% if generate_ok or generate_fail %}
     <div class="alert {% if generate_ok and not generate_fail %}alert-success{% elif generate_ok %}alert-warning{% else %}alert-danger{% endif %} small py-2">
-      <span class="nav-ko">ìƒì„± ì™„ë£Œ {{ generate_ok }}ê±´{% if generate_fail %} Â· ì‹¤íŒ¨ {{ generate_fail }}ê±´{% endif %}</span>
+      <span class="nav-ko">ì?ì?± ì??ë£? {{ generate_ok }}ê±´{% if generate_fail %} Â· ì?¤í?¨ {{ generate_fail }}ê±´{% endif %}</span>
       <span class="nav-en" style="display:none">Generated {{ generate_ok }}{% if generate_fail %} Â· failed {{ generate_fail }}{% endif %}</span>
       {% if generate_errors %}
       <div class="mt-1 font-monospace" style="white-space:pre-wrap">{{ generate_errors }}</div>
@@ -24,43 +24,57 @@
     {% endif %}
 
     {% if request.query_params.get('review') == 'approved' %}
-    <div class="alert alert-success small py-2"><span class="nav-ko">ìŠ¹ì¸Â·ë°œí–‰ë˜ì—ˆìŠµë‹ˆë‹¤.</span><span class="nav-en" style="display:none">Approved and published.</span></div>
+    <div class="alert alert-success small py-2"><span class="nav-ko">ë°?í??ë?ì??ì?µë??ë?¤.</span><span class="nav-en" style="display:none">Published.</span></div>
     {% elif request.query_params.get('review') == 'rejected' %}
-    <div class="alert alert-warning small py-2"><span class="nav-ko">ë°˜ë ¤ ì²˜ë¦¬ë˜ì—ˆìŠµë‹ˆë‹¤.</span><span class="nav-en" style="display:none">Rejected.</span></div>
+    <div class="alert alert-warning small py-2"><span class="nav-ko">ë°?ë ¤ ì²?ë¦¬ë?ì??ì?µë??ë?¤.</span><span class="nav-en" style="display:none">Rejected.</span></div>
     {% elif request.query_params.get('review') == 'submitted' %}
-    <div class="alert alert-info small py-2"><span class="nav-ko">ê²€ìˆ˜ ëŒ€ê¸°ë¡œ ì´ë™í–ˆìŠµë‹ˆë‹¤.</span><span class="nav-en" style="display:none">Moved to review queue.</span></div>
+    <div class="alert alert-info small py-2"><span class="nav-ko">ê²?ì?? ë??ê¸°ë¡? ì´ë?í??ì?µë??ë?¤.</span><span class="nav-en" style="display:none">Moved to review queue.</span></div>
     {% endif %}
 
-    {% if request.query_params.get('bulk_saved') or request.query_params.get('draft_from_topic') %}
-    <div class="alert alert-success small py-2"><span class="nav-ko">ì €ì¥ë˜ì—ˆìŠµë‹ˆë‹¤.</span><span class="nav-en" style="display:none">Saved.</span></div>
+    {% if request.query_params.get('bulk_saved') %}
+    <div class="alert alert-success small py-2"><span class="nav-ko">ì ?ì?¥ë?ì??ì?µë??ë?¤.</span><span class="nav-en" style="display:none">Saved.</span></div>
+    {% endif %}
+
+    {% if batch_job_active %}
+    <div class="alert alert-info small py-2 d-flex flex-wrap align-items-center gap-2">
+      <span class="nav-ko">AI ì´?ì?? ì?ì?±ì´ ë°±ê·¸ë¼ì?´ë??ì?ì?? ì§?í?? ì¤?ì??ë??ë?¤.</span>
+      <span class="nav-en" style="display:none">AI draft generation is running in the background.</span>
+      <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#kbGalleryBatchModal" data-no-busy="true">
+        <span class="nav-ko">ì§?í?? ì°½ ì?´ê¸°</span><span class="nav-en" style="display:none">Open progress</span>
+      </button>
+    </div>
     {% endif %}
 
     <div class="admin-content-card p-3 mb-4">
       <h6 class="fw-semibold mb-2">
         <i class="fa-solid fa-wand-magic-sparkles me-1 text-primary"></i>
-        <span class="nav-ko">AI ì´ˆì•ˆ ìƒì„± (Google ê²€ìƒ‰ ì—°ë™)</span>
+        <span class="nav-ko">AI ì´?ì?? ì?ì?± (Google ê²?ì?? ì?°ë?)</span>
         <span class="nav-en" style="display:none">AI draft generation (Google Search grounding)</span>
       </h6>
       <p class="small text-muted mb-2">
-        <span class="nav-ko">í‚¤ì›Œë“œ ìµœëŒ€ 5ê°œ(ì¤„ë‹¹ 1ê°œ). ìƒì„±ëœ ê¸€ì€ <strong>ê²€ìˆ˜ ëŒ€ê¸°</strong> ìƒíƒœì´ë©° ê³µê°œÂ·ê²€ìƒ‰ì— ë…¸ì¶œë˜ì§€ ì•ŠìŠµë‹ˆë‹¤. <code>GOOGLE_API_KEY</code> í•„ìš”.</span>
+        <span class="nav-ko">í?¤ì??ë?? ìµ?ë?? 5ê°?(ì¤?ë?¹ 1ê°?). ì?ì?±ë? ê¸?ì? <strong>ê²?ì?? ë??ê¸°</strong> ì?í??ì´ë©° ê³µê°?Â·ê²?ì??ì? ë?¸ì¶?ë?ì§? ì??ì?µë??ë?¤. ì ?ì¶? í?? ë°±ê·¸ë¼ì?´ë??ì?ì?? ì²?ë¦¬ë©ë??ë?¤.</span>
         <span class="nav-en" style="display:none">Up to 5 keywords (one per line). Drafts go to <strong>pending review</strong> (not public). Requires <code>GOOGLE_API_KEY</code>.</span>
       </p>
-      <form method="post" action="/admin/kb/generate-drafts" data-app-confirm-i18n="admin.kb.confirmGenerate">
+      <form method="post" action="/admin/kb/generate-drafts" data-app-confirm-i18n="admin.kb.confirmGenerate"
+            data-busy-title-ko="ì??ì²­ ì ?ì?? ì¤?â?¦" data-busy-title-en="Submittingâ?¦"
+            data-busy-hint-ko="ì? ì?? í?? ë°±ê·¸ë¼ì?´ë??ì?ì?? í?¤ì??ë??ë³? ì´?ì??ì´ ì?ì?±ë©ë??ë?¤."
+            data-busy-hint-en="Per-keyword drafts will generate in the background shortly."
+            data-busy-agents='[{"agentKo":"ã??ì§?ì?ê°¤ë?¬ë¦¬ã?","doingKo":"í?¤ì??ë??ë³? ì´?ì?? ì?ì?± ì??ì??ì? ì??ë²?ì? ë?±ë¡í??ê³  ì??ì?µë??ë?¤","agentEn":"ã??Galleryã?","doingEn":"queueing per-keyword draft jobs on the server"}]'>
         <div class="row g-2">
           <div class="col-md-8">
-            <label class="small"><span class="nav-ko">í‚¤ì›Œë“œ (ì¤„ë‹¹ 1ê°œ, ìµœëŒ€ 5)</span><span class="nav-en" style="display:none">Keywords (one per line, max 5)</span></label>
+            <label class="small"><span class="nav-ko">í?¤ì??ë?? (ì¤?ë?¹ 1ê°?, ìµ?ë?? 5)</span><span class="nav-en" style="display:none">Keywords (one per line, max 5)</span></label>
             <textarea name="keywords" class="form-control font-monospace" rows="5" placeholder="S/4HANA OData&#10;ABAP RESTful Application Programming"></textarea>
           </div>
           <div class="col-md-4">
-            <label class="small"><span class="nav-ko">ê¸°ë³¸ ë¶„ë¥˜</span><span class="nav-en" style="display:none">Default category</span></label>
+            <label class="small"><span class="nav-ko">ê¸°ë³¸ ë¶?ë¥?</span><span class="nav-en" style="display:none">Default category</span></label>
             <select name="category_default" class="form-select mb-2">{% for k,l in kb_categories.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
-            <label class="small"><span class="nav-ko">ì°¸ê³  ë©”ëª¨ (ì„ íƒ)</span><span class="nav-en" style="display:none">Reference notes (optional)</span></label>
+            <label class="small"><span class="nav-ko">ì°¸ê³  ë©?ëª¨ (ì? í?)</span><span class="nav-en" style="display:none">Reference notes (optional)</span></label>
             <textarea name="reference_notes" class="form-control small" rows="3" placeholder=""></textarea>
           </div>
           <div class="col-12">
             <button type="submit" class="btn btn-primary">
-              <span class="nav-ko">ì´ˆì•ˆ ìƒì„± â†’ ê²€ìˆ˜ ëŒ€ê¸°</span>
-              <span class="nav-en" style="display:none">Generate drafts â†’ review queue</span>
+              <span class="nav-ko">ì´?ì?? ì?ì?± â?? ê²?ì?? ë??ê¸°</span>
+              <span class="nav-en" style="display:none">Generate drafts â?? review queue</span>
             </button>
           </div>
         </div>
@@ -68,77 +82,46 @@
     </div>
 
     <h6 class="text-muted small text-uppercase mb-2">
-      <span class="nav-ko">ê²€ìˆ˜ ëŒ€ê¸° ({{ review_queue|length }})</span>
+      <span class="nav-ko">ê²?ì?? ë??ê¸° ({{ review_queue|length }})</span>
       <span class="nav-en" style="display:none">Pending review ({{ review_queue|length }})</span>
     </h6>
     {% for a in review_queue %}
       {% include 'admin/partials/kb_article_card.html' %}
     {% else %}
-    <p class="text-muted small mb-4"><span class="nav-ko">ê²€ìˆ˜ ëŒ€ê¸° ê¸€ì´ ì—†ìŠµë‹ˆë‹¤.</span><span class="nav-en" style="display:none">No articles pending review.</span></p>
+    <p class="text-muted small mb-4"><span class="nav-ko">ê²?ì?? ë??ê¸° ê¸?ì´ ì??ì?µë??ë?¤.</span><span class="nav-en" style="display:none">No articles pending review.</span></p>
     {% endfor %}
-
-    {% if topic_suggestions %}
-    <details class="mb-4">
-      <summary class="fw-semibold user-select-none small text-muted" style="cursor:pointer">
-        <span class="nav-ko">ìš”ì²­ íŒ¨í„´ ì œì•ˆ (ìµëª… ì§‘ê³„, ì„ íƒ)</span>
-        <span class="nav-en" style="display:none">Request pattern suggestions (anonymous, optional)</span>
-      </summary>
-      <div class="vstack gap-2 mt-2">
-      {% for s in topic_suggestions %}
-        <div class="border rounded p-3 small" style="border-color:var(--border)!important;background:var(--surface2);">
-          <div class="fw-semibold">{{ s.suggested_title }}</div>
-          <div class="text-muted">{{ s.menu_label }} Â· {{ s.topic_label }} Â· {{ s.request_count }}ê±´</div>
-          <form method="post" action="/admin/kb/add-from-topic" class="mt-2">
-            <input type="hidden" name="title" value="{{ s.suggested_title }}"/>
-            <input type="hidden" name="slug" value="{{ s.suggested_slug }}"/>
-            <input type="hidden" name="excerpt" value="{{ s.suggested_excerpt }}"/>
-            <input type="hidden" name="meta_description" value="{{ s.suggested_meta_description }}"/>
-            <input type="hidden" name="category" value="{{ s.suggested_category }}"/>
-            <input type="hidden" name="source_note" value="{{ s.source_note }}"/>
-            <textarea name="body_md" class="d-none">{{ s.suggested_body_md }}</textarea>
-            <button type="submit" class="btn btn-sm btn-outline-primary">
-              <span class="nav-ko">ê²€ìˆ˜ ëŒ€ê¸°ë¡œ ì¶”ê°€</span>
-              <span class="nav-en" style="display:none">Add to review queue</span>
-            </button>
-          </form>
-        </div>
-      {% endfor %}
-      </div>
-    </details>
-    {% endif %}
-
-    <details class="mb-3"><summary class="fw-semibold user-select-none" style="cursor:pointer">
-      <span class="nav-ko">ìˆ˜ë™ìœ¼ë¡œ ìƒˆ ê¸€ ì¶”ê°€</span>
+<details class="mb-3"><summary class="fw-semibold user-select-none" style="cursor:pointer">
+      <span class="nav-ko">ì??ë?ì?¼ë¡? ì?? ê¸? ì¶?ê°?</span>
       <span class="nav-en" style="display:none">Add article manually</span>
     </summary>
     <form method="post" action="/admin/kb/add" class="admin-content-card mt-2 p-3">
       <div class="row g-2">
-        <div class="col-md-6"><label class="small"><span class="nav-ko">ì œëª©</span><span class="nav-en" style="display:none">Title</span></label><input name="title" class="form-control" required/></div>
+        <div class="col-md-6"><label class="small"><span class="nav-ko">ì ?ëª©</span><span class="nav-en" style="display:none">Title</span></label><input name="title" class="form-control" required/></div>
         <div class="col-md-6"><label class="small">slug</label><input name="slug" class="form-control font-monospace" placeholder="auto"/></div>
-        <div class="col-md-4"><label class="small"><span class="nav-ko">ë¶„ë¥˜</span><span class="nav-en" style="display:none">Category</span></label><select name="category" class="form-select">{% for k,l in kb_categories.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></div>
-        <div class="col-md-4"><label class="small"><span class="nav-ko">ìˆœì„œ</span><span class="nav-en" style="display:none">Order</span></label><input type="number" name="sort_order" value="0" class="form-control"/></div>
-        <div class="col-md-4"><label class="small d-block"><span class="nav-ko">ì¦‰ì‹œ ë°œí–‰</span><span class="nav-en" style="display:none">Publish now</span></label><input type="checkbox" name="is_published" value="1"/></div>
-        <div class="col-12"><label class="small"><span class="nav-ko">ìš”ì•½</span><span class="nav-en" style="display:none">Excerpt</span></label><textarea name="excerpt" class="form-control" rows="2"></textarea></div>
+        <div class="col-md-4"><label class="small"><span class="nav-ko">ë¶?ë¥?</span><span class="nav-en" style="display:none">Category</span></label><select name="category" class="form-select">{% for k,l in kb_categories.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label class="small"><span class="nav-ko">ì??ì??</span><span class="nav-en" style="display:none">Order</span></label><input type="number" name="sort_order" value="0" class="form-control"/></div>
+        <div class="col-md-4"><label class="small d-block"><span class="nav-ko">ì¦?ì?? ë°?í??</span><span class="nav-en" style="display:none">Publish now</span></label><input type="checkbox" name="is_published" value="1"/></div>
+        <div class="col-12"><label class="small"><span class="nav-ko">ì??ì?½</span><span class="nav-en" style="display:none">Excerpt</span></label><textarea name="excerpt" class="form-control" rows="2"></textarea></div>
         <div class="col-12"><label class="small">meta description</label><input name="meta_description" class="form-control" maxlength="320"/></div>
         <div class="col-12"><label class="small"><span class="nav-ko">ë³¸ë¬¸ Markdown</span><span class="nav-en" style="display:none">Body (Markdown)</span></label><textarea name="body_md" class="form-control font-monospace" rows="8"></textarea></div>
-        <div class="col-12"><button class="btn btn-primary"><span class="nav-ko">ì¶”ê°€</span><span class="nav-en" style="display:none">Add</span></button></div>
+        <div class="col-12"><button class="btn btn-primary"><span class="nav-ko">ì¶?ê°?</span><span class="nav-en" style="display:none">Add</span></button></div>
       </div>
     </form>
     </details>
 
     <h6 class="text-muted small text-uppercase mt-4 mb-2">
-      <span class="nav-ko">ë°œí–‰ë¨ ({{ published_articles|length }})</span>
+      <span class="nav-ko">ë°?í??ë¨ ({{ published_articles|length }})</span>
       <span class="nav-en" style="display:none">Published ({{ published_articles|length }})</span>
     </h6>
     {% for a in published_articles %}
       {% include 'admin/partials/kb_article_card.html' %}
     {% else %}
-    <p class="text-muted small mb-4"><span class="nav-ko">ë°œí–‰ëœ ê¸€ì´ ì—†ìŠµë‹ˆë‹¤.</span><span class="nav-en" style="display:none">No published articles.</span></p>
+    <p class="text-muted small mb-4"><span class="nav-ko">ë°?í??ë? ê¸?ì´ ì??ì?µë??ë?¤.</span><span class="nav-en" style="display:none">No published articles.</span></p>
     {% endfor %}
 
     {% if other_articles %}
     <h6 class="text-muted small text-uppercase mt-4 mb-2">
-      <span class="nav-ko">ì´ˆì•ˆÂ·ë°˜ë ¤ ({{ other_articles|length }})</span>
+      <span class="nav-ko">ì´?ì??Â·ë°?ë ¤ ({{ other_articles|length }})</span>
       <span class="nav-en" style="display:none">Draft / rejected ({{ other_articles|length }})</span>
     </h6>
     {% for a in other_articles %}
@@ -147,4 +130,7 @@
     {% endif %}
   </div>
 </div>
+    {% include 'admin/partials/kb_batch_generating_modal.html' %}
+<script src="/static/js/kb_admin_preview.js?v=1"></script>
+<script src="/static/js/kb_admin_publish_switch.js?v=1"></script>
 {% endblock %}

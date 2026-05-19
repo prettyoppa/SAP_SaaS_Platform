@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}미리보기 – {{ article.title|striptags|truncate(40) }}{% endblock %}
+{% block content %}
+<div class="py-4">
+  <div class="container" style="max-width: 52rem;">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <a href="/admin/kb" class="btn btn-sm btn-outline-secondary" data-no-busy="true">
+        <i class="fa-solid fa-arrow-left me-1"></i>
+        <span class="nav-ko">지식갤러리 관리</span>
+        <span class="nav-en" style="display:none">Gallery admin</span>
+      </a>
+      <span class="badge bg-secondary">
+        <span class="nav-ko">관리자 미리보기 (비공개 가능)</span>
+        <span class="nav-en" style="display:none">Admin preview (may be unpublished)</span>
+      </span>
+    </div>
+    <article class="card border shadow-sm">
+      <div class="card-body p-4 p-md-5">
+        <header class="border-bottom pb-3 mb-4">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small text-muted">
+            <span class="badge rounded-pill bg-primary bg-opacity-75">{{ kb_categories.get(article.category, article.category) }}</span>
+            <code>/kb/{{ article.slug }}</code>
+          </div>
+          <h1 class="h3 mb-0 fw-semibold markdown-body">{{ title_html|safe }}</h1>
+          {% if excerpt_html %}
+          <p class="text-muted mt-3 mb-0 small markdown-body">{{ excerpt_html|safe }}</p>
+          {% endif %}
+        </header>
+        <div class="markdown-body text-break">{{ body_html|safe }}</div>
+      </div>
+    </article>
+  </div>
+</div>
+{% endblock %}

@@ -2911,6 +2911,19 @@ html[data-theme="light"] .global-busy-overlay {
   border-bottom: none;
 }
 
+/* SAP 지식갤러리 admin */
+.kb-research-notes-pre {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.kb-admin-preview {
+  background: var(--surface2);
+  border-color: var(--border) !important;
+  max-height: 28rem;
+  overflow: auto;
+}
+
 /* ABAP 후속 질문: 턴(질문+응답) 접기 */
 .abap-followup-turn .abap-followup-q,
 .abap-followup-turn .abap-followup-a {

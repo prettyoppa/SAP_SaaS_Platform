@@ -491,6 +491,25 @@ class KnowledgeArticle(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class KbGalleryBatchJob(Base):
+    """지식갤러리 키워드 일괄 초안 생성(백그라운드)."""
+
+    __tablename__ = "kb_gallery_batch_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="running", index=True)
+    keywords_json = Column(Text, nullable=False)
+    reference_notes = Column(Text, nullable=True)
+    category_default = Column(String(64), nullable=False, default="general")
+    current_keyword = Column(String(200), nullable=True)
+    ok_count = Column(Integer, default=0, nullable=False)
+    fail_count = Column(Integer, default=0, nullable=False)
+    errors_text = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class FAQ(Base):
     """자주 묻는 질문"""
     __tablename__ = "faqs"

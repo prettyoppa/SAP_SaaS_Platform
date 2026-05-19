@@ -71,6 +71,11 @@ def submit_for_review(article: models.KnowledgeArticle) -> None:
     article.is_published = False
 
 
+def is_live_on_site(article: models.KnowledgeArticle, *, now: datetime | None = None) -> bool:
+    """관리자 UI·공개 /kb 와 동일 기준."""
+    return is_publicly_visible(article, now=now)
+
+
 def is_publicly_visible(article: models.KnowledgeArticle, *, now: datetime | None = None) -> bool:
     if not article.is_published:
         return False
