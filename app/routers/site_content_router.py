@@ -279,87 +279,27 @@ def faq_public_detail(faq_id: int, request: Request, db: Session = Depends(get_d
 
 
 @router.get("/kb", response_class=HTMLResponse)
-def kb_public_list(
-    request: Request,
-    db: Session = Depends(get_db),
-    q: str = "",
-    category: str = "",
-    page: int = 1,
-):
+def kb_public_list(request: Request, db: Session = Depends(get_db)):
+    """지식갤러리 전체 목록은 공개하지 않음(검색 유입용 개별 URL만)."""
     user = auth.get_current_user(request, db)
-    page = max(1, page)
-    term = (q or "").strip()
-    cat = (category or "").strip().lower()
-    if cat and cat not in KB_CATEGORIES:
-        cat = ""
-
-    base = _kb_published_filter(db.query(models.KnowledgeArticle))
-    if cat:
-        base = base.filter(models.KnowledgeArticle.category == cat)
-    if term:
-        like = f"%{term}%"
-        base = base.filter(
-            or_(
-                models.KnowledgeArticle.title.ilike(like),
-                models.KnowledgeArticle.excerpt.ilike(like),
-                models.KnowledgeArticle.tags.ilike(like),
-            )
-        )
-
-    total = base.count()
-    total_pages = max(1, math.ceil(total / PER_PAGE)) if total else 1
-    if page > total_pages:
-        page = total_pages
-
-    offset = (page - 1) * PER_PAGE
-    rows = (
-        base.order_by(
-            models.KnowledgeArticle.sort_order.asc(),
-            models.KnowledgeArticle.published_at.desc(),
-            models.KnowledgeArticle.id.desc(),
-        )
-        .offset(offset)
-        .limit(PER_PAGE)
-        .all()
-    )
-
-    list_rows: list[dict[str, Any]] = []
-    for a in rows:
-        list_rows.append(
-            {
-                "article": a,
-                "title_html": _markdown_to_html(a.title or ""),
-                "excerpt_html": _markdown_to_html(a.excerpt or ""),
-            }
-        )
-
-    canonical_url = public_request_url(request, "/kb")
-    meta_description = (
-        "SAP 지식갤러리 — 신규 개발, 분석·개선, 연동 개발 실무 가이드와 체크리스트."
-    )
     return templates.TemplateResponse(
         request,
-        "site/kb_list.html",
+        "errors/simple_message.html",
         {
             "request": request,
             "user": user,
-            "q": term,
-            "category": cat,
-            "kb_categories": KB_CATEGORIES,
-            "page": page,
-            "per_page": PER_PAGE,
-            "total": total,
-            "total_pages": total_pages,
-            "list_rows": list_rows,
-            "page_nums": _pagination_window(page, total_pages),
-            "canonical_url": canonical_url,
-            "meta_description": meta_description,
+            "title": "지식갤러리",
+            "message": "지식갤러리 목록은 제공하지 않습니다. 검색·공유 링크로 열 수 있는 글만 공개됩니다.",
+            "message_en": "The knowledge gallery list is not available. Only individual articles opened via search or shared links are public.",
         },
+        status_code=404,
     )
 
 
 @router.get("/kb/{slug}", response_class=HTMLResponse)
 def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db)):
+    from ..kb_workflow import STATUS_PUBLISHED
+
     user = auth.get_current_user(request, db)
     now = _utc_now()
     a = (
@@ -367,6 +307,7 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
         .filter(
             models.KnowledgeArticle.slug == slug,
             models.KnowledgeArticle.is_published == True,
+            models.KnowledgeArticle.workflow_status == STATUS_PUBLISHED,
             or_(
                 models.KnowledgeArticle.published_at.is_(None),
                 models.KnowledgeArticle.published_at <= now,
@@ -381,13 +322,13 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
             {
                 "request": request,
                 "user": user,
-                "title": "SAP 지식갤러리",
+                "title": "지식갤러리",
                 "message": "존재하지 않거나 비공개된 글입니다.",
                 "message_en": "This article does not exist or is not published.",
             },
             status_code=404,
         )
-    meta_title = _meta_title_from_markdown(a.title, "SAP 지식갤러리")
+    meta_title = _meta_title_from_markdown(a.title, "지식갤러리")
     body_md = strip_leading_title_from_body_md(a.body_md or "", meta_title)
     body_en_md_raw = (a.body_md_en or "").strip() or (a.body_md or "")
     body_en_md = strip_leading_title_from_body_md(body_en_md_raw, meta_title)

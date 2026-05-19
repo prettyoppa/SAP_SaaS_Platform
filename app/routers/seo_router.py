@@ -65,7 +65,7 @@ def robots_txt(request: Request) -> PlainTextResponse:
             "Allow: /",
             "Allow: /notices",
             "Allow: /faqs",
-            "Allow: /kb",
+            "Disallow: /kb$",
             "Allow: /kb/",
             disallow,
             "",
@@ -82,7 +82,6 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
 
     static_pages = [
         (f"{origin}/", today, "weekly", "1.0"),
-        (f"{origin}/kb", today, "weekly", "0.85"),
         (f"{origin}/notices", today, "weekly", "0.7"),
         (f"{origin}/faqs", today, "weekly", "0.7"),
     ]
@@ -172,7 +171,6 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         fallback = [
             _sitemap_url_block(f"{origin}/", today, "weekly", "1.0"),
-            _sitemap_url_block(f"{origin}/kb", today, "weekly", "0.85"),
             _sitemap_url_block(f"{origin}/notices", today, "weekly", "0.7"),
             _sitemap_url_block(f"{origin}/faqs", today, "weekly", "0.7"),
         ]

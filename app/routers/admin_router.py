@@ -1405,12 +1405,17 @@ def admin_kb(request: Request, db: Session = Depends(get_db)):
     batch_job_active = bool(
         batch_job and (batch_job.status or "").strip() == STATUS_RUNNING
     )
+    kb_view = (qp.get("view") or "manage").strip().lower()
+    if kb_view not in ("manage", "list"):
+        kb_view = "manage"
     return templates.TemplateResponse(
         request,
         "admin/kb.html",
         {
             "request": request,
             "user": user,
+            "kb_view": kb_view,
+            "all_articles": articles,
             "review_queue": review_queue,
             "published_articles": published_articles,
             "other_articles": other_articles,

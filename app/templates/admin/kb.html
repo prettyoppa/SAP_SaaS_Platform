@@ -1,17 +1,38 @@
 {% extends "base.html" %}
-{% block title %}SAP 지식갤러리 – Admin{% endblock %}
+{% block title %}지식갤러리 – Admin{% endblock %}
 {% block content %}
 <div class="py-4">
   <div class="container">
-    <h4 class="mb-2">
-      <i class="fa-solid fa-book me-2 text-primary"></i>
-      <span class="nav-ko">SAP 지식갤러리</span>
-      <span class="nav-en" style="display:none">SAP Knowledge Gallery</span>
-    </h4>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+      <h4 class="mb-0">
+        <i class="fa-solid fa-book me-2 text-primary"></i>
+        <span class="nav-ko">지식갤러리</span>
+        <span class="nav-en" style="display:none">Knowledge gallery</span>
+      </h4>
+      <div class="btn-group" role="group" aria-label="KB admin view">
+        <a href="/admin/kb?view=manage" class="btn btn-sm {% if kb_view == 'manage' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          <span class="nav-ko">관리</span><span class="nav-en" style="display:none">Manage</span>
+        </a>
+        <a href="/admin/kb?view=list" class="btn btn-sm {% if kb_view == 'list' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          <span class="nav-ko">목록</span><span class="nav-en" style="display:none">List</span>
+        </a>
+      </div>
+    </div>
+    {% if kb_view == 'list' %}
     <p class="small text-muted mb-3">
-      <span class="nav-ko">URL은 <code>/kb</code> 입니다. <strong>발행</strong>된 글만 회원·비회원에게 공개되며, 검색(sitemap)에도 포함됩니다. 회원 요청 <strong>원문은 저장·공개하지 않습니다</strong>.</span>
-      <span class="nav-en" style="display:none">Public URL: <code>/kb</code>. Only published articles are visible to everyone and included in the sitemap. Member request text is never stored or shown.</span>
+      <span class="nav-ko">전체 글(공개·비공개) 목록입니다. 편집은 <strong>관리</strong> 화면에서 합니다. 사이트에는 발행된 글만 <code>/kb/슬러그</code> 로 검색·공유 링크로 노출됩니다(목록 페이지 없음).</span>
+      <span class="nav-en" style="display:none">All articles (public and private). Edit in <strong>Manage</strong>. Only published posts are reachable at <code>/kb/slug</code> via search or direct links—no public index page.</span>
     </p>
+    {% else %}
+    <p class="small text-muted mb-3">
+      <span class="nav-ko">발행된 글만 <code>/kb/슬러그</code> URL로 검색·sitemap 유입됩니다. <strong>지식갤러리 목록 페이지는 공개하지 않습니다.</strong> 회원 요청 원문은 저장·공개하지 않습니다.</span>
+      <span class="nav-en" style="display:none">Published posts use <code>/kb/slug</code> for search/sitemap only—no public gallery list. Member request text is never stored or shown.</span>
+    </p>
+    {% endif %}
+
+    {% if kb_view == 'list' %}
+    {% include 'admin/partials/kb_article_list.html' %}
+    {% else %}
 
     {% if generate_ok or generate_fail %}
     <div class="alert {% if generate_ok and not generate_fail %}alert-success{% elif generate_ok %}alert-warning{% else %}alert-danger{% endif %} small py-2">
@@ -130,6 +151,8 @@
       {% include 'admin/partials/kb_article_card.html' %}
     {% endfor %}
     {% endif %}
+
+    {% endif %}{# kb_view manage #}
   </div>
 </div>
 {% include 'admin/partials/kb_batch_generating_modal.html' %}
