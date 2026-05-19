@@ -59,7 +59,7 @@
 
     function onDone(j) {
       var q =
-        '/admin/kb?generate_ok=' +
+        '/admin/kb?view=new&generate_ok=' +
         encodeURIComponent(String(j.ok_count || 0)) +
         '&generate_fail=' +
         encodeURIComponent(String(j.fail_count || 0));

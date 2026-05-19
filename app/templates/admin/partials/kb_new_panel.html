@@ -1,0 +1,56 @@
+{# expects kb_categories #}
+<div class="admin-content-card p-3 mb-4">
+  <h6 class="fw-semibold mb-2">
+    <i class="fa-solid fa-wand-magic-sparkles me-1 text-primary"></i>
+    <span class="nav-ko">AI 초안 생성 (Google 검색 연동)</span>
+    <span class="nav-en" style="display:none">AI draft generation (Google Search grounding)</span>
+  </h6>
+  <p class="small text-muted mb-2">
+    <span class="nav-ko">키워드 최대 5개(줄당 1개). 생성된 글은 <strong>검수 대기</strong> 상태이며 공개·검색에 노출되지 않습니다.</span>
+    <span class="nav-en" style="display:none">Up to 5 keywords (one per line). Drafts go to <strong>pending review</strong> (not public).</span>
+  </p>
+  <form method="post" action="/admin/kb/generate-drafts" data-app-confirm-i18n="admin.kb.confirmGenerate"
+        data-busy-title-ko="요청 접수 중…" data-busy-title-en="Submitting…"
+        data-busy-hint-ko="잠시 후 백그라운드에서 키워드별 초안이 생성됩니다."
+        data-busy-hint-en="Per-keyword drafts will generate in the background shortly."
+        data-busy-agents='[{"agentKo":"「지식갤러리」","doingKo":"키워드별 초안 생성 작업을 서버에 등록하고 있습니다","agentEn":"「Gallery」","doingEn":"queueing per-keyword draft jobs on the server"}]'>
+    <div class="row g-2">
+      <div class="col-md-8">
+        <label class="small"><span class="nav-ko">키워드 (줄당 1개, 최대 5)</span><span class="nav-en" style="display:none">Keywords (one per line, max 5)</span></label>
+        <textarea name="keywords" class="form-control font-monospace" rows="5" placeholder="S/4HANA OData&#10;ABAP RESTful Application Programming"></textarea>
+      </div>
+      <div class="col-md-4">
+        <label class="small"><span class="nav-ko">기본 분류</span><span class="nav-en" style="display:none">Default category</span></label>
+        <select name="category_default" class="form-select mb-2">{% for k,l in kb_categories.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
+        <label class="small"><span class="nav-ko">참고 메모 (선택)</span><span class="nav-en" style="display:none">Reference notes (optional)</span></label>
+        <textarea name="reference_notes" class="form-control small" rows="3"></textarea>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-primary">
+          <span class="nav-ko">초안 생성 → 검수 대기</span>
+          <span class="nav-en" style="display:none">Generate drafts → review queue</span>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="admin-content-card p-3">
+  <h6 class="fw-semibold mb-3">
+    <span class="nav-ko">수동으로 새 글 추가</span>
+    <span class="nav-en" style="display:none">Add article manually</span>
+  </h6>
+  <form method="post" action="/admin/kb/add">
+    <div class="row g-2">
+      <div class="col-md-6"><label class="small"><span class="nav-ko">제목</span><span class="nav-en" style="display:none">Title</span></label><input name="title" class="form-control" required/></div>
+      <div class="col-md-6"><label class="small">slug</label><input name="slug" class="form-control font-monospace" placeholder="auto"/></div>
+      <div class="col-md-4"><label class="small"><span class="nav-ko">분류</span><span class="nav-en" style="display:none">Category</span></label><select name="category" class="form-select">{% for k,l in kb_categories.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></div>
+      <div class="col-md-4"><label class="small"><span class="nav-ko">순서</span><span class="nav-en" style="display:none">Order</span></label><input type="number" name="sort_order" value="0" class="form-control"/></div>
+      <div class="col-md-4"><label class="small d-block"><span class="nav-ko">즉시 발행</span><span class="nav-en" style="display:none">Publish now</span></label><input type="checkbox" name="is_published" value="1"/></div>
+      <div class="col-12"><label class="small"><span class="nav-ko">요약</span><span class="nav-en" style="display:none">Excerpt</span></label><textarea name="excerpt" class="form-control" rows="2"></textarea></div>
+      <div class="col-12"><label class="small">meta description</label><input name="meta_description" class="form-control" maxlength="320"/></div>
+      <div class="col-12"><label class="small"><span class="nav-ko">본문 Markdown</span><span class="nav-en" style="display:none">Body (Markdown)</span></label><textarea name="body_md" class="form-control font-monospace" rows="8"></textarea></div>
+      <div class="col-12"><button type="submit" class="btn btn-primary"><span class="nav-ko">추가 후 편집</span><span class="nav-en" style="display:none">Add and edit</span></button></div>
+    </div>
+  </form>
+</div>

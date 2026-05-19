@@ -1,0 +1,35 @@
+{% if generate_ok or generate_fail %}
+<div class="alert {% if generate_ok and not generate_fail %}alert-success{% elif generate_ok %}alert-warning{% else %}alert-danger{% endif %} small py-2">
+  <span class="nav-ko">생성 완료 {{ generate_ok }}건{% if generate_fail %} · 실패 {{ generate_fail }}건{% endif %}</span>
+  <span class="nav-en" style="display:none">Generated {{ generate_ok }}{% if generate_fail %} · failed {{ generate_fail }}{% endif %}</span>
+  {% if generate_errors %}
+  <div class="mt-1 font-monospace" style="white-space:pre-wrap">{{ generate_errors }}</div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if request.query_params.get('review') == 'approved' %}
+<div class="alert alert-success small py-2"><span class="nav-ko">발행되었습니다.</span><span class="nav-en" style="display:none">Published.</span></div>
+{% elif request.query_params.get('review') == 'rejected' %}
+<div class="alert alert-warning small py-2"><span class="nav-ko">반려 처리되었습니다.</span><span class="nav-en" style="display:none">Rejected.</span></div>
+{% elif request.query_params.get('review') == 'submitted' %}
+<div class="alert alert-info small py-2"><span class="nav-ko">검수 대기로 이동했습니다.</span><span class="nav-en" style="display:none">Moved to review queue.</span></div>
+{% endif %}
+
+{% if request.query_params.get('saved') %}
+<div class="alert alert-success small py-2"><span class="nav-ko">저장되었습니다.</span><span class="nav-en" style="display:none">Saved.</span></div>
+{% endif %}
+
+{% if request.query_params.get('bulk_saved') %}
+<div class="alert alert-success small py-2"><span class="nav-ko">저장되었습니다.</span><span class="nav-en" style="display:none">Saved.</span></div>
+{% endif %}
+
+{% if batch_job_active %}
+<div class="alert alert-info small py-2 d-flex flex-wrap align-items-center gap-2">
+  <span class="nav-ko">AI 초안 생성이 백그라운드에서 진행 중입니다.</span>
+  <span class="nav-en" style="display:none">AI draft generation is running in the background.</span>
+  <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#kbGalleryBatchModal" data-no-busy="true">
+    <span class="nav-ko">진행 창 열기</span><span class="nav-en" style="display:none">Open progress</span>
+  </button>
+</div>
+{% endif %}

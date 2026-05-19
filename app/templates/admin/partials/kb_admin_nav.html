@@ -1,0 +1,16 @@
+{# expects kb_tab: 'list' | 'new' #}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+  <h4 class="mb-0">
+    <i class="fa-solid fa-book me-2 text-primary"></i>
+    <span class="nav-ko">지식갤러리</span>
+    <span class="nav-en" style="display:none">Knowledge gallery</span>
+  </h4>
+  <div class="btn-group" role="group" aria-label="KB admin tabs">
+    <a href="/admin/kb?view=list" class="btn btn-sm {% if kb_tab == 'list' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+      <span class="nav-ko">목록</span><span class="nav-en" style="display:none">List</span>
+    </a>
+    <a href="/admin/kb?view=new" class="btn btn-sm {% if kb_tab == 'new' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+      <span class="nav-ko">신규</span><span class="nav-en" style="display:none">New</span>
+    </a>
+  </div>
+</div>

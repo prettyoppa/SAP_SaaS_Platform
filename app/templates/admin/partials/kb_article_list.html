@@ -1,4 +1,4 @@
-{# expects all_articles; status_labels_ko; status_labels_en; wf_published; kb_categories #}
+{# expects all_articles; status_labels_ko; status_labels_en; wf_pending; wf_published; kb_categories #}
 <div class="admin-content-card p-0 overflow-hidden">
   <div class="table-responsive">
     <table class="table table-sm table-hover mb-0 align-middle">
@@ -26,15 +26,17 @@
             </span>
           </td>
           <td>
-            {% if kb_live %}
+            {% if a.workflow_status == wf_pending %}
+            <span class="badge bg-warning text-dark"><span class="nav-ko">검수 전</span><span class="nav-en" style="display:none">Pre-publish</span></span>
+            {% elif kb_live %}
             <span class="badge bg-success"><span class="nav-ko">공개</span><span class="nav-en" style="display:none">Public</span></span>
             {% else %}
             <span class="badge bg-light text-dark border"><span class="nav-ko">비공개</span><span class="nav-en" style="display:none">Private</span></span>
             {% endif %}
           </td>
           <td class="text-nowrap">
-            <a href="/admin/kb?view=manage#kb-article-{{ a.id }}" class="btn btn-sm btn-outline-primary">
-              <span class="nav-ko">관리</span><span class="nav-en" style="display:none">Edit</span>
+            <a href="/admin/kb/{{ a.id }}" class="btn btn-sm btn-outline-primary">
+              <span class="nav-ko">편집</span><span class="nav-en" style="display:none">Edit</span>
             </a>
             {% if kb_live %}
             <a href="/kb/{{ a.slug }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" data-no-busy="true">

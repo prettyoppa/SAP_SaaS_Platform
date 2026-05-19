@@ -1360,8 +1360,7 @@ def _form_bool(val: str) -> bool:
     return (val or "").strip().lower() in ("1", "on", "true", "yes")
 
 
-@router.get("/kb", response_class=HTMLResponse)
-def admin_kb(request: Request, db: Session = Depends(get_db)):
+def _kb_admin_page_context(request: Request, db: Session, user: models.User) -> dict:
     from ..kb_gallery_batch import STATUS_RUNNING
     from ..kb_workflow import (
         STATUS_LABEL_EN,
@@ -1371,9 +1370,7 @@ def admin_kb(request: Request, db: Session = Depends(get_db)):
     )
     from ..routers.site_content_router import KB_CATEGORIES
 
-    user = _require_admin(request, db)
-    if not user:
-        return RedirectResponse(url="/", status_code=302)
+    qp = request.query_params
     articles = (
         db.query(models.KnowledgeArticle)
         .order_by(
@@ -1383,14 +1380,6 @@ def admin_kb(request: Request, db: Session = Depends(get_db)):
         )
         .all()
     )
-    review_queue = [a for a in articles if (a.workflow_status or "") == STATUS_PENDING_REVIEW]
-    published_articles = [a for a in articles if (a.workflow_status or "") == STATUS_PUBLISHED]
-    other_articles = [
-        a
-        for a in articles
-        if (a.workflow_status or "") not in (STATUS_PENDING_REVIEW, STATUS_PUBLISHED)
-    ]
-    qp = request.query_params
     batch_job = None
     batch_job_id_raw = (qp.get("batch_job_id") or "").strip()
     if batch_job_id_raw.isdigit():
@@ -1405,32 +1394,52 @@ def admin_kb(request: Request, db: Session = Depends(get_db)):
     batch_job_active = bool(
         batch_job and (batch_job.status or "").strip() == STATUS_RUNNING
     )
-    kb_view = (qp.get("view") or "manage").strip().lower()
-    if kb_view not in ("manage", "list"):
-        kb_view = "manage"
-    return templates.TemplateResponse(
-        request,
-        "admin/kb.html",
-        {
-            "request": request,
-            "user": user,
-            "kb_view": kb_view,
-            "all_articles": articles,
-            "review_queue": review_queue,
-            "published_articles": published_articles,
-            "other_articles": other_articles,
-            "kb_categories": KB_CATEGORIES,
-            "status_labels_ko": STATUS_LABEL_KO,
-            "status_labels_en": STATUS_LABEL_EN,
-            "wf_pending": STATUS_PENDING_REVIEW,
-            "wf_published": STATUS_PUBLISHED,
-            "batch_job": batch_job,
-            "batch_job_active": batch_job_active,
-            "generate_ok": int(qp.get("generate_ok") or 0),
-            "generate_fail": int(qp.get("generate_fail") or 0),
-            "generate_errors": (qp.get("generate_errors") or "").strip()[:2000],
-        },
+    return {
+        "request": request,
+        "user": user,
+        "all_articles": articles,
+        "kb_categories": KB_CATEGORIES,
+        "status_labels_ko": STATUS_LABEL_KO,
+        "status_labels_en": STATUS_LABEL_EN,
+        "wf_pending": STATUS_PENDING_REVIEW,
+        "wf_published": STATUS_PUBLISHED,
+        "batch_job": batch_job,
+        "batch_job_active": batch_job_active,
+        "generate_ok": int(qp.get("generate_ok") or 0),
+        "generate_fail": int(qp.get("generate_fail") or 0),
+        "generate_errors": (qp.get("generate_errors") or "").strip()[:2000],
+    }
+
+
+@router.get("/kb", response_class=HTMLResponse)
+def admin_kb(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    kb_tab = (request.query_params.get("view") or "list").strip().lower()
+    if kb_tab not in ("list", "new"):
+        kb_tab = "list"
+    ctx = _kb_admin_page_context(request, db, user)
+    ctx["kb_tab"] = kb_tab
+    return templates.TemplateResponse(request, "admin/kb.html", ctx)
+
+
+@router.get("/kb/{article_id}", response_class=HTMLResponse)
+def admin_kb_edit(article_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    a = (
+        db.query(models.KnowledgeArticle)
+        .filter(models.KnowledgeArticle.id == article_id)
+        .first()
     )
+    if not a:
+        return RedirectResponse(url="/admin/kb?view=list", status_code=302)
+    ctx = _kb_admin_page_context(request, db, user)
+    ctx["kb_tab"] = "list"
+    ctx["a"] = a
+    return templates.TemplateResponse(request, "admin/kb_edit.html", ctx)
 
 
 @router.post("/kb/add")
@@ -1483,7 +1492,8 @@ def admin_kb_add(
     sync_publish_flags(row)
     db.add(row)
     db.commit()
-    return RedirectResponse(url="/admin/kb", status_code=302)
+    db.refresh(row)
+    return RedirectResponse(url=f"/admin/kb/{row.id}?saved=1", status_code=303)
 
 
 @router.post("/kb/generate-drafts")
@@ -1505,7 +1515,8 @@ async def admin_kb_generate_drafts(
     keywords = parse_keyword_lines(str(form.get("keywords") or ""))
     if not keywords:
         return RedirectResponse(
-            url="/admin/kb?generate_fail=1&generate_errors=" + quote("키워드를 1개 이상 입력하세요."),
+            url="/admin/kb?view=new&generate_fail=1&generate_errors="
+            + quote("키워드를 1개 이상 입력하세요."),
             status_code=303,
         )
     ref_notes = (form.get("reference_notes") or "").strip()
@@ -1521,7 +1532,7 @@ async def admin_kb_generate_drafts(
     )
     background_tasks.add_task(run_kb_gallery_batch_job, job.id)
     return RedirectResponse(
-        url=f"/admin/kb?batch_job_id={job.id}",
+        url=f"/admin/kb?view=new&batch_job_id={job.id}",
         status_code=303,
     )
 
@@ -1591,7 +1602,7 @@ def admin_kb_preview(article_id: int, request: Request, db: Session = Depends(ge
         .first()
     )
     if not a:
-        return RedirectResponse(url="/admin/kb", status_code=302)
+        return RedirectResponse(url="/admin/kb?view=list", status_code=302)
     title_html = _markdown_to_html(a.title or "")
     body_html = _markdown_to_html(a.body_md or "")
     excerpt_html = _markdown_to_html(a.excerpt or "") if a.excerpt else ""
@@ -1652,7 +1663,7 @@ async def admin_kb_add_bulk(request: Request, db: Session = Depends(get_db)):
         n_saved += 1
     if n_saved:
         db.commit()
-    return RedirectResponse(url=f"/admin/kb?bulk_saved={n_saved}", status_code=303)
+    return RedirectResponse(url=f"/admin/kb?view=new&bulk_saved={n_saved}", status_code=303)
 
 
 @router.post("/kb/{article_id}/update")
@@ -1679,7 +1690,7 @@ def admin_kb_update(
         return RedirectResponse(url="/", status_code=302)
     a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
     if not a:
-        return RedirectResponse(url="/admin/kb", status_code=302)
+        return RedirectResponse(url="/admin/kb?view=list", status_code=302)
     cat = (category or "general").strip().lower()
     if cat not in KB_CATEGORIES:
         cat = "general"
@@ -1706,7 +1717,7 @@ def admin_kb_update(
     sync_publish_flags(a)
     a.source_note = (source_note or "").strip() or None
     db.commit()
-    return RedirectResponse(url="/admin/kb", status_code=302)
+    return RedirectResponse(url=f"/admin/kb/{article_id}?saved=1", status_code=303)
 
 
 @router.post("/kb/{article_id}/approve")
@@ -1720,7 +1731,7 @@ def admin_kb_approve(article_id: int, request: Request, db: Session = Depends(ge
     if a:
         approve_article(a)
         db.commit()
-    return RedirectResponse(url="/admin/kb?review=approved", status_code=303)
+    return RedirectResponse(url=f"/admin/kb/{article_id}?review=approved", status_code=303)
 
 
 @router.post("/kb/{article_id}/reject")
@@ -1734,7 +1745,7 @@ def admin_kb_reject(article_id: int, request: Request, db: Session = Depends(get
     if a:
         reject_article(a)
         db.commit()
-    return RedirectResponse(url="/admin/kb?review=rejected", status_code=303)
+    return RedirectResponse(url=f"/admin/kb/{article_id}?review=rejected", status_code=303)
 
 
 @router.post("/kb/{article_id}/submit-review")
@@ -1748,7 +1759,7 @@ def admin_kb_submit_review(article_id: int, request: Request, db: Session = Depe
     if a:
         submit_for_review(a)
         db.commit()
-    return RedirectResponse(url="/admin/kb?review=submitted", status_code=303)
+    return RedirectResponse(url=f"/admin/kb/{article_id}?review=submitted", status_code=303)
 
 
 @router.post("/kb/{article_id}/set-publish")
@@ -1765,7 +1776,7 @@ def admin_kb_set_publish(
         return RedirectResponse(url="/", status_code=302)
     a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
     if not a:
-        return RedirectResponse(url="/admin/kb", status_code=302)
+        return RedirectResponse(url="/admin/kb?view=list", status_code=302)
     want = _form_bool(published)
     if want:
         approve_article(a)
@@ -1775,7 +1786,7 @@ def admin_kb_set_publish(
             a.workflow_status = STATUS_DRAFT
         sync_publish_flags(a)
     db.commit()
-    return RedirectResponse(url="/admin/kb", status_code=302)
+    return RedirectResponse(url=f"/admin/kb/{article_id}", status_code=303)
 
 
 @router.post("/kb/{article_id}/toggle-publish")
@@ -1788,7 +1799,7 @@ def admin_kb_toggle_publish(article_id: int, request: Request, db: Session = Dep
         return RedirectResponse(url="/", status_code=302)
     a = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.id == article_id).first()
     if not a:
-        return RedirectResponse(url="/admin/kb", status_code=302)
+        return RedirectResponse(url="/admin/kb?view=list", status_code=302)
     return admin_kb_set_publish(
         article_id,
         request,
@@ -1806,7 +1817,7 @@ def admin_kb_delete(article_id: int, request: Request, db: Session = Depends(get
     if a:
         db.delete(a)
         db.commit()
-    return RedirectResponse(url="/admin/kb", status_code=302)
+    return RedirectResponse(url="/admin/kb?view=list", status_code=303)
 
 
 # ── 문의/리뷰 전체 모니터링 (관리자 비노출·삭제) ─────────────────────
