@@ -512,6 +512,7 @@ class KbGalleryBatchJob(Base):
     ok_count = Column(Integer, default=0, nullable=False)
     fail_count = Column(Integer, default=0, nullable=False)
     errors_text = Column(Text, nullable=True)
+    cancel_requested_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

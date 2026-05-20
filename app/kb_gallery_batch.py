@@ -27,6 +27,26 @@ _log = logging.getLogger(__name__)
 STATUS_RUNNING = "running"
 STATUS_DONE = "done"
 STATUS_FAILED = "failed"
+STATUS_CANCELLED = "cancelled"
+
+
+def job_cancel_requested(db, job: models.KbGalleryBatchJob) -> bool:
+    db.refresh(job)
+    return bool(getattr(job, "cancel_requested_at", None))
+
+
+def request_batch_cancel(db, job: models.KbGalleryBatchJob) -> bool:
+    """키워드 배치만 취소 요청. 이미 종료된 job이면 False."""
+    from .kb_article_generator import SOURCE_MODE_KEYWORDS
+
+    if (job.status or "").strip() != STATUS_RUNNING:
+        return False
+    if normalize_source_mode(getattr(job, "source_mode", None)) != SOURCE_MODE_KEYWORDS:
+        return False
+    job.cancel_requested_at = datetime.utcnow()
+    job.updated_at = datetime.utcnow()
+    db.commit()
+    return True
 
 
 def _append_error(job: models.KbGalleryBatchJob, line: str) -> None:
@@ -168,6 +188,12 @@ def run_kb_gallery_batch_job(job_id: int) -> None:
                 if not isinstance(keywords, list):
                     keywords = []
                 for kw in keywords:
+                    if job_cancel_requested(db, job):
+                        job.status = STATUS_CANCELLED
+                        job.current_keyword = None
+                        job.updated_at = datetime.utcnow()
+                        db.commit()
+                        return
                     kw_s = str(kw).strip()
                     if not kw_s:
                         continue
@@ -217,6 +243,10 @@ def run_kb_gallery_batch_job(job_id: int) -> None:
                     db.commit()
 
         job.current_keyword = None
+        if (job.status or "").strip() == STATUS_CANCELLED:
+            job.updated_at = datetime.utcnow()
+            db.commit()
+            return
         if mode == SOURCE_MODE_KEYNOTE:
             has_work = bool((job.keynote_text or "").strip())
         else:

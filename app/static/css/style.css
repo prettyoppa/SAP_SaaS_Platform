@@ -2829,6 +2829,43 @@ html[data-theme="light"] .codelib-source-tabs .nav-link.active {
   color: var(--primary) !important;
 }
 
+/* ── KB admin: AI 초안 키워드/키노트 탭 (다크에서 제목 가독성) ───── */
+.kb-ai-source-tabs .nav-link {
+  color: var(--label) !important;
+  opacity: 1 !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  font-weight: 500;
+}
+.kb-ai-source-tabs .nav-link:hover {
+  color: var(--text) !important;
+  border-bottom-color: var(--border) !important;
+}
+.kb-ai-source-tabs .nav-link.active {
+  color: var(--text) !important;
+  border-bottom-color: var(--primary) !important;
+  font-weight: 600;
+}
+html[data-theme="dark"] .kb-ai-source-tabs .nav-link {
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] .kb-ai-source-tabs .nav-link:hover {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] .kb-ai-source-tabs .nav-link.active {
+  color: var(--primary-light) !important;
+  border-bottom-color: var(--primary-light) !important;
+}
+html[data-theme="light"] .kb-ai-source-tabs .nav-link {
+  color: var(--label) !important;
+}
+html[data-theme="light"] .kb-ai-source-tabs .nav-link.active {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+}
+
 /* 스피너 링 중앙 아이콘 (전역 처리 중·생성 진행 모달·인터뷰 로딩 등) */
 .busy-spinner-ring {
   position: relative;

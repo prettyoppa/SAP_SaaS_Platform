@@ -180,6 +180,7 @@ def _run_migrations():
         ("kb_gallery_batch_jobs", "source_mode", "VARCHAR(16) DEFAULT 'keywords'", "VARCHAR(16) DEFAULT 'keywords'"),
         ("kb_gallery_batch_jobs", "also_english", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("kb_gallery_batch_jobs", "keynote_text", "TEXT", "TEXT"),
+        ("kb_gallery_batch_jobs", "cancel_requested_at", "DATETIME", "TIMESTAMP"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

@@ -1407,6 +1407,7 @@ def _kb_admin_page_context(request: Request, db: Session, user: models.User) -> 
         "batch_job_active": batch_job_active,
         "generate_ok": int(qp.get("generate_ok") or 0),
         "generate_fail": int(qp.get("generate_fail") or 0),
+        "generate_cancelled": (qp.get("generate_cancelled") or "").strip() in ("1", "true", "yes"),
         "generate_errors": (qp.get("generate_errors") or "").strip()[:2000],
     }
 
@@ -1596,7 +1597,13 @@ async def admin_kb_generate_drafts(
 def admin_kb_batch_status(job_id: int, request: Request, db: Session = Depends(get_db)):
     import json as json_mod
 
-    from ..kb_gallery_batch import STATUS_DONE, STATUS_FAILED, STATUS_RUNNING, batch_job_total_items
+    from ..kb_gallery_batch import (
+        STATUS_CANCELLED,
+        STATUS_DONE,
+        STATUS_FAILED,
+        STATUS_RUNNING,
+        batch_job_total_items,
+    )
 
     user = _require_admin(request, db)
     if not user:
@@ -1613,7 +1620,7 @@ def admin_kb_batch_status(job_id: int, request: Request, db: Session = Depends(g
         return JSONResponse({"error": "not_found"}, status_code=404)
     total = batch_job_total_items(job)
     st = (job.status or "").strip()
-    done = st in (STATUS_DONE, STATUS_FAILED)
+    done = st in (STATUS_DONE, STATUS_FAILED, STATUS_CANCELLED)
     return JSONResponse(
         {
             "status": st,
@@ -1623,9 +1630,36 @@ def admin_kb_batch_status(job_id: int, request: Request, db: Session = Depends(g
             "current_keyword": job.current_keyword,
             "total": total,
             "done": done,
+            "cancelled": st == STATUS_CANCELLED,
+            "can_cancel": st == STATUS_RUNNING
+            and (getattr(job, "source_mode", None) or "keywords").strip() == "keywords",
             "errors": (job.errors_text or "")[:2000],
         }
     )
+
+
+@router.post("/api/kb-batch-cancel/{job_id}")
+def admin_kb_batch_cancel(job_id: int, request: Request, db: Session = Depends(get_db)):
+    from ..kb_gallery_batch import STATUS_RUNNING, request_batch_cancel
+
+    user = _require_admin(request, db)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    job = (
+        db.query(models.KbGalleryBatchJob)
+        .filter(
+            models.KbGalleryBatchJob.id == job_id,
+            models.KbGalleryBatchJob.admin_user_id == user.id,
+        )
+        .first()
+    )
+    if not job:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    if (job.status or "").strip() != STATUS_RUNNING:
+        return JSONResponse({"error": "not_running", "status": job.status}, status_code=409)
+    if not request_batch_cancel(db, job):
+        return JSONResponse({"error": "not_cancellable"}, status_code=400)
+    return JSONResponse({"ok": True, "status": "cancel_requested"})
 
 
 @router.post("/api/kb/render-markdown")

@@ -5,7 +5,15 @@
 </div>
 {% endif %}
 
-{% if generate_ok or generate_fail %}
+{% if generate_cancelled %}
+<div class="alert alert-warning small py-2">
+  <span class="nav-ko">키워드 배치를 중지했습니다. 완료 {{ generate_ok }}건은 검수 대기에 남습니다{% if generate_fail %} · 실패 {{ generate_fail }}건{% endif %}.</span>
+  <span class="nav-en" style="display:none">Batch stopped. {{ generate_ok }} completed draft(s) remain in review{% if generate_fail %} · {{ generate_fail }} failed{% endif %}.</span>
+  {% if generate_errors %}
+  <div class="mt-1 font-monospace" style="white-space:pre-wrap">{{ generate_errors }}</div>
+  {% endif %}
+</div>
+{% elif generate_ok or generate_fail %}
 <div class="alert {% if generate_ok and not generate_fail %}alert-success{% elif generate_ok %}alert-warning{% else %}alert-danger{% endif %} small py-2">
   <span class="nav-ko">생성 완료 {{ generate_ok }}건{% if generate_fail %} · 실패 {{ generate_fail }}건{% endif %}</span>
   <span class="nav-en" style="display:none">Generated {{ generate_ok }}{% if generate_fail %} · failed {{ generate_fail }}{% endif %}</span>

@@ -434,6 +434,7 @@ const TRANSLATIONS = {
     "admin.kb.confirmApprove": "Publish this article? It will be visible at /kb and in the sitemap.",
     "admin.kb.confirmReject": "Reject this article? It will stay unpublished.",
     "admin.kb.confirmDelete": "Delete this article permanently?",
+    "admin.kb.confirmBatchStop": "Keep completed drafts and stop remaining keywords? The keyword currently in flight may finish its API call.",
     "kb.searchPlaceholder": "Search title, excerpt, tags",
   },
 
@@ -865,6 +866,7 @@ const TRANSLATIONS = {
     "admin.kb.confirmApprove": "이 글을 발행할까요? /kb 에 공개되고 sitemap에 포함됩니다.",
     "admin.kb.confirmReject": "이 글을 반려할까요? 공개되지 않습니다.",
     "admin.kb.confirmDelete": "이 글을 삭제할까요?",
+    "admin.kb.confirmBatchStop": "이미 완료된 초안은 유지하고 남은 키워드만 중지합니다. 진행 중인 키워드 1건은 API가 끝날 때까지 계속될 수 있습니다. 계속할까요?",
     "kb.searchPlaceholder": "제목·요약·태그 검색",
   }
 };

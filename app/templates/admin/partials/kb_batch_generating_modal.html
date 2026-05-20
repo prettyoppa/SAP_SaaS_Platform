@@ -2,6 +2,7 @@
 <div class="modal fade kb-gallery-batch-modal" id="kbGalleryBatchModal" tabindex="-1" aria-hidden="true"
      data-bs-backdrop="static" data-bs-keyboard="false"
      data-kb-batch-status-url="/admin/api/kb-batch-status/{{ batch_job.id }}"
+     data-kb-batch-cancel-url="{% if (batch_job.source_mode or 'keywords') == 'keywords' %}/admin/api/kb-batch-cancel/{{ batch_job.id }}{% endif %}"
      data-kb-batch-auto-show="1">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 560px">
     <div class="modal-content border-0 shadow-lg">
@@ -30,7 +31,13 @@
           <span class="nav-ko">이 창을 닫거나 다른 메뉴로 이동해도 서버에서 계속됩니다. 완료되면 목록이 갱신됩니다.</span>
           <span class="nav-en" style="display:none">You can navigate away; the server keeps working. The list refreshes when done.</span>
         </p>
-        <div class="text-center mt-3">
+        <div class="text-center mt-3 d-flex flex-wrap justify-content-center gap-2">
+          {% if (batch_job.source_mode or 'keywords') == 'keywords' %}
+          <button type="button" class="btn btn-sm btn-outline-danger kb-batch-stop-btn" data-no-busy="true">
+            <span class="nav-ko">남은 키워드 중지</span>
+            <span class="nav-en" style="display:none">Stop remaining keywords</span>
+          </button>
+          {% endif %}
           <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal" data-no-busy="true">
             <span class="nav-ko">백그라운드로 계속 (닫기)</span>
             <span class="nav-en" style="display:none">Continue in background (close)</span>
@@ -40,5 +47,5 @@
     </div>
   </div>
 </div>
-<script src="/static/js/kb_gallery_batch.js?v=1"></script>
+<script src="/static/js/kb_gallery_batch.js?v=2"></script>
 {% endif %}
