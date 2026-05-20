@@ -48,12 +48,13 @@
                        value="{{ settings.get('home_hero_desc', '') }}"
                        placeholder="AI 에이전트가 요구사항을 분석하여…"/>
               </div>
+              {% include 'admin/partials/home_guide_text_md_field.html' %}
               <div class="col-12">
                 <label class="form-label small">사용 안내 동영상 URL (YouTube / Shorts)</label>
                 <input type="url" name="home_guide_video_url" class="form-control"
                        value="{{ settings.get('home_guide_video_url', '') }}"
                        placeholder="https://www.youtube.com/watch?v=..."/>
-                <div class="form-text">홈 히어로 «사용 안내» 패널에 임베드됩니다. 비우면 ABAP 코드 타이핑 데모가 표시됩니다.</div>
+                <div class="form-text">텍스트가 비어 있을 때만 임베드됩니다. 텍스트·URL 모두 비우면 ABAP 코드 타이핑 데모가 표시됩니다.</div>
               </div>
             </div>
           </div>
@@ -137,4 +138,5 @@
     </form>
   </div>
 </div>
+<script src="/static/js/home_guide_text_admin.js?v=1"></script>
 {% endblock %}

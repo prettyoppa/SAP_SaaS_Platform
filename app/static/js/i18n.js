@@ -905,6 +905,7 @@ function setLang(lang) {
   const btn = document.getElementById('btn-' + lang);
   if (btn) btn.classList.add('active');
   document.documentElement.setAttribute('data-lang', lang);
+  document.dispatchEvent(new CustomEvent('app:langchange', { detail: { lang: lang } }));
 }
 
 function t(key) {

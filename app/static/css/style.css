@@ -1672,6 +1672,64 @@ html[data-theme="light"] .home-guide-code-titlebar {
   background: #3fb950;
   animation: home-guide-code-blink 1s step-end infinite;
 }
+.home-guide-video-stage--text-demo {
+  background: var(--code-bg);
+}
+html[data-theme="light"] .home-guide-video-stage--text-demo {
+  background: #0d1117;
+}
+.home-guide-text-terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.home-guide-text-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+html[data-theme="light"] .home-guide-text-viewport {
+  color: #e6edf3;
+}
+.home-guide-text-typing {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.home-guide-text-final {
+  color: inherit;
+}
+.home-guide-text-final.markdown-body {
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.home-guide-text-final.markdown-body h1,
+.home-guide-text-final.markdown-body h2,
+.home-guide-text-final.markdown-body h3 {
+  font-size: 0.95rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+.home-guide-text-final.markdown-body p {
+  margin-bottom: 0.35rem;
+}
+.home-guide-text-cursor {
+  display: inline-block;
+  width: 0.45em;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--primary-light);
+  animation: home-guide-code-blink 1s step-end infinite;
+}
+html[data-theme="light"] .home-guide-text-cursor {
+  background: #79c0ff;
+}
+
 @keyframes home-guide-code-blink {
   50% { opacity: 0; }
 }

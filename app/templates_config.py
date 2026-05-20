@@ -127,6 +127,35 @@ def _md_html_filter(s) -> Markup:
 templates.env.filters["md_html"] = _md_html_filter
 
 
+def _home_guide_typing_lines_filter(s) -> list[str]:
+    from .home_hero_guide import markdown_typing_lines
+
+    return markdown_typing_lines(str(s or ""))
+
+
+templates.env.filters["home_guide_typing_lines"] = _home_guide_typing_lines_filter
+
+
+def _home_guide_has_text_filter(s) -> bool:
+    from .home_hero_guide import home_guide_has_text
+
+    return home_guide_has_text(str(s or ""))
+
+
+templates.env.filters["home_guide_has_text"] = _home_guide_has_text_filter
+
+
+def _home_guide_text_bundle_filter(settings) -> dict:
+    from .home_hero_guide import home_guide_text_bundle
+
+    if not isinstance(settings, dict):
+        settings = {}
+    return home_guide_text_bundle(settings)
+
+
+templates.env.filters["home_guide_text_bundle"] = _home_guide_text_bundle_filter
+
+
 def _req_analysis_html_filter(value) -> Markup:
     from .analysis_display import format_requirement_analysis_field
 

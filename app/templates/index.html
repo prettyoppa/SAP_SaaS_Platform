@@ -197,7 +197,14 @@
         <div class="row g-2 small">
           <div class="col-md-6"><label class="form-label">사용 안내 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-gtko" value="{{ settings.get('home_tile_guide_title_ko', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">사용 안내 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-gten" value="{{ settings.get('home_tile_guide_title_en', '') }}"/></div>
-          <div class="col-12"><label class="form-label">사용 안내 동영상 URL (YouTube / Shorts)</label><input class="form-control form-control-sm" id="adm-ht-video" type="url" placeholder="https://www.youtube.com/shorts/..." value="{{ settings.get('home_guide_video_url', '') }}"/><div class="form-text">관리자가 설정한 URL이 히어로 사용 안내 영역에 임베드됩니다. 미입력 시 ABAP 코드 타이핑 데모가 표시됩니다.</div></div>
+          <div class="col-12" data-home-guide-text-md-root id="adm-home-guide-text-root">
+            <label class="form-label"><span class="nav-ko">사용 안내 텍스트 (Markdown)</span><span class="nav-en" style="display:none">Getting-started text (Markdown)</span></label>
+            <input type="hidden" id="adm-ht-md-ko" data-home-guide-text-ko value="{{ settings.get('home_guide_text_md', '') }}"/>
+            <input type="hidden" id="adm-ht-md-en" data-home-guide-text-en value="{{ settings.get('home_guide_text_md_en', '') }}"/>
+            <textarea class="form-control form-control-sm font-monospace" id="adm-ht-text" rows="5" data-home-guide-text-editor placeholder="# …"></textarea>
+            <div class="form-text"><span class="home-guide-text-lang-hint-ko nav-ko">KO/EN 토글로 편집·저장. 텍스트 우선.</span><span class="home-guide-text-lang-hint-en nav-en" style="display:none">Edit per KO/EN toggle. Text overrides video.</span></div>
+          </div>
+          <div class="col-12"><label class="form-label">사용 안내 동영상 URL (YouTube / Shorts)</label><input class="form-control form-control-sm" id="adm-ht-video" type="url" placeholder="https://www.youtube.com/shorts/..." value="{{ settings.get('home_guide_video_url', '') }}"/><div class="form-text">텍스트가 비어 있을 때만 임베드. 둘 다 비우면 ABAP 타이핑 데모.</div></div>
           <div class="col-md-6"><label class="form-label">신규 개발 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-akko" value="{{ settings.get('home_tile_abap_title_ko', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">신규 개발 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-aken" value="{{ settings.get('home_tile_abap_title_en', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">신규 개발 설명 KO</label><textarea class="form-control form-control-sm" id="adm-ht-adko" rows="3">{{ settings.get('home_tile_abap_desc_ko', '') }}</textarea></div>
@@ -218,15 +225,19 @@
         </div>
       </div>
     </div>
+    <script src="/static/js/home_guide_text_admin.js?v=1"></script>
     <script>
     (function(){
       var btn = document.getElementById('adm-ht-save');
       if (!btn) return;
-      btn.addEventListener('click', function(){
+        btn.addEventListener('click', function(){
+        if (typeof window.homeGuideTextAdminSyncAll === 'function') window.homeGuideTextAdminSyncAll();
         var msg = document.getElementById('adm-ht-msg');
         var body = {
           home_tile_guide_title_ko: document.getElementById('adm-ht-gtko').value,
           home_tile_guide_title_en: document.getElementById('adm-ht-gten').value,
+          home_guide_text_md: document.getElementById('adm-ht-md-ko').value,
+          home_guide_text_md_en: document.getElementById('adm-ht-md-en').value,
           home_guide_video_url: document.getElementById('adm-ht-video').value,
           home_tile_abap_title_ko: document.getElementById('adm-ht-akko').value,
           home_tile_abap_title_en: document.getElementById('adm-ht-aken').value,
