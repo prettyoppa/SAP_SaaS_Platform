@@ -157,7 +157,7 @@ async def rfp_as_built_upload(
     rfp_id: int,
     zip_file: UploadFile = File(...),
     return_to: str = Form(""),
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     rfp = _load_entity(db, models.RFP, rfp_id, user)
@@ -170,7 +170,7 @@ async def rfp_as_built_upload(
 async def rfp_as_built_delete(
     rfp_id: int,
     return_to: str = Form(""),
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     rfp = _load_entity(db, models.RFP, rfp_id, user)
@@ -182,7 +182,7 @@ async def rfp_as_built_delete(
 @router.get("/rfp/{rfp_id}/as-built-download")
 async def rfp_as_built_download(
     rfp_id: int,
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     rfp = _load_entity(db, models.RFP, rfp_id, user)
@@ -196,7 +196,7 @@ async def integration_as_built_upload(
     req_id: int,
     zip_file: UploadFile = File(...),
     return_to: str = Form(""),
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     ir = _load_entity(db, models.IntegrationRequest, req_id, user)
@@ -211,7 +211,7 @@ async def integration_as_built_upload(
 async def integration_as_built_delete(
     req_id: int,
     return_to: str = Form(""),
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     ir = _load_entity(db, models.IntegrationRequest, req_id, user)
@@ -223,7 +223,7 @@ async def integration_as_built_delete(
 @router.get("/integration/{req_id}/as-built-download")
 async def integration_as_built_download(
     req_id: int,
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     ir = _load_entity(db, models.IntegrationRequest, req_id, user)
@@ -237,7 +237,7 @@ async def analysis_as_built_upload(
     analysis_id: int,
     zip_file: UploadFile = File(...),
     return_to: str = Form(""),
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     row = _load_entity(db, models.AbapAnalysisRequest, analysis_id, user)
@@ -252,7 +252,7 @@ async def analysis_as_built_upload(
 async def analysis_as_built_delete(
     analysis_id: int,
     return_to: str = Form(""),
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     row = _load_entity(db, models.AbapAnalysisRequest, analysis_id, user)
@@ -264,7 +264,7 @@ async def analysis_as_built_delete(
 @router.get("/abap-analysis/{analysis_id}/as-built-download")
 async def analysis_as_built_download(
     analysis_id: int,
-    user=Depends(auth.require_user),
+    user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
     row = _load_entity(db, models.AbapAnalysisRequest, analysis_id, user)
