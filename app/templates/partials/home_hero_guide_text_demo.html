@@ -1,4 +1,4 @@
-{# 사용 안내 Markdown — KO/EN 타이핑 후 렌더 유지 #}
+{# 사용 안내 Markdown — 서식 유지·블록별 위→아래 펼침 (KO/EN) #}
 <div class="home-guide-video-stage home-guide-video-stage--text-demo" data-home-guide-text-demo role="img"
      aria-label="{% if settings.get('home_tile_guide_title_ko') %}{{ settings.get('home_tile_guide_title_ko') }}{% else %}사용 안내{% endif %}">
   <div class="home-guide-text-terminal">
@@ -9,10 +9,9 @@
       <span class="home-guide-code-titlebar-label">Catchy — Getting started</span>
     </div>
     <div class="home-guide-text-viewport">
-      <div class="home-guide-text-typing" aria-live="polite"></div>
-      <div class="home-guide-text-final markdown-body small d-none" hidden aria-hidden="true"></div>
+      <div class="home-guide-text-reveal markdown-body small" aria-live="polite"></div>
     </div>
   </div>
   <script type="application/json" id="home-guide-text-bundle-json">{{ settings|home_guide_text_bundle|tojson }}</script>
 </div>
-<script src="/static/js/home_guide_text_demo.js?v=2" defer></script>
+<script src="/static/js/home_guide_text_demo.js?v=3" defer></script>

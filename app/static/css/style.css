@@ -1696,38 +1696,41 @@ html[data-theme="light"] .home-guide-video-stage--text-demo {
 html[data-theme="light"] .home-guide-text-viewport {
   color: #e6edf3;
 }
-.home-guide-text-typing {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.home-guide-text-final {
+.home-guide-text-reveal {
   color: inherit;
 }
-.home-guide-text-final.markdown-body {
+.home-guide-text-reveal.markdown-body {
   font-size: 0.78rem;
   line-height: 1.5;
 }
-.home-guide-text-final.markdown-body h1,
-.home-guide-text-final.markdown-body h2,
-.home-guide-text-final.markdown-body h3 {
+.home-guide-text-reveal.markdown-body h1,
+.home-guide-text-reveal.markdown-body h2,
+.home-guide-text-reveal.markdown-body h3 {
   font-size: 0.95rem;
   margin-top: 0.35rem;
   margin-bottom: 0.25rem;
 }
-.home-guide-text-final.markdown-body p {
+.home-guide-text-reveal.markdown-body p,
+.home-guide-text-reveal.markdown-body li {
   margin-bottom: 0.35rem;
 }
-.home-guide-text-cursor {
-  display: inline-block;
-  width: 0.45em;
-  height: 1em;
-  margin-left: 1px;
-  vertical-align: text-bottom;
-  background: var(--primary-light);
-  animation: home-guide-code-blink 1s step-end infinite;
+/* 블록마다 위→아래 clip 펼침 (한 줄·문단 내부도 서서히) */
+.home-guide-reveal-block {
+  clip-path: inset(0 0 100% 0);
+  -webkit-clip-path: inset(0 0 100% 0);
+  transition: clip-path 1.05s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: clip-path;
 }
-html[data-theme="light"] .home-guide-text-cursor {
-  background: #79c0ff;
+.home-guide-reveal-block.is-revealed {
+  clip-path: inset(0 0 0 0);
+  -webkit-clip-path: inset(0 0 0 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-guide-reveal-block {
+    clip-path: none;
+    -webkit-clip-path: none;
+    transition: none;
+  }
 }
 
 @keyframes home-guide-code-blink {

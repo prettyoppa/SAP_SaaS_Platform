@@ -1,5 +1,5 @@
 /**
- * 홈 히어로 «사용 안내» — Markdown 평문 타이핑 → 렌더 유지 → 반복 (KO/EN)
+ * 홈 히어로 «사용 안내» — Markdown 서식 유지, 블록별 위→아래 clip 펼침 (KO/EN)
  */
 (function () {
   "use strict";
@@ -7,11 +7,10 @@
   var root = document.querySelector("[data-home-guide-text-demo]");
   if (!root) return;
 
-  var typingEl = root.querySelector(".home-guide-text-typing");
-  var finalTpl = root.querySelector(".home-guide-text-final");
+  var stage = root.querySelector(".home-guide-text-reveal");
   var viewport = root.querySelector(".home-guide-text-viewport");
   var bundleEl = document.getElementById("home-guide-text-bundle-json");
-  if (!typingEl || !finalTpl || !viewport || !bundleEl) return;
+  if (!stage || !viewport || !bundleEl) return;
 
   var BUNDLE;
   try {
@@ -20,25 +19,27 @@
     BUNDLE = {};
   }
 
-  var CHAR_MS = 28;
-  var LINE_PAUSE_MS = 80;
+  /** 블록(제목·문단·목록 항목)당 펼침 시간 — 내부도 위→아래로 서서히 드러남 */
+  var LINE_REVEAL_MS = 1000;
+  var BLOCK_GAP_MS = 140;
   var HOLD_MS = 10000;
+  var START_PAUSE_MS = 400;
   var runGen = 0;
+
+  var REVEAL_SELECTOR =
+    "h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,hr";
 
   function siteLang() {
     return localStorage.getItem("lang") === "en" ? "en" : "ko";
   }
 
   function hasContent(block) {
-    if (!block || !Array.isArray(block.lines)) return false;
-    return block.lines.some(function (ln) {
-      return String(ln || "").trim().length > 0;
-    });
+    return block && String(block.html || "").trim().length > 0;
   }
 
   function pickLocaleBlock(lang) {
-    var ko = BUNDLE.ko || { lines: [], html: "" };
-    var en = BUNDLE.en || { lines: [], html: "" };
+    var ko = BUNDLE.ko || { html: "" };
+    var en = BUNDLE.en || { html: "" };
     if (lang === "en" && hasContent(en)) return en;
     if (hasContent(ko)) return ko;
     if (lang === "en" && hasContent(en)) return en;
@@ -51,95 +52,93 @@
     });
   }
 
-  function esc(s) {
-    return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+  function collectRevealUnits(container) {
+    var units = Array.prototype.slice.call(
+      container.querySelectorAll(REVEAL_SELECTOR)
+    );
+    if (units.length) return units;
+    if (!container.innerHTML.trim()) return [];
+    var wrap = document.createElement("div");
+    wrap.className = "home-guide-reveal-block";
+    wrap.innerHTML = container.innerHTML;
+    container.innerHTML = "";
+    container.appendChild(wrap);
+    return [wrap];
   }
 
-  function renderTyping(doneLines, partialLine, partialLen, showCursor) {
-    var parts = doneLines.slice();
-    if (partialLine !== null && partialLine !== undefined) {
-      parts.push(esc(String(partialLine).slice(0, partialLen)));
-    }
-    var html = parts
-      .map(function (ln) {
-        return ln === "" ? "<br>" : esc(ln);
-      })
-      .join("<br>");
-    if (showCursor) {
-      html += '<span class="home-guide-text-cursor" aria-hidden="true"></span>';
-    }
-    typingEl.innerHTML = html;
-    typingEl.classList.remove("d-none");
-    finalTpl.classList.add("d-none");
-    finalTpl.setAttribute("hidden", "hidden");
-    finalTpl.setAttribute("aria-hidden", "true");
-    viewport.scrollTop = viewport.scrollHeight;
+  function resetUnits(units) {
+    units.forEach(function (el) {
+      el.classList.remove("is-revealed");
+      el.classList.add("home-guide-reveal-block");
+    });
   }
 
-  function showFinal(html) {
-    typingEl.innerHTML = "";
-    typingEl.classList.add("d-none");
-    finalTpl.innerHTML = html || "";
-    finalTpl.classList.remove("d-none");
-    finalTpl.removeAttribute("hidden");
-    finalTpl.setAttribute("aria-hidden", "false");
-    viewport.scrollTop = 0;
+  function animateReveal(el) {
+    return new Promise(function (resolve) {
+      var settled = false;
+      function finish() {
+        if (settled) return;
+        settled = true;
+        el.removeEventListener("transitionend", onEnd);
+        resolve();
+      }
+      function onEnd(e) {
+        if (e.target === el && e.propertyName === "clip-path") finish();
+      }
+      el.classList.add("home-guide-reveal-block");
+      el.addEventListener("transitionend", onEnd);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          el.classList.add("is-revealed");
+        });
+      });
+      setTimeout(finish, LINE_REVEAL_MS + 120);
+    });
   }
 
-  async function runLoop(gen) {
+  async function runReveal(gen) {
     var block = pickLocaleBlock(siteLang());
-    var LINES = block.lines || [];
-    var FINAL_HTML = block.html || "";
+    var html = block.html || "";
     if (!hasContent(block)) return;
 
-    var doneLines = [];
-    renderTyping([], "", 0, true);
+    stage.innerHTML = html;
+    var units = collectRevealUnits(stage);
+    resetUnits(units);
     viewport.scrollTop = 0;
-    await sleep(350);
+    await sleep(START_PAUSE_MS);
     if (gen !== runGen) return;
 
-    for (var i = 0; i < LINES.length; i++) {
+    for (var i = 0; i < units.length; i++) {
       if (gen !== runGen) return;
-      var line = String(LINES[i]);
-      if (!line) {
-        doneLines.push("");
-        renderTyping(doneLines, null, 0, true);
-        await sleep(LINE_PAUSE_MS * 2);
-        continue;
-      }
-      for (var c = 0; c <= line.length; c++) {
-        if (gen !== runGen) return;
-        renderTyping(doneLines, line, c, true);
-        await sleep(CHAR_MS);
-      }
-      doneLines.push(line);
-      renderTyping(doneLines, null, 0, true);
-      await sleep(LINE_PAUSE_MS);
+      await animateReveal(units[i]);
+      if (gen !== runGen) return;
+      if (i < units.length - 1) await sleep(BLOCK_GAP_MS);
+      viewport.scrollTop = viewport.scrollHeight;
     }
 
-    if (gen !== runGen) return;
-    renderTyping(doneLines, null, 0, false);
-    await sleep(400);
-    if (gen !== runGen) return;
-    showFinal(FINAL_HTML);
     await sleep(HOLD_MS);
-    if (gen !== runGen) return;
-    finalTpl.classList.add("d-none");
-    finalTpl.setAttribute("hidden", "hidden");
-    runLoop(gen);
   }
 
   function start() {
     runGen += 1;
     var gen = runGen;
-    runLoop(gen);
+    (async function loop() {
+      while (gen === runGen) {
+        await runReveal(gen);
+      }
+    })();
+  }
+
+  function showAll() {
+    var html = pickLocaleBlock(siteLang()).html || "";
+    stage.innerHTML = html;
+    collectRevealUnits(stage).forEach(function (el) {
+      el.classList.add("home-guide-reveal-block", "is-revealed");
+    });
   }
 
   if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    showFinal(pickLocaleBlock(siteLang()).html || "");
+    showAll();
     return;
   }
 
