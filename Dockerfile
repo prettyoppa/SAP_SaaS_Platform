@@ -6,10 +6,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
+# apt-get 생략: Railway/BuildKit에서 bookworm InRelease GPG 오류가 자주 납니다.
+# requirements는 대부분 manylinux wheel(psycopg2-binary, cryptography, argon2 등).
+# pip에서 C 확장 빌드가 실패하면 베이스를 python:3.12-bookworm 로 바꾸세요(gcc 내장).
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
