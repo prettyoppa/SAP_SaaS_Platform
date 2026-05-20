@@ -102,6 +102,10 @@ def _xlsx_outline(raw: bytes, max_chars: int) -> str:
 def _one_file_digest(filename: str, raw: bytes, per_budget: int) -> str:
     fn = (filename or "file").strip()
     ext = os.path.splitext(fn)[1].lower()
+    if ext == ".zip":
+        from .as_built_deliverable import digest_zip_archive
+
+        return f"[{fn} — ZIP 내부 추출]\n{digest_zip_archive(raw, max_total_chars=per_budget)}"
     if ext in _TEXT_EXT:
         return f"[{fn}]\n{_decode_text(raw, per_budget)}"
     if ext in _EXCEL_EXT:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-_INTEGRATION_HUB_PHASES = frozenset({"request", "interview", "proposal", "fs", "devcode"})
+_INTEGRATION_HUB_PHASES = frozenset({"request", "interview", "proposal", "fs", "devcode", "asbuilt"})
 
 
 def normalize_integration_hub_phase(raw: str | None) -> str:

@@ -32,6 +32,7 @@ from ..offer_inquiry_service import (
 )
 from ..request_offer_lifecycle import request_has_deliverables
 from ..delivery_fs_supplements import KIND_RFP, fs_supplement_hub_template_ctx
+from ..as_built_deliverable import as_built_hub_template_ctx
 from ..delivery_proposal_supplements import (
     has_delivery_proposal_supplements,
     proposal_ready_for_delivery,
@@ -205,9 +206,10 @@ UPLOAD_DIR = (
     if (os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
     else "uploads"
 )
-ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg"}
+ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg", ".zip"}
 MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+MAX_ZIP_ATTACHMENT_BYTES = 50 * 1024 * 1024
 MAX_RFP_ATTACHMENTS = 5
 
 
@@ -227,7 +229,10 @@ async def _build_attachment_entries_from_uploads(
         if ext not in ALLOWED_EXTENSIONS:
             return None, "invalid_file"
         try:
-            raw = await _read_upload_limited(up)
+            if ext == ".zip":
+                raw = await _read_upload_limited(up, max_bytes=MAX_ZIP_ATTACHMENT_BYTES)
+            else:
+                raw = await _read_upload_limited(up)
         except ValueError:
             return None, "file_too_large"
         if len(raw) == 0:
@@ -238,7 +243,7 @@ async def _build_attachment_entries_from_uploads(
     return entries, None
 
 
-async def _read_upload_limited(upload: UploadFile) -> bytes:
+async def _read_upload_limited(upload: UploadFile, *, max_bytes: int | None = None) -> bytes:
     """멀티파트 업로드 본문을 읽습니다.
 
     일부 환경에서 비동기 read() 첫 호출만 빈 값이 되는 경우가 있어 seek(0) 후 단일 read() 시도,
@@ -252,8 +257,9 @@ async def _read_upload_limited(upload: UploadFile) -> bytes:
             pass
         return await upload.read()
 
+    limit = max_bytes if max_bytes is not None else MAX_FILE_SIZE_BYTES
     raw = await _async_read_all()
-    if len(raw) > MAX_FILE_SIZE_BYTES:
+    if len(raw) > limit:
         raise ValueError("file_too_large")
 
     if not raw and getattr(upload, "file", None) is not None:
@@ -270,7 +276,7 @@ async def _read_upload_limited(upload: UploadFile) -> bytes:
 
         raw = await run_in_threadpool(_sync_read_all)
 
-    if len(raw) > MAX_FILE_SIZE_BYTES:
+    if len(raw) > limit:
         raise ValueError("file_too_large")
     return raw
 
@@ -842,7 +848,7 @@ def _collect_rfp_unified_hub_ctx(
             hub_embedded = True
             display_phase = "interview"
 
-    if requested_phase in ("fs", "devcode"):
+    if requested_phase in ("fs", "devcode", "asbuilt"):
         if int(user.id) == int(rfp.user_id) and not user_can_access_fs_hub(
             user, rfp, db=db, request_kind="rfp", request_id=int(rfp.id)
         ):
@@ -1027,6 +1033,17 @@ def _collect_rfp_unified_hub_ctx(
                     or (rfp.interview_status or "") == "completed"
                     or has_delivery_proposal_supplements(db, KIND_RFP, int(rfp.id))
                 )
+            ),
+        ),
+        **as_built_hub_template_ctx(
+            rfp,
+            user=user,
+            db=db,
+            request_kind="rfp",
+            return_to=(
+                f"/rfp/{rfp.id}/console-readonly?phase=asbuilt#rfp-phase-asbuilt"
+                if readonly_console
+                else f"/rfp/{rfp.id}?phase=asbuilt#rfp-phase-asbuilt"
             ),
         ),
         "source_program_groups": groups,

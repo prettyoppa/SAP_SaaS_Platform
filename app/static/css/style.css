@@ -1718,7 +1718,7 @@ html[data-theme="light"] .home-guide-text-viewport {
 .home-guide-reveal-block {
   clip-path: inset(0 0 100% 0);
   -webkit-clip-path: inset(0 0 100% 0);
-  transition: clip-path 1.05s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: clip-path 2.1s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: clip-path;
 }
 .home-guide-reveal-block.is-revealed {
@@ -4735,6 +4735,10 @@ html[data-theme="light"] a.site-home-tab-more-link:hover {
 .fab-action--topup {
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   border: 1px solid rgba(99, 102, 241, 0.45);
+}
+/* AI 에게 문의 플로팅과 겹침 방지 — 신규/분석/연동 상세·작성 폼 */
+body:has(.abap-float-chat) .fab-action--topup {
+  display: none !important;
 }
 @media (max-width: 575.98px) {
   .fab-action {

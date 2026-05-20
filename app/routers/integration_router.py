@@ -111,6 +111,7 @@ from ..integration_followup_chat import (
     validate_integration_user_message,
 )
 from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
+from ..as_built_deliverable import as_built_hub_template_ctx, as_built_llm_digest
 from ..integration_hub import integration_hub_url, normalize_integration_hub_phase
 from ..integration_generation import maybe_fail_stale_integration_deliverable
 from ..integration_interview_service import serve_integration_interview_workspace
@@ -2220,6 +2221,17 @@ def _collect_integration_unified_hub_ctx(
                 )
             ),
         ),
+        **as_built_hub_template_ctx(
+            ir,
+            user=user,
+            db=db,
+            request_kind="integration",
+            return_to=(
+                f"/integration/{ir.id}/console-readonly?phase=asbuilt#int-phase-asbuilt"
+                if readonly_console
+                else f"/integration/{ir.id}?phase=asbuilt#int-phase-asbuilt"
+            ),
+        ),
         "followup_turns": followup_turns,
         "chat_limit_reached": chat_limit_reached,
         "chat_error": chat_error,
@@ -2512,6 +2524,9 @@ def integration_chat_post(
 
     try:
         att_digest = build_attachment_llm_digest(_attachment_entries(ir), max_total_chars=10_000)
+        ab_digest = as_built_llm_digest(ir, max_total_chars=8_000)
+        if ab_digest.strip():
+            att_digest = (att_digest + "\n\n" + ab_digest).strip()[:18_000]
         reply = generate_integration_followup_reply(
             ir_summary=integration_request_llm_summary(ir, db),
             history_messages=prior,

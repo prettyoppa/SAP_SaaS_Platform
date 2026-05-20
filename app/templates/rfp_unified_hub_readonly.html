@@ -101,6 +101,21 @@
       </div>
     </details>
 
+    {% if has_delivered_preview|default(false) or (dc_stat|default('none') != 'none') or (as_built_entry_dict and as_built_entry_dict.path) %}
+    <details class="interview-summary-toggle rfp-hub-phase mb-3" id="rfp-phase-asbuilt" {% if hub_phase_open == 'asbuilt' %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold">{% if hub_skip_interview|default(false) %}5. {% else %}6. {% endif %}<span data-i18n="hub.phaseAsBuilt">최종 구현 산출물</span></span>
+        {% if as_built_entry_dict and as_built_entry_dict.path %}
+        <span class="badge bg-success ms-1" data-i18n="hub.asBuiltReady">ZIP 등록됨</span>
+        {% endif %}
+        <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+      </summary>
+      <div class="rfp-hub-phase-body">
+        {% include 'partials/hub_as_built_phase.html' %}
+      </div>
+    </details>
+    {% endif %}
+
     {% if can_view_deliverables|default(true) and gen_busy|default(false) %}
     {% with delivery_gen_status_url='/rfp/' ~ (rfp.id|string) ~ '/paid-generation-status', delivery_gen_request_title=rfp.title %}
     {% include 'partials/hub_delivery_generating_bundle.html' %}
@@ -114,7 +129,7 @@
   var ph = {{ hub_phase_open|tojson }};
   var hubSkipInterview = {{ hub_skip_interview|default(false)|tojson }};
   if (hubSkipInterview && ph === 'interview') ph = 'proposal';
-  var map = { request: 'rfp-phase-request', interview: 'rfp-phase-interview', proposal: 'rfp-phase-proposal', fs: 'rfp-phase-fs', devcode: 'rfp-phase-devcode' };
+  var map = { request: 'rfp-phase-request', interview: 'rfp-phase-interview', proposal: 'rfp-phase-proposal', fs: 'rfp-phase-fs', devcode: 'rfp-phase-devcode', asbuilt: 'rfp-phase-asbuilt' };
   var id = map[ph];
   if (!id) return;
   document.addEventListener('DOMContentLoaded', function () {

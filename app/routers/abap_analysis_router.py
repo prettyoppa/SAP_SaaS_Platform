@@ -59,6 +59,7 @@ from ..menu_landing import (
     standard_menu_bucket_meta,
     user_proposal_pending_offer_badges,
 )
+from ..as_built_deliverable import as_built_hub_template_ctx, as_built_llm_digest
 from ..attachment_context import build_attachment_llm_digest
 from ..requirement_body import (
     apply_body as _apply_requirement_body_shared,
@@ -372,11 +373,20 @@ def _screenshot_entries_for_template(
     return out
 
 
-def _merge_llm_digests(file_entries: list[dict], screenshot_entries: list[dict]) -> str:
+def _merge_llm_digests(
+    file_entries: list[dict],
+    screenshot_entries: list[dict],
+    *,
+    row: models.AbapAnalysisRequest | None = None,
+) -> str:
     parts: list[str] = []
     d1 = build_attachment_llm_digest(file_entries or [], max_total_chars=12_000)
     if d1.strip():
         parts.append(d1.strip())
+    if row is not None:
+        dab = as_built_llm_digest(row, max_total_chars=8_000)
+        if dab.strip():
+            parts.append(dab.strip())
     d2 = build_requirement_screenshots_llm_digest(screenshot_entries or [])
     if d2.strip():
         parts.append(d2.strip())
@@ -1275,6 +1285,17 @@ def _prepare_abap_analysis_detail_ctx(
                 )
             ),
         ),
+        **as_built_hub_template_ctx(
+            row,
+            user=user,
+            db=db,
+            request_kind="analysis",
+            return_to=(
+                f"/abap-analysis/{row.id}/console-readonly#abap-phase-asbuilt"
+                if readonly_console
+                else f"/abap-analysis/{row.id}#abap-phase-asbuilt"
+            ),
+        ),
     }
 
     if readonly_console:
@@ -1615,6 +1636,9 @@ def abap_analysis_chat_post(
 
     try:
         att_digest = build_attachment_llm_digest(_attachment_entries(row), max_total_chars=10_000)
+        ab_digest = as_built_llm_digest(row, max_total_chars=8_000)
+        if ab_digest.strip():
+            att_digest = (att_digest + "\n\n" + ab_digest).strip()[:18_000]
         reply = generate_followup_reply(
             requirement_text=row.requirement_text or "",
             source_code=eff_src,

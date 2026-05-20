@@ -198,12 +198,19 @@
 </main>
 
 {% set _fab_path = request.url.path or '' %}
+{% set _fab_segs = _fab_path.strip('/').split('/') %}
+{% set _fab_req_detail = (
+  (_fab_segs|length == 2 and _fab_segs[0] == 'rfp' and _fab_segs[1].isdigit())
+  or (_fab_segs|length == 2 and _fab_segs[0] == 'abap-analysis' and _fab_segs[1].isdigit())
+  or (_fab_segs|length == 2 and _fab_segs[0] == 'integration' and _fab_segs[1].isdigit())
+) %}
 {% set _hide_topup_fab = (
   _fab_path.startswith('/account/ai-credits')
   or _fab_path.startswith('/admin')
   or _fab_path == '/rfp/new'
   or _fab_path == '/abap-analysis/new'
   or _fab_path == '/integration/new'
+  or _fab_req_detail
   or (
     _fab_path.endswith('/edit')
     and (

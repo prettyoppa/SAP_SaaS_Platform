@@ -20,7 +20,7 @@
   }
 
   /** 블록(제목·문단·목록 항목)당 펼침 시간 — 내부도 위→아래로 서서히 드러남 */
-  var LINE_REVEAL_MS = 1000;
+  var LINE_REVEAL_MS = 2000;
   var BLOCK_GAP_MS = 140;
   var HOLD_MS = 10000;
   var START_PAUSE_MS = 400;

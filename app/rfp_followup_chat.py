@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
 from .ai_inquiry_guard import ai_inquiry_model_policy_footer
+from .as_built_deliverable import as_built_llm_digest
 from .attachment_context import build_attachment_llm_digest
 from .gemini_model import get_gemini_model_id
 from .abap_followup_chat import MAX_USER_TURNS_PER_REQUEST
@@ -129,6 +130,12 @@ def rfp_followup_context_block(
         parts.append("")
         parts.append("[첨부·메모 요약]")
         parts.append(att[:24_000])
+
+    ab = as_built_llm_digest(rfp, max_total_chars=8_000)
+    if ab.strip():
+        parts.append("")
+        parts.append("[최종 구현 산출물 ZIP 요약]")
+        parts.append(ab[:12_000])
 
     return "\n\n".join(parts)[:42_000]
 

@@ -8,6 +8,7 @@ from typing import Any, Optional
 from sqlalchemy.orm import Session, joinedload
 
 from . import models
+from .as_built_deliverable import as_built_entry
 from .integration_hub import integration_hub_url
 from .request_hub_access import consultant_has_request_offer, menu_abap_detail_url, menu_entity_hub_url
 from .paid_tier import PAID_ACTIVE
@@ -137,10 +138,18 @@ def rfp_phase_gates(
         dev_code_href = None
 
     has_dev_code = dc_started or has_ref_dev
+    has_as_built = has_dev_code or bool(as_built_entry(rfp))
+    as_built_href = (
+        menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="asbuilt")
+        if has_as_built
+        else None
+    )
 
     return {
         "has_dev_code": has_dev_code,
         "dev_code_href": dev_code_href,
+        "has_as_built": has_as_built,
+        "as_built_href": as_built_href,
         "has_fs": has_fs,
         "fs_href": fs_href,
         "has_proposal": has_proposal,
@@ -225,10 +234,18 @@ def integration_phase_gates(
         dev_code_href = None
 
     has_dev_code = dc_started or has_ref_dev
+    has_as_built = has_dev_code or bool(as_built_entry(ir))
+    as_built_href = (
+        menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="integration", request_id=iid, phase="asbuilt")
+        if has_as_built
+        else None
+    )
 
     return {
         "has_dev_code": has_dev_code,
         "dev_code_href": dev_code_href,
+        "has_as_built": has_as_built,
+        "as_built_href": as_built_href,
         "has_fs": has_fs,
         "fs_href": fs_href,
         "has_proposal": has_proposal,
@@ -269,9 +286,14 @@ def abap_analysis_phase_gates(row: models.AbapAnalysisRequest, user: Optional[An
     has_proposal = analyzed
     proposal_href = f"{base}#abap-phase-proposal" if has_proposal else None
 
+    has_as_built = has_dev_code or bool(as_built_entry(row))
+    as_built_href = f"{base}#abap-phase-asbuilt" if has_as_built else None
+
     return {
         "has_dev_code": has_dev_code,
         "dev_code_href": dev_code_href,
+        "has_as_built": has_as_built,
+        "as_built_href": as_built_href,
         "has_fs": has_fs,
         "fs_href": fs_href,
         "has_proposal": has_proposal,

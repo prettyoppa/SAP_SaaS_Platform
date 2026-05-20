@@ -128,6 +128,8 @@ class RFP(Base):
     delivered_job_log = Column(Text, nullable=True)
     # ABAP 코드 생성 시 사용할 FS 보조파일(DB id). Null이면 에이전트 fs_text 사용.
     fs_codegen_supplement_id = Column(Integer, nullable=True)
+    # 최종 구현 산출물(ZIP, 선택) — {"path","filename","uploaded_at"}
+    as_built_zip_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -248,6 +250,7 @@ class IntegrationRequest(Base):
     delivered_code_generated_at = Column(DateTime, nullable=True)
     delivered_code_error = Column(Text, nullable=True)
     delivered_job_log = Column(Text, nullable=True)
+    as_built_zip_json = Column(Text, nullable=True)
     # 분석·연동 → 신규 개발(RFP) 제안·FS·납품 파이프라인 연결
     workflow_rfp_id = Column(Integer, ForeignKey("rfps.id"), nullable=True)
     improvement_request_text = Column(Text, nullable=True)
@@ -377,6 +380,7 @@ class AbapAnalysisRequest(Base):
     delivered_code_generated_at = Column(DateTime, nullable=True)
     delivered_code_error = Column(Text, nullable=True)
     delivered_job_log = Column(Text, nullable=True)
+    as_built_zip_json = Column(Text, nullable=True)
 
     owner = relationship("User", foreign_keys=[user_id], back_populates="abap_analysis_requests")
     workflow_rfp = relationship("RFP", foreign_keys=[workflow_rfp_id])

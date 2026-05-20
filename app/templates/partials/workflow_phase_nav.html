@@ -12,6 +12,11 @@
 {% endif %}
 <div class="d-flex flex-wrap gap-1 justify-content-end align-items-center">
   {% if ph is defined %}
+  {% if ph.has_as_built and ph.as_built_href %}
+  <a href="{{ ph.as_built_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.asBuilt">최종 구현</span></a>
+  {% else %}
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.asBuilt">최종 구현</span></span>
+  {% endif %}
   {% if ph.has_dev_code and ph.dev_code_href %}
   <a href="{{ ph.dev_code_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.devCode">개발코드</span></a>
   {% else %}

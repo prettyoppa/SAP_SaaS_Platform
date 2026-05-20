@@ -34,7 +34,7 @@ from .subscription_quota import plan_row_for_entitlements, user_subscription_pla
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import site_content_router, seo_router
-from .routers import payments_router, paid_admin_router, proposal_supplements_router, billing_router, ai_wallet_router
+from .routers import payments_router, paid_admin_router, proposal_supplements_router, billing_router, ai_wallet_router, as_built_router
 from .templates_config import templates
 
 _log = logging.getLogger("uvicorn.error")
@@ -181,6 +181,9 @@ def _run_migrations():
         ("kb_gallery_batch_jobs", "also_english", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("kb_gallery_batch_jobs", "keynote_text", "TEXT", "TEXT"),
         ("kb_gallery_batch_jobs", "cancel_requested_at", "DATETIME", "TIMESTAMP"),
+        ("rfps", "as_built_zip_json", "TEXT", "TEXT"),
+        ("integration_requests", "as_built_zip_json", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "as_built_zip_json", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -788,6 +791,7 @@ app.include_router(paid_admin_router.router)
 app.include_router(proposal_supplements_router.router)
 app.include_router(billing_router.router)
 app.include_router(ai_wallet_router.router)
+app.include_router(as_built_router.router)
 
 
 @app.get("/", response_class=HTMLResponse)
