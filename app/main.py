@@ -174,6 +174,8 @@ def _run_migrations():
         ("knowledge_articles", "reviewed_at", "DATETIME", "TIMESTAMP"),
         ("knowledge_articles", "seed_keyword", "VARCHAR(200)", "VARCHAR(200)"),
         ("knowledge_articles", "research_summary", "TEXT", "TEXT"),
+        ("knowledge_articles", "body_format", "VARCHAR(16) DEFAULT 'markdown'", "VARCHAR(16) DEFAULT 'markdown'"),
+        ("knowledge_articles", "body_screenshots_json", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

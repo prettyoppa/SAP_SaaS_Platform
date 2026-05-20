@@ -1,16 +1,24 @@
-{# requirement rich #}
+{# Rich body: RFP description, ABAP requirement_text, KB body_md — 서식·이미지 / 텍스트 #}
 {% set body_field = description_field_name|default('description') %}
-{% set fmt_field = 'requirement_text_format' if body_field == 'requirement_text' else 'description_format' %}
+{% if body_field == 'requirement_text' %}
+  {% set fmt_field = 'requirement_text_format' %}
+{% elif body_field == 'body_md' %}
+  {% set fmt_field = 'body_format' %}
+{% else %}
+  {% set fmt_field = 'description_format' %}
+{% endif %}
 {% if form and form.get(fmt_field) is not none %}
   {% set req_fmt = form.get(fmt_field) %}
 {% elif resource %}
   {% if body_field == 'requirement_text' %}
     {% set req_fmt = resource.requirement_text_format or 'html' %}
+  {% elif body_field == 'body_md' %}
+    {% set req_fmt = resource.body_format or 'markdown' %}
   {% else %}
     {% set req_fmt = resource.description_format or 'html' %}
   {% endif %}
 {% else %}
-  {% set req_fmt = 'html' %}
+  {% set req_fmt = default_req_fmt|default('html') %}
 {% endif %}
 {% set req_body = '' %}
 {% if form and form.get(body_field) is not none %}
@@ -18,6 +26,8 @@
 {% elif resource %}
   {% if body_field == 'requirement_text' %}
     {% set req_body = resource.requirement_text or '' %}
+  {% elif body_field == 'body_md' %}
+    {% set req_body = resource.body_md or '' %}
   {% else %}
     {% set req_body = resource.description or '' %}
   {% endif %}
@@ -26,24 +36,30 @@
 {% set req_html = req_body if req_fmt == 'html' else '' %}
 {% set rich_form_id = form_id|default('abap-analysis-form') %}
 {% set rich_char_count_id = char_count_id|default('char-count') %}
+{% set rich_suffix = rich_id_suffix|default('default') %}
+{% set radio_group_name = rich_radio_name|default('req-mode-toggle') %}
+{% set rich_non_html = rich_non_html_format|default('plain') %}
+{% set ph_rich = rich_placeholder_rich|default('요구사항을 입력하세요. 화면 캡처는 원하는 위치에 붙여넣을 수 있습니다.') %}
+{% set ph_plain = rich_placeholder_plain|default('요구사항을 입력하세요.') %}
 
-<div class="req-rich-field" id="req-rich-root" data-default-mode="{{ req_fmt }}"
-     data-form-id="{{ rich_form_id }}" data-char-count-id="{{ rich_char_count_id }}">
-  <input type="hidden" name="{{ fmt_field }}" id="requirement-text-format" value="{{ req_fmt }}"/>
-  <input type="hidden" name="{{ body_field }}" id="description" value=""/>
+<div class="req-rich-field" id="{{ rich_root_id|default('req-rich-root') }}" data-default-mode="{{ req_fmt }}"
+     data-form-id="{{ rich_form_id }}" data-char-count-id="{{ rich_char_count_id }}"
+     data-rich-non-html-value="{{ rich_non_html }}">
+  <input type="hidden" name="{{ fmt_field }}" class="req-rich-fmt-input" value="{{ req_fmt }}"/>
+  <input type="hidden" name="{{ body_field }}" class="req-rich-hidden-body" value=""/>
 
-  <div class="btn-group btn-group-sm mb-2" role="group" aria-label="요구사항 입력 방식">
-    <input type="radio" class="btn-check" name="req-mode-toggle" id="req-mode-rich" value="html" autocomplete="off"
+  <div class="btn-group btn-group-sm mb-2" role="group" aria-label="본문 입력 방식">
+    <input type="radio" class="btn-check req-rich-mode-rich-input" name="{{ radio_group_name }}" id="req-mode-rich-{{ rich_suffix }}" value="html" autocomplete="off"
            {% if req_fmt == 'html' %}checked{% endif %}/>
-    <label class="btn btn-outline-primary" for="req-mode-rich">서식·이미지</label>
-    <input type="radio" class="btn-check" name="req-mode-toggle" id="req-mode-plain" value="plain" autocomplete="off"
+    <label class="btn btn-outline-primary" for="req-mode-rich-{{ rich_suffix }}">서식·이미지</label>
+    <input type="radio" class="btn-check req-rich-mode-plain-input" name="{{ radio_group_name }}" id="req-mode-plain-{{ rich_suffix }}" value="plain" autocomplete="off"
            {% if req_fmt != 'html' %}checked{% endif %}/>
-    <label class="btn btn-outline-secondary" for="req-mode-plain">텍스트만</label>
+    <label class="btn btn-outline-secondary" for="req-mode-plain-{{ rich_suffix }}">텍스트만</label>
   </div>
 
-  <div id="req-rich-alert" class="alert alert-warning py-2 px-3 small d-none mb-2" role="alert"></div>
+  <div class="req-rich-alert alert alert-warning py-2 px-3 small d-none mb-2" role="alert"></div>
 
-  <div id="req-rich-toolbar" class="req-rich-toolbar btn-toolbar mb-2 {% if req_fmt != 'html' %}d-none{% endif %}" role="toolbar">
+  <div class="req-rich-toolbar btn-toolbar mb-2 {% if req_fmt != 'html' %}d-none{% endif %}" role="toolbar">
     <div class="btn-group btn-group-sm me-1">
       <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="굵게"><i class="fa-solid fa-bold"></i></button>
       <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="기울임"><i class="fa-solid fa-italic"></i></button>
@@ -54,12 +70,12 @@
     <small class="text-muted ms-2 align-self-center">본문에 <kbd>Ctrl</kbd>+<kbd>V</kbd>로 캡처 붙여넣기 (최대 5장)</small>
   </div>
 
-  <div id="description-rich" class="form-control req-rich-editor rfp-textarea {% if req_fmt != 'html' %}d-none{% endif %}"
+  <div class="form-control req-rich-editor req-rich-surface rfp-textarea {% if req_fmt != 'html' %}d-none{% endif %}"
        contenteditable="true" role="textbox" aria-multiline="true"
-       data-placeholder="요구사항을 입력하세요. 화면 캡처는 원하는 위치에 붙여넣을 수 있습니다.">{% if req_html %}{{ req_html|safe }}{% endif %}</div>
+       data-placeholder="{{ ph_rich }}">{% if req_html %}{{ req_html|safe }}{% endif %}</div>
 
-  <textarea id="description-plain" class="form-control rfp-textarea {% if req_fmt == 'html' %}d-none{% endif %}"
-            rows="10" placeholder="요구사항을 입력하세요.">{{ req_plain }}</textarea>
+  <textarea class="form-control req-rich-plain rfp-textarea {% if req_fmt == 'html' %}d-none{% endif %}"
+            rows="10" placeholder="{{ ph_plain }}">{{ req_plain }}</textarea>
 
   <div class="d-flex justify-content-end mt-1">
     <small class="text-muted"><span id="{{ rich_char_count_id }}">0</span> 자</small>

@@ -276,7 +276,7 @@ window.updateReview = updateReview;
 document.addEventListener('DOMContentLoaded', () => {
   loadRfpNotePrefill();
 
-  if (!document.getElementById('req-rich-root')) {
+  if (!document.querySelector('.req-rich-field')) {
     const desc = document.getElementById('description');
     const counter = document.getElementById('char-count');
     if (desc && counter) {

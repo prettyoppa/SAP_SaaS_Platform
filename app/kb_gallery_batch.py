@@ -75,6 +75,8 @@ def run_kb_gallery_batch_job(job_id: int) -> None:
                             title=title,
                             excerpt=payload.get("excerpt") or "",
                             body_md=payload.get("body_md") or "",
+                            body_format="markdown",
+                            body_screenshots_json=None,
                             meta_description=(payload.get("meta_description") or "")[:320] or None,
                             category=art_cat,
                             tags=(payload.get("tags") or "").strip() or None,

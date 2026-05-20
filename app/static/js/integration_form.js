@@ -241,7 +241,7 @@ window.updateIntegrationReview = function () {};
 document.addEventListener('DOMContentLoaded', () => {
   loadIntegrationNotePrefill();
 
-  if (!document.getElementById('req-rich-root')) {
+  if (!document.querySelector('.req-rich-field')) {
     const desc = document.getElementById('description') || document.getElementById('int-description');
     const counter = document.getElementById('int-char-count');
     if (desc && counter) {

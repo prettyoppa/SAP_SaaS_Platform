@@ -1449,6 +1449,7 @@ def admin_kb_add(
     slug: str = Form(""),
     excerpt: str = Form(""),
     body_md: str = Form(""),
+    body_format: str = Form("markdown"),
     meta_description: str = Form(""),
     category: str = Form("general"),
     tags: str = Form(""),
@@ -1458,6 +1459,9 @@ def admin_kb_add(
     source_note: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    from urllib.parse import quote
+
+    from ..kb_body_rich import apply_kb_body
     from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
     from ..routers.site_content_router import KB_CATEGORIES
 
@@ -1470,7 +1474,7 @@ def admin_kb_add(
     base_slug = (slug or "").strip() or slugify_kb_title(title)
     final_slug = ensure_unique_kb_slug(db, base_slug)
     published = _form_bool(is_published)
-    from ..kb_workflow import STATUS_DRAFT, STATUS_PUBLISHED, STATUS_PENDING_REVIEW, sync_publish_flags
+    from ..kb_workflow import STATUS_DRAFT, STATUS_PUBLISHED, sync_publish_flags
 
     now = datetime.utcnow()
     wf = STATUS_PUBLISHED if published else STATUS_DRAFT
@@ -1478,7 +1482,8 @@ def admin_kb_add(
         slug=final_slug,
         title=title.strip(),
         excerpt=(excerpt or "").strip(),
-        body_md=(body_md or "").strip(),
+        body_md="",
+        body_format="markdown",
         meta_description=(meta_description or "").strip()[:320] or None,
         category=cat,
         tags=(tags or "").strip() or None,
@@ -1491,6 +1496,14 @@ def admin_kb_add(
     )
     sync_publish_flags(row)
     db.add(row)
+    db.flush()
+    err = apply_kb_body(row, user, (body_md or "").strip(), (body_format or "markdown").strip())
+    if err:
+        db.rollback()
+        return RedirectResponse(
+            url="/admin/kb?view=new&body_err=" + quote(err),
+            status_code=303,
+        )
     db.commit()
     db.refresh(row)
     return RedirectResponse(url=f"/admin/kb/{row.id}?saved=1", status_code=303)
@@ -1578,6 +1591,7 @@ def admin_kb_batch_status(job_id: int, request: Request, db: Session = Depends(g
 
 @router.post("/api/kb/render-markdown")
 async def admin_kb_render_markdown(request: Request, db: Session = Depends(get_db)):
+    from ..requirement_rich_text import is_html_format, sanitize_html
     from ..routers.interview_router import _markdown_to_html
 
     user = _require_admin(request, db)
@@ -1585,13 +1599,17 @@ async def admin_kb_render_markdown(request: Request, db: Session = Depends(get_d
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     form = await request.form()
     body_md = (form.get("body_md") or "").strip()
+    body_format = (form.get("body_format") or "markdown").strip().lower()
+    if body_format == "html":
+        return JSONResponse({"html": sanitize_html(body_md)})
     return JSONResponse({"html": _markdown_to_html(body_md)})
 
 
 @router.get("/kb/{article_id}/preview", response_class=HTMLResponse)
 def admin_kb_preview(article_id: int, request: Request, db: Session = Depends(get_db)):
+    from ..kb_body_rich import kb_body_html_fragment
     from ..routers.interview_router import _markdown_to_html
-    from ..routers.site_content_router import KB_CATEGORIES
+    from ..routers.site_content_router import KB_CATEGORIES, _meta_title_from_markdown
 
     user = _require_admin(request, db)
     if not user:
@@ -1603,8 +1621,10 @@ def admin_kb_preview(article_id: int, request: Request, db: Session = Depends(ge
     )
     if not a:
         return RedirectResponse(url="/admin/kb?view=list", status_code=302)
+
+    meta_title = _meta_title_from_markdown(a.title, "지식갤러리")
     title_html = _markdown_to_html(a.title or "")
-    body_html = _markdown_to_html(a.body_md or "")
+    body_html = kb_body_html_fragment(a, meta_title=meta_title)
     excerpt_html = _markdown_to_html(a.excerpt or "") if a.excerpt else ""
     return templates.TemplateResponse(
         request,
@@ -1674,6 +1694,7 @@ def admin_kb_update(
     slug: str = Form(...),
     excerpt: str = Form(""),
     body_md: str = Form(""),
+    body_format: str = Form("markdown"),
     meta_description: str = Form(""),
     category: str = Form("general"),
     tags: str = Form(""),
@@ -1682,6 +1703,9 @@ def admin_kb_update(
     source_note: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    from urllib.parse import quote
+
+    from ..kb_body_rich import apply_kb_body
     from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
     from ..routers.site_content_router import KB_CATEGORIES
 
@@ -1698,7 +1722,13 @@ def admin_kb_update(
     a.slug = ensure_unique_kb_slug(db, slug_clean, exclude_id=a.id)
     a.title = title.strip()
     a.excerpt = (excerpt or "").strip()
-    a.body_md = (body_md or "").strip()
+    err = apply_kb_body(a, user, (body_md or "").strip(), (body_format or "markdown").strip())
+    if err:
+        db.rollback()
+        return RedirectResponse(
+            url=f"/admin/kb/{article_id}?body_err=" + quote(err),
+            status_code=303,
+        )
     a.meta_description = (meta_description or "").strip()[:320] or None
     a.category = cat
     a.tags = (tags or "").strip() or None

@@ -198,7 +198,7 @@
 </main>
 
 {% set _fab_path = request.url.path or '' %}
-{% if user and not _fab_path.startswith('/account/ai-credits') %}
+{% if user and not _fab_path.startswith('/account/ai-credits') and not _fab_path.startswith('/admin') %}
 <a href="/account/ai-credits#topup-form" class="fab-action fab-action--topup" data-i18n-title="wallet.fabTopupTitle" title="AI 크레딧 충전">
   <i class="fa-solid fa-won-sign" aria-hidden="true"></i>
   <span class="fab-action__label nav-ko">AI 크레딧 충전</span>

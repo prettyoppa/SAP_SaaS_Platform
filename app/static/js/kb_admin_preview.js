@@ -1,10 +1,11 @@
 /**
- * Admin KB: inline markdown preview for body textarea.
+ * Admin KB: inline body preview (Markdown or HTML 본문).
  */
 (function () {
-  async function renderMarkdown(bodyMd) {
+  async function renderBody(bodyMd, bodyFormat) {
     const fd = new FormData();
     fd.append('body_md', bodyMd || '');
+    fd.append('body_format', bodyFormat || 'markdown');
     const r = await fetch('/admin/api/kb/render-markdown', {
       method: 'POST',
       credentials: 'same-origin',
@@ -18,12 +19,14 @@
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.kb-inline-preview-btn').forEach(function (btn) {
       btn.addEventListener('click', async function () {
-        const taId = btn.getAttribute('data-kb-preview-for');
-        const ta = taId ? document.getElementById(taId) : null;
-        if (!ta) return;
-        const previewId = taId.replace('body-md-', 'kb-preview-');
-        const box = document.getElementById(previewId);
-        if (!box) return;
+        const rootId = btn.getAttribute('data-kb-preview-root');
+        const root = rootId ? document.getElementById(rootId) : null;
+        if (!root) return;
+        const hidden = root.querySelector('.req-rich-hidden-body');
+        const fmtInput = root.querySelector('.req-rich-fmt-input');
+        const aid = rootId.indexOf('kb-req-rich-') === 0 ? rootId.slice('kb-req-rich-'.length) : 'new';
+        const box = document.getElementById('kb-preview-' + aid);
+        if (!hidden || !fmtInput || !box) return;
         if (!box.classList.contains('d-none')) {
           box.classList.add('d-none');
           box.setAttribute('aria-hidden', 'true');
@@ -33,7 +36,7 @@
         box.setAttribute('aria-hidden', 'false');
         box.innerHTML = '<p class="text-muted small mb-0">…</p>';
         try {
-          box.innerHTML = await renderMarkdown(ta.value);
+          box.innerHTML = await renderBody(hidden.value, fmtInput.value);
         } catch (e) {
           box.innerHTML = '<p class="text-danger small">Preview failed.</p>';
         }

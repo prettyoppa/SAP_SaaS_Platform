@@ -74,7 +74,7 @@
   <pre class="small kb-research-notes-pre p-2 rounded mt-2 mb-0 text-wrap">{{ a.research_summary }}</pre>
   </details>
   {% endif %}
-  <form method="post" action="/admin/kb/{{ a.id }}/update">
+  <form method="post" action="/admin/kb/{{ a.id }}/update" id="kb-article-form-{{ a.id }}">
     <div class="row g-2">
       <div class="col-md-6">
         <label class="small"><span class="nav-ko">제목</span><span class="nav-en" style="display:none">Title</span></label>
@@ -122,12 +122,22 @@
       </div>
       <div class="col-12">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-          <label class="small mb-0"><span class="nav-ko">본문 Markdown</span><span class="nav-en" style="display:none">Body (Markdown)</span></label>
-          <button type="button" class="btn btn-sm btn-outline-secondary kb-inline-preview-btn" data-kb-preview-for="body-md-{{ a.id }}">
+          <label class="small mb-0"><span class="nav-ko">본문</span><span class="nav-en" style="display:none">Body</span></label>
+          <button type="button" class="btn btn-sm btn-outline-secondary kb-inline-preview-btn" data-kb-preview-root="kb-req-rich-{{ a.id }}">
             <span class="nav-ko">미리보기 토글</span><span class="nav-en" style="display:none">Toggle preview</span>
           </button>
         </div>
-        <textarea id="body-md-{{ a.id }}" name="body_md" class="form-control font-monospace kb-body-md-input" rows="10">{{ a.body_md }}</textarea>
+        {% set description_field_name = 'body_md' %}
+        {% set resource = a %}
+        {% set form_id = 'kb-article-form-' ~ a.id %}
+        {% set char_count_id = 'kb-body-char-' ~ a.id %}
+        {% set rich_id_suffix = a.id|string %}
+        {% set rich_radio_name = 'kb-body-mode-' ~ a.id|string %}
+        {% set rich_non_html_format = 'markdown' %}
+        {% set rich_root_id = 'kb-req-rich-' ~ a.id|string %}
+        {% set rich_placeholder_rich = '본문을 입력하세요. 화면 캡처는 원하는 위치에 붙여넣을 수 있습니다.' %}
+        {% set rich_placeholder_plain = 'Markdown 또는 일반 텍스트로 본문을 입력하세요.' %}
+        {% include 'partials/requirement_rich_field.html' %}
         <div id="kb-preview-{{ a.id }}" class="kb-admin-preview border rounded p-3 mt-2 d-none markdown-body text-break" data-kb-article-id="{{ a.id }}" aria-hidden="true"></div>
       </div>
       <div class="col-12">

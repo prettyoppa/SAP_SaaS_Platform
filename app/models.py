@@ -474,6 +474,8 @@ class KnowledgeArticle(Base):
     excerpt_en = Column(Text, nullable=True)
     body_md = Column(Text, nullable=False, default="")
     body_md_en = Column(Text, nullable=True)
+    body_format = Column(String(16), nullable=False, default="markdown")
+    body_screenshots_json = Column(Text, nullable=True)
     meta_description = Column(String(320), nullable=True)
     meta_description_en = Column(String(320), nullable=True)
     category = Column(String(64), nullable=False, default="general")

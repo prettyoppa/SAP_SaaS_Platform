@@ -28,10 +28,15 @@ _INLINE_URL_RE = re.compile(
     r"/(?:abap-analysis|rfp|integration)/(\d+)/requirement-inline\?([^\"'\s>]+)",
     re.I,
 )
+_INLINE_URL_RE_KB = re.compile(
+    r"/kb-articles/(\d+)/body-inline\?([^\"'\s>]+)",
+    re.I,
+)
 _KIND_BASE = {
     "abap": "/abap-analysis",
     "rfp": "/rfp",
     "integration": "/integration",
+    "kb": "/kb-articles",
 }
 
 
@@ -79,9 +84,11 @@ class _Sanitizer(HTMLParser):
                 if lk == "src" and not (
                     _IMG_SRC_DATA.match(v)
                     or _INLINE_URL_RE.search(v)
+                    or _INLINE_URL_RE_KB.search(v)
                     or v.startswith("/abap-analysis/")
                     or v.startswith("/rfp/")
                     or v.startswith("/integration/")
+                    or v.startswith("/kb-articles/")
                 ):
                     continue
                 safe_attrs.append((lk, html.escape(v, quote=True)))
@@ -121,7 +128,10 @@ def sanitize_html(raw: str) -> str:
 
 
 def _inline_url(req_id: int, inline_id: str, kind: str = "abap") -> str:
-    base = _KIND_BASE.get((kind or "abap").strip().lower(), "/abap-analysis")
+    k = (kind or "abap").strip().lower()
+    base = _KIND_BASE.get(k, "/abap-analysis")
+    if k == "kb":
+        return f"{base}/{int(req_id)}/body-inline?iid={inline_id}"
     return f"{base}/{int(req_id)}/requirement-inline?iid={inline_id}"
 
 
@@ -222,7 +232,7 @@ def process_submitted_html(
                 f'alt="{alt}" class="req-inline-img"/>'
             )
 
-        if src and _INLINE_URL_RE.search(src):
+        if src and (_INLINE_URL_RE.search(src) or _INLINE_URL_RE_KB.search(src)):
             iid2 = _parse_inline_id_from_src(src)
             if iid2 and iid2 in by_id:
                 used_ids.add(iid2)

@@ -40,7 +40,7 @@
     <span class="nav-ko">수동으로 새 글 추가</span>
     <span class="nav-en" style="display:none">Add article manually</span>
   </h6>
-  <form method="post" action="/admin/kb/add">
+  <form method="post" action="/admin/kb/add" id="kb-new-article-form">
     <div class="row g-2">
       <div class="col-md-6"><label class="small"><span class="nav-ko">제목</span><span class="nav-en" style="display:none">Title</span></label><input name="title" class="form-control" required/></div>
       <div class="col-md-6"><label class="small">slug</label><input name="slug" class="form-control font-monospace" placeholder="auto"/></div>
@@ -49,7 +49,21 @@
       <div class="col-md-4"><label class="small d-block"><span class="nav-ko">즉시 발행</span><span class="nav-en" style="display:none">Publish now</span></label><input type="checkbox" name="is_published" value="1"/></div>
       <div class="col-12"><label class="small"><span class="nav-ko">요약</span><span class="nav-en" style="display:none">Excerpt</span></label><textarea name="excerpt" class="form-control" rows="2"></textarea></div>
       <div class="col-12"><label class="small">meta description</label><input name="meta_description" class="form-control" maxlength="320"/></div>
-      <div class="col-12"><label class="small"><span class="nav-ko">본문 Markdown</span><span class="nav-en" style="display:none">Body (Markdown)</span></label><textarea name="body_md" class="form-control font-monospace" rows="8"></textarea></div>
+      <div class="col-12">
+        <label class="small d-block mb-1"><span class="nav-ko">본문</span><span class="nav-en" style="display:none">Body</span></label>
+        {% set description_field_name = 'body_md' %}
+        {% set default_req_fmt = 'html' %}
+        {% set form_id = 'kb-new-article-form' %}
+        {% set char_count_id = 'kb-body-char-new' %}
+        {% set rich_id_suffix = 'new' %}
+        {% set rich_radio_name = 'kb-body-mode-new' %}
+        {% set rich_non_html_format = 'markdown' %}
+        {% set rich_root_id = 'kb-req-rich-new' %}
+        {% set rich_placeholder_rich = '본문을 입력하세요. 화면 캡처는 원하는 위치에 붙여넣을 수 있습니다.' %}
+        {% set rich_placeholder_plain = 'Markdown 또는 일반 텍스트로 본문을 입력하세요.' %}
+        {% include 'partials/requirement_rich_field.html' %}
+        <div id="kb-preview-new" class="kb-admin-preview border rounded p-3 mt-2 d-none markdown-body text-break" aria-hidden="true"></div>
+      </div>
       <div class="col-12"><button type="submit" class="btn btn-primary"><span class="nav-ko">추가 후 편집</span><span class="nav-en" style="display:none">Add and edit</span></button></div>
     </div>
   </form>

@@ -8,14 +8,16 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
-from ..kb_workflow import STATUS_PUBLISHED
+from ..kb_body_rich import kb_body_html_fragment, kb_body_plain_for_meta, kb_resolve_inline_entry
+from ..kb_workflow import STATUS_PUBLISHED, is_publicly_visible
 from ..offer_inquiry_service import public_request_url
+from ..requirement_body import inline_image_response
 from ..templates_config import templates
 from ..kb_public_content import (
     sanitize_meta_description,
@@ -278,6 +280,33 @@ def faq_public_detail(faq_id: int, request: Request, db: Session = Depends(get_d
     )
 
 
+@router.get("/kb-articles/{article_id}/body-inline")
+def kb_article_body_inline(
+    article_id: int,
+    request: Request,
+    iid: str = "",
+    db: Session = Depends(get_db),
+):
+    """지식갤러리 본문 인라인 이미지 — 공개 글은 비로그인, 초안은 관리자만."""
+    a = (
+        db.query(models.KnowledgeArticle)
+        .filter(models.KnowledgeArticle.id == article_id)
+        .first()
+    )
+    if not a:
+        return RedirectResponse(url="/", status_code=302)
+    user = auth.get_current_user(request, db)
+    if is_publicly_visible(a):
+        pass
+    elif user and user.is_admin:
+        pass
+    else:
+        return RedirectResponse(url="/login", status_code=302)
+    ent = kb_resolve_inline_entry(a, iid)
+    redir = f"/kb/{a.slug}" if a.slug else "/"
+    return inline_image_response(ent=ent, redirect_url=redir)
+
+
 @router.get("/kb", response_class=HTMLResponse)
 def kb_public_list(request: Request, db: Session = Depends(get_db)):
     """지식갤러리 전체 목록은 공개하지 않음(검색 유입용 개별 URL만)."""
@@ -298,8 +327,6 @@ def kb_public_list(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/kb/{slug}", response_class=HTMLResponse)
 def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db)):
-    from ..kb_workflow import STATUS_PUBLISHED
-
     user = auth.get_current_user(request, db)
     now = _utc_now()
     a = (
@@ -329,16 +356,16 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
             status_code=404,
         )
     meta_title = _meta_title_from_markdown(a.title, "지식갤러리")
-    body_md = strip_leading_title_from_body_md(a.body_md or "", meta_title)
+    body_plain_meta = kb_body_plain_for_meta(a)
     body_en_md_raw = (a.body_md_en or "").strip() or (a.body_md or "")
     body_en_md = strip_leading_title_from_body_md(body_en_md_raw, meta_title)
     title_html = _markdown_to_html(a.title or "")
     title_en_md = (a.title_en or "").strip() or (a.title or "")
     title_html_en = _markdown_to_html(title_en_md)
-    body_html = _markdown_to_html(body_md)
+    body_html = kb_body_html_fragment(a, meta_title=meta_title)
     body_html_en = _markdown_to_html(body_en_md)
     raw_meta = (a.meta_description or "").strip() or _meta_title_from_markdown(
-        a.excerpt or body_md, meta_title
+        a.excerpt or body_plain_meta, meta_title
     )
     meta_description = sanitize_meta_description(raw_meta)
     show_excerpt = bool((a.excerpt or "").strip()) and not texts_overlap(
