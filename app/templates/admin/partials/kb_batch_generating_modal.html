@@ -16,8 +16,13 @@
             <span class="nav-en" style="display:none">Generating gallery drafts</span>
           </h3>
           <p class="text-muted small mb-2">
+            {% if (batch_job.source_mode or 'keywords') == 'keynote' %}
+            <span class="nav-ko">Gemini + Google 검색으로 키노트를 KB용 글로 확장하고 있습니다.</span>
+            <span class="nav-en" style="display:none">Expanding your keynote into a KB article with Gemini and Google Search.</span>
+            {% else %}
             <span class="nav-ko">Gemini + Google 검색으로 키워드별 글을 작성하고 있습니다.</span>
             <span class="nav-en" style="display:none">Writing per keyword with Gemini and Google Search.</span>
+            {% endif %}
           </p>
           <p class="text-muted small mb-0 kb-batch-progress-line">…</p>
         </div>

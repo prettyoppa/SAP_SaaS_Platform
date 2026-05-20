@@ -198,7 +198,22 @@
 </main>
 
 {% set _fab_path = request.url.path or '' %}
-{% if user and not _fab_path.startswith('/account/ai-credits') and not _fab_path.startswith('/admin') %}
+{% set _hide_topup_fab = (
+  _fab_path.startswith('/account/ai-credits')
+  or _fab_path.startswith('/admin')
+  or _fab_path == '/rfp/new'
+  or _fab_path == '/abap-analysis/new'
+  or _fab_path == '/integration/new'
+  or (
+    _fab_path.endswith('/edit')
+    and (
+      _fab_path.startswith('/rfp/')
+      or _fab_path.startswith('/abap-analysis/')
+      or _fab_path.startswith('/integration/')
+    )
+  )
+) %}
+{% if user and not _hide_topup_fab %}
 <a href="/account/ai-credits#topup-form" class="fab-action fab-action--topup" data-i18n-title="wallet.fabTopupTitle" title="AI 크레딧 충전">
   <i class="fa-solid fa-won-sign" aria-hidden="true"></i>
   <span class="fab-action__label nav-ko">AI 크레딧 충전</span>

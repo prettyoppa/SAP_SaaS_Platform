@@ -67,6 +67,7 @@ def robots_txt(request: Request) -> PlainTextResponse:
             "Allow: /faqs",
             "Disallow: /kb$",
             "Allow: /kb/",
+            "Allow: /en/kb/",
             disallow,
             "",
             f"Sitemap: {origin}/sitemap.xml",
@@ -138,6 +139,8 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
         .order_by(models.KnowledgeArticle.updated_at.desc(), models.KnowledgeArticle.id.desc())
         .all()
     )
+    from ..kb_i18n import kb_has_public_english
+
     for a in articles:
         lm = _lastmod_iso(getattr(a, "updated_at", None) or a.published_at or a.created_at) or today
         entries.append(
@@ -148,6 +151,15 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
                 "0.8",
             )
         )
+        if kb_has_public_english(a):
+            entries.append(
+                _sitemap_url_block(
+                    f"{origin}/en/kb/{a.slug}",
+                    lm,
+                    "monthly",
+                    "0.7",
+                )
+            )
     return entries
 
 

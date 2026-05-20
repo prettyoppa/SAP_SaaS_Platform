@@ -311,7 +311,7 @@ mod.QM	품질 관리	Quality Management
 mod.SD	영업 및 유통	Sales & Distribution
 mod.WM	창고 관리	Warehouse Mgmt
 modules.title	지원 SAP 모듈	SAP Modules Supported
-nav.admin	관리자 메뉴	Admin
+nav.admin	Admin	Admin
 nav.codelib	코드 라이브러리	Code Gallery
 nav.dashboard	대시보드	Dashboard
 nav.home	홈	Home

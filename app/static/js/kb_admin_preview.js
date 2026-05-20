@@ -17,6 +17,31 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.kb-inline-preview-btn-en').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        const aid = btn.getAttribute('data-kb-preview-en');
+        const ta = document.getElementById('kb-body-en-' + aid);
+        const box = document.getElementById('kb-preview-en-' + aid);
+        if (!ta || !box) return;
+        if (!box.classList.contains('d-none')) {
+          box.classList.add('d-none');
+          box.setAttribute('aria-hidden', 'true');
+          return;
+        }
+        box.classList.remove('d-none');
+        box.setAttribute('aria-hidden', 'false');
+        box.innerHTML = '<p class="text-muted small mb-0">…</p>';
+        try {
+          const fmt =
+            document.querySelector('#kb-req-rich-' + aid + ' .req-rich-fmt-input')?.value ||
+            'markdown';
+          box.innerHTML = await renderBody(ta.value, fmt);
+        } catch (e) {
+          box.innerHTML = '<p class="text-danger small">Preview failed.</p>';
+        }
+      });
+    });
+
     document.querySelectorAll('.kb-inline-preview-btn').forEach(function (btn) {
       btn.addEventListener('click', async function () {
         const rootId = btn.getAttribute('data-kb-preview-root');

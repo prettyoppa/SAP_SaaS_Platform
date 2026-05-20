@@ -475,6 +475,7 @@ class KnowledgeArticle(Base):
     body_md = Column(Text, nullable=False, default="")
     body_md_en = Column(Text, nullable=True)
     body_format = Column(String(16), nullable=False, default="markdown")
+    body_format_en = Column(String(16), nullable=True)
     body_screenshots_json = Column(Text, nullable=True)
     meta_description = Column(String(320), nullable=True)
     meta_description_en = Column(String(320), nullable=True)
@@ -494,14 +495,17 @@ class KnowledgeArticle(Base):
 
 
 class KbGalleryBatchJob(Base):
-    """지식갤러리 키워드 일괄 초안 생성(백그라운드)."""
+    """지식갤러리 키워드·키노트 일괄 초안 생성(백그라운드)."""
 
     __tablename__ = "kb_gallery_batch_jobs"
 
     id = Column(Integer, primary_key=True, index=True)
     admin_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     status = Column(String(20), nullable=False, default="running", index=True)
+    source_mode = Column(String(16), nullable=False, default="keywords")
+    also_english = Column(Boolean, default=False, nullable=False)
     keywords_json = Column(Text, nullable=False)
+    keynote_text = Column(Text, nullable=True)
     reference_notes = Column(Text, nullable=True)
     category_default = Column(String(64), nullable=False, default="general")
     current_keyword = Column(String(200), nullable=True)

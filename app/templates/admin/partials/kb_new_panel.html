@@ -5,30 +5,76 @@
     <span class="nav-ko">AI 초안 생성 (Google 검색 연동)</span>
     <span class="nav-en" style="display:none">AI draft generation (Google Search grounding)</span>
   </h6>
-  <p class="small text-muted mb-2">
-    <span class="nav-ko">키워드 최대 5개(줄당 1개). 생성된 글은 <strong>검수 대기</strong> 상태이며 공개·검색에 노출되지 않습니다.</span>
-    <span class="nav-en" style="display:none">Up to 5 keywords (one per line). Drafts go to <strong>pending review</strong> (not public).</span>
+  <p class="small text-muted mb-3">
+    <span class="nav-ko">생성된 글은 <strong>검수 대기</strong> 상태이며 공개·검색에 노출되지 않습니다. <strong>참고 메모</strong>는 AI에 전달하는 추가 지시입니다.</span>
+    <span class="nav-en" style="display:none">Drafts go to <strong>pending review</strong> (not public). <strong>Reference notes</strong> are extra instructions to the AI.</span>
   </p>
-  <form method="post" action="/admin/kb/generate-drafts" data-app-confirm-i18n="admin.kb.confirmGenerate"
+  <form method="post" action="/admin/kb/generate-drafts" id="kb-ai-generate-form"
+        data-app-confirm-i18n="admin.kb.confirmGenerate"
+        data-app-confirm-i18n-keynote="admin.kb.confirmGenerateKeynote"
         data-busy-title-ko="요청 접수 중…" data-busy-title-en="Submitting…"
-        data-busy-hint-ko="잠시 후 백그라운드에서 키워드별 초안이 생성됩니다."
-        data-busy-hint-en="Per-keyword drafts will generate in the background shortly."
-        data-busy-agents='[{"agentKo":"「지식갤러리」","doingKo":"키워드별 초안 생성 작업을 서버에 등록하고 있습니다","agentEn":"「Gallery」","doingEn":"queueing per-keyword draft jobs on the server"}]'>
+        data-busy-hint-ko="잠시 후 백그라운드에서 초안이 생성됩니다."
+        data-busy-hint-en="Drafts will generate in the background shortly."
+        data-busy-agents='[{"agentKo":"「지식갤러리」","doingKo":"초안 생성 작업을 서버에 등록하고 있습니다","agentEn":"「Gallery」","doingEn":"queueing draft jobs on the server"}]'>
+    <input type="hidden" name="source_mode" id="kb-ai-source-mode" value="keywords"/>
+
+    <ul class="nav nav-tabs mb-3" id="kb-ai-source-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" type="button" role="tab" id="kb-ai-tab-keywords"
+                data-kb-ai-mode="keywords" aria-selected="true">
+          <span class="nav-ko">키워드</span><span class="nav-en" style="display:none">Keywords</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" type="button" role="tab" id="kb-ai-tab-keynote"
+                data-kb-ai-mode="keynote" aria-selected="false">
+          <span class="nav-ko">키노트</span><span class="nav-en" style="display:none">Keynote</span>
+        </button>
+      </li>
+    </ul>
+
     <div class="row g-2">
       <div class="col-md-8">
-        <label class="small"><span class="nav-ko">키워드 (줄당 1개, 최대 5)</span><span class="nav-en" style="display:none">Keywords (one per line, max 5)</span></label>
-        <textarea name="keywords" class="form-control font-monospace" rows="5" placeholder="S/4HANA OData&#10;ABAP RESTful Application Programming"></textarea>
+        <div id="kb-ai-pane-keywords">
+          <label class="small"><span class="nav-ko">키워드 (줄당 1개, 최대 5)</span><span class="nav-en" style="display:none">Keywords (one per line, max 5)</span></label>
+          <textarea name="keywords" id="kb-ai-keywords" class="form-control font-monospace" rows="5"
+                    placeholder="S/4HANA OData&#10;ABAP RESTful Application Programming"></textarea>
+          <p class="small text-muted mt-1 mb-0">
+            <span class="nav-ko">각 줄마다 검색 기반으로 <strong>글 1편</strong>이 생성됩니다.</span>
+            <span class="nav-en" style="display:none">Each line becomes <strong>one article</strong> via web search.</span>
+          </p>
+        </div>
+        <div id="kb-ai-pane-keynote" class="d-none">
+          <label class="small"><span class="nav-ko">업무 키노트 (전체 1건)</span><span class="nav-en" style="display:none">Work keynote (one note)</span></label>
+          <textarea name="keynote" id="kb-ai-keynote" class="form-control font-monospace" rows="10"
+                    placeholder="메모·키워드·불릿을 그대로 붙여넣기&#10;예) OData v4 - $filter 주의&#10;BAPI commit 시점&#10;테스트 트랜잭션 SE37"></textarea>
+          <p class="small text-muted mt-1 mb-0">
+            <span class="nav-ko">입력 전체를 <strong>하나의 노트</strong>로 보고, 맥락을 유지한 채 KB 공개용 글로 확장합니다. 줄 단위로 나누지 않습니다.</span>
+            <span class="nav-en" style="display:none">The full text is <strong>one note</strong>, expanded to a public KB article while keeping your context.</span>
+          </p>
+        </div>
       </div>
       <div class="col-md-4">
         <label class="small"><span class="nav-ko">기본 분류</span><span class="nav-en" style="display:none">Default category</span></label>
         <select name="category_default" class="form-select mb-2">{% for k,l in kb_categories.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
         <label class="small"><span class="nav-ko">참고 메모 (선택)</span><span class="nav-en" style="display:none">Reference notes (optional)</span></label>
-        <textarea name="reference_notes" class="form-control small" rows="3"></textarea>
+        <textarea name="reference_notes" class="form-control small" rows="5"
+                  placeholder="예: S/4HANA 기준, 초보자도 이해할 톤"></textarea>
+        <p class="small text-muted mt-1 mb-0">
+          <span class="nav-ko">톤·금지 사항·강조할 관점 등 AI 지시.</span>
+          <span class="nav-en" style="display:none">Tone, constraints, or emphasis for the AI.</span>
+        </p>
       </div>
       <div class="col-12">
-        <button type="submit" class="btn btn-primary">
-          <span class="nav-ko">초안 생성 → 검수 대기</span>
-          <span class="nav-en" style="display:none">Generate drafts → review queue</span>
+        {% set kb_bilingual_suffix = 'ai' %}
+        {% set kb_also_en = false %}
+        {% set kb_bilingual_ai_only = true %}
+        {% include 'admin/partials/kb_bilingual_fields.html' %}
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-primary" id="kb-ai-generate-submit">
+          <span class="nav-ko kb-ai-submit-ko">초안 생성 → 검수 대기</span>
+          <span class="nav-en kb-ai-submit-en" style="display:none">Generate drafts → review queue</span>
         </button>
       </div>
     </div>
@@ -64,7 +110,11 @@
         {% include 'partials/requirement_rich_field.html' %}
         <div id="kb-preview-new" class="kb-admin-preview border rounded p-3 mt-2 d-none markdown-body text-break" aria-hidden="true"></div>
       </div>
+      {% set kb_bilingual_suffix = 'new' %}
+      {% set kb_also_en = false %}
+      {% include 'admin/partials/kb_bilingual_fields.html' %}
       <div class="col-12"><button type="submit" class="btn btn-primary"><span class="nav-ko">추가 후 편집</span><span class="nav-en" style="display:none">Add and edit</span></button></div>
     </div>
   </form>
 </div>
+<script src="/static/js/kb_ai_generate_tabs.js?v=1"></script>

@@ -1455,12 +1455,18 @@ def admin_kb_add(
     tags: str = Form(""),
     sort_order: int = Form(0),
     is_published: str = Form(""),
+    also_english: str = Form(""),
+    title_en: str = Form(""),
+    excerpt_en: str = Form(""),
+    meta_description_en: str = Form(""),
+    body_md_en: str = Form(""),
     source_kind: str = Form(""),
     source_note: str = Form(""),
     db: Session = Depends(get_db),
 ):
     from urllib.parse import quote
 
+    from ..kb_admin_bilingual import apply_kb_bilingual_from_form
     from ..kb_body_rich import apply_kb_body
     from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
     from ..routers.site_content_router import KB_CATEGORIES
@@ -1504,6 +1510,14 @@ def admin_kb_add(
             url="/admin/kb?view=new&body_err=" + quote(err),
             status_code=303,
         )
+    apply_kb_bilingual_from_form(
+        row,
+        also_english=_form_bool(also_english),
+        title_en=title_en,
+        excerpt_en=excerpt_en,
+        meta_description_en=meta_description_en,
+        body_md_en=body_md_en,
+    )
     db.commit()
     db.refresh(row)
     return RedirectResponse(url=f"/admin/kb/{row.id}?saved=1", status_code=303)
@@ -1517,7 +1531,12 @@ async def admin_kb_generate_drafts(
 ):
     from urllib.parse import quote
 
-    from ..kb_article_generator import parse_keyword_lines
+    from ..kb_article_generator import (
+        SOURCE_MODE_KEYNOTE,
+        normalize_source_mode,
+        parse_keynote_text,
+        parse_keyword_lines,
+    )
     from ..kb_gallery_batch import create_batch_job, run_kb_gallery_batch_job
     from ..routers.site_content_router import KB_CATEGORIES
 
@@ -1525,24 +1544,47 @@ async def admin_kb_generate_drafts(
     if not user:
         return RedirectResponse(url="/", status_code=302)
     form = await request.form()
-    keywords = parse_keyword_lines(str(form.get("keywords") or ""))
-    if not keywords:
-        return RedirectResponse(
-            url="/admin/kb?view=new&generate_fail=1&generate_errors="
-            + quote("키워드를 1개 이상 입력하세요."),
-            status_code=303,
-        )
+    mode = normalize_source_mode(str(form.get("source_mode") or ""))
+    also_en = _form_bool(str(form.get("also_english") or ""))
     ref_notes = (form.get("reference_notes") or "").strip()
     cat = (form.get("category_default") or "general").strip().lower()
     if cat not in KB_CATEGORIES:
         cat = "general"
-    job = create_batch_job(
-        db,
-        admin_user_id=user.id,
-        keywords_raw=str(form.get("keywords") or ""),
-        reference_notes=ref_notes,
-        category_default=cat,
-    )
+    if mode == SOURCE_MODE_KEYNOTE:
+        try:
+            note = parse_keynote_text(str(form.get("keynote") or ""))
+        except ValueError:
+            return RedirectResponse(
+                url="/admin/kb?view=new&generate_fail=1&generate_errors="
+                + quote("키노트를 20자 이상 입력하세요."),
+                status_code=303,
+            )
+        job = create_batch_job(
+            db,
+            admin_user_id=user.id,
+            source_mode=mode,
+            also_english=also_en,
+            keynote_text=note,
+            reference_notes=ref_notes,
+            category_default=cat,
+        )
+    else:
+        keywords = parse_keyword_lines(str(form.get("keywords") or ""))
+        if not keywords:
+            return RedirectResponse(
+                url="/admin/kb?view=new&generate_fail=1&generate_errors="
+                + quote("키워드를 1개 이상 입력하세요."),
+                status_code=303,
+            )
+        job = create_batch_job(
+            db,
+            admin_user_id=user.id,
+            source_mode=mode,
+            also_english=also_en,
+            keywords_raw=str(form.get("keywords") or ""),
+            reference_notes=ref_notes,
+            category_default=cat,
+        )
     background_tasks.add_task(run_kb_gallery_batch_job, job.id)
     return RedirectResponse(
         url=f"/admin/kb?view=new&batch_job_id={job.id}",
@@ -1554,7 +1596,7 @@ async def admin_kb_generate_drafts(
 def admin_kb_batch_status(job_id: int, request: Request, db: Session = Depends(get_db)):
     import json as json_mod
 
-    from ..kb_gallery_batch import STATUS_DONE, STATUS_FAILED, STATUS_RUNNING
+    from ..kb_gallery_batch import STATUS_DONE, STATUS_FAILED, STATUS_RUNNING, batch_job_total_items
 
     user = _require_admin(request, db)
     if not user:
@@ -1569,16 +1611,13 @@ def admin_kb_batch_status(job_id: int, request: Request, db: Session = Depends(g
     )
     if not job:
         return JSONResponse({"error": "not_found"}, status_code=404)
-    try:
-        keywords = json_mod.loads(job.keywords_json or "[]")
-        total = len(keywords) if isinstance(keywords, list) else 0
-    except Exception:
-        total = 0
+    total = batch_job_total_items(job)
     st = (job.status or "").strip()
     done = st in (STATUS_DONE, STATUS_FAILED)
     return JSONResponse(
         {
             "status": st,
+            "source_mode": (getattr(job, "source_mode", None) or "keywords").strip(),
             "ok_count": int(job.ok_count or 0),
             "fail_count": int(job.fail_count or 0),
             "current_keyword": job.current_keyword,
@@ -1607,9 +1646,14 @@ async def admin_kb_render_markdown(request: Request, db: Session = Depends(get_d
 
 @router.get("/kb/{article_id}/preview", response_class=HTMLResponse)
 def admin_kb_preview(article_id: int, request: Request, db: Session = Depends(get_db)):
-    from ..kb_body_rich import kb_body_html_fragment
+    from ..kb_i18n import (
+        kb_body_html_for_locale,
+        kb_excerpt_for_locale,
+        kb_has_public_english,
+        kb_meta_title_for_locale,
+    )
     from ..routers.interview_router import _markdown_to_html
-    from ..routers.site_content_router import KB_CATEGORIES, _meta_title_from_markdown
+    from ..routers.site_content_router import KB_CATEGORIES
 
     user = _require_admin(request, db)
     if not user:
@@ -1622,10 +1666,21 @@ def admin_kb_preview(article_id: int, request: Request, db: Session = Depends(ge
     if not a:
         return RedirectResponse(url="/admin/kb?view=list", status_code=302)
 
-    meta_title = _meta_title_from_markdown(a.title, "지식갤러리")
-    title_html = _markdown_to_html(a.title or "")
-    body_html = kb_body_html_fragment(a, meta_title=meta_title)
-    excerpt_html = _markdown_to_html(a.excerpt or "") if a.excerpt else ""
+    locale = (request.query_params.get("locale") or "ko").strip().lower()
+    if locale == "en":
+        has_en = bool((a.title_en or "").strip() or (a.body_md_en or "").strip())
+        if not has_en:
+            locale = "ko"
+    else:
+        locale = "ko"
+
+    meta_title = kb_meta_title_for_locale(a, locale=locale)
+    title_raw = (a.title_en or a.title or "") if locale == "en" else (a.title or "")
+    title_html = _markdown_to_html(title_raw)
+    body_html = kb_body_html_for_locale(a, locale=locale, meta_title=meta_title)
+    excerpt_raw = kb_excerpt_for_locale(a, locale=locale)
+    excerpt_html = _markdown_to_html(excerpt_raw) if excerpt_raw else ""
+    canonical_path = f"/en/kb/{a.slug}" if locale == "en" else f"/kb/{a.slug}"
     return templates.TemplateResponse(
         request,
         "admin/kb_preview.html",
@@ -1637,6 +1692,10 @@ def admin_kb_preview(article_id: int, request: Request, db: Session = Depends(ge
             "title_html": title_html,
             "body_html": body_html,
             "excerpt_html": excerpt_html,
+            "preview_locale": locale,
+            "has_en_content": bool((a.title_en or "").strip() or (a.body_md_en or "").strip()),
+            "public_en_live": kb_has_public_english(a) and a.is_published,
+            "canonical_path": canonical_path,
         },
     )
 
@@ -1699,12 +1758,18 @@ def admin_kb_update(
     category: str = Form("general"),
     tags: str = Form(""),
     sort_order: int = Form(0),
+    also_english: str = Form(""),
+    title_en: str = Form(""),
+    excerpt_en: str = Form(""),
+    meta_description_en: str = Form(""),
+    body_md_en: str = Form(""),
     is_published: str = Form(""),
     source_note: str = Form(""),
     db: Session = Depends(get_db),
 ):
     from urllib.parse import quote
 
+    from ..kb_admin_bilingual import apply_kb_bilingual_from_form
     from ..kb_body_rich import apply_kb_body
     from ..kb_slug import ensure_unique_kb_slug, slugify_kb_title
     from ..routers.site_content_router import KB_CATEGORIES
@@ -1729,6 +1794,14 @@ def admin_kb_update(
             url=f"/admin/kb/{article_id}?body_err=" + quote(err),
             status_code=303,
         )
+    apply_kb_bilingual_from_form(
+        a,
+        also_english=_form_bool(also_english),
+        title_en=title_en,
+        excerpt_en=excerpt_en,
+        meta_description_en=meta_description_en,
+        body_md_en=body_md_en,
+    )
     a.meta_description = (meta_description or "").strip()[:320] or None
     a.category = cat
     a.tags = (tags or "").strip() or None

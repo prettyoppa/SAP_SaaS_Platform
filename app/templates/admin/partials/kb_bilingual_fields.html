@@ -1,0 +1,65 @@
+{# expects: kb_bilingual_suffix, kb_also_en; optional a; kb_bilingual_ai_only=true for AI form (checkbox only) #}
+{% set _suffix = kb_bilingual_suffix %}
+{% set _also = kb_also_en %}
+{% set _ai_only = kb_bilingual_ai_only|default(false) %}
+<div class="col-12 kb-bilingual-toggle-wrap">
+  <div class="form-check">
+    <input class="form-check-input kb-also-english-cb" type="checkbox" name="also_english" value="1" id="kb-also-en-{{ _suffix }}"
+      {% if _also %}checked{% endif %}
+      {% if not _ai_only %}data-kb-en-panel="kb-en-panel-{{ _suffix }}"{% endif %}/>
+    <label class="form-check-label small" for="kb-also-en-{{ _suffix }}">
+      {% if _ai_only %}
+      <span class="nav-ko">한글 작성 후 영문도 생성</span>
+      <span class="nav-en" style="display:none">Generate Korean then English</span>
+      {% else %}
+      <span class="nav-ko">한글 + 영문 본문 작성</span>
+      <span class="nav-en" style="display:none">Write Korean and English</span>
+      {% endif %}
+    </label>
+  </div>
+  <p class="small text-muted mb-0 mt-1">
+    <span class="nav-ko">공개 URL: <code>/kb/…</code>(한국어){% if not _ai_only %}, <code>/en/kb/…</code>(영어){% endif %}. {% if _ai_only %}체크 시 AI가 한글 초안 후 영문 필드를 채웁니다.{% else %}영문 필드를 직접 편집할 수 있습니다.{% endif %}</span>
+    <span class="nav-en" style="display:none">Public: <code>/kb/…</code> (KO){% if not _ai_only %}, <code>/en/kb/…</code> (EN){% endif %}. {% if _ai_only %}When checked, AI fills English after Korean.{% else %}Edit English fields below.{% endif %}</span>
+  </p>
+</div>
+{% if not _ai_only %}
+<div id="kb-en-panel-{{ _suffix }}" class="col-12 kb-en-panel border rounded p-3 bg-light bg-opacity-50{% if not _also %} d-none{% endif %}">
+  <h6 class="small fw-semibold mb-2 text-primary">
+    <span class="nav-ko">영문 필드</span>
+    <span class="nav-en" style="display:none">English fields</span>
+  </h6>
+  <div class="row g-2">
+    <div class="col-12">
+      <label class="small"><span class="nav-ko">제목 (EN)</span><span class="nav-en" style="display:none">Title (EN)</span></label>
+      <input name="title_en" class="form-control" value="{{ (a.title_en if a is defined else '') or '' }}"/>
+    </div>
+    <div class="col-12">
+      <label class="small"><span class="nav-ko">요약 (EN)</span><span class="nav-en" style="display:none">Excerpt (EN)</span></label>
+      <textarea name="excerpt_en" class="form-control" rows="2">{{ (a.excerpt_en if a is defined else '') or '' }}</textarea>
+    </div>
+    <div class="col-12">
+      <label class="small">meta description (EN)</label>
+      <input name="meta_description_en" class="form-control" maxlength="320" value="{{ (a.meta_description_en if a is defined else '') or '' }}"/>
+    </div>
+    <div class="col-12">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+        <label class="small mb-0"><span class="nav-ko">본문 (EN)</span><span class="nav-en" style="display:none">Body (EN)</span></label>
+        {% if _suffix != 'new' %}
+        <button type="button" class="btn btn-sm btn-outline-secondary kb-inline-preview-btn-en" data-kb-preview-en="{{ _suffix }}">
+          <span class="nav-ko">영문 미리보기</span>
+          <span class="nav-en" style="display:none">EN preview</span>
+        </button>
+        {% endif %}
+      </div>
+      <textarea name="body_md_en" id="kb-body-en-{{ _suffix }}" class="form-control font-monospace" rows="12">{{ (a.body_md_en if a is defined else '') or '' }}</textarea>
+      <p class="small text-muted mt-1 mb-0">
+        <span class="nav-ko">Markdown 권장. 저장 시 한글 본문과 동일한 형식(html/markdown)으로 처리됩니다.</span>
+        <span class="nav-en" style="display:none">Markdown recommended. Saved with the same format as the Korean body.</span>
+      </p>
+      {% if _suffix != 'new' %}
+      <div id="kb-preview-en-{{ _suffix }}" class="kb-admin-preview border rounded p-3 mt-2 d-none markdown-body text-break" aria-hidden="true"></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}

@@ -176,6 +176,10 @@ def _run_migrations():
         ("knowledge_articles", "research_summary", "TEXT", "TEXT"),
         ("knowledge_articles", "body_format", "VARCHAR(16) DEFAULT 'markdown'", "VARCHAR(16) DEFAULT 'markdown'"),
         ("knowledge_articles", "body_screenshots_json", "TEXT", "TEXT"),
+        ("knowledge_articles", "body_format_en", "VARCHAR(16)", "VARCHAR(16)"),
+        ("kb_gallery_batch_jobs", "source_mode", "VARCHAR(16) DEFAULT 'keywords'", "VARCHAR(16) DEFAULT 'keywords'"),
+        ("kb_gallery_batch_jobs", "also_english", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
+        ("kb_gallery_batch_jobs", "keynote_text", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:

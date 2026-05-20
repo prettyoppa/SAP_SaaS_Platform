@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ meta_title }} · 지식갤러리{% endblock %}
+{% block title %}{{ meta_title }}{% if page_locale == 'en' %} · Knowledge Gallery{% else %} · 지식갤러리{% endif %}{% endblock %}
 {% block head_meta %}
 {% if meta_description and meta_description|trim %}
 <meta name="description" content="{{ meta_description|trim|e }}" />
@@ -7,13 +7,22 @@
 {% if canonical_url and canonical_url|trim %}
 <link rel="canonical" href="{{ canonical_url|trim|e }}" />
 {% endif %}
+{% if hreflang_ko %}
+<link rel="alternate" hreflang="ko" href="{{ hreflang_ko|e }}" />
+{% endif %}
+{% if hreflang_en %}
+<link rel="alternate" hreflang="en" href="{{ hreflang_en|e }}" />
+{% endif %}
+{% if hreflang_ko and hreflang_en %}
+<link rel="alternate" hreflang="x-default" href="{{ hreflang_ko|e }}" />
+{% endif %}
 {% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">
   <div class="container site-content-container">
     <nav aria-label="breadcrumb" class="site-content-breadcrumb mb-3" style="min-width:0">
       <ol class="breadcrumb mb-0 small">
-        <li class="breadcrumb-item"><a href="/">홈</a></li>
+        <li class="breadcrumb-item"><a href="/">{% if page_locale == 'en' %}Home{% else %}홈{% endif %}</a></li>
         <li class="breadcrumb-item active text-truncate" aria-current="page" style="max-width: 20rem">{{ meta_title }}</li>
       </ol>
     </nav>
@@ -24,16 +33,34 @@
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
             <span class="badge rounded-pill bg-primary bg-opacity-75">{{ kb_categories.get(article.category, article.category) }}</span>
             {% if article.published_at %}<time class="text-muted small">{{ article.published_at|local_dt_span('date_dots') }}</time>{% endif %}
+            {% if page_locale == 'en' %}<span class="badge bg-light text-dark border">EN</span>{% endif %}
           </div>
           <h1 class="h3 mb-0 fw-semibold">{{ meta_title }}</h1>
           {% if show_excerpt %}
-          <p class="text-muted mt-3 mb-0 small">{{ article.excerpt }}</p>
+          <p class="text-muted mt-3 mb-0 small">{{ excerpt_text }}</p>
           {% endif %}
         </header>
-        <div class="site-article-body markdown-body text-break i18n-ko">{{ body_html|safe }}</div>
-        <div class="site-article-body markdown-body text-break i18n-en" style="display:none">{{ body_html_en|safe }}</div>
+        <div class="site-article-body markdown-body text-break">{{ body_html|safe }}</div>
+        {% if hreflang_ko and hreflang_en and page_locale == 'ko' %}
+        <p class="small text-muted mt-4 mb-0">
+          <span class="nav-ko">English: <a href="{{ hreflang_en }}">Read in English</a></span>
+          <span class="nav-en" style="display:none">English: <a href="{{ hreflang_en }}">Read in English</a></span>
+        </p>
+        {% elif hreflang_ko and page_locale == 'en' %}
+        <p class="small text-muted mt-4 mb-0">
+          <span class="nav-ko">한국어: <a href="{{ hreflang_ko }}">한국어 글 보기</a></span>
+          <span class="nav-en" style="display:none">Korean: <a href="{{ hreflang_ko }}">View Korean version</a></span>
+        </p>
+        {% endif %}
       </div>
     </article>
   </div>
 </div>
+{% if page_locale == 'en' %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof setLang === 'function') setLang('en');
+});
+</script>
+{% endif %}
 {% endblock %}

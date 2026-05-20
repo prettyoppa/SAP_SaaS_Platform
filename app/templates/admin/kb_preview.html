@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}미리보기 – {{ article.title|striptags|truncate(40) }}{% endblock %}
+{% block title %}{% if preview_locale == 'en' %}Preview (EN){% else %}미리보기{% endif %} – {{ article.title|striptags|truncate(40) }}{% endblock %}
 {% block content %}
 <div class="py-4">
   <div class="container" style="max-width: 52rem;">
@@ -9,17 +9,30 @@
         <span class="nav-ko">편집으로</span>
         <span class="nav-en" style="display:none">Back to edit</span>
       </a>
-      <span class="badge bg-secondary">
-        <span class="nav-ko">관리자 미리보기 (비공개 가능)</span>
-        <span class="nav-en" style="display:none">Admin preview (may be unpublished)</span>
-      </span>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Preview locale">
+          <a href="/admin/kb/{{ article.id }}/preview" class="btn btn-outline-secondary{% if preview_locale != 'en' %} active{% endif %}" data-no-busy="true">
+            <span class="nav-ko">한국어</span><span class="nav-en" style="display:none">Korean</span>
+          </a>
+          {% if has_en_content %}
+          <a href="/admin/kb/{{ article.id }}/preview?locale=en" class="btn btn-outline-secondary{% if preview_locale == 'en' %} active{% endif %}" data-no-busy="true">
+            <span class="nav-ko">English</span><span class="nav-en" style="display:none">English</span>
+          </a>
+          {% endif %}
+        </div>
+        <span class="badge bg-secondary">
+          <span class="nav-ko">관리자 미리보기</span>
+          <span class="nav-en" style="display:none">Admin preview</span>
+        </span>
+      </div>
     </div>
     <article class="card border shadow-sm">
       <div class="card-body p-4 p-md-5">
         <header class="border-bottom pb-3 mb-4">
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small text-muted">
             <span class="badge rounded-pill bg-primary bg-opacity-75">{{ kb_categories.get(article.category, article.category) }}</span>
-            <code>/kb/{{ article.slug }}</code>
+            <code>{{ canonical_path }}</code>
+            {% if preview_locale == 'en' %}<span class="badge bg-light text-dark border">EN</span>{% endif %}
           </div>
           <h1 class="h3 mb-0 fw-semibold markdown-body">{{ title_html|safe }}</h1>
           {% if excerpt_html %}
@@ -27,6 +40,12 @@
           {% endif %}
         </header>
         <div class="markdown-body text-break">{{ body_html|safe }}</div>
+        {% if preview_locale == 'en' and not public_en_live %}
+        <p class="small text-warning mt-4 mb-0">
+          <span class="nav-ko">영문 공개 URL은 제목·본문(EN)이 모두 있고 발행된 경우에만 노출됩니다.</span>
+          <span class="nav-en" style="display:none">The English public URL requires both EN title and body and a published article.</span>
+        </p>
+        {% endif %}
       </div>
     </article>
   </div>

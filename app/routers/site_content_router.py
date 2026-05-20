@@ -14,7 +14,14 @@ from sqlalchemy.orm import Session
 
 from .. import models, auth
 from ..database import get_db
-from ..kb_body_rich import kb_body_html_fragment, kb_body_plain_for_meta, kb_resolve_inline_entry
+from ..kb_body_rich import kb_body_plain_for_meta, kb_resolve_inline_entry
+from ..kb_i18n import (
+    kb_body_html_for_locale,
+    kb_excerpt_for_locale,
+    kb_has_public_english,
+    kb_meta_description_for_locale,
+    kb_meta_title_for_locale,
+)
 from ..kb_workflow import STATUS_PUBLISHED, is_publicly_visible
 from ..offer_inquiry_service import public_request_url
 from ..requirement_body import inline_image_response
@@ -325,11 +332,9 @@ def kb_public_list(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/kb/{slug}", response_class=HTMLResponse)
-def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db)):
-    user = auth.get_current_user(request, db)
+def _fetch_published_kb_article(slug: str, db: Session) -> models.KnowledgeArticle | None:
     now = _utc_now()
-    a = (
+    return (
         db.query(models.KnowledgeArticle)
         .filter(
             models.KnowledgeArticle.slug == slug,
@@ -342,6 +347,96 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
         )
         .first()
     )
+
+
+def _kb_public_detail_response(
+    request: Request,
+    a: models.KnowledgeArticle,
+    *,
+    locale: str,
+    user: models.User | None,
+):
+    loc = "en" if (locale or "").strip().lower() == "en" else "ko"
+    if loc == "en" and not kb_has_public_english(a):
+        return None
+    meta_title = kb_meta_title_for_locale(a, locale=loc)
+    title_html = _markdown_to_html(
+        (a.title_en or a.title or "") if loc == "en" else (a.title or "")
+    )
+    body_html = kb_body_html_for_locale(a, locale=loc, meta_title=meta_title)
+    meta_description = kb_meta_description_for_locale(a, locale=loc, meta_title=meta_title)
+    excerpt = kb_excerpt_for_locale(a, locale=loc)
+    show_excerpt = bool(excerpt) and not texts_overlap(
+        excerpt, meta_title
+    ) and not texts_overlap(excerpt, meta_description)
+    canonical_path = f"/en/kb/{a.slug}" if loc == "en" else f"/kb/{a.slug}"
+    canonical_url = public_request_url(request, canonical_path)
+    alt_ko = public_request_url(request, f"/kb/{a.slug}")
+    alt_en = (
+        public_request_url(request, f"/en/kb/{a.slug}")
+        if kb_has_public_english(a)
+        else None
+    )
+    return templates.TemplateResponse(
+        request,
+        "site/kb_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "article": a,
+            "kb_categories": KB_CATEGORIES,
+            "page_locale": loc,
+            "title_html": title_html,
+            "body_html": body_html,
+            "meta_title": meta_title,
+            "meta_description": meta_description,
+            "canonical_url": canonical_url,
+            "hreflang_ko": alt_ko,
+            "hreflang_en": alt_en,
+            "show_excerpt": show_excerpt,
+            "excerpt_text": excerpt,
+        },
+    )
+
+
+@router.get("/en/kb/{slug}", response_class=HTMLResponse)
+def kb_public_detail_en(slug: str, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    a = _fetch_published_kb_article(slug, db)
+    if not a:
+        return templates.TemplateResponse(
+            request,
+            "errors/simple_message.html",
+            {
+                "request": request,
+                "user": user,
+                "title": "Knowledge Gallery",
+                "message": "존재하지 않거나 비공개된 글입니다.",
+                "message_en": "This article does not exist or is not published.",
+            },
+            status_code=404,
+        )
+    resp = _kb_public_detail_response(request, a, locale="en", user=user)
+    if resp is None:
+        return templates.TemplateResponse(
+            request,
+            "errors/simple_message.html",
+            {
+                "request": request,
+                "user": user,
+                "title": "Knowledge Gallery",
+                "message": "영문 버전이 없습니다.",
+                "message_en": "No English version is available for this article.",
+            },
+            status_code=404,
+        )
+    return resp
+
+
+@router.get("/kb/{slug}", response_class=HTMLResponse)
+def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    a = _fetch_published_kb_article(slug, db)
     if not a:
         return templates.TemplateResponse(
             request,
@@ -355,38 +450,4 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
             },
             status_code=404,
         )
-    meta_title = _meta_title_from_markdown(a.title, "지식갤러리")
-    body_plain_meta = kb_body_plain_for_meta(a)
-    body_en_md_raw = (a.body_md_en or "").strip() or (a.body_md or "")
-    body_en_md = strip_leading_title_from_body_md(body_en_md_raw, meta_title)
-    title_html = _markdown_to_html(a.title or "")
-    title_en_md = (a.title_en or "").strip() or (a.title or "")
-    title_html_en = _markdown_to_html(title_en_md)
-    body_html = kb_body_html_fragment(a, meta_title=meta_title)
-    body_html_en = _markdown_to_html(body_en_md)
-    raw_meta = (a.meta_description or "").strip() or _meta_title_from_markdown(
-        a.excerpt or body_plain_meta, meta_title
-    )
-    meta_description = sanitize_meta_description(raw_meta)
-    show_excerpt = bool((a.excerpt or "").strip()) and not texts_overlap(
-        a.excerpt, meta_title
-    ) and not texts_overlap(a.excerpt, meta_description)
-    canonical_url = public_request_url(request, f"/kb/{a.slug}")
-    return templates.TemplateResponse(
-        request,
-        "site/kb_detail.html",
-        {
-            "request": request,
-            "user": user,
-            "article": a,
-            "kb_categories": KB_CATEGORIES,
-            "title_html": title_html,
-            "title_html_en": title_html_en,
-            "body_html": body_html,
-            "body_html_en": body_html_en,
-            "meta_title": meta_title,
-            "meta_description": meta_description,
-            "canonical_url": canonical_url,
-            "show_excerpt": show_excerpt,
-        },
-    )
+    return _kb_public_detail_response(request, a, locale="ko", user=user)

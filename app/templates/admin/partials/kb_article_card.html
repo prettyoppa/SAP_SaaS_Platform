@@ -1,9 +1,11 @@
 {# expects loop variable `a`; kb_categories; status_labels_ko; status_labels_en; wf_pending; wf_published #}
 {% set kb_live = (a.workflow_status == wf_published and a.is_published) %}
+{% set kb_also_en = ((a.title_en or '')|trim) or ((a.body_md_en or '')|trim) or ((a.excerpt_en or '')|trim) or ((a.meta_description_en or '')|trim) %}
+{% set kb_public_en = kb_live and ((a.title_en or '')|trim) and ((a.body_md_en or '')|trim) %}
 <div class="admin-content-card mb-3 p-3" id="kb-article-{{ a.id }}">
   <div class="d-flex flex-wrap justify-content-between mb-2 small gap-2">
     <span>
-      ID {{ a.id }} · <code>/kb/{{ a.slug }}</code>
+      ID {{ a.id }} · <code>/kb/{{ a.slug }}</code>{% if kb_also_en %} · <code>/en/kb/{{ a.slug }}</code>{% endif %}
       <span class="badge bg-secondary ms-1">
         <span class="nav-ko">{{ status_labels_ko.get(a.workflow_status, a.workflow_status) }}</span>
         <span class="nav-en" style="display:none">{{ status_labels_en.get(a.workflow_status, a.workflow_status) }}</span>
@@ -12,8 +14,13 @@
     </span>
     <span class="d-flex flex-wrap gap-1 align-items-center">
       <a href="/admin/kb/{{ a.id }}/preview" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" data-no-busy="true">
-        <span class="nav-ko">미리보기</span><span class="nav-en" style="display:none">Preview</span>
+        <span class="nav-ko">미리보기 (한)</span><span class="nav-en" style="display:none">Preview (KO)</span>
       </a>
+      {% if kb_also_en %}
+      <a href="/admin/kb/{{ a.id }}/preview?locale=en" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" data-no-busy="true">
+        <span class="nav-ko">미리보기 (영)</span><span class="nav-en" style="display:none">Preview (EN)</span>
+      </a>
+      {% endif %}
       {% if a.workflow_status == wf_pending %}
       <form method="post" action="/admin/kb/{{ a.id }}/approve" class="d-inline">
         <button type="submit" class="btn btn-sm btn-success" data-app-confirm-i18n="admin.kb.confirmApprove">
@@ -104,8 +111,13 @@
         </span>
         {% if kb_live %}
         <a href="/kb/{{ a.slug }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary ms-0 ms-md-2 mt-1 mt-md-0" data-no-busy="true">
-          <span class="nav-ko">공개 페이지</span><span class="nav-en" style="display:none">Public page</span>
+          <span class="nav-ko">공개 (한)</span><span class="nav-en" style="display:none">Public (KO)</span>
         </a>
+        {% if kb_public_en %}
+        <a href="/en/kb/{{ a.slug }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary mt-1 mt-md-0" data-no-busy="true">
+          <span class="nav-ko">공개 (영)</span><span class="nav-en" style="display:none">Public (EN)</span>
+        </a>
+        {% endif %}
         {% endif %}
       </div>
       <div class="col-12">
@@ -140,6 +152,8 @@
         {% include 'partials/requirement_rich_field.html' %}
         <div id="kb-preview-{{ a.id }}" class="kb-admin-preview border rounded p-3 mt-2 d-none markdown-body text-break" data-kb-article-id="{{ a.id }}" aria-hidden="true"></div>
       </div>
+      {% set kb_bilingual_suffix = a.id|string %}
+      {% include 'admin/partials/kb_bilingual_fields.html' %}
       <div class="col-12">
         <label class="small"><span class="nav-ko">관리자 메모 (비공개)</span><span class="nav-en" style="display:none">Admin note (private)</span></label>
         <input name="source_note" class="form-control" value="{{ a.source_note or '' }}"/>
