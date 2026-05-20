@@ -1,4 +1,4 @@
-{# 최종 구현 산출물(ZIP) — ctx: as_built_* from as_built_hub_template_ctx #}
+{# 최종 구현 산출물 — 단일 파일·드래그앤드롭 (요청 폼 첨부 UI와 동일) #}
 {% set upload_url = '/rfp/' ~ as_built_entity.id ~ '/as-built-upload' if as_built_request_kind == 'rfp' else ('/integration/' ~ as_built_entity.id ~ '/as-built-upload' if as_built_request_kind == 'integration' else '/abap-analysis/' ~ as_built_entity.id ~ '/as-built-upload') %}
 {% set delete_url = '/rfp/' ~ as_built_entity.id ~ '/as-built-delete' if as_built_request_kind == 'rfp' else ('/integration/' ~ as_built_entity.id ~ '/as-built-delete' if as_built_request_kind == 'integration' else '/abap-analysis/' ~ as_built_entity.id ~ '/as-built-delete') %}
 {% set download_url = '/rfp/' ~ as_built_entity.id ~ '/as-built-download' if as_built_request_kind == 'rfp' else ('/integration/' ~ as_built_entity.id ~ '/as-built-download' if as_built_request_kind == 'integration' else '/abap-analysis/' ~ as_built_entity.id ~ '/as-built-download') %}
@@ -6,19 +6,25 @@
 <div class="hub-as-built-panel">
   {% if request.query_params.get('as_built_ok') %}
   <div class="alert alert-success py-2 small mb-3">
-    <span class="nav-ko">ZIP이 등록되었습니다. 이후 다른 요청의 참고 첨부로 올리면 에이전트가 ZIP 안의 텍스트·코드를 읽어 활용합니다.</span>
-    <span class="nav-en" style="display:none">ZIP saved. When you attach it on a future request, agents can read text and code inside the archive.</span>
+    <span class="nav-ko">파일이 등록되었습니다.</span>
+    <span class="nav-en" style="display:none">File saved.</span>
   </div>
   {% endif %}
   {% set err = request.query_params.get('as_built_err') or '' %}
   {% if err %}
   <div class="alert alert-warning py-2 small mb-3">
-    {% if err == 'zip_too_large' %}
-    <span class="nav-ko">ZIP 크기는 최대 50MB입니다.</span>
-    <span class="nav-en" style="display:none">ZIP must be 50MB or smaller.</span>
+    {% if err == 'file_too_large' or err == 'zip_too_large' %}
+    <span class="nav-ko">파일 크기가 허용 범위를 초과합니다. (일반 20MB · ZIP 50MB)</span>
+    <span class="nav-en" style="display:none">File exceeds size limit (20MB usual · 50MB for ZIP).</span>
     {% elif err == 'invalid_zip' %}
     <span class="nav-ko">올바른 ZIP 파일이 아닙니다.</span>
     <span class="nav-en" style="display:none">Not a valid ZIP file.</span>
+    {% elif err == 'invalid_file' %}
+    <span class="nav-ko">허용되지 않는 파일 형식입니다.</span>
+    <span class="nav-en" style="display:none">File type not allowed.</span>
+    {% elif err == 'empty_file' or err == 'empty_zip' %}
+    <span class="nav-ko">파일이 비어 있습니다.</span>
+    <span class="nav-en" style="display:none">File is empty.</span>
     {% else %}
     <span class="nav-ko">업로드에 실패했습니다.</span>
     <span class="nav-en" style="display:none">Upload failed.</span>
@@ -26,14 +32,9 @@
   </div>
   {% endif %}
 
-  <p class="small text-muted mb-3">
-    <span class="nav-ko">납품 코드 생성 후 현장에서 실제 구현·수정한 결과물을 <strong>ZIP</strong>으로 올려 두면, 나중에 다른 요청의 참고 첨부로 사용할 때 에이전트가 내부 파일을 읽어 반영합니다. (선택)</span>
-    <span class="nav-en" style="display:none">After agent delivery code, optionally upload a <strong>ZIP</strong> of what was actually built on site. Agents can extract text/code from it when you attach the same ZIP on future requests.</span>
-  </p>
-
   {% if as_built_entry_dict and as_built_entry_dict.path %}
   <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-    <span class="badge bg-success"><i class="fa-solid fa-file-zipper me-1"></i>{{ as_built_entry_dict.filename or 'as-built.zip' }}</span>
+    <span class="badge bg-success"><i class="fa-solid fa-file me-1"></i>{{ as_built_entry_dict.filename or 'file' }}</span>
     <a href="{{ download_url }}" class="btn btn-sm btn-outline-primary">
       <i class="fa-solid fa-download me-1"></i><span data-i18n="hub.asBuiltDownload">다운로드</span>
     </a>
@@ -47,22 +48,34 @@
     {% endif %}
   </div>
   {% elif as_built_can_upload %}
-  <p class="small text-muted mb-2" data-i18n="hub.asBuiltNone">등록된 ZIP이 없습니다.</p>
+  <p class="small text-muted mb-2" data-i18n="hub.asBuiltNone">등록된 파일이 없습니다.</p>
   {% else %}
-  <p class="small text-muted mb-0" data-i18n="hub.asBuiltNone">등록된 ZIP이 없습니다.</p>
+  <p class="small text-muted mb-0" data-i18n="hub.asBuiltNone">등록된 파일이 없습니다.</p>
   {% endif %}
 
   {% if as_built_can_upload %}
-  <form method="post" action="{{ upload_url }}" enctype="multipart/form-data" class="mt-2">
+  <form method="post" action="{{ upload_url }}" enctype="multipart/form-data" class="as-built-upload-form mt-2">
     <input type="hidden" name="return_to" value="{{ as_built_return_to }}"/>
-    <label class="form-label small text-muted mb-1" for="as-built-zip-{{ as_built_request_kind }}-{{ as_built_entity.id }}">
-      <span class="nav-ko">ZIP 파일 (최대 50MB)</span>
-      <span class="nav-en" style="display:none">ZIP file (max 50MB)</span>
-    </label>
-    <input type="file" class="form-control form-control-sm" id="as-built-zip-{{ as_built_request_kind }}-{{ as_built_entity.id }}" name="zip_file" accept=".zip,application/zip" {% if not (as_built_entry_dict and as_built_entry_dict.path) %}required{% endif %}/>
+    <div class="file-drop-zone as-built-drop-zone" data-max-files="1">
+      <div class="position-relative mb-2 as-built-drop-hit-target" style="min-height: 8.5rem;">
+        <label for="as-built-file-{{ as_built_request_kind }}-{{ as_built_entity.id }}" class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
+          <input type="file" name="file" id="as-built-file-{{ as_built_request_kind }}-{{ as_built_entity.id }}"
+                 class="file-drop-native-input as-built-file-input"
+                 accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg,.zip"/>
+          <span class="file-drop-content as-built-drop-content d-block text-center py-4 px-2">
+            <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
+            <p class="fw-semibold mb-1" data-i18n="hub.asBuiltDropTitle">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+            <p class="text-muted small mb-0" data-i18n="hub.asBuiltDropHint">폴더 전체는 ZIP 권장 · PDF·Excel·Word·이미지·TXT · 파일 1개 · ZIP 최대 50MB · 그 외 20MB</p>
+          </span>
+        </label>
+      </div>
+      <div class="as-built-attachment-list w-100 px-1"></div>
+    </div>
     <button type="submit" class="btn btn-primary btn-sm mt-2">
-      <i class="fa-solid fa-upload me-1"></i><span data-i18n="hub.asBuiltUpload">ZIP 등록</span>
+      <i class="fa-solid fa-upload me-1"></i><span data-i18n="hub.asBuiltUpload">파일 등록</span>
     </button>
   </form>
   {% endif %}
 </div>
+<script src="/static/js/file_preview.js?v=2"></script>
+<script src="/static/js/hub_as_built_upload.js?v=1"></script>

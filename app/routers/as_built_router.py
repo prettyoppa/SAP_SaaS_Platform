@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import mimetypes
+import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -10,11 +12,13 @@ from sqlalchemy.orm import Session
 
 from .. import auth, models
 from ..as_built_deliverable import (
+    AS_BUILT_ALLOWED_EXTENSIONS,
+    MAX_AS_BUILT_OTHER_BYTES,
     MAX_AS_BUILT_ZIP_BYTES,
     as_built_entry,
     clear_as_built_entry,
     set_as_built_entry,
-    store_as_built_zip,
+    store_as_built_file,
 )
 from ..database import get_db
 from ..request_hub_access import (
@@ -29,7 +33,7 @@ from ..integration_hub import integration_hub_url
 router = APIRouter()
 
 
-async def _read_zip_upload(upload: UploadFile) -> bytes:
+async def _read_as_built_upload(upload: UploadFile, *, max_bytes: int) -> bytes:
     try:
         await upload.seek(0)
     except Exception:
@@ -42,8 +46,8 @@ async def _read_zip_upload(upload: UploadFile) -> bytes:
         except Exception:
             pass
         raw = uf.read() or b""
-    if len(raw) > MAX_AS_BUILT_ZIP_BYTES:
-        raise ValueError("zip_too_large")
+    if len(raw) > max_bytes:
+        raise ValueError("file_too_large")
     return raw
 
 def _user_may_upload_as_built(db: Session, user, *, kind: str, entity: Any) -> bool:
@@ -82,22 +86,24 @@ async def _handle_upload(
     user,
     entity: Any,
     kind: str,
-    zip_file: UploadFile,
+    upload_file: UploadFile,
     return_to: str | None,
 ) -> RedirectResponse:
     if not _user_may_upload_as_built(db, user, kind=kind, entity=entity):
         raise HTTPException(status_code=403, detail="forbidden")
-    fn = (zip_file.filename or "").strip()
-    if not fn.lower().endswith(".zip"):
-        return RedirectResponse(url=(return_to or "/") + "?as_built_err=invalid_zip", status_code=303)
+    fn = (upload_file.filename or "").strip()
+    if not fn:
+        return RedirectResponse(url=(return_to or "/") + "?as_built_err=empty_file", status_code=303)
+    ext = os.path.splitext(fn)[1].lower()
+    if ext not in AS_BUILT_ALLOWED_EXTENSIONS:
+        return RedirectResponse(url=(return_to or "/") + "?as_built_err=invalid_file", status_code=303)
+    max_bytes = MAX_AS_BUILT_ZIP_BYTES if ext == ".zip" else MAX_AS_BUILT_OTHER_BYTES
     try:
-        raw = await _read_zip_upload(zip_file)
+        raw = await _read_as_built_upload(upload_file, max_bytes=max_bytes)
     except ValueError:
-        return RedirectResponse(url=(return_to or "/") + "?as_built_err=zip_too_large", status_code=303)
-    if len(raw) > MAX_AS_BUILT_ZIP_BYTES:
-        return RedirectResponse(url=(return_to or "/") + "?as_built_err=zip_too_large", status_code=303)
+        return RedirectResponse(url=(return_to or "/") + "?as_built_err=file_too_large", status_code=303)
     try:
-        path, stored_name = store_as_built_zip(int(user.id), raw, fn)
+        path, stored_name = store_as_built_file(int(user.id), raw, fn)
     except ValueError as e:
         code = str(e.args[0] if e.args else "invalid_zip")
         return RedirectResponse(url=(return_to or "/") + f"?as_built_err={code}", status_code=303)
@@ -124,10 +130,12 @@ def _download_response(entity: Any) -> Response:
     raw = r2_storage.read_bytes_from_ref(ent.get("path") or "")
     if not raw:
         raise HTTPException(status_code=404, detail="file_missing")
-    fname = (ent.get("filename") or "as-built.zip").strip()
+    fname = (ent.get("filename") or "file").strip()
+    ext = os.path.splitext(fname)[1].lower()
+    media = mimetypes.guess_type(fname)[0] or "application/octet-stream"
     return Response(
         content=raw,
-        media_type="application/zip",
+        media_type=media,
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
 
@@ -155,7 +163,7 @@ def _load_entity(db: Session, model, entity_id: int, user) -> Any | None:
 @router.post("/rfp/{rfp_id}/as-built-upload")
 async def rfp_as_built_upload(
     rfp_id: int,
-    zip_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     return_to: str = Form(""),
     user=Depends(auth.require_login),
     db: Session = Depends(get_db),
@@ -163,7 +171,7 @@ async def rfp_as_built_upload(
     rfp = _load_entity(db, models.RFP, rfp_id, user)
     if not rfp:
         raise HTTPException(status_code=404, detail="not_found")
-    return await _handle_upload(db=db, user=user, entity=rfp, kind="rfp", zip_file=zip_file, return_to=return_to)
+    return await _handle_upload(db=db, user=user, entity=rfp, kind="rfp", upload_file=file, return_to=return_to)
 
 
 @router.post("/rfp/{rfp_id}/as-built-delete")
@@ -194,7 +202,7 @@ async def rfp_as_built_download(
 @router.post("/integration/{req_id}/as-built-upload")
 async def integration_as_built_upload(
     req_id: int,
-    zip_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     return_to: str = Form(""),
     user=Depends(auth.require_login),
     db: Session = Depends(get_db),
@@ -203,7 +211,7 @@ async def integration_as_built_upload(
     if not ir:
         raise HTTPException(status_code=404, detail="not_found")
     return await _handle_upload(
-        db=db, user=user, entity=ir, kind="integration", zip_file=zip_file, return_to=return_to
+        db=db, user=user, entity=ir, kind="integration", upload_file=file, return_to=return_to
     )
 
 
@@ -235,7 +243,7 @@ async def integration_as_built_download(
 @router.post("/abap-analysis/{analysis_id}/as-built-upload")
 async def analysis_as_built_upload(
     analysis_id: int,
-    zip_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     return_to: str = Form(""),
     user=Depends(auth.require_login),
     db: Session = Depends(get_db),
@@ -244,7 +252,7 @@ async def analysis_as_built_upload(
     if not row:
         raise HTTPException(status_code=404, detail="not_found")
     return await _handle_upload(
-        db=db, user=user, entity=row, kind="analysis", zip_file=zip_file, return_to=return_to
+        db=db, user=user, entity=row, kind="analysis", upload_file=file, return_to=return_to
     )
 
 

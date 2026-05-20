@@ -13,7 +13,12 @@ from typing import Any
 from . import r2_storage
 from .attachment_context import _one_file_digest
 
+# 요청 폼 첨부(ALLOWED_EXTENSIONS)와 동일 + 단일 파일
+AS_BUILT_ALLOWED_EXTENSIONS = frozenset({
+    ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg", ".zip",
+})
 MAX_AS_BUILT_ZIP_BYTES = 50 * 1024 * 1024
+MAX_AS_BUILT_OTHER_BYTES = 20 * 1024 * 1024
 MAX_ZIP_FILES_FOR_DIGEST = 120
 MAX_ZIP_FILE_BYTES = 2 * 1024 * 1024
 
@@ -63,21 +68,25 @@ def clear_as_built_entry(entity: Any) -> None:
     entity.as_built_zip_json = None
 
 
-def store_as_built_zip(user_id: int, data: bytes, original_filename: str) -> tuple[str, str]:
-    if len(data) > MAX_AS_BUILT_ZIP_BYTES:
-        raise ValueError("zip_too_large")
+def store_as_built_file(user_id: int, data: bytes, original_filename: str) -> tuple[str, str]:
     if not data:
-        raise ValueError("empty_zip")
-    try:
-        with zipfile.ZipFile(io.BytesIO(data), "r") as zf:
-            if not any(not i.is_dir() for i in zf.infolist()):
-                raise ValueError("empty_zip")
-    except zipfile.BadZipFile as e:
-        raise ValueError("invalid_zip") from e
+        raise ValueError("empty_file")
+    fname = (original_filename or "file").strip() or "file"
+    ext = os.path.splitext(fname)[1].lower()
+    if ext not in AS_BUILT_ALLOWED_EXTENSIONS:
+        raise ValueError("invalid_file")
+    limit = MAX_AS_BUILT_ZIP_BYTES if ext == ".zip" else MAX_AS_BUILT_OTHER_BYTES
+    if len(data) > limit:
+        raise ValueError("file_too_large")
+    if ext == ".zip":
+        try:
+            with zipfile.ZipFile(io.BytesIO(data), "r") as zf:
+                if not any(not i.is_dir() for i in zf.infolist()):
+                    raise ValueError("empty_zip")
+        except zipfile.BadZipFile as e:
+            raise ValueError("invalid_zip") from e
 
-    ext = ".zip"
-    fname = (original_filename or "as-built.zip").strip() or "as-built.zip"
-    ct = mimetypes.guess_type(fname)[0] or "application/zip"
+    ct = mimetypes.guess_type(fname)[0] or "application/octet-stream"
     if r2_storage.is_configured():
         uri = r2_storage.upload_bytes(user_id, ext, data, ct)
         return uri, fname
@@ -203,7 +212,17 @@ def as_built_llm_digest(entity: Any, *, max_total_chars: int = 10_000) -> str:
     raw = r2_storage.read_bytes_from_ref(ent.get("path") or "")
     if not raw:
         return ""
-    fname = (ent.get("filename") or "as-built.zip").strip()
-    head = f"[최종 구현 산출물 ZIP: {fname}]\n"
-    body = digest_zip_archive(raw, max_total_chars=max(1000, max_total_chars - len(head)))
+    fname = (ent.get("filename") or "file").strip()
+    head = f"[최종 구현 산출물: {fname}]\n"
+    budget = max(1000, max_total_chars - len(head))
+    ext = os.path.splitext(fname)[1].lower()
+    if ext == ".zip":
+        body = digest_zip_archive(raw, max_total_chars=budget)
+    else:
+        body = _one_file_digest(fname, raw, budget)
     return (head + body).strip()[:max_total_chars]
+
+
+def store_as_built_zip(user_id: int, data: bytes, original_filename: str) -> tuple[str, str]:
+    """레거시 별칭."""
+    return store_as_built_file(user_id, data, original_filename)
