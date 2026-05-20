@@ -77,13 +77,13 @@
   }
 
   function initPanel(panel) {
-    const dz = panel.querySelector('.as-built-drop-zone');
+    const dz = panel.querySelector('.file-drop-zone');
     const input = panel.querySelector('.as-built-file-input');
     if (!dz || !input) return;
 
     const listEl = panel.querySelector('.as-built-attachment-list');
-    const hit = panel.querySelector('.as-built-drop-hit-target');
-    const dropContent = panel.querySelector('.as-built-drop-content');
+    const hit = panel.querySelector('.file-drop-hit-target');
+    const dropContent = panel.querySelector('.file-drop-content');
 
     ['dragenter', 'dragover'].forEach(ev => {
       dz.addEventListener(ev, e => {

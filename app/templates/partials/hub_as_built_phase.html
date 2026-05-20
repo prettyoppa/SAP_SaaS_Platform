@@ -56,15 +56,15 @@
   {% if as_built_can_upload %}
   <form method="post" action="{{ upload_url }}" enctype="multipart/form-data" class="as-built-upload-form mt-2">
     <input type="hidden" name="return_to" value="{{ as_built_return_to }}"/>
-    <div class="file-drop-zone as-built-drop-zone" data-max-files="1">
-      <div class="position-relative mb-2 as-built-drop-hit-target" style="min-height: 8.5rem;">
+    <div class="file-drop-zone" data-max-files="1">
+      <div class="position-relative mb-2 file-drop-hit-target" style="min-height: 8.5rem;">
         <label for="as-built-file-{{ as_built_request_kind }}-{{ as_built_entity.id }}" class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
           <input type="file" name="file" id="as-built-file-{{ as_built_request_kind }}-{{ as_built_entity.id }}"
                  class="file-drop-native-input as-built-file-input"
                  accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg,.zip"/>
-          <span class="file-drop-content as-built-drop-content d-block text-center py-4 px-2">
+          <span class="file-drop-content d-block text-center py-4 px-2">
             <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
-            <p class="fw-semibold mb-1" data-i18n="hub.asBuiltDropTitle">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+            <p class="fw-semibold mb-1" data-i18n="rfp.dropTitle">클릭하거나 파일을 여기에 끌어다 놓으세요</p>
             <p class="text-muted small mb-0" data-i18n="hub.asBuiltDropHint">폴더 전체는 ZIP 권장 · PDF·Excel·Word·이미지·TXT · 파일 1개 · ZIP 최대 50MB · 그 외 20MB</p>
           </span>
         </label>
@@ -78,4 +78,4 @@
   {% endif %}
 </div>
 <script src="/static/js/file_preview.js?v=2"></script>
-<script src="/static/js/hub_as_built_upload.js?v=1"></script>
+<script src="/static/js/hub_as_built_upload.js?v=2"></script>
