@@ -41,9 +41,17 @@
               placeholder="### Bank transfer (KRW)…">{{ settings.get('bank_transfer_notice_md_en', '') }}</textarea>
           </div>
           <div class="col-md-4">
-            <label class="form-label small" for="usd_krw_rate">USD→KRW 환율 (사용량 화면 KRW 환산)</label>
+            <label class="form-label small" for="usd_krw_rate">USD→KRW 환율 (내부 환산, 회원 화면 비표시)</label>
             <input type="text" id="usd_krw_rate" name="usd_krw_rate" class="form-control form-control-sm font-monospace"
               value="{{ settings.get('usd_krw_rate', '') }}" placeholder="1350">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small" for="ai_usage_markup_percent">AI 사용 마진 (%)</label>
+            <input type="text" id="ai_usage_markup_percent" name="ai_usage_markup_percent" class="form-control form-control-sm font-monospace"
+              value="{{ settings.get('ai_usage_markup_percent', '30') }}" placeholder="30">
+            <div class="form-text small text-muted">
+              API 원가(토큰·모델 단가)에 더하는 마진율입니다. 예: 30 → 청구액 = 원가 × 1.30. 잔액 차감·회원 로그에 동일 적용.
+            </div>
           </div>
           <div class="col-md-4">
             <label class="form-label small" for="ai_wallet_min_topup_krw">최소 충전 금액 (원)</label>

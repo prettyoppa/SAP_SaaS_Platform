@@ -25,6 +25,7 @@ AI_CREDITS_BANK_ADMIN_KEYS: tuple[str, ...] = (
     "bank_transfer_notice_md_ko",
     "bank_transfer_notice_md_en",
     "usd_krw_rate",
+    "ai_usage_markup_percent",
     "ai_wallet_min_topup_krw",
 )
 

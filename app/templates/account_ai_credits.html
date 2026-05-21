@@ -27,13 +27,9 @@
       <h3 id="ai-balance-heading" class="h6 text-muted text-uppercase small mb-2">
         <span class="nav-ko">이용 가능 잔액</span><span class="nav-en" style="display:none">Available balance</span>
       </h3>
-      <p class="display-6 fw-semibold mb-1 account-ai-credits-balance-amount">
+      <p class="display-6 fw-semibold mb-0 account-ai-credits-balance-amount">
         <span class="account-ai-credits-balance-currency" aria-hidden="true">₩</span>
         <span class="account-ai-credits-balance-value font-monospace">{{ "{:,}".format(wallet_balance_krw) }}</span>
-      </p>
-      <p class="small text-muted mb-0">
-        <span class="nav-ko">충전·입금 확인·취소와 <strong>AI 사용(추정 비용)</strong>이 반영된 남은 금액입니다. AI 호출이 기록될 때마다 차감됩니다.</span>
-        <span class="nav-en" style="display:none">Remaining balance after top-ups, transfer verification, cancellations, and <strong>estimated AI usage</strong> (deducted when each call is logged).</span>
       </p>
     </section>
     <section id="topup-form" class="rfp-section account-ai-credits-panel account-ai-credits-topup">
@@ -141,28 +137,65 @@
         <span class="nav-ko">AI 사용 내역</span><span class="nav-en" style="display:none">AI usage</span>
       </h3>
       <p class="small text-muted mb-3">
-        <span class="nav-ko">AI 호출마다 토큰·모델 단가로 <strong>추정 비용</strong>을 누적합니다. Admin 환율로 원화 환산하며, 실제 청구와 다를 수 있습니다.</span>
-        <span class="nav-en" style="display:none">Each AI call adds an <strong>estimated cost</strong> (tokens × model rates), shown in KRW. May differ from actual billing.</span>
+        <span class="nav-ko">AI 호출마다 토큰·모델 단가로 <strong>추정 비용</strong>을 누적합니다.</span>
+        <span class="nav-en" style="display:none">Each AI call adds an <strong>estimated cost</strong> from tokens and model rates, shown in KRW.</span>
       </p>
       <div class="row g-2 mb-3 account-ai-credits-usage-summary">
         <div class="col-md-6">
-          <div class="account-ai-credits-stat p-2 rounded">
+          <div class="account-ai-credits-stat p-2 rounded h-100">
             <div class="small text-muted"><span class="nav-ko">누적 추정 사용</span><span class="nav-en" style="display:none">Estimated usage (total)</span></div>
             <div class="font-monospace fw-semibold">₩{{ "{:,}".format(ai_usage_total_krw_int) }}</div>
-            <div class="small text-muted">{{ ai_usage_total_usd }} · {{ ai_usage_event_count }}<span class="nav-ko">회 호출</span><span class="nav-en" style="display:none"> calls</span></div>
           </div>
         </div>
         <div class="col-md-6">
-          <div class="account-ai-credits-stat p-2 rounded">
-            <div class="small text-muted"><span class="nav-ko">환산 기준</span><span class="nav-en" style="display:none">FX rate</span></div>
-            <div class="font-monospace fw-semibold">1 USD = ₩{{ "{:,.0f}".format(usd_krw_rate) }}</div>
+          <div class="account-ai-credits-stat p-2 rounded h-100">
+            <div class="small text-muted"><span class="nav-ko">누적 토큰</span><span class="nav-en" style="display:none">Total tokens</span></div>
+            <div class="font-monospace fw-semibold">{{ ai_usage_total_tokens_display }}</div>
             <div class="small text-muted">
-              <span class="nav-ko">토큰·모델 단가 → USD → 원화</span>
-              <span class="nav-en" style="display:none">Tokens &amp; model rates → USD → KRW</span>
+              <span class="nav-ko">API에서 토큰 수가 확인된 호출만 합산</span>
+              <span class="nav-en" style="display:none">Sum of calls with reported token usage</span>
             </div>
           </div>
         </div>
       </div>
+      {% if ai_usage_log_rows|length > 0 %}
+      <h4 class="h6 mb-2">
+        <span class="nav-ko">호출 로그</span><span class="nav-en" style="display:none">Usage log</span>
+        <span class="text-muted fw-normal small">({{ ai_usage_log_rows|length }}<span class="nav-ko">건 · 최근</span><span class="nav-en" style="display:none"> recent</span>)</span>
+      </h4>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm align-middle mb-0 account-ai-credits-table account-ai-credits-usage-log">
+          <thead>
+            <tr>
+              <th><span class="nav-ko">일시</span><span class="nav-en" style="display:none">Date</span></th>
+              <th><span class="nav-ko">기능</span><span class="nav-en" style="display:none">Feature</span></th>
+              <th><span class="nav-ko">모델</span><span class="nav-en" style="display:none">Model</span></th>
+              <th class="text-end"><span class="nav-ko">Tokens</span><span class="nav-en" style="display:none">Tokens</span></th>
+              <th class="text-end"><span class="nav-ko">추정 비용</span><span class="nav-en" style="display:none">Est. cost</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in ai_usage_log_rows %}
+            <tr>
+              <td class="small text-muted text-nowrap">{{ row.created_at|local_dt_span }}</td>
+              <td class="small">
+                <span class="nav-ko">{{ row.label_ko }}</span>
+                <span class="nav-en" style="display:none">{{ row.label_en }}</span>
+                {% if row.is_estimate %}
+                <span class="badge bg-secondary bg-opacity-25 text-muted ms-1" title="토큰 미확인 추정">
+                  <span class="nav-ko">추정</span><span class="nav-en" style="display:none">Est.</span>
+                </span>
+                {% endif %}
+              </td>
+              <td class="small font-monospace text-break">{{ row.model_id }}</td>
+              <td class="text-end small font-monospace text-nowrap">{{ row.tokens_display }}</td>
+              <td class="text-end small font-monospace text-nowrap">₩{{ "{:,}".format(row.krw_int) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
       {% if ai_usage_stage_rows|length > 0 %}
       <h4 class="h6 mb-2">
         <span class="nav-ko">기능별 추정 사용</span><span class="nav-en" style="display:none">Usage by feature</span>
@@ -172,7 +205,7 @@
         <div class="ai-usage-stage-row mb-2">
           <div class="d-flex justify-content-between small mb-1">
             <span><span class="nav-ko">{{ row.label }}</span><span class="nav-en" style="display:none">{{ row.label_en }}</span></span>
-            <span class="font-monospace">₩{{ "{:,}".format(row.krw_int) }} <span class="text-muted">({{ row.pct }}% · {{ row.usd }})</span></span>
+            <span class="font-monospace">₩{{ "{:,}".format(row.krw_int) }} <span class="text-muted">({{ row.pct }}%)</span></span>
           </div>
           <div class="progress" style="height: 8px;" role="presentation">
             <div class="progress-bar bg-primary" style="width: {% if row.pct > 100 %}100{% else %}{{ row.pct }}{% endif %}%;"></div>
@@ -191,5 +224,5 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="/static/js/ai-credits-topup.js?v=20260517topup-ui"></script>
+<script src="/static/js/ai-credits-topup.js?v=20260520usage-log"></script>
 {% endblock %}

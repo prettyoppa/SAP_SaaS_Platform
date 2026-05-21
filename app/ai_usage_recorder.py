@@ -153,7 +153,7 @@ def log_ai_usage_event(
         if ctx.request_id is not None:
             request_id = ctx.request_id
     mid = (model_id or get_gemini_model_id() or "").strip()
-    micro, src = estimate_cost_usd_micro(
+    raw_micro, src = estimate_cost_usd_micro(
         model_id=mid,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
@@ -166,6 +166,9 @@ def log_ai_usage_event(
         tot = (input_tokens or 0) + (output_tokens or 0)
     db = SessionLocal()
     try:
+        from .ai_usage_pricing import billable_usd_micro
+
+        micro = billable_usd_micro(db, raw_micro)
         if idempotency_key:
             exists = (
                 db.query(models.AiUsageEvent)
@@ -291,3 +294,83 @@ def format_usd_from_micro(micro: int) -> str:
 def format_krw_from_micro(micro: int, usd_krw_rate: float) -> str:
     krw = (micro / 1_000_000.0) * usd_krw_rate
     return f"₩{krw:,.0f}"
+
+
+def format_token_count(n: int | None) -> str:
+    if n is None or n <= 0:
+        return "—"
+    v = int(n)
+    if v >= 1_000_000:
+        s = f"{v / 1_000_000:.1f}"
+        if s.endswith(".0"):
+            s = s[:-2]
+        return f"{s}M"
+    if v >= 1000:
+        s = f"{v / 1000:.1f}"
+        if s.endswith(".0"):
+            s = s[:-2]
+        return f"{s}K"
+    return f"{v:,}"
+
+
+def format_tokens_cell(
+    *,
+    input_tokens: int | None,
+    output_tokens: int | None,
+    total_tokens: int | None,
+    cost_source: str,
+) -> str:
+    if (cost_source or "").strip() != "api_usage":
+        return "—"
+    if total_tokens is not None and total_tokens > 0:
+        return format_token_count(total_tokens)
+    inp = int(input_tokens or 0)
+    out = int(output_tokens or 0)
+    if inp <= 0 and out <= 0:
+        return "—"
+    if inp > 0 and out > 0:
+        return f"{format_token_count(inp)} in / {format_token_count(out)} out"
+    return format_token_count(inp or out)
+
+
+def member_usage_log_rows(
+    db,
+    user_id: int,
+    *,
+    usd_krw_rate: float,
+    limit: int = 100,
+) -> tuple[list[dict[str, Any]], int, int]:
+    """회원 화면용 호출 로그(최신순) + (표시 가능 토큰 합, 이벤트 수)."""
+    from .ai_wallet import krw_from_usage_usd_micro
+
+    agg = aggregate_usage_for_user(db, int(user_id))
+    events = list(reversed(list(agg.get("rows") or [])))[: max(1, int(limit))]
+    rows: list[dict[str, Any]] = []
+    token_sum = 0
+    for ev in events:
+        st = (ev.stage or "other").strip()
+        src = (ev.cost_source or "").strip()
+        tot_tok = ev.total_tokens
+        if tot_tok is None and (ev.input_tokens or ev.output_tokens):
+            tot_tok = int(ev.input_tokens or 0) + int(ev.output_tokens or 0)
+        if src == "api_usage" and tot_tok and tot_tok > 0:
+            token_sum += int(tot_tok)
+        micro = int(ev.estimated_cost_usd_micro or 0)
+        rows.append(
+            {
+                "event": ev,
+                "created_at": ev.created_at,
+                "label_ko": STAGE_LABEL_KO.get(st, st),
+                "label_en": STAGE_LABEL_EN.get(st, st),
+                "model_id": (ev.model_id or "").strip() or "—",
+                "tokens_display": format_tokens_cell(
+                    input_tokens=ev.input_tokens,
+                    output_tokens=ev.output_tokens,
+                    total_tokens=tot_tok,
+                    cost_source=src,
+                ),
+                "is_estimate": src != "api_usage",
+                "krw_int": krw_from_usage_usd_micro(micro, usd_krw_rate),
+            }
+        )
+    return rows, token_sum, int(agg.get("event_count") or 0)

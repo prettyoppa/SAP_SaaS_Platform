@@ -15,7 +15,9 @@ from ..ai_usage_recorder import (
     STAGE_LABEL_KO,
     aggregate_usage_for_user,
     format_krw_from_micro,
+    format_token_count,
     format_usd_from_micro,
+    member_usage_log_rows,
 )
 from ..ai_wallet import (
     build_wallet_topup_history_rows,
@@ -82,11 +84,16 @@ def _usage_context(db: Session, user: models.User) -> dict:
                 "pct": round(pct, 1),
             }
         )
+    log_rows, token_sum, _event_n = member_usage_log_rows(
+        db, user.id, usd_krw_rate=usd_krw, limit=100
+    )
     return {
         "ai_usage_total_usd": format_usd_from_micro(total_micro),
         "ai_usage_total_krw": format_krw_from_micro(total_micro, usd_krw),
         "ai_usage_total_krw_int": usage_krw_int,
         "ai_usage_event_count": usage_agg.get("event_count", 0),
+        "ai_usage_total_tokens_display": format_token_count(token_sum) if token_sum > 0 else "—",
+        "ai_usage_log_rows": log_rows,
         "ai_usage_stage_rows": stage_rows,
         "usd_krw_rate": usd_krw,
     }
