@@ -529,6 +529,14 @@ html[data-theme="light"] .theme-switch-icon-wrap--right { color: #ea580c; opacit
 .footer p:last-child {
   margin-bottom: 0;
 }
+.footer-legal-link {
+  color: var(--primary);
+  font-weight: 700;
+}
+.footer-legal-link:hover {
+  color: var(--primary-light, var(--primary));
+  text-decoration: underline !important;
+}
 
 /* ── Hero ──────────────────────────────────── */
 .hero-section {
@@ -1498,7 +1506,7 @@ html[data-theme="light"] .hero-section.hero-compact {
 @media (min-width: 992px) {
   .hero-compact .hero-home-split.row {
     display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2.4fr);
     column-gap: 1rem;
     row-gap: 0;
     align-items: start;
@@ -1676,7 +1684,14 @@ html[data-theme="light"] .home-guide-code-titlebar {
   background: var(--code-bg);
 }
 html[data-theme="light"] .home-guide-video-stage--text-demo {
-  background: #0d1117;
+  background: #eef2ff;
+}
+html[data-theme="light"] .home-guide-video-stage--text-demo .home-guide-code-titlebar {
+  background: rgba(99, 102, 241, 0.1);
+  border-bottom-color: rgba(79, 70, 229, 0.18);
+}
+html[data-theme="light"] .home-guide-video-stage--text-demo .home-guide-code-titlebar-label {
+  color: #4f46e5;
 }
 .home-guide-text-terminal {
   display: flex;
@@ -1689,31 +1704,39 @@ html[data-theme="light"] .home-guide-video-stage--text-demo {
   min-height: 0;
   overflow: auto;
   padding: 0.65rem 0.75rem;
-  color: var(--text);
+  color: #93c5fd;
 }
 html[data-theme="light"] .home-guide-text-viewport {
-  color: #e6edf3;
+  color: #4338ca;
 }
 /* 홈 기능 타일 제목(.home-feature-title)과 동일 서체 */
 .home-guide-text-lines {
   font-size: clamp(0.92rem, 2.4vw, 1.05rem);
   font-weight: 700;
   line-height: 1.2;
-  color: inherit;
+  color: #7dd3fc;
+}
+html[data-theme="light"] .home-guide-text-lines {
+  color: #4f46e5;
 }
 .home-guide-text-line {
   min-height: 1.2em;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0 0 0.15rem;
+  color: inherit;
 }
 .home-guide-text-line.is-typing::after {
   content: "▍";
   display: inline-block;
   margin-left: 1px;
   font-weight: 400;
-  opacity: 0.85;
+  color: #60a5fa;
+  opacity: 0.9;
   animation: home-guide-text-cursor-blink 0.9s step-end infinite;
+}
+html[data-theme="light"] .home-guide-text-line.is-typing::after {
+  color: #6366f1;
 }
 @keyframes home-guide-text-cursor-blink {
   50% { opacity: 0; }
