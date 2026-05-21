@@ -180,7 +180,7 @@ dt.report	Report / ALV	Report / ALV
 dt.upload	데이터 업로드 (BDC/LSMW)	Data Upload (BDC/LSMW)
 dt.workflow	워크플로우	Workflow
 footer.copy	© 2026 SAP Dev Hub. All rights reserved.	© 2026 SAP Dev Hub. All rights reserved.
-footer.tagline	AI 기반 SAP 개발 자동화 플랫폼	AI-Powered SAP Development Automation Platform
+footer.tagline	AI 기반 SAP 개발 자동화 플랫폼	AI-Powered SAP Development Platform
 form.writeGuide	작성 가이드	Writing guide
 form.writeGuideCancel	취소	Cancel
 form.writeGuideSave	저장	Save

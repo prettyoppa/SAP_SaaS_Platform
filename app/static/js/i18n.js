@@ -19,7 +19,7 @@ const TRANSLATIONS = {
     "wallet.fabTopupTitle": "Top up AI credits",
     "wallet.fabStartTitle": "Get started free",
     /* Footer */
-    "footer.tagline": "AI-Powered SAP Development Automation Platform",
+    "footer.tagline": "AI-Powered SAP Development Platform",
     "footer.copy": "© 2026 SAP Dev Hub. All rights reserved.",
     /* Hero */
     "hero.badge": "AI-Assisted SAP Development",

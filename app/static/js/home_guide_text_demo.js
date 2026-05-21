@@ -66,14 +66,29 @@
     });
   }
 
+  function setViewportLive(on) {
+    if (viewport) viewport.classList.toggle("is-live", !!on);
+    if (root) root.classList.toggle("is-typing-active", !!on);
+  }
+
   async function typeLine(lineEl, text, gen) {
     lineEl.classList.add("is-typing");
+    lineEl.textContent = "";
     for (var i = 0; i < text.length; i++) {
       if (gen !== runGen) return;
-      lineEl.textContent = text.slice(0, i + 1);
+      var ch = document.createElement("span");
+      ch.className = "home-guide-text-char";
+      ch.textContent = text.charAt(i);
+      lineEl.appendChild(ch);
+      void ch.offsetWidth;
+      ch.classList.add("is-visible");
       await sleep(CHAR_MS);
     }
     lineEl.classList.remove("is-typing");
+    lineEl.classList.add("is-line-done");
+    window.setTimeout(function () {
+      lineEl.classList.remove("is-line-done");
+    }, 520);
   }
 
   async function runTyping(gen) {
@@ -83,6 +98,8 @@
 
     clearStage();
     viewport.scrollTop = 0;
+    setViewportLive(true);
+    try {
     await sleep(START_PAUSE_MS);
     if (gen !== runGen) return;
 
@@ -91,6 +108,7 @@
       var text = String(lines[li] || "");
       var lineEl = document.createElement("div");
       lineEl.className = "home-guide-text-line";
+      if (li === 0) lineEl.classList.add("is-lead");
       stage.appendChild(lineEl);
 
       if (!text.trim()) {
@@ -106,6 +124,9 @@
     }
 
     await sleep(HOLD_MS);
+    } finally {
+      if (gen === runGen) setViewportLive(false);
+    }
   }
 
   function start() {
