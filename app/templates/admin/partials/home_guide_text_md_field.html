@@ -1,13 +1,12 @@
-{# 단일 평문 textarea — 상단 KO/EN 토글과 연동 (hidden ko/en) #}
+{# 단일 평문 textarea — 상단 KO/EN 토글과 연동 (본문은 JSON으로 전달, 줄바꿈·따옴표 안전) #}
 <div class="col-12" data-home-guide-text-md-root>
   <label class="form-label small">
     <span class="nav-ko">사용 안내 텍스트</span>
     <span class="nav-en" style="display:none">Getting-started text</span>
   </label>
-  <input type="hidden" name="home_guide_text_md" data-home-guide-text-ko
-         value="{{ settings.get('home_guide_text_md', '') }}"/>
-  <input type="hidden" name="home_guide_text_md_en" data-home-guide-text-en
-         value="{{ settings.get('home_guide_text_md_en', '') }}"/>
+  <script type="application/json" class="home-guide-text-store-json">{{ {"ko": settings.get('home_guide_text_md', '') or '', "en": settings.get('home_guide_text_md_en', '') or ''}|tojson }}</script>
+  <input type="hidden" name="home_guide_text_md" data-home-guide-text-ko value=""/>
+  <input type="hidden" name="home_guide_text_md_en" data-home-guide-text-en value=""/>
   <textarea class="form-control" rows="{{ field_rows|default(8) }}" data-home-guide-text-editor
             placeholder="SAP 개발을 AI와 함께…&#10;줄바꿈으로 문단을 나눌 수 있습니다."></textarea>
   <div class="form-text">

@@ -17,10 +17,25 @@
     var hidEn = root.querySelector('[data-home-guide-text-en]');
     if (!editor || !hidKo || !hidEn) return;
 
-    var store = {
-      ko: hidKo.value || '',
-      en: hidEn.value || '',
-    };
+    var store = { ko: '', en: '' };
+    var jsonEl = root.querySelector('.home-guide-text-store-json');
+    if (jsonEl && jsonEl.textContent) {
+      try {
+        var parsed = JSON.parse(jsonEl.textContent);
+        if (parsed && typeof parsed === 'object') {
+          store.ko = parsed.ko != null ? String(parsed.ko) : '';
+          store.en = parsed.en != null ? String(parsed.en) : '';
+        }
+      } catch (e) {
+        /* fallback */
+      }
+    }
+    if (!store.ko && !store.en) {
+      store.ko = hidKo.value || '';
+      store.en = hidEn.value || '';
+    }
+    hidKo.value = store.ko;
+    hidEn.value = store.en;
     var activeLang = currentLang();
 
     function flushEditor() {
