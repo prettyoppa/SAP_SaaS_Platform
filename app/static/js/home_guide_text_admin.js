@@ -17,25 +17,10 @@
     var hidEn = root.querySelector('[data-home-guide-text-en]');
     if (!editor || !hidKo || !hidEn) return;
 
-    var store = { ko: '', en: '' };
-    var jsonEl = root.querySelector('.home-guide-text-store-json');
-    if (jsonEl && jsonEl.textContent) {
-      try {
-        var parsed = JSON.parse(jsonEl.textContent);
-        if (parsed && typeof parsed === 'object') {
-          store.ko = parsed.ko != null ? String(parsed.ko) : '';
-          store.en = parsed.en != null ? String(parsed.en) : '';
-        }
-      } catch (e) {
-        /* fallback */
-      }
-    }
-    if (!store.ko && !store.en) {
-      store.ko = hidKo.value || '';
-      store.en = hidEn.value || '';
-    }
-    hidKo.value = store.ko;
-    hidEn.value = store.en;
+    var store = {
+      ko: hidKo.value != null ? String(hidKo.value) : '',
+      en: hidEn.value != null ? String(hidEn.value) : '',
+    };
     var activeLang = currentLang();
 
     function flushEditor() {
@@ -74,9 +59,15 @@
     return syncHidden;
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function boot() {
     document.querySelectorAll('[data-home-guide-text-md-root]').forEach(initRoot);
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 
   window.homeGuideTextAdminSyncAll = function () {
     document.querySelectorAll('[data-home-guide-text-md-root]').forEach(function (root) {
