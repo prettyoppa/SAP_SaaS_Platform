@@ -1725,69 +1725,43 @@ html[data-theme="light"] .home-guide-text-viewport.is-live {
   0%, 100% { filter: brightness(1); }
   50% { filter: brightness(1.06); }
 }
-/* 홈 기능 타일 제목(.home-feature-title)과 동일 서체 + 그라데이션 */
+/* 홈 기능 타일 제목(.home-feature-title)과 동일 서체 — 단색만 (background-clip+text-shadow는 글자마다 파란 덩어리로 깨짐) */
 .home-guide-text-lines {
   font-size: clamp(0.92rem, 2.4vw, 1.05rem);
   font-weight: 700;
   line-height: 1.2;
+  color: #7dd3fc;
+}
+html[data-theme="light"] .home-guide-text-lines {
+  color: #4338ca;
 }
 .home-guide-text-line {
   min-height: 1.2em;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0 0 0.2rem;
-  color: #7dd3fc;
-}
-html[data-theme="light"] .home-guide-text-line {
-  color: #4338ca;
-}
-/* 그라데이션은 글자 노드에만 — 줄 컨테이너에 두면 자식 span 타이핑 시 막대로 보임 */
-.home-guide-text-line:not(:has(.home-guide-text-char)) {
-  background: linear-gradient(118deg, #7dd3fc 0%, #a5b4fc 42%, #60a5fa 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-html[data-theme="light"] .home-guide-text-line:not(:has(.home-guide-text-char)) {
-  background: linear-gradient(118deg, #4338ca 0%, #6366f1 45%, #2563eb 100%);
+  color: inherit;
 }
 .home-guide-text-line.is-lead {
   font-size: clamp(0.98rem, 2.6vw, 1.12rem);
-}
-.home-guide-text-line.is-typing {
-  filter: drop-shadow(0 0 10px rgba(96, 165, 250, 0.55));
 }
 .home-guide-text-char {
   display: inline;
   opacity: 0;
   transform: translateY(0.22em) scale(0.92);
+  color: inherit;
 }
 .home-guide-text-char.is-visible {
   opacity: 1;
   transform: translateY(0) scale(1);
-  background: linear-gradient(118deg, #7dd3fc 0%, #a5b4fc 42%, #60a5fa 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
   transition: opacity 0.1s ease-out, transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
-  text-shadow: 0 0 14px rgba(125, 211, 252, 0.75);
-}
-html[data-theme="light"] .home-guide-text-char.is-visible {
-  background: linear-gradient(118deg, #4338ca 0%, #6366f1 45%, #2563eb 100%);
-  text-shadow: 0 0 12px rgba(99, 102, 241, 0.45);
 }
 .home-guide-text-line.is-line-done {
-  animation: home-guide-line-flash 0.55s ease-out;
+  animation: home-guide-line-pop 0.45s ease-out;
 }
-@keyframes home-guide-line-flash {
-  0% {
-    filter: drop-shadow(0 0 16px rgba(99, 102, 241, 0.85));
-  }
-  100% {
-    filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.25));
-  }
+@keyframes home-guide-line-pop {
+  0% { opacity: 0.72; }
+  100% { opacity: 1; }
 }
 .home-guide-text-line.is-typing::after {
   content: "▍";
@@ -1820,7 +1794,6 @@ html[data-theme="light"] .home-guide-text-line.is-typing::after {
   }
   .home-guide-text-char.is-visible {
     transition: none;
-    text-shadow: none;
   }
   .home-guide-text-line.is-line-done {
     animation: none;
