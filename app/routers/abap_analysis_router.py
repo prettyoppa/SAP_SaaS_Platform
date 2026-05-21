@@ -128,11 +128,11 @@ from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from .interview_router import _markdown_to_html
 from .rfp_router import (
+    CORE_FIELDS_INCOMPLETE_ERROR,
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
     _remove_stored_file,
     duplicate_attachment_entries,
-    _rfp_core_fields_incomplete_response,
     _rfp_missing_core_field_labels,
 )
 
@@ -487,6 +487,7 @@ def _form_template_response(
     status_code: int = 200,
     form_chat_err: Optional[str] = None,
     draft_saved: bool = False,
+    missing_field_labels: Optional[list[str]] = None,
 ):
     modules = (
         db.query(models.SAPModule)
@@ -559,6 +560,7 @@ def _form_template_response(
             "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
             "ai_inquiry": ai_inquiry,
             "draft_saved": draft_saved,
+            "missing_field_labels": list(missing_field_labels or []),
         },
         status_code=status_code,
     )
@@ -704,7 +706,7 @@ async def abap_analysis_create(
             notes=notes_in,
         )
 
-    def _bad(err: str, ref_init=None):
+    def _bad(err: str, ref_init=None, missing_field_labels=None):
         return _form_template_response(
             request,
             user,
@@ -715,6 +717,7 @@ async def abap_analysis_create(
             edit_row=None,
             attachment_entries=[],
             status_code=400,
+            missing_field_labels=missing_field_labels,
         )
 
     if len(sap_modules) > 3 or len(dev_types) > 3:
@@ -730,7 +733,7 @@ async def abap_analysis_create(
         min_description_chars=min_desc,
     )
     if miss:
-        return _rfp_core_fields_incomplete_response(request, miss)
+        return _bad(CORE_FIELDS_INCOMPLETE_ERROR, missing_field_labels=miss)
 
     pid, perr = sap_fields.validate_program_id(program_id, required=True)
     if perr:
@@ -964,7 +967,7 @@ async def abap_analysis_edit_save(
             notes=notes_in,
         )
 
-    def _bad(err: str, ref_init=None):
+    def _bad(err: str, ref_init=None, missing_field_labels=None):
         return _form_template_response(
             request,
             user,
@@ -975,6 +978,7 @@ async def abap_analysis_edit_save(
             edit_row=row,
             attachment_entries=existing_att,
             status_code=400,
+            missing_field_labels=missing_field_labels,
         )
 
     if len(sap_modules) > 3 or len(dev_types) > 3:
@@ -990,7 +994,7 @@ async def abap_analysis_edit_save(
         min_description_chars=min_desc,
     )
     if miss:
-        return _rfp_core_fields_incomplete_response(request, miss)
+        return _bad(CORE_FIELDS_INCOMPLETE_ERROR, missing_field_labels=miss)
 
     pid, perr = sap_fields.validate_program_id(program_id, required=True)
     if perr:

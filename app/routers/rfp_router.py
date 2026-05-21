@@ -165,14 +165,7 @@ def _rfp_missing_core_field_labels(
     return miss
 
 
-def _rfp_core_fields_incomplete_response(request: Request, missing: list[str]) -> Response:
-    msg = "다음 필수 항목을 입력해 주세요: " + " · ".join(missing) + "."
-    return templates.TemplateResponse(
-        request,
-        "form_validation_error.html",
-        {"message": msg},
-        status_code=422,
-    )
+CORE_FIELDS_INCOMPLETE_ERROR = "core_fields_incomplete"
 
 
 class RfpSuggestFieldIn(BaseModel):
@@ -397,6 +390,7 @@ def _rfp_form_ctx(
     rfp=None,
     edit_mode: bool = False,
     attachment_entries: list | None = None,
+    missing_field_labels: list[str] | None = None,
 ):
     ctx = {
         "request": request,
@@ -409,6 +403,7 @@ def _rfp_form_ctx(
         "form": form,
         "rfp": rfp,
         "edit_mode": edit_mode,
+        "missing_field_labels": list(missing_field_labels or []),
     }
     if attachment_entries is not None:
         ctx["attachment_entries"] = attachment_entries
@@ -561,7 +556,17 @@ async def submit_rfp(
         min_description_chars=0 if is_draft else None,
     )
     if miss:
-        return _rfp_core_fields_incomplete_response(request, miss)
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip, db,
+                error=CORE_FIELDS_INCOMPLETE_ERROR,
+                missing_field_labels=miss,
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
 
     pid, perr = sap_fields.validate_program_id(program_id, required=True)
     if perr:
@@ -1905,7 +1910,20 @@ async def rfp_edit_submit(
         min_description_chars=0 if is_draft else None,
     )
     if miss:
-        return _rfp_core_fields_incomplete_response(request, miss)
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip, db,
+                error=CORE_FIELDS_INCOMPLETE_ERROR,
+                missing_field_labels=miss,
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+                attachment_entries=_rfp_attachment_entries(rfp),
+            ),
+            status_code=400,
+        )
 
     pid, perr = sap_fields.validate_program_id(program_id, required=True)
     if perr:

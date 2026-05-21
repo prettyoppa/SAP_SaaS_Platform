@@ -1,0 +1,12 @@
+{# error == core_fields_incomplete, missing_field_labels: list[str] #}
+{% if error == 'core_fields_incomplete' and missing_field_labels %}
+<div class="alert alert-warning d-flex align-items-start mb-4" role="alert">
+  <i class="fa-solid fa-triangle-exclamation me-2 mt-1"></i>
+  <div>
+    <span class="nav-ko d-block fw-semibold mb-1">다음 필수 항목을 입력해 주세요.</span>
+    <span class="nav-en d-block fw-semibold mb-1" style="display:none">Please complete the required fields below.</span>
+    <span class="small text-muted d-block nav-ko">{{ missing_field_labels | join(' · ') }}</span>
+    <span class="small text-muted d-block nav-en" style="display:none">{{ missing_field_labels | join(' · ') }}</span>
+  </div>
+</div>
+{% endif %}

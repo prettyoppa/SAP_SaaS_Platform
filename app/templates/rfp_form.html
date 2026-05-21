@@ -24,6 +24,7 @@
           <h2 class="rfp-title">{% if edit_mode %}<span data-i18n="rfp.titleEdit">개발 요청 수정</span>{% else %}<span data-i18n="rfp.titleNew">신규 요청</span>{% endif %}</h2>
         </div>
 
+        {% include 'partials/core_fields_incomplete_alert.html' %}
         {% if error == 'invalid_file' %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
