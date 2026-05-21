@@ -295,6 +295,23 @@ def _ensure_integration_impl_devtypes():
         db.close()
 
 
+def _seed_legal_site_content():
+    """docs/legal 초안 → 이용약관·개인정보처리방침 SiteSettings (revision 변경 시 재반영)."""
+    from .site_legal_seed import seed_legal_site_content
+
+    db = SessionLocal()
+    try:
+        if seed_legal_site_content(db):
+            _log.info("[DB] legal site content seeded (revision applied)")
+    except FileNotFoundError as e:
+        _log.warning("[DB] legal site content seed skipped: %s", e)
+    except Exception:
+        _log.exception("[DB] legal site content seed failed")
+        db.rollback()
+    finally:
+        db.close()
+
+
 def _seed_home_tile_settings():
     """홈 4타일·이용가이드 PDF URL 등 기본 SiteSettings 시드."""
     defaults = [
@@ -531,6 +548,7 @@ def _bootstrap_database():
     _ensure_integration_impl_devtypes()
     _seed_home_tile_settings()
     _seed_subscription_catalog()
+    _seed_legal_site_content()
     _migrate_bank_transfer_sla_for_wallet()
     _backfill_payment_claim_confirmed_amounts()
     _migrate_wallet_deduct_historical_ai_usage()

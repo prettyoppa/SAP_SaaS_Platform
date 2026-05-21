@@ -11,7 +11,8 @@
       <span class="nav-ko">{{ settings.get('home_tile_guide_title_ko', '사용 안내') }}</span>
       <span class="nav-en" style="display:none">{{ settings.get('home_tile_guide_title_en', 'Getting started') }}</span>
     </h3>
-    <a class="home-feature-detail-link home-guide-detail-link flex-shrink-0" id="home-guide-pdf-link" href="{{ settings.get('user_guide_pdf_url', '/static/docs/user-guide.pdf') }}" target="_blank" rel="noopener">
+    {% set _guide_pdf = settings.get('user_guide_pdf_url', '/static/docs/user-guide.pdf') %}
+    <a class="home-feature-detail-link home-guide-detail-link flex-shrink-0" id="home-guide-pdf-link" href="{{ _guide_pdf }}{% if _guide_pdf.endswith('user-guide.pdf') %}?v=20260520draft{% endif %}" target="_blank" rel="noopener">
       <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
     </a>
   </div>

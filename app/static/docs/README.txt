@@ -6,8 +6,10 @@
 운영 시 이 폴더에 user-guide.pdf 파일을 넣거나,
 관리자가 홈 화면 편집 패널에서 user_guide_pdf_url 을 외부 URL로 바꿀 수 있습니다.
 
-현재 저장소의 user-guide.pdf 는 테스트용 안내 문서입니다. 수정 후 다시 만들려면
-(Windows 에 맑은 고딕이 있는 경우):
+본문 초안(마크다운): docs/user_guide/user_guide_ko.md (영문: user_guide_en.md)
+법무 초안: docs/legal/
+
+PDF 수정 후 다시 만들려면 (Windows 에 맑은 고딕이 있는 경우):
 
   pip install fpdf2
   python scripts/build_user_guide_pdf.py
