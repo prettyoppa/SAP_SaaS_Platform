@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from . import models
 from .database import SessionLocal
 from .email_smtp import send_plain_notification_email
-from .offer_inquiry_service import _member_ops_sms_target, _owner_ops_email_channel, phone_e164_for_sms
+from .offer_inquiry_service import _member_ops_sms_target, phone_e164_for_sms
 from .sms_sender import send_offer_inquiry_sms
 
 logger = logging.getLogger(__name__)
@@ -45,15 +45,50 @@ def _admin_ops_recipients(db: Session) -> list[models.User]:
     )
 
 
-def _send_ops_email(user: models.User, subject: str, body: str) -> None:
-    ok, addr = _owner_ops_email_channel(user)
+def _admin_alert_email(admin: models.User) -> tuple[bool, str]:
+    """관리자 업무 알림 — 등록 이메일로 발송(ops 수신 동의 불필요)."""
+    if not getattr(admin, "is_admin", False) or not getattr(admin, "is_active", True):
+        return False, ""
+    addr = (admin.email or "").strip()
+    return bool(addr), addr
+
+
+def _admin_alert_sms(admin: models.User) -> tuple[bool, str | None]:
+    """관리자 SMS — 휴대폰 인증만 있으면 발송(ops SMS 동의 불필요)."""
+    if not getattr(admin, "is_admin", False) or not getattr(admin, "is_active", True):
+        return False, None
+    if not getattr(admin, "phone_verified", False):
+        return False, None
+    phone = phone_e164_for_sms(getattr(admin, "phone_number", None))
+    return bool(phone), phone
+
+
+def _member_wallet_email(member: models.User) -> tuple[bool, str]:
+    """충전 확인/반려 안내 — 가입 이메일로 발송(거래성 알림)."""
+    addr = (member.email or "").strip()
+    return bool(addr), addr
+
+
+def _member_wallet_sms(member: models.User) -> tuple[bool, str | None]:
+    """충전 SMS — 업무 SMS 동의 시 우선, 없으면 인증된 휴대폰."""
+    sms_ok, phone = _member_ops_sms_target(member)
+    if sms_ok and phone:
+        return True, phone
+    if getattr(member, "phone_verified", False):
+        phone = phone_e164_for_sms(getattr(member, "phone_number", None))
+        return bool(phone), phone
+    return False, None
+
+
+def _send_admin_email(admin: models.User, subject: str, body: str) -> None:
+    ok, addr = _admin_alert_email(admin)
     if not ok or not addr:
         return
     send_plain_notification_email(addr, subject, body)
 
 
-def _send_ops_sms(user: models.User, body: str, *, sms_type: str) -> None:
-    sms_ok, phone = _member_ops_sms_target(user)
+def _send_admin_sms(admin: models.User, body: str, *, sms_type: str) -> None:
+    sms_ok, phone = _admin_alert_sms(admin)
     if sms_ok and phone:
         send_offer_inquiry_sms(phone, body, sms_type=sms_type)
 
@@ -68,11 +103,11 @@ def _notify_admins(
 ) -> None:
     for admin in _admin_ops_recipients(db):
         try:
-            _send_ops_email(admin, subject, email_body)
+            _send_admin_email(admin, subject, email_body)
         except Exception:
             logger.exception("admin notify email failed admin_id=%s", admin.id)
         try:
-            _send_ops_sms(admin, sms_body, sms_type=sms_type)
+            _send_admin_sms(admin, sms_body, sms_type=sms_type)
         except Exception:
             logger.exception("admin notify sms failed admin_id=%s", admin.id)
 
@@ -150,14 +185,14 @@ def notify_member_wallet_topup_reviewed(
     )
 
     try:
-        ok, addr = _owner_ops_email_channel(member)
+        ok, addr = _member_wallet_email(member)
         if ok and addr:
             send_plain_notification_email(addr, subject, email_body)
     except Exception:
         logger.exception("member topup notify email failed user_id=%s claim_id=%s", member.id, claim.id)
 
     try:
-        sms_ok, phone = _member_ops_sms_target(member)
+        sms_ok, phone = _member_wallet_sms(member)
         if sms_ok and phone:
             send_offer_inquiry_sms(phone, sms_body, sms_type=f"wallet_topup_{action}")
     except Exception:

@@ -44,6 +44,7 @@ from ..menu_landing import (
     menu_landing_url,
     parse_slashed_date,
     standard_menu_bucket_meta,
+    request_ids_with_unmatched_offers_only,
     user_proposal_pending_offer_badges,
 )
 from ..rfp_landing import (
@@ -1234,11 +1235,11 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
                 date_to=date_to_dt,
                 consultant_matched=consultant_matched,
             )
-            offered_ids = _offered_request_id_set(
-                db, "rfp", [int(x.id) for x in rfps_filtered], pending_only=True
+            notice_ids = request_ids_with_unmatched_offers_only(
+                db, "rfp", [int(x.id) for x in rfps_filtered]
             )
             for row in rfps_filtered:
-                ho = int(row.id) in offered_ids
+                ho = int(row.id) in notice_ids
                 setattr(row, "has_offer", ho)
                 if selected_bucket == "proposal" and ho:
                     proposal_offer_notice_count += 1
@@ -1322,11 +1323,11 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
                 date_to=date_to_dt,
                 consultant_matched=consultant_matched,
             )
-            offered_ids = _offered_request_id_set(
-                db, "integration", [int(x.id) for x in filtered_rows], pending_only=True
+            notice_ids = request_ids_with_unmatched_offers_only(
+                db, "integration", [int(x.id) for x in filtered_rows]
             )
             for row in filtered_rows:
-                ho = int(row.id) in offered_ids
+                ho = int(row.id) in notice_ids
                 setattr(row, "has_offer", ho)
                 if selected_bucket == "proposal" and ho:
                     proposal_offer_notice_count += 1

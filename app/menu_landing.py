@@ -51,6 +51,7 @@ __all__ = [
     "DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO",
     "DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO",
     "user_proposal_pending_offer_badges",
+    "request_ids_with_unmatched_offers_only",
 ]
 
 
@@ -310,8 +311,44 @@ def filtered_integration_menu_rows(
     return [row for row in rows if integration_menu_bucket(row) == bucket]
 
 
+def request_ids_with_unmatched_offers_only(
+    db: Session, request_kind: str, ids: list[int]
+) -> set[int]:
+    """offered 오퍼는 있으나 matched 오퍼가 없는 요청 ID (빨간점·알림용)."""
+    if not ids:
+        return set()
+    id_list = [int(i) for i in ids]
+    offered = {
+        int(r[0])
+        for r in db.query(models.RequestOffer.request_id)
+        .filter(
+            models.RequestOffer.request_kind == request_kind,
+            models.RequestOffer.request_id.in_(id_list),
+            models.RequestOffer.status == "offered",
+        )
+        .distinct()
+        .all()
+        if r and r[0] is not None
+    }
+    if not offered:
+        return set()
+    matched = {
+        int(r[0])
+        for r in db.query(models.RequestOffer.request_id)
+        .filter(
+            models.RequestOffer.request_kind == request_kind,
+            models.RequestOffer.request_id.in_(id_list),
+            models.RequestOffer.status == "matched",
+        )
+        .distinct()
+        .all()
+        if r and r[0] is not None
+    }
+    return offered - matched
+
+
 def user_proposal_pending_offer_badges(db: Session, user_id: int) -> dict[str, bool]:
-    """본인 소유 요청 중 '제안' 버킷에 대해 아직 매칭되지 않은 오퍼(status=offered)가 있으면 True."""
+    """본인 소유 '제안' 버킷 요청 중, 매칭 없이 offered 오퍼만 있는 경우 메뉴 빨간점."""
 
     if not user_id:
         return {"rfp": False, "analysis": False, "integration": False}
@@ -338,18 +375,7 @@ def user_proposal_pending_offer_badges(db: Session, user_id: int) -> dict[str, b
     int_ids = [r.id for r in ints if integration_menu_bucket(r) == "proposal"]
 
     def _has(kind: str, ids: list[int]) -> bool:
-        if not ids:
-            return False
-        return (
-            db.query(models.RequestOffer.id)
-            .filter(
-                models.RequestOffer.request_kind == kind,
-                models.RequestOffer.request_id.in_(ids),
-                models.RequestOffer.status == "offered",
-            )
-            .first()
-            is not None
-        )
+        return bool(request_ids_with_unmatched_offers_only(db, kind, ids))
 
     return {
         "rfp": _has("rfp", rfp_ids),
