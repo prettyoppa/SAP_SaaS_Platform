@@ -1051,11 +1051,27 @@ def admin_settings(request: Request, db: Session = Depends(get_db)):
     user = _require_admin(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
+    from ..content_drafts import sync_content_drafts_from_files
+
+    drafts_synced = sync_content_drafts_from_files(db, force=False)
     raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
     return templates.TemplateResponse(request, "admin/settings.html", {
         "request": request, "user": user,
         "settings": raw, "setting_keys": SITE_SETTING_KEYS,
+        "drafts_synced": drafts_synced,
     })
+
+
+@router.post("/api/reload-content-drafts")
+def admin_reload_content_drafts(request: Request, db: Session = Depends(get_db)):
+    """docs/legal·user_guide 파일 → SiteSettings 강제 반영."""
+    actor = _require_admin(request, db)
+    if not actor:
+        return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
+    from ..content_drafts import sync_content_drafts_from_files
+
+    ok = sync_content_drafts_from_files(db, force=True)
+    return JSONResponse({"ok": ok})
 
 
 @router.patch("/api/home-tiles")

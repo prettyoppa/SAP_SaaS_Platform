@@ -259,8 +259,6 @@
           .then(function(x){
             if (x.ok && x.j && x.j.ok) {
               msg.textContent = '저장됨. 새로고침하면 화면에 반영됩니다.';
-              var pdf = document.getElementById('home-guide-pdf-link');
-              if (pdf && body.user_guide_pdf_url) pdf.setAttribute('href', body.user_guide_pdf_url);
             } else msg.textContent = '저장 실패';
           })
           .catch(function(){ msg.textContent = '오류'; });

@@ -296,17 +296,15 @@ def _ensure_integration_impl_devtypes():
 
 
 def _seed_legal_site_content():
-    """docs/legal 초안 → 이용약관·개인정보처리방침 SiteSettings (revision 변경 시 재반영)."""
-    from .site_legal_seed import seed_legal_site_content
+    """docs/legal·user_guide 초안 → SiteSettings (비어 있거나 파일 해시 변경 시)."""
+    from .content_drafts import sync_content_drafts_from_files
 
     db = SessionLocal()
     try:
-        if seed_legal_site_content(db):
-            _log.info("[DB] legal site content seeded (revision applied)")
-    except FileNotFoundError as e:
-        _log.warning("[DB] legal site content seed skipped: %s", e)
+        if sync_content_drafts_from_files(db, force=False):
+            _log.info("[DB] content drafts synced from docs/ to SiteSettings")
     except Exception:
-        _log.exception("[DB] legal site content seed failed")
+        _log.exception("[DB] content drafts sync failed")
         db.rollback()
     finally:
         db.close()

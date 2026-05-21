@@ -21,6 +21,23 @@
       <i class="fa-solid fa-circle-check me-2"></i> 설정이 저장되었습니다.
     </div>
     {% endif %}
+    {% if drafts_synced %}
+    <div class="alert alert-info d-flex align-items-center mb-4">
+      <i class="fa-solid fa-file-import me-2"></i>
+      <span class="nav-ko">저장소 초안(docs/legal, docs/user_guide)을 DB에 반영했습니다. 이용약관·개인정보 textarea를 확인하세요.</span>
+      <span class="nav-en" style="display:none">Draft files from docs/ were synced into the database. Check the terms and privacy fields.</span>
+    </div>
+    {% endif %}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-reload-content-drafts">
+        <i class="fa-solid fa-rotate me-1"></i>
+        <span class="nav-ko">저장소 초안 다시 불러오기</span>
+        <span class="nav-en" style="display:none">Reload drafts from repo</span>
+      </button>
+      <span class="small text-muted nav-ko">이용약관·개인정보·이용안내 본문의 원본은 <code>docs/legal</code>, <code>docs/user_guide</code> 입니다.</span>
+      <span class="small text-muted nav-en" style="display:none">Source drafts: <code>docs/legal</code>, <code>docs/user_guide</code>.</span>
+      <span class="small text-muted" id="reload-drafts-msg"></span>
+    </div>
 
     <form method="post" action="/admin/settings">
       <div class="row g-4">
@@ -142,4 +159,26 @@
 
 {% block extra_js %}
 <script src="/static/js/home_guide_text_admin.js?v=3"></script>
+<script>
+(function () {
+  var btn = document.getElementById('btn-reload-content-drafts');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var msg = document.getElementById('reload-drafts-msg');
+    btn.disabled = true;
+    if (msg) msg.textContent = '…';
+    fetch('/admin/api/reload-content-drafts', { method: 'POST', credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.ok) {
+          window.location.reload();
+        } else if (msg) {
+          msg.textContent = 'failed';
+        }
+      })
+      .catch(function () { if (msg) msg.textContent = 'error'; })
+      .finally(function () { btn.disabled = false; });
+  });
+})();
+</script>
 {% endblock %}

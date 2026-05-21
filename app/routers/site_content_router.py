@@ -451,3 +451,43 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
             status_code=404,
         )
     return _kb_public_detail_response(request, a, locale="ko", user=user)
+
+
+@router.get("/user-guide", response_class=HTMLResponse)
+def user_guide_public(request: Request, db: Session = Depends(get_db)):
+    """이용 안내 — docs/user_guide/*.md 와 동일 본문(SiteSettings 동기화)."""
+    from ..content_drafts import get_user_guide_markdown, sync_content_drafts_from_files
+
+    sync_content_drafts_from_files(db, force=False)
+    user = auth.get_current_user(request, db)
+    md_ko = get_user_guide_markdown(db, lang="ko")
+    md_en = get_user_guide_markdown(db, lang="en")
+    if not md_ko.strip():
+        return templates.TemplateResponse(
+            request,
+            "errors/simple_message.html",
+            {
+                "request": request,
+                "user": user,
+                "title": "이용 안내",
+                "message": "이용 안내 문서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+                "message_en": "Could not load the user guide. Please try again later.",
+            },
+            status_code=503,
+        )
+    body_en_md = md_en.strip() or md_ko
+    raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    pdf_url = (raw.get("user_guide_pdf_url") or "/static/docs/user-guide.pdf").strip()
+    if pdf_url.endswith("user-guide.pdf"):
+        pdf_url = f"{pdf_url}?v=20260520draft2"
+    return templates.TemplateResponse(
+        request,
+        "site/user_guide.html",
+        {
+            "request": request,
+            "user": user,
+            "body_html_ko": _markdown_to_html(md_ko),
+            "body_html_en": _markdown_to_html(body_en_md),
+            "pdf_url": pdf_url,
+        },
+    )

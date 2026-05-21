@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""이용약관·개인정보 DB 반영 + user-guide.pdf 재생성 (로컬·CI·배포 전 수동 실행용)."""
+"""docs/ 초안 → DB 강제 반영 + user-guide.pdf 재생성."""
 from __future__ import annotations
 
 import subprocess
@@ -11,14 +11,14 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.database import SessionLocal
-from app.site_legal_seed import LEGAL_CONTENT_REVISION, seed_legal_site_content
+from app.content_drafts import sync_content_drafts_from_files
 
 
 def main() -> int:
     db = SessionLocal()
     try:
-        seed_legal_site_content(db)
-        print(f"Legal content applied (revision {LEGAL_CONTENT_REVISION}).")
+        sync_content_drafts_from_files(db, force=True)
+        print("Content drafts synced (force).")
     finally:
         db.close()
 
