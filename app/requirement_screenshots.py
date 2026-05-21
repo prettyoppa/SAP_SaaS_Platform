@@ -224,58 +224,22 @@ def build_requirement_screenshots_llm_digest(
     """Gemini 비전으로 캡처 내용을 텍스트 요약(실패 시 빈 문자열)."""
     if not entries:
         return ""
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        names = ", ".join((e.get("filename") or "image") for e in entries[:MAX_SCREENSHOT_COUNT])
-        return (
-            f"[요구사항 캡처 이미지 {len(entries)}장: {names} — "
-            "비전 API 키 없음, 텍스트 요약 생략]"
-        )
+    from .gemini_vision_digest import vision_summarize_images
 
-    try:
-        import google.generativeai as genai
-    except Exception:
-        return ""
-
-    from .gemini_model import get_gemini_model_id
-
-    parts: list[Any] = [
-        """아래 이미지는 SAP ABAP 분석·개선 요청의 「요구사항 자유 기술」에 붙인 화면 캡처다.
-각 이미지에서 읽을 수 있는 업무 요구·화면·표·에러 메시지·필드명을 한국어로 요약하라.
-추측으로 없는 기능을 만들지 말고, 보이는 내용과 요청자가 전달하려는 의도만 정리하라.
-출력은 평문만 (제목·불릿 가능). JSON·코드블록 금지."""
-    ]
-    loaded = 0
+    images: list[tuple[bytes, str]] = []
     for i, ent in enumerate(entries[:MAX_SCREENSHOT_COUNT], 1):
         raw = r2_storage.read_bytes_from_ref(ent.get("path"))
         if not raw:
             continue
         fname = ent.get("filename") or f"screenshot-{i}.png"
-        mime = mimetypes.guess_type(fname)[0] or "image/png"
-        if mime not in ALLOWED_MIME:
-            mime = "image/png"
-        parts.append(f"\n[캡처 {i}: {fname}]")
-        parts.append({"mime_type": mime, "data": raw})
-        loaded += 1
-    if loaded == 0:
-        return ""
-
-    try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(get_gemini_model_id())
-        resp = model.generate_content(
-            parts,
-            generation_config=genai.types.GenerationConfig(
-                max_output_tokens=2048,
-                temperature=0.2,
-            ),
-        )
-        text = (getattr(resp, "text", None) or "").strip()
-    except Exception:
-        return ""
-
-    if not text:
-        return ""
-    header = f"[요구사항 캡처 이미지 {loaded}장 — AI 시각 요약]\n"
-    body = text[: max_chars - len(header)]
-    return (header + body).strip()
+        images.append((raw, fname))
+    prompt = """아래 이미지는 SAP 개발 요청의 「요구사항 자유 기술」에 붙인 화면 캡처다.
+각 이미지에서 읽을 수 있는 업무 요구·화면·표·에러 메시지·필드명을 한국어로 요약하라.
+추측으로 없는 기능을 만들지 말고, 보이는 내용과 요청자가 전달하려는 의도만 정리하라.
+출력은 평문만 (제목·불릿 가능). JSON·코드블록 금지."""
+    return vision_summarize_images(
+        images,
+        max_chars=max_chars,
+        context_prompt=prompt,
+        header="[요구사항 캡처 이미지 — AI 시각 요약]\n",
+    )

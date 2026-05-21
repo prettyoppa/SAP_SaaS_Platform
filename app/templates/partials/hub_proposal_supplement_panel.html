@@ -2,12 +2,14 @@
 {% if can_upload_proposal_supplement|default(false) %}
 <div class="proposal-card mb-3 border" style="border-color:var(--border)!important;background:var(--surface2);">
   <h6 class="text-muted small text-uppercase mb-2">
-    <i class="fa-solid fa-paperclip me-1"></i>수정 제안서 첨부 (.md)
+    <i class="fa-solid fa-paperclip me-1"></i><span class="nav-ko">수정 제안서 첨부</span><span class="nav-en" style="display:none">Requester proposal attachments</span>
   </h6>
   <p class="small text-muted mb-2">
-    에이전트 제안서를 직접 수정한 Markdown을 올리세요. 드래그하거나 클릭해 선택하면 <strong>즉시 저장</strong>됩니다.
-    FS·납품 코드 생성 시 <strong>첨부 제안서가 에이전트 제안서보다 우선</strong> 반영됩니다.
+    <span class="nav-ko">직접 작성·수정한 제안서 파일을 올리세요. MD·PDF·Office·이미지는 AI가 읽고 요약합니다. <strong>즉시 저장</strong>되며 FS·코드 생성 시 <strong>첨부가 에이전트 제안서보다 우선</strong>입니다.</span>
+    <span class="nav-en" style="display:none">Upload your proposal files. Agents read and summarize MD, PDF, Office, and images. Saved immediately; overrides agent proposal in FS/codegen.</span>
   </p>
+  {% set error = request.query_params.get('err') if request else '' %}
+  {% include 'partials/attachment_upload_err_alerts.html' %}
 
   {% if proposal_supplements %}
   <div class="border rounded p-3 mb-3" style="background:rgba(0,0,0,.04);border-color:var(--border)!important;">
@@ -40,12 +42,12 @@
     <div class="position-relative mb-2 file-drop-hit-target" data-proposal-drop-hit style="min-height: 8.5rem;">
       <label class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
         <input type="file" data-proposal-file-input multiple
-               accept=".md,text/markdown"
+               accept=".md,.pdf,.xlsx,.docx,.pptx,.txt,.png,.jpg,.jpeg,.webp,.gif"
                class="file-drop-native-input"/>
         <span class="file-drop-content d-block text-center py-4 px-2" data-proposal-drop-content>
           <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
           <p class="fw-semibold mb-1">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
-          <p class="text-muted small mb-0">Markdown (.md) · 파일당 최대 20MB · 1회 최대 {{ proposal_supplement_max_files|default(15) }}개 · 요청당 누적 {{ proposal_supplement_max_files|default(15) }}개</p>
+          <p class="text-muted small mb-0">MD, PDF, xlsx, docx, pptx, TXT, images · 20MB each · max {{ proposal_supplement_max_files|default(15) }}</p>
         </span>
       </label>
     </div>

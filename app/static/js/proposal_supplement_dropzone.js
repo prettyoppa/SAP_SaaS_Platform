@@ -2,7 +2,10 @@
 
 (function () {
   var ERR_MSG = {
-    prop_bad_ext: 'Markdown(.md) 파일만 업로드할 수 있습니다.',
+    prop_bad_ext: '허용되지 않는 형식입니다. MD, PDF, xlsx, docx, pptx, TXT, 이미지만 가능합니다.',
+    legacy_office_doc: '구형 .doc은 지원하지 않습니다. .docx로 저장 후 업로드해 주세요.',
+    legacy_office_xls: '구형 .xls는 지원하지 않습니다. .xlsx로 저장 후 업로드해 주세요.',
+    legacy_office_ppt: '구형 .ppt는 지원하지 않습니다. .pptx로 저장 후 업로드해 주세요.',
     prop_too_large: '파일당 최대 20MB까지 업로드할 수 있습니다.',
     prop_upload_limit: '요청당 첨부는 최대 15개까지입니다.',
     prop_upload_batch_limit: '한 번에 최대 15개까지 선택할 수 있습니다.',

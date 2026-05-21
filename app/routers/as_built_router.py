@@ -28,6 +28,7 @@ from ..request_hub_access import (
     user_can_view_request_deliverables,
 )
 from .. import r2_storage
+from ..rfp_download_names import content_disposition_attachment
 from ..rfp_hub import rfp_hub_url
 from ..integration_hub import integration_hub_url
 router = APIRouter()
@@ -136,7 +137,7 @@ def _download_response(entity: Any) -> Response:
     return Response(
         content=raw,
         media_type=media,
-        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
 
 

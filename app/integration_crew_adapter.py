@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
@@ -14,6 +15,18 @@ if TYPE_CHECKING:
     pass
 
 
+def _integration_attachment_entries(ir: models.IntegrationRequest) -> list[dict]:
+    if not ir.attachments_json:
+        return []
+    try:
+        data = json.loads(ir.attachments_json)
+        if isinstance(data, list):
+            return [x for x in data if isinstance(x, dict) and x.get("path")]
+    except Exception:
+        pass
+    return []
+
+
 def _member_safe_for_integration(db: Session, ir: models.IntegrationRequest) -> bool:
     if not ir or not ir.user_id:
         return True
@@ -23,6 +36,9 @@ def _member_safe_for_integration(db: Session, ir: models.IntegrationRequest) -> 
 
 def integration_request_to_crew_rfp_dict(db: Session, ir: models.IntegrationRequest) -> dict:
     """SAP ABAP RFP가 아니라도 crew가 기대하는 키 형태로 맞춤 (workflow_origin=integration_native)."""
+    from .attachment_context import build_request_context_digest
+    from .requirement_body import screenshot_entries as _shot_entries
+
     impl_disp = format_integration_impl_types_for_llm(db, ir.impl_types or "")
     parts = [
         "## [SAP 연동·비 ABAP 개발] 요청 본문",
@@ -41,6 +57,11 @@ def integration_request_to_crew_rfp_dict(db: Session, ir: models.IntegrationRequ
     ]
     desc = "\n".join(parts)
     payload = getattr(ir, "reference_code_payload", None)
+    att_digest = build_request_context_digest(
+        _integration_attachment_entries(ir),
+        _shot_entries(ir),
+        max_total_chars=14_000,
+    )
     return {
         "title": (ir.title or "").strip() or "연동 개발 요청",
         "program_id": None,
@@ -50,4 +71,5 @@ def integration_request_to_crew_rfp_dict(db: Session, ir: models.IntegrationRequ
         "description": desc,
         "reference_code_for_agents": format_reference_code_for_llm(payload),
         "workflow_origin": "integration_native",
+        "attachment_digest": att_digest,
     }

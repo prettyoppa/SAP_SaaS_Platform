@@ -101,6 +101,13 @@ from ..writing_guides_service import get_writing_guides_by_lang_bundle
 router = APIRouter()
 
 
+def _description_plain_for_validate(description: str, desc_fmt: str) -> str:
+    """요구사항 글자 수·필수 검증용 평문."""
+    if is_html_format(desc_fmt):
+        return html_to_plain_text(description)
+    return (description or "").strip()
+
+
 def _hub_delivered_fields(rfp: models.RFP) -> dict[str, Any]:
     """통합 허브: 납품 패키지(JSON) 또는 레거시 단일 마크다운 미리보기용 컨텍스트."""
     raw_pkg = parse_delivered_code_payload(getattr(rfp, "delivered_code_payload", None))
@@ -206,7 +213,10 @@ UPLOAD_DIR = (
     if (os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
     else "uploads"
 )
-ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg", ".zip"}
+from ..request_attachments import (
+    REQUEST_ATTACHMENT_EXTENSIONS as ALLOWED_EXTENSIONS,
+    upload_attachment_error_key,
+)
 MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_ZIP_ATTACHMENT_BYTES = 50 * 1024 * 1024
@@ -226,13 +236,11 @@ async def _build_attachment_entries_from_uploads(
         if len(entries) >= MAX_RFP_ATTACHMENTS:
             return None, "too_many_attachments"
         ext = os.path.splitext(up.filename)[1].lower()
-        if ext not in ALLOWED_EXTENSIONS:
-            return None, "invalid_file"
+        err_key = upload_attachment_error_key(up.filename or "")
+        if err_key:
+            return None, err_key
         try:
-            if ext == ".zip":
-                raw = await _read_upload_limited(up, max_bytes=MAX_ZIP_ATTACHMENT_BYTES)
-            else:
-                raw = await _read_upload_limited(up)
+            raw = await _read_upload_limited(up)
         except ValueError:
             return None, "file_too_large"
         if len(raw) == 0:

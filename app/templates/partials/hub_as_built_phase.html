@@ -35,7 +35,7 @@
   {% if as_built_entry_dict and as_built_entry_dict.path %}
   <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <span class="badge bg-success"><i class="fa-solid fa-file me-1"></i>{{ as_built_entry_dict.filename or 'file' }}</span>
-    <a href="{{ download_url }}" class="btn btn-sm btn-outline-primary">
+    <a href="{{ download_url }}" class="btn btn-sm btn-outline-primary" data-skip-global-busy="1">
       <i class="fa-solid fa-download me-1"></i><span data-i18n="hub.asBuiltDownload">다운로드</span>
     </a>
     {% if as_built_can_upload %}

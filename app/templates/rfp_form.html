@@ -27,9 +27,11 @@
         {% if error == 'invalid_file' %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span data-i18n="rfp.errorFile">파일 형식이 올바르지 않습니다. 허용: PDF, Excel, Word, 이미지, TXT</span>
+          <span class="nav-ko">허용되지 않는 파일 형식입니다. MD, PDF, xlsx, docx, pptx, TXT, 이미지만 가능합니다.</span>
+          <span class="nav-en" style="display:none">Invalid file type. Allowed: MD, PDF, xlsx, docx, pptx, TXT, images.</span>
         </div>
         {% endif %}
+        {% include 'partials/attachment_upload_err_alerts.html' %}
         {% if error == 'file_too_large' %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>

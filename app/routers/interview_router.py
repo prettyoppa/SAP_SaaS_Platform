@@ -72,8 +72,17 @@ def _fc():
 # ── 헬퍼 ─────────────────────────────────────────────
 
 def _rfp_to_dict(rfp: models.RFP) -> dict:
+    from ..attachment_context import build_request_context_digest
+    from ..requirement_body import screenshot_entries as _shot_entries
+    from .rfp_router import _rfp_attachment_entries
+
     payload = getattr(rfp, "reference_code_payload", None)
     wo = (getattr(rfp, "workflow_origin", None) or "direct").strip()
+    att_digest = build_request_context_digest(
+        _rfp_attachment_entries(rfp),
+        _shot_entries(rfp),
+        max_total_chars=14_000,
+    )
     return {
         "title": rfp.title,
         "program_id": (getattr(rfp, "program_id", None) or "").strip() or None,
@@ -87,6 +96,7 @@ def _rfp_to_dict(rfp: models.RFP) -> dict:
         "description": rfp.description or "",
         "reference_code_for_agents": format_reference_code_for_llm(payload),
         "workflow_origin": wo or "direct",
+        "attachment_digest": att_digest,
     }
 
 

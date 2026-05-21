@@ -6,6 +6,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from . import models, r2_storage
+from .document_llm_digest import supplement_file_body_for_agents
 from .delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
 
 DELIVERY_PROPOSAL_SUPPLEMENT_MAX_FILES = 15
@@ -52,10 +53,9 @@ def merge_agent_and_requester_proposal_markdown(
         raw = r2_storage.read_bytes_from_ref(sup.stored_path)
         if raw is None:
             continue
-        try:
-            body = raw.decode("utf-8")
-        except Exception:
-            body = raw.decode("utf-8", errors="replace")
+        body, _err = supplement_file_body_for_agents(sup.filename or "proposal", raw)
+        if not body:
+            continue
         requester_parts.append(f"### 요청자 제안서 첨부: {sup.filename}\n\n{body.strip()}")
 
     if requester_parts:

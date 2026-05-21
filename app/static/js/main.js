@@ -182,13 +182,33 @@ function _readDatasetBusy(form, submitter) {
   return null;
 }
 
+function _resolveAppConfirmMessage(i18nKey, legacyMsg) {
+  let msg = legacyMsg;
+  if ((!msg || !String(msg).trim()) && i18nKey && typeof window.t === 'function') {
+    const tr = window.t(i18nKey);
+    if (tr != null && typeof tr === 'object' && !Array.isArray(tr)) {
+      const body = tr.body != null ? String(tr.body).trim() : '';
+      const title = tr.title != null ? String(tr.title).trim() : '';
+      return body || title || '';
+    }
+    if (tr != null && String(tr).trim()) msg = String(tr);
+  }
+  return msg != null && String(msg).trim() ? String(msg) : '';
+}
+
 /**
  * 브라우저 기본 confirm(페이지 출처 표시) 대체 — Bootstrap 모달.
- * @param {string} message
+ * @param {string|{title?: string, body?: string}} message
  * @returns {Promise<boolean>}
  */
 function appConfirm(message) {
-  const text = message != null && message !== '' ? String(message) : '';
+  let text = '';
+  if (message != null && typeof message === 'object' && !Array.isArray(message)) {
+    text = message.body != null ? String(message.body).trim() : '';
+    if (!text && message.title != null) text = String(message.title).trim();
+  } else {
+    text = message != null && message !== '' ? String(message).trim() : '';
+  }
   return new Promise((resolve) => {
     const modalEl = document.getElementById('appConfirmModal');
     if (!modalEl || typeof bootstrap === 'undefined') {
@@ -425,16 +445,12 @@ document.addEventListener('DOMContentLoaded', () => {
         delete form.dataset.appConfirmBypass;
         return;
       }
-      let msg = form.getAttribute('data-app-confirm');
       const i18nKey = form.getAttribute('data-app-confirm-i18n');
-      if ((!msg || !String(msg).trim()) && i18nKey && typeof window.t === 'function') {
-        const tr = window.t(i18nKey);
-        if (tr != null && String(tr).trim()) msg = String(tr);
-      }
-      if (!msg || !String(msg).trim()) return;
+      const msg = _resolveAppConfirmMessage(i18nKey, form.getAttribute('data-app-confirm'));
+      if (!msg) return;
       e.preventDefault();
       e.stopPropagation();
-      appConfirm(String(msg)).then((ok) => {
+      appConfirm(msg).then((ok) => {
         if (!ok) return;
         form.dataset.appConfirmBypass = '1';
         if (typeof form.requestSubmit === 'function') form.requestSubmit();
@@ -501,7 +517,14 @@ document.addEventListener('DOMContentLoaded', () => {
            오버레이가 영구적으로 남을 수 있음 */
         const p = (u.pathname || '').toLowerCase();
         if (p.endsWith('.xlsx') || p.endsWith('.csv') || p.endsWith('.pdf') || p.endsWith('.zip')) return;
-        if (p.endsWith('/download') || p.includes('/download/')) return;
+        if (p.endsWith('/download') || p.includes('/download/') || p.endsWith('-download')) {
+          hideGlobalBusy();
+          return;
+        }
+        if (a.getAttribute('data-skip-global-busy') === '1') {
+          hideGlobalBusy();
+          return;
+        }
       } catch (_) {
         return;
       }

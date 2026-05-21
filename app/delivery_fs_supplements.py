@@ -6,6 +6,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from . import models, r2_storage
+from .document_llm_digest import supplement_file_body_for_agents
 
 KIND_RFP = "rfp"
 KIND_ANALYSIS = "analysis"
@@ -57,10 +58,9 @@ def merge_agent_and_consultant_fs_markdown(
         raw = r2_storage.read_bytes_from_ref(sup.stored_path)
         if raw is None:
             return None, f"FS 첨부를 읽을 수 없습니다: {sup.filename}"
-        try:
-            body = raw.decode("utf-8")
-        except Exception:
-            body = raw.decode("utf-8", errors="replace")
+        body, err = supplement_file_body_for_agents(sup.filename or "fs", raw)
+        if err or not body:
+            return None, err or f"FS 첨부를 해석하지 못했습니다: {sup.filename}"
         consultant_parts.append(f"### 컨설턴트 FS 첨부: {sup.filename}\n\n{body.strip()}")
 
     if consultant_parts:

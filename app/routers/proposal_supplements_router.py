@@ -16,6 +16,7 @@ from ..delivery_proposal_supplements import (
     list_delivery_proposal_supplements,
     proposal_supplement_member_paths,
 )
+from ..request_attachments import upload_attachment_error_key
 from ..routers.rfp_router import _read_upload_limited, _store_rfp_file
 
 router = APIRouter(tags=["proposal-supplements"])
@@ -87,7 +88,10 @@ async def _handle_proposal_supplement_upload(
         if not file.filename:
             continue
         ext = os.path.splitext(file.filename)[1].lower()
-        if ext != ".md":
+        ext_err = upload_attachment_error_key(file.filename or "")
+        if ext_err and ext_err.startswith("legacy_office"):
+            return fail(ext_err)
+        if ext_err:
             return fail("prop_bad_ext")
         try:
             raw = await _read_upload_limited(file)
@@ -108,7 +112,9 @@ async def _handle_proposal_supplement_upload(
     rfp_fk = rid if kind == KIND_RFP else None
     saved: list[dict] = []
     for raw, fname in pending:
-        path_stored, fname_stored = _store_rfp_file(int(owner_user_id), ".md", raw, fname)
+        path_stored, fname_stored = _store_rfp_file(
+            int(owner_user_id), ext or ".bin", raw, fname
+        )
         row = models.RfpProposalSupplement(
             rfp_id=rfp_fk,
             request_kind=kind,

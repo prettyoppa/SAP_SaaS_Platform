@@ -1105,6 +1105,10 @@ def generate_proposal(
     f_analyst, _, f_writer, f_reviewer = _make_agents(llm)
     rfp_ctx = _fmt_rfp(rfp_data)
     conv_ctx = _fmt_conv(conversation)
+    att_digest = (rfp_data.get("attachment_digest") or "").strip()
+    att_block = ""
+    if att_digest:
+        att_block = f"\n\n[첨부·캡처 — 서버 추출·시각 요약]\n{att_digest[:12000]}\n"
     analysis_summary, _ = _parse_code_library_context(code_library_context)
     member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
     lib_for_hannah = ""
@@ -1131,7 +1135,7 @@ def generate_proposal(
 
 [RFP 정보]
 {rfp_ctx}
-{lib_for_hannah}{member_ref_block}
+{att_block}{lib_for_hannah}{member_ref_block}
 [전체 인터뷰 내용]
 {conv_ctx}
 {_prop_ms}

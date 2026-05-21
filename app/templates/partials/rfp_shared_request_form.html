@@ -157,12 +157,15 @@
       <div class="position-relative mb-2 file-drop-hit-target" id="file-drop-hit-target" style="min-height: 8.5rem;">
         <label for="attachments" class="d-block position-relative mb-0 w-100 cursor-pointer" style="min-height: 8.5rem;">
           <input type="file" name="attachments" id="attachments" multiple
-                 accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.png,.jpg,.jpeg"
+                 accept=".md,.pdf,.xlsx,.docx,.pptx,.txt,.png,.jpg,.jpeg,.webp,.gif"
                  class="file-drop-native-input"/>
           <span class="file-drop-content d-block text-center py-4 px-2" id="drop-content">
             <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
             <p class="fw-semibold mb-1" {% if form_scope == 'rfp' %}data-i18n="rfp.dropTitle"{% endif %}>클릭하거나 아래 영역으로 파일을 드래그하세요</p>
-            <p class="text-muted small mb-0">PDF, Excel, Word, 이미지, TXT · 파일당 최대 20MB · 최대 5개 (여러 줄로 표시됩니다)</p>
+            <p class="text-muted small mb-0">
+              <span class="nav-ko">MD, PDF, Excel(.xlsx), Word(.docx), PowerPoint(.pptx), TXT, 이미지 · 구형 .doc/.xls/.ppt 불가 · 파일당 20MB · 최대 5개</span>
+              <span class="nav-en" style="display:none">MD, PDF, Excel (.xlsx), Word (.docx), PowerPoint (.pptx), TXT, images · no legacy .doc/.xls/.ppt · 20MB each · max 5</span>
+            </p>
           </span>
         </label>
       </div>

@@ -60,7 +60,7 @@ from ..menu_landing import (
     user_proposal_pending_offer_badges,
 )
 from ..as_built_deliverable import as_built_hub_template_ctx, as_built_llm_digest
-from ..attachment_context import build_attachment_llm_digest
+from ..attachment_context import build_request_context_digest
 from ..requirement_body import (
     apply_body as _apply_requirement_body_shared,
     body_plain as _requirement_body_plain,
@@ -380,16 +380,17 @@ def _merge_llm_digests(
     row: models.AbapAnalysisRequest | None = None,
 ) -> str:
     parts: list[str] = []
-    d1 = build_attachment_llm_digest(file_entries or [], max_total_chars=12_000)
+    d1 = build_request_context_digest(
+        file_entries or [],
+        screenshot_entries or [],
+        max_total_chars=12_000,
+    )
     if d1.strip():
         parts.append(d1.strip())
     if row is not None:
         dab = as_built_llm_digest(row, max_total_chars=8_000)
         if dab.strip():
             parts.append(dab.strip())
-    d2 = build_requirement_screenshots_llm_digest(screenshot_entries or [])
-    if d2.strip():
-        parts.append(d2.strip())
     combined = "\n\n".join(parts)
     if len(combined) > 24_000:
         combined = combined[:24_000] + "\n…(컨텍스트 상한)…"

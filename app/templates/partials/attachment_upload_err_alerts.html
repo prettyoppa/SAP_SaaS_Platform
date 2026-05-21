@@ -1,0 +1,17 @@
+{# error 키: legacy_office_doc | legacy_office_xls | legacy_office_ppt | invalid_file #}
+{% if error == 'legacy_office_doc' %}
+<div class="alert alert-warning py-2 small mb-3">
+  <span class="nav-ko">구형 Word(.doc)는 지원하지 않습니다. 문서에 이미지가 있으면 <strong>.docx</strong>로 저장한 뒤 다시 업로드해 주세요.</span>
+  <span class="nav-en" style="display:none">Legacy Word (.doc) is not supported. If the document contains images, save as <strong>.docx</strong> and upload again.</span>
+</div>
+{% elif error == 'legacy_office_xls' %}
+<div class="alert alert-warning py-2 small mb-3">
+  <span class="nav-ko">구형 Excel(.xls)는 지원하지 않습니다. <strong>.xlsx</strong>로 저장한 뒤 다시 업로드해 주세요.</span>
+  <span class="nav-en" style="display:none">Legacy Excel (.xls) is not supported. Save as <strong>.xlsx</strong> and upload again.</span>
+</div>
+{% elif error == 'legacy_office_ppt' %}
+<div class="alert alert-warning py-2 small mb-3">
+  <span class="nav-ko">구형 PowerPoint(.ppt)는 지원하지 않습니다. 화면·레이아웃이 있으면 <strong>.pptx</strong>로 저장한 뒤 다시 업로드해 주세요.</span>
+  <span class="nav-en" style="display:none">Legacy PowerPoint (.ppt) is not supported. Save as <strong>.pptx</strong> and upload again.</span>
+</div>
+{% endif %}
