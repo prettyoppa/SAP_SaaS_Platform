@@ -92,6 +92,8 @@ async def _handle_upload(
 ) -> RedirectResponse:
     if not _user_may_upload_as_built(db, user, kind=kind, entity=entity):
         raise HTTPException(status_code=403, detail="forbidden")
+    if as_built_entry(entity):
+        return RedirectResponse(url=(return_to or "/") + "?as_built_err=already_exists", status_code=303)
     fn = (upload_file.filename or "").strip()
     if not fn:
         return RedirectResponse(url=(return_to or "/") + "?as_built_err=empty_file", status_code=303)
@@ -108,7 +110,6 @@ async def _handle_upload(
     except ValueError as e:
         code = str(e.args[0] if e.args else "invalid_zip")
         return RedirectResponse(url=(return_to or "/") + f"?as_built_err={code}", status_code=303)
-    clear_as_built_entry(entity)
     set_as_built_entry(entity, path=path, filename=stored_name)
     db.commit()
     dest = (return_to or "").strip() or _return_url(kind, int(entity.id), user=user, owner_id=int(entity.user_id))

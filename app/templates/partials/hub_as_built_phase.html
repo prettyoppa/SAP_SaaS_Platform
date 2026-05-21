@@ -25,6 +25,9 @@
     {% elif err == 'empty_file' or err == 'empty_zip' %}
     <span class="nav-ko">파일이 비어 있습니다.</span>
     <span class="nav-en" style="display:none">File is empty.</span>
+    {% elif err == 'already_exists' %}
+    <span class="nav-ko">이미 등록된 파일이 있습니다. 새 파일을 올리려면 기존 파일을 삭제해 주세요.</span>
+    <span class="nav-en" style="display:none">A file is already registered. Delete it before uploading a new one.</span>
     {% else %}
     <span class="nav-ko">업로드에 실패했습니다.</span>
     <span class="nav-en" style="display:none">Upload failed.</span>
@@ -53,7 +56,7 @@
   <p class="small text-muted mb-0" data-i18n="hub.asBuiltNone">등록된 파일이 없습니다.</p>
   {% endif %}
 
-  {% if as_built_can_upload %}
+  {% if as_built_can_upload and not (as_built_entry_dict and as_built_entry_dict.path) %}
   <form method="post" action="{{ upload_url }}" enctype="multipart/form-data" class="as-built-upload-form mt-2">
     <input type="hidden" name="return_to" value="{{ as_built_return_to }}"/>
     <div class="file-drop-zone" data-max-files="1">
@@ -75,7 +78,7 @@
       <i class="fa-solid fa-upload me-1"></i><span data-i18n="hub.asBuiltUpload">파일 등록</span>
     </button>
   </form>
+  <script src="/static/js/file_preview.js?v=2"></script>
+  <script src="/static/js/hub_as_built_upload.js?v=3"></script>
   {% endif %}
 </div>
-<script src="/static/js/file_preview.js?v=2"></script>
-<script src="/static/js/hub_as_built_upload.js?v=2"></script>
