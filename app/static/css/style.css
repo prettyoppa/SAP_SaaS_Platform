@@ -1689,48 +1689,34 @@ html[data-theme="light"] .home-guide-video-stage--text-demo {
   min-height: 0;
   overflow: auto;
   padding: 0.65rem 0.75rem;
-  font-size: 0.72rem;
-  line-height: 1.45;
   color: var(--text);
 }
 html[data-theme="light"] .home-guide-text-viewport {
   color: #e6edf3;
 }
-.home-guide-text-reveal {
+/* 홈 기능 타일 제목(.home-feature-title)과 동일 서체 */
+.home-guide-text-lines {
+  font-size: clamp(0.92rem, 2.4vw, 1.05rem);
+  font-weight: 700;
+  line-height: 1.2;
   color: inherit;
 }
-.home-guide-text-reveal.markdown-body {
-  font-size: 0.78rem;
-  line-height: 1.5;
+.home-guide-text-line {
+  min-height: 1.2em;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 0.15rem;
 }
-.home-guide-text-reveal.markdown-body h1,
-.home-guide-text-reveal.markdown-body h2,
-.home-guide-text-reveal.markdown-body h3 {
-  font-size: 0.95rem;
-  margin-top: 0.35rem;
-  margin-bottom: 0.25rem;
+.home-guide-text-line.is-typing::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 1px;
+  font-weight: 400;
+  opacity: 0.85;
+  animation: home-guide-text-cursor-blink 0.9s step-end infinite;
 }
-.home-guide-text-reveal.markdown-body p,
-.home-guide-text-reveal.markdown-body li {
-  margin-bottom: 0.35rem;
-}
-/* 블록마다 위→아래 clip 펼침 (한 줄·문단 내부도 서서히) */
-.home-guide-reveal-block {
-  clip-path: inset(0 0 100% 0);
-  -webkit-clip-path: inset(0 0 100% 0);
-  transition: clip-path 2.1s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: clip-path;
-}
-.home-guide-reveal-block.is-revealed {
-  clip-path: inset(0 0 0 0);
-  -webkit-clip-path: inset(0 0 0 0);
-}
-@media (prefers-reduced-motion: reduce) {
-  .home-guide-reveal-block {
-    clip-path: none;
-    -webkit-clip-path: none;
-    transition: none;
-  }
+@keyframes home-guide-text-cursor-blink {
+  50% { opacity: 0; }
 }
 
 @keyframes home-guide-code-blink {

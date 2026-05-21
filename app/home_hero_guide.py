@@ -1,4 +1,4 @@
-"""홈 히어로 «사용 안내» — Markdown 타이핑 데모용."""
+"""홈 히어로 «사용 안내» — 평문 타이핑 데모용."""
 
 from __future__ import annotations
 
@@ -32,15 +32,11 @@ def home_guide_has_text(md: str) -> bool:
 
 
 def home_guide_text_bundle(settings: dict) -> dict:
-    """히어로 타이핑 데모 JS용 { ko: {lines, html}, en: … }."""
-    from .routers.interview_router import _markdown_to_html
+    """히어로 타이핑 데모 JS용 { ko: { lines }, en: … } (평문 줄)."""
 
-    def _pack(md: str) -> dict:
-        raw = (md or "").strip()
-        return {
-            "lines": markdown_typing_lines(raw),
-            "html": _markdown_to_html(raw) if raw else "",
-        }
+    def _pack(text: str) -> dict:
+        raw = (text or "").strip()
+        return {"lines": markdown_typing_lines(raw)}
 
     return {
         "ko": _pack(str(settings.get("home_guide_text_md") or "")),

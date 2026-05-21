@@ -1,4 +1,4 @@
-{# 히어로 우측: 텍스트(Markdown 타이핑, KO/EN) > 동영상 > ABAP 타이핑 데모 #}
+{# 히어로 우측: 텍스트(평문 타이핑, KO/EN) > 동영상 > ABAP 타이핑 데모 #}
 {% set guide_text_any = (settings.get('home_guide_text_md', '')|home_guide_has_text) or (settings.get('home_guide_text_md_en', '')|home_guide_has_text) %}
 {% set guide_video_raw = (settings.get('home_guide_video_url') or settings.get('home_tile_guide_desc_ko') or '')|trim %}
 {% set guide_embed = guide_video_raw|youtube_embed if guide_video_raw and not guide_text_any else none %}

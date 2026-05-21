@@ -1,5 +1,5 @@
 /**
- * 홈 사용 안내 Markdown — 단일 textarea, 사이트 KO/EN 토글과 연동.
+ * 홈 사용 안내 평문 — 단일 textarea, 사이트 KO/EN 토글과 연동.
  */
 (function () {
   'use strict';
