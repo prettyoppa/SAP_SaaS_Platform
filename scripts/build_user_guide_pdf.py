@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.content_drafts import USER_GUIDE_KO_PATH, markdown_to_plain_document
+from app.content_drafts import markdown_to_plain_document, user_guide_file_path
 
 OUT = ROOT / "app" / "static" / "docs" / "user-guide.pdf"
 
@@ -45,7 +45,7 @@ def main() -> int:
         print("한글 폰트를 찾을 수 없습니다.", file=sys.stderr)
         return 1
 
-    md = USER_GUIDE_KO_PATH.read_text(encoding="utf-8")
+    md = guide_path.read_text(encoding="utf-8")
     plain = markdown_to_plain_document(md)
 
     pdf = FPDF()
@@ -69,7 +69,7 @@ def main() -> int:
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     pdf.output(str(OUT))
-    print(f"Wrote {OUT} ({len(plain)} chars from {USER_GUIDE_KO_PATH.name})")
+    print(f"Wrote {OUT} ({len(plain)} chars from {guide_path.name})")
     return 0
 
 

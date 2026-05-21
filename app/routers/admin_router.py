@@ -1053,7 +1053,14 @@ def admin_settings(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/", status_code=302)
     from ..content_drafts import sync_content_drafts_from_files
 
-    drafts_synced = sync_content_drafts_from_files(db, force=False)
+    drafts_synced = False
+    try:
+        drafts_synced = sync_content_drafts_from_files(db, force=False)
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception("content drafts sync on admin settings")
+        db.rollback()
     raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
     return templates.TemplateResponse(request, "admin/settings.html", {
         "request": request, "user": user,

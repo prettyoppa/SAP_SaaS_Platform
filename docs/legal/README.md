@@ -13,6 +13,12 @@
 
 KO 초안(`*_ko.txt`)은 앱 기동 시 `SiteSettings`에 자동 동기화됩니다(`app/site_legal_seed.py`, revision `legal_content_revision`).
 
+배포 번들 갱신(필수 — Docker는 `app/data/content_drafts/` 만 포함):
+
+```bash
+python scripts/sync_content_drafts_bundle.py
+```
+
 수동 반영·PDF 재생성:
 
 ```bash
