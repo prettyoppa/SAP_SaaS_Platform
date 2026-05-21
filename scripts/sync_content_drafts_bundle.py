@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""docs/ → app/data/content_drafts/ (Docker 번들 갱신)."""
+"""docs/ Markdown → app/data/content_drafts/ (Docker 번들)."""
 from __future__ import annotations
 
 import shutil
@@ -7,22 +7,28 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = ROOT / "app" / "data" / "content_drafts"
-PAIRS = [
-    (ROOT / "docs" / "legal" / "terms_of_service_ko.txt", BUNDLE / "terms_of_service_ko.txt"),
-    (ROOT / "docs" / "legal" / "privacy_policy_ko.txt", BUNDLE / "privacy_policy_ko.txt"),
-    (ROOT / "docs" / "user_guide" / "user_guide_ko.md", BUNDLE / "user_guide_ko.txt"),
-    (ROOT / "docs" / "user_guide" / "user_guide_en.md", BUNDLE / "user_guide_en.txt"),
+FILES = [
+    "terms_of_service_ko.md",
+    "terms_of_service_en.md",
+    "privacy_policy_ko.md",
+    "privacy_policy_en.md",
+    "user_guide_ko.md",
+    "user_guide_en.md",
 ]
 
 
 def main() -> int:
     BUNDLE.mkdir(parents=True, exist_ok=True)
-    for src, dst in PAIRS:
+    for name in FILES:
+        if name.startswith("user_guide"):
+            src = ROOT / "docs" / "user_guide" / name
+        else:
+            src = ROOT / "docs" / "legal" / name
         if not src.is_file():
             print(f"skip missing {src}")
             continue
-        shutil.copy2(src, dst)
-        print(f"copied {dst.name}")
+        shutil.copy2(src, BUNDLE / name)
+        print(f"copied {name}")
     return 0
 
 

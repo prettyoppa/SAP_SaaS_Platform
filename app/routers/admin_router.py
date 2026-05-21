@@ -1020,8 +1020,6 @@ SITE_SETTING_KEYS = [
     ("service_abap_intro_md_ko", "신규 개발(SAP ABAP) 첫 페이지 소개 (Markdown)"),
     ("service_analysis_intro_md_ko", "분석·개선 첫 페이지 소개 (Markdown)"),
     ("service_integration_intro_md_ko", "연동 개발 첫 페이지 소개 (Markdown)"),
-    ("terms_of_service", "이용약관"),
-    ("privacy_policy", "개인정보처리방침"),
 ]
 
 HOME_TILE_API_KEYS = [

@@ -330,21 +330,13 @@
                 <label class="form-check-label small text-muted" for="terms">
                   <span class="nav-ko">다음에 동의합니다:</span>
                   <span class="nav-en">I agree to the</span>
-                  {% if settings.get('terms_of_service') %}
-                  <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">
+                  <a href="/terms" target="_blank" rel="noopener">
                     <span class="nav-ko">이용약관</span><span class="nav-en">Terms of Service</span>
                   </a>
-                  {% else %}
-                  <span class="nav-ko">이용약관</span><span class="nav-en">Terms of Service</span>
-                  {% endif %}
                   <span class="nav-ko"> 및 </span><span class="nav-en"> and </span>
-                  {% if settings.get('privacy_policy') %}
-                  <a href="#" data-bs-toggle="modal" data-bs-target="#privacyModal">
+                  <a href="/privacy" target="_blank" rel="noopener">
                     <span class="nav-ko">개인정보처리방침</span><span class="nav-en">Privacy Policy</span>
                   </a>
-                  {% else %}
-                  <span class="nav-ko">개인정보처리방침</span><span class="nav-en">Privacy Policy</span>
-                  {% endif %}
                 </label>
               </div>
             </div>
@@ -369,36 +361,6 @@
     </div>
   </div>
 </div>
-
-<!-- 이용약관 모달 -->
-{% if settings.get('terms_of_service') %}
-<div class="modal fade" id="termsModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content bg-dark-card">
-      <div class="modal-header">
-        <h5 class="modal-title">이용약관</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" style="white-space:pre-wrap;font-size:0.9rem">{{ settings.terms_of_service }}</div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-<!-- 개인정보처리방침 모달 -->
-{% if settings.get('privacy_policy') %}
-<div class="modal fade" id="privacyModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content bg-dark-card">
-      <div class="modal-header">
-        <h5 class="modal-title">개인정보처리방침</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" style="white-space:pre-wrap;font-size:0.9rem">{{ settings.privacy_policy }}</div>
-    </div>
-  </div>
-</div>
-{% endif %}
 
 {% endblock %}
 

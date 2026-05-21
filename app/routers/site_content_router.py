@@ -456,7 +456,7 @@ def kb_public_detail(slug: str, request: Request, db: Session = Depends(get_db))
 @router.get("/user-guide", response_class=HTMLResponse)
 def user_guide_public(request: Request, db: Session = Depends(get_db)):
     """이용 안내 — docs/user_guide/*.md 와 동일 본문(SiteSettings 동기화)."""
-    from ..content_drafts import get_user_guide_markdown, sync_content_drafts_from_files
+    from ..content_drafts import get_user_guide_markdown, pdf_url_for, sync_content_drafts_from_files
 
     sync_content_drafts_from_files(db, force=False)
     user = auth.get_current_user(request, db)
@@ -475,19 +475,16 @@ def user_guide_public(request: Request, db: Session = Depends(get_db)):
             },
             status_code=503,
         )
-    body_en_md = md_en.strip() or md_ko
-    raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    pdf_url = (raw.get("user_guide_pdf_url") or "/static/docs/user-guide.pdf").strip()
-    if pdf_url.endswith("user-guide.pdf"):
-        pdf_url = f"{pdf_url}?v=20260520draft2"
     return templates.TemplateResponse(
         request,
-        "site/user_guide.html",
+        "site/content_document.html",
         {
             "request": request,
             "user": user,
+            "page_title_ko": "SAP 개발 파트너 · 이용 안내",
+            "page_title_en": "SAP Development Partner — User guide",
             "body_html_ko": _markdown_to_html(md_ko),
-            "body_html_en": _markdown_to_html(body_en_md),
-            "pdf_url": pdf_url,
+            "body_html_en": _markdown_to_html(md_en.strip() or md_ko),
+            "pdf_url": pdf_url_for("user_guide"),
         },
     )

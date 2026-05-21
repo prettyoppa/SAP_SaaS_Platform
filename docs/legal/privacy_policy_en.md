@@ -1,4 +1,4 @@
-Privacy Policy (Draft)
+# Privacy Policy (Draft)
 
 Effective date: __ __, 2026
 Controller: Catchy Lab 〔Insert legal entity, address, DPO contact〕
@@ -7,7 +7,7 @@ Inquiries: 〔Insert privacy email〕
 ※ Draft for review. Align with applicable law (e.g. Korean PIPA) before publication.
 
 
-1. Purpose of processing
+## 1. Purpose of processing
 
 Catchy Lab (“Company”) processes personal data to provide the SAP Development Partner service (“Service”), including:
 
@@ -20,7 +20,7 @@ f. Improvement, logs, statistics, security and incident response
 g. Legal compliance
 
 
-2. Categories of personal data
+## 2. Categories of personal data
 
 【Required】
 · Email, password (stored hashed), name/display name
@@ -39,7 +39,7 @@ g. Legal compliance
 Passwords are stored in non-reversible form. Uploads may be stored on cloud object storage (e.g. R2).
 
 
-3. Retention periods
+## 3. Retention periods
 
 | Category | Period |
 |----------|--------|
@@ -52,7 +52,7 @@ Passwords are stored in non-reversible form. Uploads may be stored on cloud obje
 Data is destroyed when no longer needed, except where law mandates retention.
 
 
-4. Provision to third parties
+## 4. Provision to third parties
 
 We do not sell personal data. We may disclose data when:
 
@@ -63,7 +63,7 @@ We do not sell personal data. We may disclose data when:
 Inquiry content may be visible to the other party (requester/consultant) within the Service; sender display may be masked per policy.
 
 
-5. Processors and international transfers
+## 5. Processors and international transfers
 
 We may use processors or store/process data abroad, with contractual safeguards:
 
@@ -76,36 +76,36 @@ We may use processors or store/process data abroad, with contractual safeguards:
 Where data is transferred overseas, we disclose recipient, country, items, purpose and retention in this policy or separate notice. Refusal may limit AI or notification features.
 
 
-6. Your rights
+## 6. Your rights
 
 You may request access, correction, deletion, restriction of processing, and withdrawal of consent (e.g. marketing). You may delete your account in the Service or by contacting us. We may retain data where required by law.
 
 Contact: 〔privacy email〕
 
 
-7. Destruction
+## 7. Destruction
 
 Electronic records are deleted in an irreversible manner; paper records are shredded or incinerated. During deletion grace period, access may be blocked as “pending deletion.”
 
 
-8. Security measures
+## 8. Security measures
 
 · Least-privilege access, separated admin accounts
 · TLS in transit, password hashing
 · Log review and internal policies 〔document internally〕
 
 
-9. Cookies and similar technologies
+## 9. Cookies and similar technologies
 
 We use localStorage/cookies for language, theme and convenience. You may block them in the browser; some features may not work.
 
 
-10. Children
+## 10. Children
 
 The Service is not directed at children under 14 (or applicable age). We may delete accounts if we learn such data was collected.
 
 
-11. Privacy officer
+## 11. Privacy officer
 
 · Name/role: 〔Insert〕
 · Contact: 〔email, phone〕
@@ -113,11 +113,11 @@ The Service is not directed at children under 14 (or applicable age). We may del
 Complaints: privacy@〔domain〕 / your local supervisory authority.
 
 
-12. Changes
+## 12. Changes
 
 We may update this policy and will notify you before the effective date (e.g. 7 days; 30 days for material adverse changes).
 
 
-Supplementary provisions
+## Supplementary provisions
 
 This policy applies from the effective date.

@@ -1,7 +1,7 @@
-"""초안 본문 ↔ SiteSettings 동기화 · 이용 안내 마크다운 조회.
+"""Markdown 초안 ↔ SiteSettings · 공개 문서 조회.
 
-배포 이미지: app/data/content_drafts/ (Docker COPY app 에 포함)
-로컬 개발: docs/legal, docs/user_guide 가 있으면 우선 사용
+배포: app/data/content_drafts/*.md (Docker COPY app)
+로컬: docs/legal, docs/user_guide 우선
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import hashlib
 import logging
 import re
 from pathlib import Path
+from typing import Literal
 
 from sqlalchemy.orm import Session
 
@@ -20,19 +21,34 @@ _log = logging.getLogger(__name__)
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _BUNDLE_DIR = Path(__file__).resolve().parent / "data" / "content_drafts"
 
-LEGAL_KEYS = ("terms_of_service", "privacy_policy")
-LEGAL_FILENAMES = {
-    "terms_of_service": "terms_of_service_ko.txt",
-    "privacy_policy": "privacy_policy_ko.txt",
+DocKind = Literal["terms", "privacy", "user_guide"]
+
+_DOC_SPECS: dict[DocKind, dict[str, str]] = {
+    "terms": {
+        "basename": "terms_of_service",
+        "setting_ko": "terms_markdown_ko",
+        "setting_en": "terms_markdown_en",
+        "pdf": "/static/docs/terms-of-service.pdf",
+        "docs_subdir": "legal",
+    },
+    "privacy": {
+        "basename": "privacy_policy",
+        "setting_ko": "privacy_markdown_ko",
+        "setting_en": "privacy_markdown_en",
+        "pdf": "/static/docs/privacy-policy.pdf",
+        "docs_subdir": "legal",
+    },
+    "user_guide": {
+        "basename": "user_guide",
+        "setting_ko": "user_guide_markdown_ko",
+        "setting_en": "user_guide_markdown_en",
+        "pdf": "/static/docs/user-guide.pdf",
+        "docs_subdir": "user_guide",
+    },
 }
 
-USER_GUIDE_SETTING_KO = "user_guide_markdown_ko"
-USER_GUIDE_SETTING_EN = "user_guide_markdown_en"
-USER_GUIDE_FILENAMES = {"ko": "user_guide_ko.txt", "en": "user_guide_en.txt"}
-
-CONTENT_DRAFTS_HASH_KEY = "content_drafts_file_hash"
-
-_MIN_LEGAL_LEN = 400
+CONTENT_DRAFTS_HASH_KEY = "content_drafts_file_hash_v2"
+_MIN_MARKDOWN_LEN = 200
 
 
 def _pick_existing(*candidates: Path) -> Path | None:
@@ -42,35 +58,31 @@ def _pick_existing(*candidates: Path) -> Path | None:
     return None
 
 
-def legal_file_path(key: str) -> Path | None:
-    fn = LEGAL_FILENAMES.get(key)
-    if not fn:
-        return None
+def markdown_file_path(kind: DocKind, lang: str = "ko") -> Path | None:
+    spec = _DOC_SPECS[kind]
+    base = spec["basename"]
+    sub = spec["docs_subdir"]
+    name = f"{base}_{lang}.md"
     return _pick_existing(
-        _REPO_ROOT / "docs" / "legal" / fn,
-        _BUNDLE_DIR / fn,
+        _REPO_ROOT / "docs" / sub / name,
+        _BUNDLE_DIR / name,
     )
 
 
-def user_guide_file_path(lang: str = "ko") -> Path | None:
-    fn = USER_GUIDE_FILENAMES.get(lang, USER_GUIDE_FILENAMES["ko"])
-    sub = "user_guide"
-    return _pick_existing(
-        _REPO_ROOT / "docs" / sub / f"user_guide_{lang}.md",
-        _BUNDLE_DIR / fn,
-    )
+def pdf_url_for(kind: DocKind, *, cache_suffix: str = "20260521") -> str:
+    url = _DOC_SPECS[kind]["pdf"]
+    if url.endswith(".pdf"):
+        return f"{url}?v={cache_suffix}"
+    return url
 
 
 def _draft_paths() -> list[Path]:
     out: list[Path] = []
-    for key in LEGAL_KEYS:
-        p = legal_file_path(key)
-        if p:
-            out.append(p)
-    for lang in ("ko", "en"):
-        p = user_guide_file_path(lang)
-        if p:
-            out.append(p)
+    for kind in _DOC_SPECS:
+        for lang in ("ko", "en"):
+            p = markdown_file_path(kind, lang)
+            if p:
+                out.append(p)
     return out
 
 
@@ -100,11 +112,9 @@ def _setting_len(db: Session, key: str) -> int:
 
 
 def content_drafts_need_sync(db: Session) -> bool:
-    for key in LEGAL_KEYS:
-        if _setting_len(db, key) < _MIN_LEGAL_LEN:
+    for spec in _DOC_SPECS.values():
+        if _setting_len(db, spec["setting_ko"]) < _MIN_MARKDOWN_LEN:
             return True
-    if _setting_len(db, USER_GUIDE_SETTING_KO) < 200:
-        return True
     paths = _draft_paths()
     if not paths:
         return False
@@ -114,12 +124,9 @@ def content_drafts_need_sync(db: Session) -> bool:
 
 
 def sync_content_drafts_from_files(db: Session, *, force: bool = False) -> bool:
-    """
-    초안 파일 → SiteSettings. 파일이 없으면 False(예외 없음).
-    """
     paths = _draft_paths()
     if not paths:
-        _log.warning("[content_drafts] no draft files found under bundle or docs/")
+        _log.warning("[content_drafts] no markdown draft files found")
         return False
 
     file_hash = _sha256_files(paths)
@@ -127,20 +134,13 @@ def sync_content_drafts_from_files(db: Session, *, force: bool = False) -> bool:
         return False
 
     updated = False
-    for key in LEGAL_KEYS:
-        path = legal_file_path(key)
-        if not path:
-            _log.warning("[content_drafts] missing legal file for %s", key)
-            continue
-        _upsert(db, key, _read_text(path))
-        updated = True
-
-    for lang, setting_key in (("ko", USER_GUIDE_SETTING_KO), ("en", USER_GUIDE_SETTING_EN)):
-        path = user_guide_file_path(lang)
-        if not path:
-            continue
-        _upsert(db, setting_key, _read_text(path))
-        updated = True
+    for kind, spec in _DOC_SPECS.items():
+        for lang, key in (("ko", spec["setting_ko"]), ("en", spec["setting_en"])):
+            path = markdown_file_path(kind, lang)
+            if not path:
+                continue
+            _upsert(db, key, _read_text(path))
+            updated = True
 
     if updated:
         _upsert(db, CONTENT_DRAFTS_HASH_KEY, file_hash)
@@ -148,27 +148,38 @@ def sync_content_drafts_from_files(db: Session, *, force: bool = False) -> bool:
     return updated
 
 
-def get_user_guide_markdown(db: Session, *, lang: str = "ko") -> str:
-    """DB → 파일 순으로 이용 안내 마크다운."""
-    setting_key = USER_GUIDE_SETTING_EN if lang == "en" else USER_GUIDE_SETTING_KO
+def get_document_markdown(db: Session, kind: DocKind, *, lang: str = "ko") -> str:
+    spec = _DOC_SPECS[kind]
+    setting_key = spec["setting_en"] if lang == "en" else spec["setting_ko"]
     row = db.query(models.SiteSettings).filter(models.SiteSettings.key == setting_key).first()
     if row and (row.value or "").strip():
         return row.value.strip()
-    path = user_guide_file_path(lang)
+    path = markdown_file_path(kind, lang)
     if path:
         return _read_text(path)
     return ""
 
 
+def get_user_guide_markdown(db: Session, *, lang: str = "ko") -> str:
+    return get_document_markdown(db, "user_guide", lang=lang)
+
+
+def has_document(db: Session, kind: DocKind, *, lang: str = "ko") -> bool:
+    return bool(get_document_markdown(db, kind, lang=lang).strip())
+
+
 def markdown_to_plain_document(md: str) -> str:
-    """PDF·프린트용: 마크다운을 줄 단위 평문으로(구조 유지)."""
+    """PDF용 평문(줄 구조 유지)."""
     out: list[str] = []
     for raw in (md or "").splitlines():
         line = raw.rstrip()
         if not line:
             out.append("")
             continue
-        if line.startswith("# ") and not line.startswith("## "):
+        if line.startswith("# "):
+            out.append("")
+            out.append(line[2:].strip())
+            out.append("")
             continue
         if line.startswith("## "):
             out.append("")

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""docs/ 초안 → DB 강제 반영 + user-guide.pdf 재생성."""
+"""docs/ Markdown → DB + PDF 3종 생성."""
 from __future__ import annotations
 
 import subprocess
@@ -21,10 +21,7 @@ def main() -> int:
         print("Content drafts synced (force).")
     finally:
         db.close()
-
-    pdf_script = ROOT / "scripts" / "build_user_guide_pdf.py"
-    print("Rebuilding user-guide.pdf …")
-    return subprocess.call([sys.executable, str(pdf_script)], cwd=str(ROOT))
+    return subprocess.call([sys.executable, str(ROOT / "scripts" / "build_content_pdfs.py")], cwd=str(ROOT))
 
 
 if __name__ == "__main__":

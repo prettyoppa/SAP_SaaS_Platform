@@ -8,6 +8,7 @@ __pycache__
 .venv
 venv
 *.md
+!app/data/content_drafts/**
 .pytest_cache
 .mypy_cache
 .ruff_cache

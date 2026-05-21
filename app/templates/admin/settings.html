@@ -9,7 +9,7 @@
         {% include 'partials/nav_prev_screen.html' %}
         <div>
           <h4 class="mb-0"><i class="fa-solid fa-paintbrush me-2 text-warning"></i>사이트 설정</h4>
-          <small class="text-muted">홈 텍스트, 메뉴별 첫 페이지 안내, 작성 팁, 약관 등을 설정합니다.</small>
+          <small class="text-muted">홈 텍스트, 메뉴별 첫 페이지 안내, 작성 팁 등을 설정합니다. 이용약관·개인정보·이용안내는 <code>docs/</code> Markdown 파일로 관리합니다.</small>
         </div>
       </div>
     </div>
@@ -24,8 +24,8 @@
     {% if drafts_synced %}
     <div class="alert alert-info d-flex align-items-center mb-4">
       <i class="fa-solid fa-file-import me-2"></i>
-      <span class="nav-ko">저장소 초안(docs/legal, docs/user_guide)을 DB에 반영했습니다. 이용약관·개인정보 textarea를 확인하세요.</span>
-      <span class="nav-en" style="display:none">Draft files from docs/ were synced into the database. Check the terms and privacy fields.</span>
+      <span class="nav-ko">저장소 초안(docs/legal, docs/user_guide)을 DB에 반영했습니다.</span>
+      <span class="nav-en" style="display:none">Draft markdown files from docs/ were synced into the database.</span>
     </div>
     {% endif %}
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -121,26 +121,6 @@
             </label>
             <textarea name="service_integration_intro_md_ko" class="form-control font-monospace" rows="12"
                       placeholder="Excel VBA...">{{ settings.get('service_integration_intro_md_ko', '') }}</textarea>
-          </div>
-        </div>
-
-        <!-- 이용약관 -->
-        <div class="col-md-6">
-          <div class="admin-content-card h-100">
-            <h6 class="mb-3 text-warning"><i class="fa-solid fa-file-contract me-2"></i>이용약관</h6>
-            <label class="form-label small">회원가입 시 표시됩니다 (Markdown 또는 Plain Text)</label>
-            <textarea name="terms_of_service" class="form-control" rows="12"
-                      placeholder="제1조 (목적)...">{{ settings.get('terms_of_service', '') }}</textarea>
-          </div>
-        </div>
-
-        <!-- 개인정보처리방침 -->
-        <div class="col-md-6">
-          <div class="admin-content-card h-100">
-            <h6 class="mb-3 text-warning"><i class="fa-solid fa-shield-halved me-2"></i>개인정보처리방침</h6>
-            <label class="form-label small">회원가입 시 표시됩니다 (Markdown 또는 Plain Text)</label>
-            <textarea name="privacy_policy" class="form-control" rows="12"
-                      placeholder="1. 개인정보의 처리 목적...">{{ settings.get('privacy_policy', '') }}</textarea>
           </div>
         </div>
 
