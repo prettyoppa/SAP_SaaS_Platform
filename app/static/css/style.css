@@ -1736,12 +1736,20 @@ html[data-theme="light"] .home-guide-text-viewport.is-live {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0 0 0.2rem;
+  color: #7dd3fc;
+}
+html[data-theme="light"] .home-guide-text-line {
+  color: #4338ca;
+}
+/* 그라데이션은 글자 노드에만 — 줄 컨테이너에 두면 자식 span 타이핑 시 막대로 보임 */
+.home-guide-text-line:not(:has(.home-guide-text-char)) {
   background: linear-gradient(118deg, #7dd3fc 0%, #a5b4fc 42%, #60a5fa 100%);
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
 }
-html[data-theme="light"] .home-guide-text-line {
+html[data-theme="light"] .home-guide-text-line:not(:has(.home-guide-text-char)) {
   background: linear-gradient(118deg, #4338ca 0%, #6366f1 45%, #2563eb 100%);
 }
 .home-guide-text-line.is-lead {
@@ -1758,10 +1766,16 @@ html[data-theme="light"] .home-guide-text-line {
 .home-guide-text-char.is-visible {
   opacity: 1;
   transform: translateY(0) scale(1);
+  background: linear-gradient(118deg, #7dd3fc 0%, #a5b4fc 42%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
   transition: opacity 0.1s ease-out, transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
   text-shadow: 0 0 14px rgba(125, 211, 252, 0.75);
 }
 html[data-theme="light"] .home-guide-text-char.is-visible {
+  background: linear-gradient(118deg, #4338ca 0%, #6366f1 45%, #2563eb 100%);
   text-shadow: 0 0 12px rgba(99, 102, 241, 0.45);
 }
 .home-guide-text-line.is-line-done {
