@@ -19,11 +19,11 @@
     BUNDLE = {};
   }
 
-  /** 블록 펼침(약 2s/단락)과 비슷한 체감 — 글자당 약 55ms */
-  var CHAR_MS = 55;
-  var LINE_PAUSE_MS = 160;
+  /** 글자당 약 110ms — 읽기 편한 속도 */
+  var CHAR_MS = 110;
+  var LINE_PAUSE_MS = 320;
   var HOLD_MS = 10000;
-  var START_PAUSE_MS = 400;
+  var START_PAUSE_MS = 550;
   var runGen = 0;
 
   function siteLang() {
@@ -85,10 +85,6 @@
       await sleep(CHAR_MS);
     }
     lineEl.classList.remove("is-typing");
-    lineEl.classList.add("is-line-done");
-    window.setTimeout(function () {
-      lineEl.classList.remove("is-line-done");
-    }, 520);
   }
 
   async function runTyping(gen) {

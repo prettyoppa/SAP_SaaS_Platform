@@ -1707,40 +1707,41 @@ html[data-theme="light"] .home-guide-video-stage--text-demo .home-guide-code-tit
   color: #93c5fd;
   transition: box-shadow 0.35s ease;
 }
+/* 다크: 고정 인셋 글로우(깜빡임 없음) · 라이트: 얇은 테두리만 */
 .home-guide-text-viewport.is-live {
   box-shadow:
-    inset 0 0 28px rgba(99, 102, 241, 0.14),
-    inset 0 0 0 1px rgba(96, 165, 250, 0.22);
-  animation: home-guide-viewport-glow 2.4s ease-in-out infinite;
+    inset 0 0 22px rgba(99, 102, 241, 0.1),
+    inset 0 0 0 1px rgba(96, 165, 250, 0.18);
 }
 html[data-theme="light"] .home-guide-text-viewport {
   color: #4338ca;
 }
 html[data-theme="light"] .home-guide-text-viewport.is-live {
   box-shadow:
-    inset 0 0 32px rgba(99, 102, 241, 0.12),
-    inset 0 0 0 1px rgba(79, 70, 229, 0.2);
+    inset 0 0 0 1px rgba(79, 70, 229, 0.16);
 }
-@keyframes home-guide-viewport-glow {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.06); }
-}
-/* 홈 기능 타일 제목(.home-feature-title)과 동일 서체 — 단색만 (background-clip+text-shadow는 글자마다 파란 덩어리로 깨짐) */
+/* 단색 텍스트 (background-clip+text-shadow 조합은 라이트에서 글자 덩어리로 깨짐) */
 .home-guide-text-lines {
   font-size: clamp(0.92rem, 2.4vw, 1.05rem);
   font-weight: 700;
-  line-height: 1.2;
-  color: #7dd3fc;
+  line-height: 1.35;
+  color: #93c5fd;
 }
 html[data-theme="light"] .home-guide-text-lines {
   color: #4338ca;
+}
+html:not([data-theme="light"]) [data-home-guide-text-demo].is-typing-active .home-guide-text-lines {
+  filter: drop-shadow(0 0 10px rgba(125, 211, 252, 0.22));
 }
 .home-guide-text-line {
   min-height: 1.2em;
   white-space: pre-wrap;
   word-break: break-word;
-  margin: 0 0 0.2rem;
+  margin: 0 0 0.28rem;
   color: inherit;
+}
+html:not([data-theme="light"]) .home-guide-text-line.is-lead {
+  color: #bae6fd;
 }
 .home-guide-text-line.is-lead {
   font-size: clamp(0.98rem, 2.6vw, 1.12rem);
@@ -1748,20 +1749,19 @@ html[data-theme="light"] .home-guide-text-lines {
 .home-guide-text-char {
   display: inline;
   opacity: 0;
-  transform: translateY(0.22em) scale(0.92);
   color: inherit;
 }
-.home-guide-text-char.is-visible {
+html[data-theme="light"] .home-guide-text-char.is-visible {
   opacity: 1;
-  transform: translateY(0) scale(1);
-  transition: opacity 0.1s ease-out, transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.2s ease-out;
 }
-.home-guide-text-line.is-line-done {
-  animation: home-guide-line-pop 0.45s ease-out;
+html:not([data-theme="light"]) .home-guide-text-char {
+  transform: translateY(0.06em);
 }
-@keyframes home-guide-line-pop {
-  0% { opacity: 0.72; }
-  100% { opacity: 1; }
+html:not([data-theme="light"]) .home-guide-text-char.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.26s ease-out, transform 0.3s ease-out;
 }
 .home-guide-text-line.is-typing::after {
   content: "▍";
@@ -1769,20 +1769,16 @@ html[data-theme="light"] .home-guide-text-lines {
   margin-left: 2px;
   font-weight: 400;
   color: #60a5fa;
-  opacity: 1;
-  text-shadow: 0 0 8px rgba(96, 165, 250, 0.9), 0 0 16px rgba(99, 102, 241, 0.5);
-  animation: home-guide-text-cursor-blink 0.55s step-end infinite, home-guide-cursor-glow 1.2s ease-in-out infinite;
+  opacity: 0.85;
+  animation: home-guide-cursor-breathe 2.2s ease-in-out infinite;
 }
 html[data-theme="light"] .home-guide-text-line.is-typing::after {
   color: #6366f1;
-  text-shadow: 0 0 8px rgba(99, 102, 241, 0.65);
+  animation: home-guide-cursor-breathe 2.6s ease-in-out infinite;
 }
-@keyframes home-guide-text-cursor-blink {
-  50% { opacity: 0.15; }
-}
-@keyframes home-guide-cursor-glow {
-  0%, 100% { transform: scaleY(1); }
-  50% { transform: scaleY(1.08); }
+@keyframes home-guide-cursor-breathe {
+  0%, 100% { opacity: 0.32; }
+  50% { opacity: 0.92; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-guide-text-viewport.is-live {
@@ -1795,11 +1791,12 @@ html[data-theme="light"] .home-guide-text-line.is-typing::after {
   .home-guide-text-char.is-visible {
     transition: none;
   }
-  .home-guide-text-line.is-line-done {
-    animation: none;
-  }
   .home-guide-text-line.is-typing::after {
-    animation: home-guide-text-cursor-blink 0.9s step-end infinite;
+    animation: none;
+    opacity: 0.85;
+  }
+  html:not([data-theme="light"]) [data-home-guide-text-demo].is-typing-active .home-guide-text-lines {
+    filter: none;
   }
 }
 
