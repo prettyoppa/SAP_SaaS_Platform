@@ -8,8 +8,8 @@
   var LINE_PAUSE_MS = 320;
   var HOLD_MS = 10000;
   var START_PAUSE_MS = 550;
-  var REVEAL_LINE_MS = 520;
-  var REVEAL_LINE_GAP_MS = 140;
+  var REVEAL_LINE_MS = 1650;
+  var REVEAL_LINE_GAP_MS = 420;
 
   function siteLang() {
     return localStorage.getItem("lang") === "en" ? "en" : "ko";
