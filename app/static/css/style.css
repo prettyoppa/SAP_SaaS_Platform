@@ -2213,8 +2213,17 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   padding-top: 0.45rem !important;
   margin-top: 0.35rem !important;
 }
-.home-features-tiles .home-tile-stats-list {
-  gap: 0.2rem;
+.home-features-tiles .home-tile-stat-row {
+  gap: 0.28rem;
+}
+.home-features-tiles .home-tile-stat-chip {
+  padding: 0.28rem 0.15rem;
+}
+.home-features-tiles .home-tile-stat-num {
+  font-size: clamp(0.95rem, 2.2vw, 1.15rem);
+}
+.home-features-tiles .home-tile-stat-label {
+  font-size: clamp(0.58rem, 1.35vw, 0.65rem);
 }
 .empty-tab-msg--compact {
   padding: 0.75rem 0.25rem;
@@ -2275,64 +2284,60 @@ html[data-theme="light"] .account-ai-credits-page .account-ai-credits-table {
   }
 }
 
-/* 홈 타일: 진행 건수 — 세로 목록 (영문 라벨 대비) */
+/* 홈 서비스 타일: 단계 건수 — 가로 칩 (메뉴 stat-card와 유사, 아이콘 없음) */
 .home-tile-stats {
   border-color: var(--border) !important;
-  font-size: clamp(0.72rem, 1.6vw, 0.82rem);
   flex-shrink: 0;
 }
-.home-tile-stats-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.home-tile-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+.home-tile-stat-chip {
+  flex: 1 1 0;
+  min-width: 2.75rem;
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.32rem;
-}
-.home-tile-stats-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.65rem;
-}
-.home-tile-stats-item strong {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.95em;
-  color: var(--text);
-}
-/* 제안 행: 라벨 — 점(있을 때) — 숫자, 점은 가운데 열에 배치 */
-.home-tile-stats-item--proposal {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  column-gap: 0.45rem;
-}
-.home-tile-stats-item--proposal .home-tile-stats-label {
-  justify-self: start;
-  min-width: 0;
-}
-.home-tile-stats-item--proposal .home-tile-stats-mid {
-  justify-self: center;
-  display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0.65rem;
-  min-height: 1em;
+  gap: 0.12rem;
+  padding: 0.32rem 0.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-align: center;
 }
-.home-tile-stats-item--proposal strong {
-  justify-self: end;
-  text-align: end;
+.home-tile-stat-num {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
-.home-proposal-offer-dot {
-  width: 9px;
-  height: 9px;
+.home-tile-stat-label {
+  font-size: 0.62rem;
+  line-height: 1.15;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-tile-stat-chip--offer .home-tile-stat-offer-dot {
+  position: absolute;
+  top: 0.22rem;
+  right: 0.22rem;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  display: inline-block;
   background: radial-gradient(circle at 32% 30%, #fecaca, #ef4444 52%, #991b1b);
   box-shadow:
     0 0 0 2px color-mix(in srgb, #ef4444 28%, transparent),
     0 2px 8px color-mix(in srgb, #ef4444 45%, transparent);
-  animation: nav-proposal-offer-dot-glow 2.4s ease-in-out infinite;
+  animation: stat-card-offer-dot-glow 2.4s ease-in-out infinite;
   pointer-events: none;
 }
 

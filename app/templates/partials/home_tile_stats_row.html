@@ -1,0 +1,38 @@
+{# expects: counts (dict delivery/proposal/analysis/in_progress/draft), offer_channel (rfp|analysis|integration) #}
+<div class="home-tile-stats mt-auto pt-2 border-top" role="group" aria-label="Request stages">
+  <div class="home-tile-stat-row" role="list">
+    <div class="home-tile-stat-chip" role="listitem">
+      <div class="home-tile-stat-num">{{ counts.delivery }}</div>
+      <div class="home-tile-stat-label">
+        <span class="nav-ko">납품</span><span class="nav-en" style="display:none">Delivered</span>
+      </div>
+    </div>
+    <div class="home-tile-stat-chip home-tile-stat-chip--proposal{% if proposal_offer_badges.get(offer_channel) %} home-tile-stat-chip--offer{% endif %}" role="listitem">
+      {% if proposal_offer_badges.get(offer_channel) %}
+      <span class="home-tile-stat-offer-dot" aria-hidden="true"></span>
+      {% endif %}
+      <div class="home-tile-stat-num">{{ counts.proposal }}</div>
+      <div class="home-tile-stat-label">
+        <span class="nav-ko">제안</span><span class="nav-en" style="display:none">Proposal</span>
+      </div>
+    </div>
+    <div class="home-tile-stat-chip" role="listitem">
+      <div class="home-tile-stat-num">{{ counts.analysis }}</div>
+      <div class="home-tile-stat-label">
+        <span class="nav-ko">분석</span><span class="nav-en" style="display:none">Analysis</span>
+      </div>
+    </div>
+    <div class="home-tile-stat-chip" role="listitem">
+      <div class="home-tile-stat-num">{{ counts.in_progress }}</div>
+      <div class="home-tile-stat-label">
+        <span class="nav-ko">진행중</span><span class="nav-en" style="display:none">In progress</span>
+      </div>
+    </div>
+    <div class="home-tile-stat-chip" role="listitem">
+      <div class="home-tile-stat-num">{{ counts.draft }}</div>
+      <div class="home-tile-stat-label">
+        <span class="nav-ko">임시저장</span><span class="nav-en" style="display:none">Draft</span>
+      </div>
+    </div>
+  </div>
+</div>

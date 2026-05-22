@@ -43,35 +43,9 @@
         {% include 'partials/home_feature_desc_typing.html' %}
         {% endwith %}
         {% if user and home_counts %}
-        <div class="home-tile-stats mt-auto pt-2 border-top small">
-          <ul class="home-tile-stats-list">
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">납품</span><span class="nav-en text-muted" style="display:none">Delivered</span></span>
-              <strong>{{ home_counts.rfp.delivery }}</strong>
-            </li>
-            <li class="home-tile-stats-item home-tile-stats-item--proposal">
-              <span class="home-tile-stats-label">
-                <span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span>
-              </span>
-              <span class="home-tile-stats-mid">
-                {% if proposal_offer_badges.get('rfp') %}<span class="home-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
-              </span>
-              <strong>{{ home_counts.rfp.proposal }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">분석</span><span class="nav-en text-muted" style="display:none">Analysis</span></span>
-              <strong>{{ home_counts.rfp.analysis }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">진행중</span><span class="nav-en text-muted" style="display:none">In progress</span></span>
-              <strong>{{ home_counts.rfp.in_progress }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">임시저장</span><span class="nav-en text-muted" style="display:none">Draft</span></span>
-              <strong>{{ home_counts.rfp.draft }}</strong>
-            </li>
-          </ul>
-        </div>
+        {% with counts=home_counts.rfp, offer_channel='rfp' %}
+        {% include 'partials/home_tile_stats_row.html' %}
+        {% endwith %}
         {% endif %}
       </div>
       <div class="home-feature-card" role="listitem">
@@ -98,35 +72,9 @@
         {% include 'partials/home_feature_desc_typing.html' %}
         {% endwith %}
         {% if user and home_counts %}
-        <div class="home-tile-stats mt-auto pt-2 border-top small">
-          <ul class="home-tile-stats-list">
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">납품</span><span class="nav-en text-muted" style="display:none">Delivered</span></span>
-              <strong>{{ home_counts.abap_analysis.delivery }}</strong>
-            </li>
-            <li class="home-tile-stats-item home-tile-stats-item--proposal">
-              <span class="home-tile-stats-label">
-                <span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span>
-              </span>
-              <span class="home-tile-stats-mid">
-                {% if proposal_offer_badges.get('analysis') %}<span class="home-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
-              </span>
-              <strong>{{ home_counts.abap_analysis.proposal }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">분석</span><span class="nav-en text-muted" style="display:none">Analysis</span></span>
-              <strong>{{ home_counts.abap_analysis.analysis }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">진행중</span><span class="nav-en text-muted" style="display:none">In progress</span></span>
-              <strong>{{ home_counts.abap_analysis.in_progress }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">임시저장</span><span class="nav-en text-muted" style="display:none">Draft</span></span>
-              <strong>{{ home_counts.abap_analysis.draft }}</strong>
-            </li>
-          </ul>
-        </div>
+        {% with counts=home_counts.abap_analysis, offer_channel='analysis' %}
+        {% include 'partials/home_tile_stats_row.html' %}
+        {% endwith %}
         {% endif %}
       </div>
       <div class="home-feature-card" role="listitem">
@@ -150,35 +98,9 @@
         {% include 'partials/home_feature_desc_typing.html' %}
         {% endwith %}
         {% if user and home_counts %}
-        <div class="home-tile-stats mt-auto pt-2 border-top small">
-          <ul class="home-tile-stats-list">
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">납품</span><span class="nav-en text-muted" style="display:none">Delivered</span></span>
-              <strong>{{ home_counts.integration.delivery }}</strong>
-            </li>
-            <li class="home-tile-stats-item home-tile-stats-item--proposal">
-              <span class="home-tile-stats-label">
-                <span class="nav-ko text-muted">제안</span><span class="nav-en text-muted" style="display:none">Proposal</span>
-              </span>
-              <span class="home-tile-stats-mid">
-                {% if proposal_offer_badges.get('integration') %}<span class="home-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
-              </span>
-              <strong>{{ home_counts.integration.proposal }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">분석</span><span class="nav-en text-muted" style="display:none">Analysis</span></span>
-              <strong>{{ home_counts.integration.analysis }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">진행중</span><span class="nav-en text-muted" style="display:none">In progress</span></span>
-              <strong>{{ home_counts.integration.in_progress }}</strong>
-            </li>
-            <li class="home-tile-stats-item">
-              <span><span class="nav-ko text-muted">임시저장</span><span class="nav-en text-muted" style="display:none">Draft</span></span>
-              <strong>{{ home_counts.integration.draft }}</strong>
-            </li>
-          </ul>
-        </div>
+        {% with counts=home_counts.integration, offer_channel='integration' %}
+        {% include 'partials/home_tile_stats_row.html' %}
+        {% endwith %}
         {% endif %}
       </div>
     {% include "partials/home_tile_notice.html" %}
