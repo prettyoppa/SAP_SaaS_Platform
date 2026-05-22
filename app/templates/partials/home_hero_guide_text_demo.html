@@ -1,5 +1,5 @@
 {# 사용 안내 평문 — 한 글자씩 타이핑 (KO/EN), 홈 타일 타이틀과 동일 서체 #}
-<div class="home-guide-video-stage home-guide-video-stage--text-demo" data-home-guide-text-demo role="img"
+<div class="home-guide-video-stage home-guide-video-stage--text-demo" data-home-typing-text role="img"
      aria-label="{% if settings.get('home_tile_guide_title_ko') %}{{ settings.get('home_tile_guide_title_ko') }}{% else %}사용 안내{% endif %}">
   <div class="home-guide-text-terminal">
     <div class="home-guide-code-titlebar">
@@ -12,6 +12,5 @@
       <div class="home-guide-text-lines" aria-live="polite"></div>
     </div>
   </div>
-  <script type="application/json" id="home-guide-text-bundle-json">{{ settings|home_guide_text_bundle|tojson }}</script>
+  <script type="application/json" class="home-typing-bundle">{{ settings|home_guide_text_bundle|tojson }}</script>
 </div>
-<script src="/static/js/home_guide_text_demo.js?v=7" defer></script>

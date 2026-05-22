@@ -156,6 +156,17 @@ def _home_guide_text_bundle_filter(settings) -> dict:
 templates.env.filters["home_guide_text_bundle"] = _home_guide_text_bundle_filter
 
 
+def _home_tile_desc_bundle_filter(pair) -> dict:
+    from .home_hero_guide import home_tile_desc_bundle
+
+    if not isinstance(pair, dict):
+        pair = {}
+    return home_tile_desc_bundle(pair.get("ko", ""), pair.get("en", ""))
+
+
+templates.env.filters["home_tile_desc_bundle"] = _home_tile_desc_bundle_filter
+
+
 def _req_analysis_html_filter(value) -> Markup:
     from .analysis_display import format_requirement_analysis_field
 

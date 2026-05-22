@@ -31,14 +31,27 @@ def home_guide_has_text(md: str) -> bool:
     return any((ln or "").strip() for ln in markdown_typing_lines(md))
 
 
-def home_guide_text_bundle(settings: dict) -> dict:
-    """히어로 타이핑 데모 JS용 { ko: { lines }, en: … } (평문 줄)."""
+def locale_text_bundle(ko: str, en: str) -> dict:
+    """타이핑 데모 JS용 { ko: { lines }, en: … } (평문 줄)."""
 
     def _pack(text: str) -> dict:
         raw = (text or "").strip()
         return {"lines": markdown_typing_lines(raw)}
 
     return {
-        "ko": _pack(str(settings.get("home_guide_text_md") or "")),
-        "en": _pack(str(settings.get("home_guide_text_md_en") or "")),
+        "ko": _pack(str(ko or "")),
+        "en": _pack(str(en or "")),
     }
+
+
+def home_guide_text_bundle(settings: dict) -> dict:
+    """히어로 «사용 안내» 타이핑 데모."""
+    return locale_text_bundle(
+        str(settings.get("home_guide_text_md") or ""),
+        str(settings.get("home_guide_text_md_en") or ""),
+    )
+
+
+def home_tile_desc_bundle(ko: str, en: str) -> dict:
+    """홈 서비스 타일 설명 타이핑 데모."""
+    return locale_text_bundle(str(ko or ""), str(en or ""))

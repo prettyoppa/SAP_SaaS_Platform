@@ -18,13 +18,10 @@
   </div>
 </section>
 
-<!-- 홈 타일 3×2: 1행 공지·FAQ·리뷰 / 2행 신규·분석·연동 -->
+<!-- 홈 타일 3×2: 1행 신규·분석·연동 / 2행 공지·FAQ·리뷰 -->
 <section id="home-features" class="section-light py-2">
   <div class="container">
     <div class="home-features-tiles" role="list">
-    {% include "partials/home_tile_notice.html" %}
-    {% include "partials/home_tile_faq.html" %}
-    {% include "partials/home_tile_reviews.html" %}
       <div class="home-feature-card" role="listitem">
         <div class="home-feature-card-top">
           <div class="home-feature-heading">
@@ -42,10 +39,9 @@
             <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
-        <p class="home-feature-desc text-muted small">
-          <span class="nav-ko">{{ settings.get('home_tile_abap_desc_ko', '') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_abap_desc_en', '') }}</span>
-        </p>
+        {% with desc_ko=settings.get('home_tile_abap_desc_ko', ''), desc_en=settings.get('home_tile_abap_desc_en', '') %}
+        {% include 'partials/home_feature_desc_typing.html' %}
+        {% endwith %}
         {% if user and home_counts %}
         <div class="home-tile-stats mt-auto pt-2 border-top small">
           <ul class="home-tile-stats-list">
@@ -98,10 +94,9 @@
             <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
-        <p class="home-feature-desc text-muted small">
-          <span class="nav-ko">{{ settings.get('home_tile_analysis_desc_ko', '') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_analysis_desc_en', '') }}</span>
-        </p>
+        {% with desc_ko=settings.get('home_tile_analysis_desc_ko', ''), desc_en=settings.get('home_tile_analysis_desc_en', '') %}
+        {% include 'partials/home_feature_desc_typing.html' %}
+        {% endwith %}
         {% if user and home_counts %}
         <div class="home-tile-stats mt-auto pt-2 border-top small">
           <ul class="home-tile-stats-list">
@@ -151,10 +146,9 @@
             <span class="nav-ko" data-i18n="home.tile.detail">상세 보기</span><span class="nav-en" style="display:none" data-i18n="home.tile.detail">Details</span><span aria-hidden="true"> →</span>
           </a>
         </div>
-        <p class="home-feature-desc text-muted small">
-          <span class="nav-ko">{{ settings.get('home_tile_integration_desc_ko', '') }}</span>
-          <span class="nav-en" style="display:none">{{ settings.get('home_tile_integration_desc_en', '') }}</span>
-        </p>
+        {% with desc_ko=settings.get('home_tile_integration_desc_ko', ''), desc_en=settings.get('home_tile_integration_desc_en', '') %}
+        {% include 'partials/home_feature_desc_typing.html' %}
+        {% endwith %}
         {% if user and home_counts %}
         <div class="home-tile-stats mt-auto pt-2 border-top small">
           <ul class="home-tile-stats-list">
@@ -187,7 +181,11 @@
         </div>
         {% endif %}
       </div>
+    {% include "partials/home_tile_notice.html" %}
+    {% include "partials/home_tile_faq.html" %}
+    {% include "partials/home_tile_reviews.html" %}
     </div>
+    <script src="/static/js/home_guide_text_demo.js?v=8" defer></script>
 
     {% if user and user.is_admin %}
     <div class="admin-home-tiles-editor card border mt-5" style="background:var(--surface2);border-color:var(--border)!important;">

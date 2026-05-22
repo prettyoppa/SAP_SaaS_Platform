@@ -1730,7 +1730,7 @@ html[data-theme="light"] .home-guide-text-viewport.is-live {
 html[data-theme="light"] .home-guide-text-lines {
   color: #4338ca;
 }
-html:not([data-theme="light"]) [data-home-guide-text-demo].is-typing-active .home-guide-text-lines {
+html:not([data-theme="light"]) [data-home-typing-text].is-typing-active .home-guide-text-lines {
   filter: drop-shadow(0 0 10px rgba(125, 211, 252, 0.22));
 }
 .home-guide-text-line {
@@ -1795,7 +1795,7 @@ html[data-theme="light"] .home-guide-text-line.is-typing::after {
     animation: none;
     opacity: 0.85;
   }
-  html:not([data-theme="light"]) [data-home-guide-text-demo].is-typing-active .home-guide-text-lines {
+  html:not([data-theme="light"]) [data-home-typing-text].is-typing-active .home-guide-text-lines {
     filter: none;
   }
 }
@@ -2111,6 +2111,27 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   font-size: clamp(0.68rem, 1.6vw, 0.78rem);
   line-height: 1.35;
   margin-bottom: 0.25rem;
+}
+.home-feature-desc--typing {
+  white-space: normal;
+  overflow: hidden;
+}
+.home-feature-desc--typing .home-guide-text-viewport {
+  overflow-y: auto;
+  max-height: 5.75rem;
+  padding: 0.05rem 0;
+}
+.home-feature-desc--typing .home-guide-text-lines {
+  font-size: inherit;
+  line-height: inherit;
+}
+.home-feature-desc--typing .home-guide-text-line {
+  font-size: inherit;
+}
+.home-feature-desc--empty {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
 }
 .home-tile-feed {
   flex: 1 1 auto;
