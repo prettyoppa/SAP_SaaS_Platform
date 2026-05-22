@@ -23,22 +23,7 @@ from ..abap_followup_chat import (
     generate_followup_reply,
     validate_user_message,
 )
-from ..subscription_catalog import (
-    METRIC_DEV_PROPOSAL,
-    METRIC_DEV_PROPOSAL_REGEN,
-    METRIC_DEV_REQUEST,
-    METRIC_REQUEST_DUPLICATE,
-)
-from ..subscription_quota import (
-    ai_inquiry_limit_reached,
-    ai_inquiry_snapshot,
-    consume_monthly,
-    get_ai_inquiry_used,
-    monthly_quota_exceeded,
-    record_ai_inquiry_user_turn,
-    try_consume_monthly,
-    try_consume_per_request,
-)
+from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from ..database import get_db
 from ..followup_messages_util import followup_created_at_sort_key
 from ..request_hub_access import (
@@ -859,12 +844,6 @@ async def abap_analysis_create(
 
     src = abap_source_only_from_reference_payload(norm_ref).strip() if norm_ref else ""
 
-    qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
-    if qerr == "disabled":
-        return _bad("subscription_dev_request_disabled")
-    if qerr == "monthly_limit":
-        return _bad("subscription_dev_request_limit")
-
     if not is_draft_save:
         if len(title_clean) < MIN_TITLE_LEN:
             return _bad("need_title")
@@ -929,12 +908,6 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
     row = _get_request_for_user(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
-    if monthly_quota_exceeded(db, user, METRIC_REQUEST_DUPLICATE, 1):
-        return RedirectResponse(url=f"/abap-analysis/{req_id}?quota_err=duplicate_limit", status_code=302)
-    if monthly_quota_exceeded(db, user, METRIC_DEV_REQUEST, 1):
-        return RedirectResponse(url=f"/abap-analysis/{req_id}?quota_err=dev_request_limit", status_code=302)
-    consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
-    consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     att = duplicate_attachment_entries(_attachment_entries(row), user_id=user.id)
     shots = duplicate_requirement_screenshots(_screenshot_entries(row), user_id=user.id)
     title = (row.title or "").strip()
@@ -1533,17 +1506,6 @@ def abap_analysis_request_proposal_now(
         return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-proposal", status_code=302)
     if not row.is_analyzed:
         return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-analysis", status_code=302)
-    err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
-    if err_p == "disabled":
-        return RedirectResponse(
-            url=f"/abap-analysis/{req_id}?quota_err=dev_proposal_disabled#abap-phase-proposal",
-            status_code=302,
-        )
-    if err_p == "monthly_limit":
-        return RedirectResponse(
-            url=f"/abap-analysis/{req_id}?quota_err=dev_proposal_limit#abap-phase-proposal",
-            status_code=302,
-        )
     row.interview_status = "generating_proposal"
     db.add(row)
     db.commit()
@@ -1562,17 +1524,6 @@ def abap_analysis_regenerate_proposal(
     row = _query_for_user(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
-    err_r = try_consume_per_request(db, user, METRIC_DEV_PROPOSAL_REGEN, "analysis", req_id, 1)
-    if err_r == "disabled":
-        return RedirectResponse(
-            url=f"/abap-analysis/{req_id}?quota_err=proposal_regen_disabled#abap-phase-proposal",
-            status_code=302,
-        )
-    if err_r == "per_request_limit":
-        return RedirectResponse(
-            url=f"/abap-analysis/{req_id}?quota_err=proposal_regen_limit#abap-phase-proposal",
-            status_code=302,
-        )
     row.interview_status = "generating_proposal"
     row.proposal_text = None
     db.add(row)
@@ -1704,12 +1655,6 @@ def abap_analysis_chat_post(
         )
 
     used_ai = get_ai_inquiry_used(db, user.id, "analysis", row.id)
-    cap = ai_inquiry_snapshot(db, user, "analysis", row.id)["cap"]
-    if ai_inquiry_limit_reached(cap, used_ai):
-        return RedirectResponse(
-            url=f"{chat_base}?chat_err={quote('이 분석 건의 후속 질문은 상한에 도달했습니다.')}",
-            status_code=303,
-        )
 
     analysis: dict = {}
     if row.analysis_json:

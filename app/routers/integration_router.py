@@ -14,16 +14,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, auth
-from ..subscription_catalog import METRIC_DEV_REQUEST, METRIC_REQUEST_DUPLICATE
-from ..subscription_quota import (
-    ai_inquiry_limit_reached,
-    ai_inquiry_snapshot,
-    consume_monthly,
-    get_ai_inquiry_used,
-    monthly_quota_exceeded,
-    record_ai_inquiry_user_turn,
-    try_consume_monthly,
-)
+from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from .abap_analysis_router import _pair_abap_followup_turns as _pair_integration_followup_turns
 from ..attachment_context import build_attachment_llm_digest
 from ..database import get_db
@@ -1637,24 +1628,6 @@ async def integration_new_submit(
         )
 
     title_clean = (title or "").strip()
-    qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
-    if qerr == "disabled":
-        return _integration_form_response(
-            request,
-            user,
-            db,
-            error="subscription_dev_request_disabled",
-            form=_form_dict(),
-        )
-    if qerr == "monthly_limit":
-        return _integration_form_response(
-            request,
-            user,
-            db,
-            error="subscription_dev_request_limit",
-            form=_form_dict(),
-        )
-
     ir = models.IntegrationRequest(
         user_id=user.id,
         title=title_clean,
@@ -1701,12 +1674,6 @@ def integration_duplicate_request(req_id: int, request: Request, db: Session = D
     )
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
-    if monthly_quota_exceeded(db, user, METRIC_REQUEST_DUPLICATE, 1):
-        return RedirectResponse(url=f"/integration/{req_id}?quota_err=duplicate_limit", status_code=302)
-    if monthly_quota_exceeded(db, user, METRIC_DEV_REQUEST, 1):
-        return RedirectResponse(url=f"/integration/{req_id}?quota_err=dev_request_limit", status_code=302)
-    consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
-    consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     entries = duplicate_attachment_entries(_attachment_entries(ir), user_id=user.id)
     shots = duplicate_requirement_screenshots(
         requirement_screenshot_entries(ir), user_id=user.id
@@ -2536,12 +2503,6 @@ def integration_chat_post(
         )
 
     used_ai = get_ai_inquiry_used(db, user.id, "integration", ir.id)
-    cap_i = ai_inquiry_snapshot(db, user, "integration", ir.id)["cap"]
-    if ai_inquiry_limit_reached(cap_i, used_ai):
-        return RedirectResponse(
-            url=f"{chat_base}?chat_err={quote('후속 질문은 상한에 도달했습니다.')}#integration-followup-chat",
-            status_code=303,
-        )
 
     prior_all = (
         db.query(models.IntegrationFollowupMessage)

@@ -4,9 +4,9 @@
   <i class="fa-solid fa-triangle-exclamation me-2 mt-1"></i>
   <div>
     <span class="nav-ko d-block fw-semibold mb-1">다음 필수 항목을 입력해 주세요.</span>
-    <span class="nav-en d-block fw-semibold mb-1" style="display:none">Please complete the required fields below.</span>
-    <span class="small text-muted d-block nav-ko">{{ missing_field_labels | join(' · ') }}</span>
-    <span class="small text-muted d-block nav-en" style="display:none">{{ missing_field_labels | join(' · ') }}</span>
+    <span class="nav-en fw-semibold mb-1" style="display:none">Please complete the required fields below.</span>
+    <p class="small text-muted mb-0 nav-ko">{{ missing_field_labels | join(' · ') }}</p>
+    <p class="small text-muted mb-0 nav-en" style="display:none">{{ missing_field_labels | join(' · ') }}</p>
   </div>
 </div>
 {% endif %}

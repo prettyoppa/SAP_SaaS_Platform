@@ -84,14 +84,7 @@ from ..rfp_followup_chat import (
     rfp_followup_context_block,
     validate_rfp_user_message,
 )
-from ..subscription_catalog import METRIC_DEV_REQUEST, METRIC_REQUEST_DUPLICATE
-from ..subscription_quota import (
-    ai_inquiry_limit_reached,
-    ai_inquiry_snapshot,
-    get_ai_inquiry_used,
-    record_ai_inquiry_user_turn,
-    try_consume_monthly,
-)
+from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from ..rfp_phase_gates import rfp_for_hub_readonly_embed, rfp_for_owner_or_admin, rfp_owned_only
 from ..stripe_service import stripe_keys_configured
 from . import interview_router as _interview_views
@@ -766,30 +759,6 @@ async def submit_rfp(
             _rfp_form_ctx(
                 request, user, modules, devtypes, writing_tip, db,
                 error="reference_code_too_large",
-                form=_form_dict(),
-            ),
-            status_code=400,
-        )
-
-    qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
-    if qerr == "disabled":
-        return templates.TemplateResponse(
-            request,
-            "rfp_form.html",
-            _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip, db,
-                error="subscription_dev_request_disabled",
-                form=_form_dict(),
-            ),
-            status_code=400,
-        )
-    if qerr == "monthly_limit":
-        return templates.TemplateResponse(
-            request,
-            "rfp_form.html",
-            _rfp_form_ctx(
-                request, user, modules, devtypes, writing_tip, db,
-                error="subscription_dev_request_limit",
                 form=_form_dict(),
             ),
             status_code=400,
@@ -1597,14 +1566,6 @@ def rfp_hub_chat_post(
             status_code=303,
         )
 
-    used_ai = get_ai_inquiry_used(db, user.id, "rfp", rfp.id)
-    cap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)["cap"]
-    if ai_inquiry_limit_reached(cap, used_ai):
-        return RedirectResponse(
-            url=_rfp_ai_chat_redirect(rfp_id, return_to, "후속 질문은 상한에 도달했습니다."),
-            status_code=303,
-        )
-
     prior_all = (
         db.query(models.RfpFollowupMessage)
         .filter(models.RfpFollowupMessage.rfp_id == rfp.id)
@@ -1808,14 +1769,6 @@ def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(g
     rfp = rfp_owned_only(db, user_id=user.id, rfp_id=rfp_id)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
-    from ..subscription_quota import consume_monthly, monthly_quota_exceeded
-
-    if monthly_quota_exceeded(db, user, METRIC_REQUEST_DUPLICATE, 1):
-        return RedirectResponse(url=f"/rfp/{rfp_id}?quota_err=duplicate_limit", status_code=302)
-    if monthly_quota_exceeded(db, user, METRIC_DEV_REQUEST, 1):
-        return RedirectResponse(url=f"/rfp/{rfp_id}?quota_err=dev_request_limit", status_code=302)
-    consume_monthly(db, user, METRIC_REQUEST_DUPLICATE, 1)
-    consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     entries = duplicate_attachment_entries(_rfp_attachment_entries(rfp), user_id=user.id)
     shots = duplicate_requirement_screenshots(
         requirement_screenshot_entries(rfp), user_id=user.id

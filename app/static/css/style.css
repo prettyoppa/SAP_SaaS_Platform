@@ -941,11 +941,28 @@ html[data-theme="light"] .rfp-field-ai-wrap .rfp-ai-inline-btn--pid:hover {
   min-height: 200px;
   overflow-y: auto;
   line-height: 1.7;
+  color: var(--text);
+  caret-color: var(--text);
+  -webkit-text-fill-color: var(--text);
+}
+/* 서식·이미지(contenteditable): 붙여넣기·브라우저 기본 div/p가 검정 글자로 남는 문제(3개 요청 폼·KB 공통) */
+.req-rich-field .req-rich-editor :is(p, div, span, li, strong, b, em, i, u, ul, ol) {
+  color: var(--text);
+}
+html[data-theme="dark"] .req-rich-field .req-rich-editor,
+html[data-theme="dark"] .req-rich-field .req-rich-editor :not(img) {
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+}
+html[data-theme="dark"] .req-rich-field .req-rich-plain {
+  color: var(--text);
+  caret-color: var(--text);
 }
 .req-rich-editor:empty::before {
   content: attr(data-placeholder);
   color: var(--muted);
   pointer-events: none;
+  -webkit-text-fill-color: var(--muted);
 }
 .req-rich-editor img.req-inline-img,
 .req-rich-body img.req-inline-img {

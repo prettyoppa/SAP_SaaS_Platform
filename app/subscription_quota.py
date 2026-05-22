@@ -1,4 +1,7 @@
-"""플랜 기반 한도: UTC 월간 누적(삭제·취소 시 복구 없음), 건당 AI 문의 레저, 체험판=Junior entitlement."""
+"""구독 플랜 한도(레거시). SUBSCRIPTION_PLAN_LIMITS_ENABLED=False — AI는 ai_wallet 선불만 적용."""
+
+# 구독 플랜 폐기 · AI 크레딧(원화 잔액) 방식. 플랜 entitlement 차단은 사용하지 않음.
+SUBSCRIPTION_PLAN_LIMITS_ENABLED = False
 
 from __future__ import annotations
 
@@ -128,6 +131,8 @@ def get_entitlement(
 
 
 def monthly_entitlement_cap(db: Session, user: models.User, metric_key: str) -> int | None:
+    if not SUBSCRIPTION_PLAN_LIMITS_ENABLED:
+        return None
     if not user or getattr(user, "is_admin", False):
         return None
     plan = plan_row_for_entitlements(db, user)
@@ -147,6 +152,8 @@ def monthly_entitlement_cap(db: Session, user: models.User, metric_key: str) -> 
 
 
 def per_request_entitlement_cap(db: Session, user: models.User, metric_key: str) -> int | None:
+    if not SUBSCRIPTION_PLAN_LIMITS_ENABLED:
+        return None
     if not user or getattr(user, "is_admin", False):
         return None
     plan = plan_row_for_entitlements(db, user)
@@ -180,6 +187,8 @@ def get_monthly_used(db: Session, user_id: int, metric_key: str, year_month: str
 
 
 def monthly_quota_exceeded(db: Session, user: models.User, metric_key: str, add_amount: int = 1) -> bool:
+    if not SUBSCRIPTION_PLAN_LIMITS_ENABLED:
+        return False
     if not user or getattr(user, "is_admin", False):
         return False
     cap = monthly_entitlement_cap(db, user, metric_key)
@@ -192,6 +201,8 @@ def monthly_quota_exceeded(db: Session, user: models.User, metric_key: str, add_
 
 
 def consume_monthly(db: Session, user: models.User, metric_key: str, amount: int = 1) -> None:
+    if not SUBSCRIPTION_PLAN_LIMITS_ENABLED:
+        return
     if not user or getattr(user, "is_admin", False):
         return
     ym = utc_year_month()
@@ -221,6 +232,8 @@ def try_consume_monthly(db: Session, user: models.User, metric_key: str, amount:
     월간(UTC) 한도 소비. 실패 시 이유 코드.
     반환: None=성공, 'disabled', 'monthly_limit'
     """
+    if not SUBSCRIPTION_PLAN_LIMITS_ENABLED:
+        return None
     if not user or getattr(user, "is_admin", False):
         consume_monthly(db, user, metric_key, amount)
         return None
@@ -263,6 +276,8 @@ def try_consume_per_request(
     amount: int = 1,
 ) -> str | None:
     """건당(per_request) entitlement. 'disabled' | 'per_request_limit' | None"""
+    if not SUBSCRIPTION_PLAN_LIMITS_ENABLED:
+        return None
     if not user or getattr(user, "is_admin", False):
         _bump_per_request(db, user.id, metric_key, request_kind, request_id, amount)
         return None
@@ -395,6 +410,8 @@ def record_ai_inquiry_user_turn(
 
 
 def ai_inquiry_cap_per_request(db: Session, user: models.User | None) -> int | None:
+    if not SUBSCRIPTION_PLAN_LIMITS_ENABLED:
+        return None
     if not user:
         return _FALLBACK_AI_INQUIRY_CAP
     if getattr(user, "is_admin", False):
