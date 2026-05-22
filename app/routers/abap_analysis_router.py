@@ -1602,7 +1602,7 @@ def abap_analysis_proposal_download(
     return Response(
         content=body,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
 
 

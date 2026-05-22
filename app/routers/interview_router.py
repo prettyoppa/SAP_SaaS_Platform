@@ -17,6 +17,7 @@ from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
 from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
 from ..proposal_export import proposal_download_filename, proposal_markdown_to_docx_bytes
+from ..rfp_download_names import content_disposition_attachment
 from ..proposal_lifecycle import (
     clear_agent_proposal,
     interview_reset_block_reason,
@@ -1054,7 +1055,7 @@ def download_proposal(rfp_id: int, request: Request, db: Session = Depends(get_d
     return Response(
         content=body,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": content_disposition_attachment(filename)},
     )
 
 

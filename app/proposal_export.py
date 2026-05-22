@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import io
 import re
+
+from .rfp_download_names import sanitize_path_component
 _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 _BULLET = re.compile(r"^[-*+]\s+(.*)$")
 _NUM = re.compile(r"^\d+\.\s+(.*)$")
@@ -59,7 +61,7 @@ def proposal_markdown_to_docx_bytes(markdown_text: str, *, document_title: str =
 def proposal_download_filename(
     request_kind: str, request_id: int, *, fmt: str, title: str | None = None
 ) -> str:
-    base = re.sub(r"[^\w\-]+", "_", (title or "").strip())[:40].strip("_") or "proposal"
+    base = sanitize_path_component((title or "").strip(), 40) or "proposal"
     ext = "docx" if fmt == "docx" else "md"
-    kind = (request_kind or "rfp").strip().lower()
+    kind = sanitize_path_component((request_kind or "rfp").strip().lower(), 16) or "rfp"
     return f"{base}_{kind}_{request_id}.{ext}"

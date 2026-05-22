@@ -1857,6 +1857,7 @@ html[data-theme="light"] .home-guide-text-line.is-typing::after {
 }
 html[data-theme="light"] .hero-compact .home-hero-marketing {
   --hero-mkt-title-color: #0a0a0a;
+  --hero-mkt-title-gradient: linear-gradient(118deg, #000000 0%, #1f2937 42%, #374151 68%, #0a0a0a 100%);
   --hero-mkt-desc-color: #1e293b;
 }
 .hero-compact .home-hero-marketing .hero-title {
@@ -1872,11 +1873,11 @@ html[data-theme="light"] .hero-compact .home-hero-marketing {
   text-shadow: none;
 }
 html[data-theme="light"] .hero-compact .home-hero-marketing .hero-title {
-  color: var(--hero-mkt-title-color);
-  background: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
-  -webkit-text-fill-color: currentColor;
+  color: transparent;
+  background-image: var(--hero-mkt-title-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   text-shadow: none;
   filter: none;
 }

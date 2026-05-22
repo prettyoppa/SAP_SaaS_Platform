@@ -54,4 +54,10 @@ def home_guide_text_bundle(settings: dict) -> dict:
 
 def home_tile_desc_bundle(ko: str, en: str) -> dict:
     """홈 서비스 타일 설명 타이핑 데모."""
-    return locale_text_bundle(str(ko or ""), str(en or ""))
+    bundle = locale_text_bundle(str(ko or ""), str(en or ""))
+    for loc in ("ko", "en"):
+        block = bundle.get(loc) or {}
+        lines = block.get("lines") or []
+        block["lines"] = [ln for ln in lines if str(ln or "").strip()]
+        bundle[loc] = block
+    return bundle

@@ -159,13 +159,10 @@
     var probe = getMeasureProbe(root);
     var visual = [];
     (logicalLines || []).forEach(function (ln) {
-      var text = String(ln || "");
-      if (!text.trim()) {
-        visual.push("");
-        return;
-      }
+      var text = String(ln || "").trim();
+      if (!text) return;
       wrapSegmentToVisualLinesDom(text, width, probe).forEach(function (v) {
-        visual.push(v);
+        if (String(v || "").trim()) visual.push(v);
       });
     });
     return visual;
@@ -405,7 +402,9 @@
         var visual = expandLogicalLinesToVisual(logical, viewport, root);
         for (var vi = 0; vi < visual.length; vi++) {
           if (gen !== runGen) return;
-          var row = appendRevealLine(stage, visual[vi], false);
+          var lineText = String(visual[vi] || "").trim();
+          if (!lineText) continue;
+          var row = appendRevealLine(stage, lineText, false);
           scrollViewportEnd();
           void row.wrap.offsetWidth;
           row.wrap.classList.add("is-revealed");

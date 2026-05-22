@@ -469,6 +469,7 @@ def integration_proposal_download(req_id: int, request: Request, db: Session = D
 
     from ..agent_display import wrap_unbracketed_agent_names
     from ..proposal_export import proposal_download_filename, proposal_markdown_to_docx_bytes
+    from ..rfp_download_names import content_disposition_attachment
 
     user = auth.get_current_user(request, db)
     if not user:
@@ -500,7 +501,7 @@ def integration_proposal_download(req_id: int, request: Request, db: Session = D
     return Response(
         content=body,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
 
 
