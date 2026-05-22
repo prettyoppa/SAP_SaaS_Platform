@@ -17,6 +17,7 @@ from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
 from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
 from ..rfp_hub import rfp_hub_url
+from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
 from ..subscription_catalog import METRIC_DEV_PROPOSAL, METRIC_DEV_PROPOSAL_REGEN
 from ..subscription_quota import try_consume_monthly, try_consume_per_request
 from ..agent_playbook import (
@@ -491,14 +492,17 @@ def serve_interview_workspace(
     )
     try:
         pb_iv = _playbook_addon_for_rfp(db, rfp, STAGE_INTERVIEW)
-        result = _fc().generate_sequential_start(
-            rfp_data=rfp_dict,
-            conversation=conv,
-            round_num=next_round,
-            code_library_context=code_ctx,
-            member_safe_output=_ms,
-            playbook_addon=pb_iv,
-        )
+        with ai_usage_scope(
+            AiUsageContext(user_id=int(user.id), request_kind="rfp", request_id=int(rfp.id))
+        ):
+            result = _fc().generate_sequential_start(
+                rfp_data=rfp_dict,
+                conversation=conv,
+                round_num=next_round,
+                code_library_context=code_ctx,
+                member_safe_output=_ms,
+                playbook_addon=pb_iv,
+            )
     except RuntimeError as e:
         wizard_ctx = {
             "request": request,
@@ -812,16 +816,19 @@ def interview_answer_step(
         return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     pb_f = _playbook_addon_for_rfp(db, rfp, STAGE_INTERVIEW)
-    fol = _fc().generate_sequential_followup(
-        rfp_data=rfp_dict,
-        conversation=conv,
-        round_num=msg.round_number,
-        in_round_qa=in_round,
-        code_library_context=code_ctx,
-        library_pool=lib_pool,
-        member_safe_output=_ms_ans,
-        playbook_addon=pb_f,
-    )
+    with ai_usage_scope(
+        AiUsageContext(user_id=int(user.id), request_kind="rfp", request_id=int(rfp.id))
+    ):
+        fol = _fc().generate_sequential_followup(
+            rfp_data=rfp_dict,
+            conversation=conv,
+            round_num=msg.round_number,
+            in_round_qa=in_round,
+            code_library_context=code_ctx,
+            library_pool=lib_pool,
+            member_safe_output=_ms_ans,
+            playbook_addon=pb_f,
+        )
     if bool(fol.get("round_complete")):
         _finalize_message_row()
         return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)

@@ -1178,6 +1178,21 @@ html[data-theme="dark"] .nav-icon-analysis .nav-icon-analysis-dark { display: in
   justify-content: center; color: var(--primary-light); font-size: 1.1rem; flex-shrink: 0;
 }
 
+/* 접수 완료 — AI 인터뷰 시작 (분석 단계 타일과 동일한 반투명 인디고) */
+.success-page a.btn.btn-success-interview {
+  background: var(--bucket-analysis-bg) !important;
+  border: 1px solid color-mix(in srgb, var(--bucket-analysis-fg) 38%, transparent) !important;
+  color: var(--bucket-analysis-fg) !important;
+  box-shadow: none;
+}
+.success-page a.btn.btn-success-interview:hover,
+.success-page a.btn.btn-success-interview:focus {
+  background: color-mix(in srgb, var(--bucket-analysis-bg) 70%, var(--bucket-analysis-fg)) !important;
+  border-color: color-mix(in srgb, var(--bucket-analysis-fg) 50%, transparent) !important;
+  color: var(--bucket-analysis-fg) !important;
+  box-shadow: none;
+}
+
 /* ── Alerts ────────────────────────────────── */
 .alert-danger {
   background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3);
