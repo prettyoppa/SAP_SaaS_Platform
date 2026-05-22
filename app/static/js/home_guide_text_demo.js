@@ -307,12 +307,19 @@
       stage.innerHTML = "";
     }
 
+    function scrollViewportEnd() {
+      if (!viewport) return;
+      var max = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+      viewport.scrollTop = max;
+    }
+
     function showAllLines(logicalLines) {
       clearStage();
       var visual = expandLogicalLinesToVisual(logicalLines, viewport || stage, stage);
       visual.forEach(function (ln) {
         appendRevealLine(stage, ln, true);
       });
+      scrollViewportEnd();
     }
 
     function revealDurationMs() {
@@ -357,9 +364,11 @@
       for (var vi = 0; vi < visual.length; vi++) {
         if (gen !== runGen) return;
         var row = appendRevealLine(stage, visual[vi], false);
+        scrollViewportEnd();
         void row.wrap.offsetWidth;
         row.wrap.classList.add("is-revealed");
         await waitTransition(row.inner);
+        scrollViewportEnd();
         if (gen !== runGen) return;
         if (REVEAL_LINE_GAP_MS > 0 && vi < visual.length - 1) await sleep(REVEAL_LINE_GAP_MS);
       }

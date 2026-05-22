@@ -70,6 +70,19 @@ def menu_landing_url(base_path: str, presets: dict[str, str], bucket: str) -> st
     return base_path + "?" + urlencode(m)
 
 
+HOME_SERVICE_MENU_PATHS: dict[str, str] = {
+    "rfp": "/services/abap",
+    "analysis": "/abap-analysis",
+    "integration": "/integration",
+}
+
+
+def home_tile_stage_links(channel: str) -> dict[str, str]:
+    """홈 서비스 타일 단계 칩 → 메뉴 랜딩과 동일 bucket 필터 URL."""
+    base = HOME_SERVICE_MENU_PATHS.get((channel or "").strip().lower(), "/")
+    return {k: menu_landing_url(base, {}, k) for k in BUCKET_ORDER}
+
+
 def standard_menu_bucket_meta() -> dict[str, dict]:
     """신규 개발·분석·연동 랜딩에서 동일한 타일 라벨·아이콘."""
     return {

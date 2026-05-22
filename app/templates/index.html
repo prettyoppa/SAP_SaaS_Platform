@@ -43,7 +43,7 @@
         {% include 'partials/home_feature_desc_typing.html' %}
         {% endwith %}
         {% if user and home_counts %}
-        {% with counts=home_counts.rfp, offer_channel='rfp' %}
+        {% with counts=home_counts.rfp, offer_channel='rfp', stage_links=home_tile_stage_links.rfp %}
         {% include 'partials/home_tile_stats_row.html' %}
         {% endwith %}
         {% endif %}
@@ -72,7 +72,7 @@
         {% include 'partials/home_feature_desc_typing.html' %}
         {% endwith %}
         {% if user and home_counts %}
-        {% with counts=home_counts.abap_analysis, offer_channel='analysis' %}
+        {% with counts=home_counts.abap_analysis, offer_channel='analysis', stage_links=home_tile_stage_links.analysis %}
         {% include 'partials/home_tile_stats_row.html' %}
         {% endwith %}
         {% endif %}
@@ -98,7 +98,7 @@
         {% include 'partials/home_feature_desc_typing.html' %}
         {% endwith %}
         {% if user and home_counts %}
-        {% with counts=home_counts.integration, offer_channel='integration' %}
+        {% with counts=home_counts.integration, offer_channel='integration', stage_links=home_tile_stage_links.integration %}
         {% include 'partials/home_tile_stats_row.html' %}
         {% endwith %}
         {% endif %}
@@ -107,7 +107,7 @@
     {% include "partials/home_tile_faq.html" %}
     {% include "partials/home_tile_reviews.html" %}
     </div>
-    <script src="/static/js/home_guide_text_demo.js?v=16" defer></script>
+    <script src="/static/js/home_guide_text_demo.js?v=17" defer></script>
 
     {% if user and user.is_admin %}
     <div class="admin-home-tiles-editor card border mt-5" style="background:var(--surface2);border-color:var(--border)!important;">

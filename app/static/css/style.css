@@ -2151,12 +2151,13 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   overflow: hidden;
 }
 .home-feature-desc--reveal .home-guide-text-viewport {
-  overflow: hidden;
-  max-height: 5.75rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 7.25rem;
   padding: 0;
   box-shadow: none !important;
   border: none;
-  scroll-behavior: auto;
+  scroll-behavior: smooth;
 }
 .home-feature-desc--reveal .home-guide-text-lines {
   font-size: inherit;
@@ -2210,8 +2211,9 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   padding: 0.32rem 0.1rem;
 }
 .home-features-tiles .home-tile-stats {
-  padding-top: 0.45rem !important;
-  margin-top: 0.35rem !important;
+  padding-top: 0.35rem !important;
+  margin-top: 0.3rem !important;
+  border-top: none !important;
 }
 .home-features-tiles .home-tile-stat-row {
   gap: 0.28rem;
@@ -2286,8 +2288,8 @@ html[data-theme="light"] .account-ai-credits-page .account-ai-credits-table {
 
 /* 홈 서비스 타일: 단계 건수 — 가로 칩 (메뉴 stat-card와 유사, 아이콘 없음) */
 .home-tile-stats {
-  border-color: var(--border) !important;
   flex-shrink: 0;
+  border: none !important;
 }
 .home-tile-stat-row {
   display: flex;
@@ -2309,6 +2311,21 @@ html[data-theme="light"] .account-ai-credits-page .account-ai-credits-table {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   text-align: center;
+}
+a.home-tile-stat-chip--link {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+a.home-tile-stat-chip--link:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  color: inherit;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+}
+a.home-tile-stat-chip--link:focus-visible {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
 }
 .home-tile-stat-num {
   font-size: 1.15rem;

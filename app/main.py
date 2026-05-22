@@ -28,6 +28,7 @@ from .offer_inquiry_service import (
     pending_inquiry_reply_offer_ids_all,
 )
 from .home_counts import home_tile_counts
+from .menu_landing import home_tile_stage_links
 from .request_hub_access import consultant_menu_matched_scope
 from .i18n_overrides import get_en_overrides_for_client
 from .subscription_quota import plan_row_for_entitlements, user_subscription_plan_display_names
@@ -860,6 +861,7 @@ def index(request: Request):
     try:
         user = auth.get_current_user(request, _db)
         home_counts = None
+        home_tile_stage_links_ctx: dict[str, dict[str, str]] | None = None
         proposal_offer_badges = {"rfp": False, "analysis": False, "integration": False}
         if user:
             try:
@@ -870,9 +872,15 @@ def index(request: Request):
                     consultant_matched=consultant_menu_matched_scope(user),
                 )
                 proposal_offer_badges = user_proposal_pending_offer_badges(_db, user.id)
+                home_tile_stage_links_ctx = {
+                    "rfp": home_tile_stage_links("rfp"),
+                    "analysis": home_tile_stage_links("analysis"),
+                    "integration": home_tile_stage_links("integration"),
+                }
             except Exception:
                 _log.exception("home_tile_counts failed user_id=%s", getattr(user, "id", None))
                 home_counts = None
+                home_tile_stage_links_ctx = None
         raw_settings = _db.query(models.SiteSettings).all()
         settings = {s.key: s.value for s in raw_settings}
         notices = (
@@ -927,6 +935,7 @@ def index(request: Request):
         "reviews": reviews,
         "reviews_rating_meta": reviews_rating_meta,
         "home_counts": home_counts,
+        "home_tile_stage_links": home_tile_stage_links_ctx,
         "proposal_offer_badges": proposal_offer_badges,
     })
 
