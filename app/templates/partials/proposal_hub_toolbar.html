@@ -1,0 +1,27 @@
+{# proposal_actions_base: e.g. /rfp/12 or /integration/5 #}
+{% set _pab = proposal_actions_base|default('/rfp/' ~ (rfp.id|string)) %}
+<div class="d-flex gap-2 flex-wrap align-items-center proposal-hub-toolbar">
+  {% if code_asset_unlocked|default(false) %}
+  <a href="{{ _pab }}/proposal/download?format=md" class="btn btn-outline-primary" download data-no-busy="true">
+    <i class="fa-solid fa-download me-2"></i><span class="nav-ko">Markdown 다운로드</span><span class="nav-en" style="display:none">Download Markdown</span>
+  </a>
+  <a href="{{ _pab }}/proposal/download?format=docx" class="btn btn-outline-primary" download data-no-busy="true">
+    <i class="fa-solid fa-file-word me-2"></i><span class="nav-ko">Word(.docx) 다운로드</span><span class="nav-en" style="display:none">Download Word (.docx)</span>
+  </a>
+  {% else %}
+  <span class="btn btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true">
+    <i class="fa-solid fa-download me-2"></i><span class="nav-ko">Markdown 다운로드</span><span class="nav-en" style="display:none">Download Markdown</span>
+  </span>
+  <span class="btn btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true">
+    <i class="fa-solid fa-file-word me-2"></i><span class="nav-ko">Word(.docx) 다운로드</span><span class="nav-en" style="display:none">Download Word (.docx)</span>
+  </span>
+  {% endif %}
+  {% if hub_can_delete_proposal|default(false) and user.id == rfp.user_id %}
+  <form method="post" action="{{ _pab }}/proposal/delete" class="d-inline mb-0"
+        data-app-confirm-i18n="hub.proposalDeleteConfirm">
+    <button type="submit" class="btn btn-outline-danger">
+      <i class="fa-solid fa-trash-can me-2"></i><span data-i18n="hub.proposalDeleteBtn">제안서 삭제</span>
+    </button>
+  </form>
+  {% endif %}
+</div>

@@ -103,6 +103,7 @@ from ..delivery_proposal_supplements import (
     proposal_supplement_hub_template_ctx,
 )
 from ..paid_tier import user_can_operate_delivery
+from ..proposal_lifecycle import proposal_delete_block_reason
 from ..integration_followup_chat import (
     generate_integration_followup_reply,
     integration_request_llm_summary,
@@ -2132,6 +2133,25 @@ def _collect_integration_unified_hub_ctx(
     elif qe == "proposal_regen_disabled":
         subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
 
+    proposal_hub_flash = None
+    pe = (request.query_params.get("proposal_err") or "").strip()
+    if pe == "deleted":
+        proposal_hub_flash = {"kind": "success", "i18n": "hub.proposalDeletedFlash"}
+    elif pe == "downstream_started":
+        proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalDeleteBlockedDownstream"}
+    elif pe == "generating":
+        proposal_hub_flash = {"kind": "info", "i18n": "hub.proposalDeleteBlockedGenerating"}
+    ie = (request.query_params.get("interview_err") or "").strip()
+    if ie == "proposal_exists":
+        proposal_hub_flash = {"kind": "warning", "i18n": "hub.interviewResetBlockedProposal"}
+
+    hub_can_delete_proposal = (
+        not readonly_console
+        and user
+        and int(user.id) == int(ir.user_id)
+        and proposal_delete_block_reason(ir) is None
+    )
+
     vis_int_offers = visible_request_offers_for_viewer(
         _integration_offer_rows(db, ir.id),
         viewer=user,
@@ -2240,6 +2260,8 @@ def _collect_integration_unified_hub_ctx(
         "integration_ai_inquiry_unlimited": int_ai_unlimited,
         "integration_followup_cap": int_followup_cap,
         "hub_include_proposal_scripts": hub_scripts,
+        "hub_can_delete_proposal": hub_can_delete_proposal,
+        "proposal_hub_flash": proposal_hub_flash,
         "request_offers": vis_int_offers,
         "request_offer_can_match": bool(user and ir and user.id == ir.user_id and not readonly_console),
         "request_offer_owner_match_cancel_blocked": bool(

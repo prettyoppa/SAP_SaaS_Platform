@@ -142,6 +142,14 @@ def integration_reset_interview(req_id: int, request: Request, db: Session = Dep
     )
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
+    from ..proposal_lifecycle import interview_reset_block_reason
+
+    block = interview_reset_block_reason(ir)
+    if block:
+        return RedirectResponse(
+            url=f"{integration_hub_url(req_id, 'interview', view_summary=True)}&interview_err={block}",
+            status_code=302,
+        )
     for msg in list(ir.interview_messages or []):
         db.delete(msg)
     ir.interview_status = "pending"
@@ -424,9 +432,43 @@ def integration_proposal_redirect(req_id: int, request: Request, db: Session = D
     return RedirectResponse(url=integration_hub_url(req_id, "proposal"), status_code=302)
 
 
+@router.post("/integration/{req_id}/proposal/delete")
+def integration_delete_proposal(req_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(
+            models.IntegrationRequest.id == req_id,
+            models.IntegrationRequest.user_id == user.id,
+        )
+        .first()
+    )
+    if not ir:
+        return RedirectResponse(url="/integration", status_code=302)
+    from ..proposal_lifecycle import clear_agent_proposal, proposal_delete_block_reason
+
+    block = proposal_delete_block_reason(ir)
+    if block:
+        return RedirectResponse(
+            url=f"{integration_hub_url(req_id, 'proposal')}&proposal_err={block}",
+            status_code=302,
+        )
+    clear_agent_proposal(ir)
+    db.commit()
+    return RedirectResponse(
+        url=f"{integration_hub_url(req_id, 'interview', view_summary=True)}&proposal_err=deleted",
+        status_code=302,
+    )
+
+
 @router.get("/integration/{req_id}/proposal/download")
 def integration_proposal_download(req_id: int, request: Request, db: Session = Depends(get_db)):
     from fastapi.responses import Response
+
+    from ..agent_display import wrap_unbracketed_agent_names
+    from ..proposal_export import proposal_download_filename, proposal_markdown_to_docx_bytes
 
     user = auth.get_current_user(request, db)
     if not user:
@@ -446,11 +488,18 @@ def integration_proposal_download(req_id: int, request: Request, db: Session = D
         owner_user_id=int(ir.user_id),
     ):
         return RedirectResponse(url="/integration", status_code=302)
-    body = (ir.proposal_text or "").encode("utf-8")
-    fname = f"integration-proposal-{req_id}.md"
+    fmt = (request.query_params.get("format") or "md").strip().lower()
+    md = wrap_unbracketed_agent_names(ir.proposal_text or "")
+    fname = proposal_download_filename("integration", req_id, fmt=fmt, title=ir.title)
+    if fmt == "docx":
+        body = proposal_markdown_to_docx_bytes(md, document_title=ir.title or "Development Proposal")
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        body = md.encode("utf-8")
+        media_type = "text/markdown; charset=utf-8"
     return Response(
         content=body,
-        media_type="text/markdown; charset=utf-8",
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
 

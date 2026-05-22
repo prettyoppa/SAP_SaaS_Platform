@@ -13,9 +13,7 @@
                 <i class="fa-solid fa-link"></i>
               </div>
               <div>
-                <div class="badge free-tag mb-1">INTEGRATION PROPOSAL</div>
-                <h2 class="mb-0">Development Proposal</h2>
-                <p class="text-muted mb-0 small">연동(비 ABAP) 범위를 반영한 AI 제안서</p>
+                <h2 class="mb-0" data-i18n="hub.proposalTitle">Development Proposal</h2>
               </div>
             </div>
             <div class="rfp-summary-bar mb-3">
@@ -33,40 +31,8 @@
               <a href="{{ ivb }}?phase=devcode" class="btn btn-sm btn-outline-secondary mt-2 ms-1">구현 산출물 단계로</a>
             </div>
             {% endif %}
-            <div class="d-flex gap-2 flex-wrap align-items-center">
-              {% if code_asset_unlocked|default(false) %}
-              <a href="{{ ivb }}/proposal/download" class="btn btn-outline-primary">
-                <i class="fa-solid fa-download me-2"></i>Markdown 다운로드
-              </a>
-              {% else %}
-              <span class="btn btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-download me-2"></i>Markdown 다운로드</span>
-              {% endif %}
-              {% if messages %}
-              <button type="button" class="btn btn-outline-secondary" id="proposalModifyReveal"
-                      data-bs-toggle="collapse" data-bs-target="#proposalEditDock" aria-expanded="false" aria-controls="proposalEditDock">
-                <i class="fa-solid fa-pen me-2"></i>수정
-              </button>
-              {% endif %}
-              <a href="/integration/new" class="btn btn-outline-secondary">
-                <i class="fa-solid fa-plus me-2"></i>새 연동 요청
-              </a>
-              {% if messages %}
-              <div id="proposalEditDock" class="collapse w-100 mt-1">
-                <div class="d-flex flex-wrap gap-2 align-items-center">
-                  <button class="btn btn-outline-warning" id="toggleEditAnswers" onclick="toggleAnswerEdit()">
-                    <i class="fa-solid fa-pen-to-square me-2"></i>답변 수정
-                  </button>
-                  <form method="post" action="{{ ivb }}/proposal/regenerate" id="regenForm" class="d-inline"
-                        data-busy-agents='[{"agentKo":"「요구분석」","doingKo":"인터뷰 답변을 반영하고 있습니다","agentEn":"「Requirements」","doingEn":"reconciling interview answers"},{"agentKo":"「제안서」","doingKo":"제안서를 다시 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"regenerating the proposal"}]'>
-                    <button type="submit" class="btn btn-warning" id="regenBtn" disabled
-                            title="답변 수정 후 활성화됩니다">
-                      <i class="fa-solid fa-rotate me-2"></i>제안서 재생성
-                    </button>
-                  </form>
-                </div>
-              </div>
-              {% endif %}
-            </div>
+            {% set proposal_actions_base = ivb %}
+            {% include 'partials/proposal_hub_toolbar.html' %}
           </div>
         </div>
 
@@ -77,82 +43,6 @@
         </div>
 
         {% include 'partials/hub_proposal_supplement_panel.html' %}
-
-        {% if messages %}
-        <div class="mt-4" id="interviewSection">
-          <div class="interview-edit-notice alert alert-info d-none" id="editNotice">
-            <i class="fa-solid fa-circle-info me-2"></i>
-            답변을 수정한 후 <strong>저장</strong>하고, <strong>제안서 재생성</strong> 버튼을 눌러 새 제안서를 받아보세요.
-          </div>
-          <details class="interview-summary-toggle" open id="interviewDetails">
-            <summary class="interview-summary-header">
-              <i class="fa-solid fa-comments me-2"></i>
-              인터뷰 내용 ({{ messages|length }}라운드)
-            </summary>
-            <div class="interview-summary-body mt-3">
-              {% for msg in messages %}
-              <div class="answered-round-card mb-3" data-round="{{ msg.round_number }}">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div class="round-badge">{{ msg.round_number }}라운드</div>
-                  <button type="button" class="btn btn-xs btn-outline-secondary edit-btn d-none"
-                          onclick="openEdit({{ loop.index }})">
-                    <i class="fa-solid fa-pen me-1"></i>수정
-                  </button>
-                </div>
-                <div class="round-qa">
-                  <div class="view-mode interview-qa-row w-100" id="view-{{ loop.index }}">
-                    {% set pairs = (msg.answers_text or '')|interview_qa_pairs %}
-                    {% if pairs %}
-                    <div class="abap-msg-stream interview-msg-stream w-100">
-                      {% for pair in pairs %}
-                        {% if pair.q %}
-                        <div class="abap-msg-row abap-msg-row--them">
-                          <div class="abap-msg-stack">
-                            <div class="abap-msg-meta text-muted small"><span data-i18n="chat.question">질문</span></div>
-                            <div class="abap-msg-bubble abap-msg-bubble--them chat-md-body">{{ pair.q|md_html }}</div>
-                          </div>
-                        </div>
-                        {% endif %}
-                        {% if pair.a %}
-                        <div class="abap-msg-row abap-msg-row--me">
-                          <div class="abap-msg-stack">
-                            <div class="abap-msg-meta text-muted small text-end"><span data-i18n="chat.answer">답</span></div>
-                            <div class="abap-msg-bubble abap-msg-bubble--me chat-md-body">{{ pair.a|md_html }}</div>
-                          </div>
-                        </div>
-                        {% endif %}
-                      {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="d-flex align-items-start gap-2 w-100">
-                      <i class="fa-solid fa-user text-success small mt-1"></i>
-                      <div class="interview-qa-content flex-grow-1">{{ (msg.answers_text or "(답변 없음)")|interview_bold }}</div>
-                    </div>
-                    {% endif %}
-                  </div>
-                  <form method="post" action="{{ ivb }}/interview/edit-answer"
-                        class="edit-mode d-none mt-2" id="edit-{{ loop.index }}"
-                        data-busy-title-ko="저장하고 있습니다…" data-busy-title-en="Saving…"
-                        data-busy-hint-ko="잠시만 기다려 주세요." data-busy-hint-en="Please wait.">
-                    <input type="hidden" name="message_id" value="{{ msg.id }}"/>
-                    <input type="hidden" name="return_to" value="proposal"/>
-                    <textarea name="answers_text" class="form-control mb-2 answer-edit-area"
-                              rows="4">{{ msg.answers_text or "" }}</textarea>
-                    <div class="d-flex gap-2">
-                      <button type="submit" class="btn btn-sm btn-success">
-                        <i class="fa-solid fa-check me-1"></i>저장
-                      </button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary"
-                              onclick="cancelEdit({{ loop.index }})">취소</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
-          </details>
-        </div>
-        {% endif %}
 
         <div class="next-step-cta mt-5">
           <div class="alert alert-secondary small mb-0">

@@ -87,6 +87,8 @@ from ..delivered_code_package import (
     rfp_delivered_body_ready,
 )
 from ..paid_tier import user_can_operate_delivery
+from ..proposal_export import proposal_download_filename, proposal_markdown_to_docx_bytes
+from ..proposal_lifecycle import clear_agent_proposal, proposal_delete_block_reason
 from ..offer_inquiry_service import (
     apply_request_offer_match_action,
     inquiries_by_offer_id,
@@ -1274,10 +1276,27 @@ def _prepare_abap_analysis_detail_ctx(
         owner_user_id=int(row.user_id),
         privileged_operator=bool(getattr(user, "is_admin", False)),
     )
+    proposal_hub_flash = None
+    pe = (request.query_params.get("proposal_err") or "").strip()
+    if pe == "deleted":
+        proposal_hub_flash = {"kind": "success", "i18n": "hub.proposalDeletedFlash"}
+    elif pe == "downstream_started":
+        proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalDeleteBlockedDownstream"}
+    elif pe == "generating":
+        proposal_hub_flash = {"kind": "info", "i18n": "hub.proposalDeleteBlockedGenerating"}
+
+    hub_can_delete_proposal = (
+        not readonly_console
+        and int(user.id) == int(row.user_id)
+        and proposal_delete_block_reason(row) is None
+    )
+
     ana_hub: dict[str, Any] = {
         "ana_hub_proposal_generating": ana_hub_proposal_generating,
         "ana_proposal_html": ana_proposal_html,
         "ana_interview_status": ana_ist,
+        "hub_can_delete_proposal": hub_can_delete_proposal,
+        "proposal_hub_flash": proposal_hub_flash,
         "request_offers": vis_offers,
         "request_offer_can_match": bool(
             user and int(user.id) == int(row.user_id) and not readonly_console
@@ -1530,6 +1549,61 @@ def abap_analysis_regenerate_proposal(
     db.commit()
     background_tasks.add_task(run_abap_analysis_proposal_background, row.id)
     return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-proposal", status_code=302)
+
+
+@router.post("/{req_id}/proposal/delete")
+def abap_analysis_delete_proposal(
+    req_id: int, request: Request, db: Session = Depends(get_db)
+):
+    user = _require_user(request, db)
+    row = _query_for_user(db, user).filter(models.AbapAnalysisRequest.id == req_id).first()
+    if not row or int(row.user_id) != int(user.id):
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    block = proposal_delete_block_reason(row)
+    if block:
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?proposal_err={block}#abap-phase-proposal",
+            status_code=302,
+        )
+    clear_agent_proposal(row)
+    db.add(row)
+    db.commit()
+    return RedirectResponse(
+        url=f"/abap-analysis/{req_id}?proposal_err=deleted#abap-phase-proposal",
+        status_code=302,
+    )
+
+
+@router.get("/{req_id}/proposal/download")
+def abap_analysis_proposal_download(
+    req_id: int, request: Request, db: Session = Depends(get_db)
+):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row or not (row.proposal_text or "").strip():
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    if not user_may_copy_download_request_assets(
+        db,
+        user,
+        request_kind="analysis",
+        request_id=req_id,
+        owner_user_id=int(row.user_id),
+    ):
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    fmt = (request.query_params.get("format") or "md").strip().lower()
+    md = wrap_unbracketed_agent_names(row.proposal_text or "")
+    fname = proposal_download_filename("analysis", req_id, fmt=fmt, title=row.title)
+    if fmt == "docx":
+        body = proposal_markdown_to_docx_bytes(md, document_title=row.title or "Development Proposal")
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        body = md.encode("utf-8")
+        media_type = "text/markdown; charset=utf-8"
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
 
 
 @router.get("/{req_id}/proposal/status")

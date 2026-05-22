@@ -327,16 +327,14 @@
               {% endwith %}
             </div>
             {% elif ana_proposal_html|default('') %}
+            {% include 'partials/hub_proposal_flash.html' %}
+            {% set rfp = row %}
+            {% set proposal_actions_base = '/abap-analysis/' ~ (row.id|string) %}
+            {% include 'partials/proposal_hub_toolbar.html' %}
             <div class="proposal-card mb-3">
               <div class="proposal-body">{{ ana_proposal_html|safe }}</div>
             </div>
             {% include 'partials/hub_proposal_supplement_panel.html' %}
-            {% if user.id == row.user_id and not hub_readonly_return_url %}
-            <form method="post" action="/abap-analysis/{{ row.id }}/proposal/regenerate" class="d-inline mb-3"
-                  data-busy-agents='[{"agentKo":"「제안서」","doingKo":"개발 제안서를 다시 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"regenerating the development proposal"}]'>
-              <button type="submit" class="btn btn-outline-secondary btn-sm">제안서 다시 생성</button>
-            </form>
-            {% endif %}
             {% elif ana_can_request_proposal|default(false) %}
             <div class="mb-3">
               <p class="text-muted small mb-2" data-i18n="hub.proposalAbapWorkflowHint">ABAP 분석·연계 결과가 반영되었습니다. 아래에서 개발 제안서 생성을 시작하세요.</p>

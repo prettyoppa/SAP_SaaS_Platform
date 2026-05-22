@@ -47,6 +47,109 @@
     }
   }
 
+  /** 설정 줄(논리 줄) → 타일 너비에서 실제로 보이는 줄(시각 줄) */
+  function createTextMeasurer(styleEl) {
+    var canvas = document.createElement("canvas");
+    var ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    var cs = getComputedStyle(styleEl);
+    var fontParts = [
+      cs.fontStyle,
+      cs.fontVariant,
+      cs.fontWeight,
+      cs.fontSize,
+      cs.lineHeight === "normal" ? "" : "/" + cs.lineHeight,
+      cs.fontFamily,
+    ];
+    ctx.font = cs.font && cs.font !== "" ? cs.font : fontParts.filter(Boolean).join(" ");
+    return {
+      widthOf: function (s) {
+        return ctx.measureText(String(s || "")).width;
+      },
+    };
+  }
+
+  function wrapSegmentToVisualLines(text, maxWidth, measurer) {
+    text = String(text || "");
+    if (!text) return [""];
+    if (!measurer || maxWidth <= 4) return [text];
+    if (measurer.widthOf(text) <= maxWidth) return [text];
+
+    function byChars(src) {
+      var out = [];
+      var cur = "";
+      var chars = Array.from(src);
+      for (var i = 0; i < chars.length; i++) {
+        var trial = cur + chars[i];
+        if (cur && measurer.widthOf(trial) > maxWidth) {
+          out.push(cur);
+          cur = chars[i];
+        } else {
+          cur = trial;
+        }
+      }
+      if (cur) out.push(cur);
+      return out.length ? out : [src];
+    }
+
+    if (!/\s/.test(text)) return byChars(text);
+
+    var lines = [];
+    var tokens = text.split(/(\s+)/);
+    var cur = "";
+    for (var t = 0; t < tokens.length; t++) {
+      var token = tokens[t];
+      if (!token) continue;
+      var trial = cur + token;
+      if (cur && measurer.widthOf(trial) > maxWidth) {
+        lines.push(cur.replace(/\s+$/, ""));
+        cur = token.replace(/^\s+/, "");
+      } else {
+        cur = trial;
+      }
+    }
+    if (cur.trim()) lines.push(cur.replace(/\s+$/, ""));
+
+    var fixed = [];
+    lines.forEach(function (ln) {
+      if (!ln) return;
+      if (measurer.widthOf(ln) <= maxWidth) fixed.push(ln);
+      else fixed.push.apply(fixed, byChars(ln));
+    });
+    return fixed.length ? fixed : byChars(text);
+  }
+
+  function expandLogicalLinesToVisual(logicalLines, viewportEl, styleEl) {
+    var width = viewportEl ? viewportEl.clientWidth : 0;
+    if (width <= 4 && viewportEl && viewportEl.parentElement) {
+      width = viewportEl.parentElement.clientWidth;
+    }
+    var measurer = createTextMeasurer(styleEl || viewportEl);
+    var visual = [];
+    (logicalLines || []).forEach(function (ln) {
+      var text = String(ln || "");
+      if (!text.trim()) {
+        visual.push("");
+        return;
+      }
+      wrapSegmentToVisualLines(text, width, measurer).forEach(function (v) {
+        visual.push(v);
+      });
+    });
+    return visual;
+  }
+
+  function appendRevealLine(stage, text, revealed) {
+    var wrap = document.createElement("div");
+    wrap.className = "home-tile-reveal-line" + (revealed ? " is-revealed" : "");
+    var inner = document.createElement("div");
+    inner.className = "home-tile-reveal-line-inner";
+    inner.textContent = text || "";
+    wrap.appendChild(inner);
+    stage.appendChild(wrap);
+    return { wrap: wrap, inner: inner };
+  }
+
   function initTypingRoot(root) {
     var stage = root.querySelector(".home-guide-text-lines");
     var viewport = root.querySelector(".home-guide-text-viewport");
@@ -186,6 +289,7 @@
 
   function initRevealRoot(root) {
     var stage = root.querySelector(".home-guide-text-lines");
+    var viewport = root.querySelector(".home-guide-text-viewport");
     var bundleEl = root.querySelector("script.home-typing-bundle");
     if (!stage || !bundleEl) return;
 
@@ -203,16 +307,11 @@
       stage.innerHTML = "";
     }
 
-    function showAllLines(lines) {
+    function showAllLines(logicalLines) {
       clearStage();
-      (lines || []).forEach(function (ln) {
-        var wrap = document.createElement("div");
-        wrap.className = "home-tile-reveal-line is-revealed";
-        var inner = document.createElement("div");
-        inner.className = "home-tile-reveal-line-inner";
-        inner.textContent = ln || "";
-        wrap.appendChild(inner);
-        stage.appendChild(wrap);
+      var visual = expandLogicalLinesToVisual(logicalLines, viewport || stage, stage);
+      visual.forEach(function (ln) {
+        appendRevealLine(stage, ln, true);
       });
     }
 
@@ -247,28 +346,22 @@
 
     async function runReveal(gen) {
       var block = pickLocaleBlock(bundle, siteLang());
-      var lines = block.lines || [];
+      var logical = block.lines || [];
       if (!hasContent(block)) return;
 
       clearStage();
       if (REVEAL_START_PAUSE_MS > 0) await sleep(REVEAL_START_PAUSE_MS);
       if (gen !== runGen) return;
 
-      for (var li = 0; li < lines.length; li++) {
+      var visual = expandLogicalLinesToVisual(logical, viewport || stage, stage);
+      for (var vi = 0; vi < visual.length; vi++) {
         if (gen !== runGen) return;
-        var text = String(lines[li] || "");
-        var wrap = document.createElement("div");
-        wrap.className = "home-tile-reveal-line";
-        var inner = document.createElement("div");
-        inner.className = "home-tile-reveal-line-inner";
-        inner.textContent = text;
-        wrap.appendChild(inner);
-        stage.appendChild(wrap);
-        void wrap.offsetWidth;
-        wrap.classList.add("is-revealed");
-        await waitTransition(inner);
+        var row = appendRevealLine(stage, visual[vi], false);
+        void row.wrap.offsetWidth;
+        row.wrap.classList.add("is-revealed");
+        await waitTransition(row.inner);
         if (gen !== runGen) return;
-        if (REVEAL_LINE_GAP_MS > 0 && li < lines.length - 1) await sleep(REVEAL_LINE_GAP_MS);
+        if (REVEAL_LINE_GAP_MS > 0 && vi < visual.length - 1) await sleep(REVEAL_LINE_GAP_MS);
       }
 
       await sleep(holdMs);
@@ -291,6 +384,16 @@
 
     start();
     document.addEventListener("app:langchange", start);
+    if (viewport && typeof ResizeObserver !== "undefined") {
+      var resizeTimer = null;
+      var ro = new ResizeObserver(function () {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+          start();
+        }, 200);
+      });
+      ro.observe(viewport);
+    }
   }
 
   document.querySelectorAll("[data-home-typing-text]").forEach(function (root) {

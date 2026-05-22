@@ -52,6 +52,7 @@ from ..paid_tier import (
     user_can_access_fs_hub,
     user_can_operate_delivery,
 )
+from ..proposal_lifecycle import proposal_delete_block_reason
 from ..rfp_download_names import (
     content_disposition_attachment,
     delivered_abap_download_basename,
@@ -1035,6 +1036,25 @@ def _collect_rfp_unified_hub_ctx(
     elif qe == "proposal_regen_disabled":
         subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
 
+    proposal_hub_flash = None
+    pe = (request.query_params.get("proposal_err") or "").strip()
+    if pe == "deleted":
+        proposal_hub_flash = {"kind": "success", "i18n": "hub.proposalDeletedFlash"}
+    elif pe == "downstream_started":
+        proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalDeleteBlockedDownstream"}
+    elif pe == "generating":
+        proposal_hub_flash = {"kind": "info", "i18n": "hub.proposalDeleteBlockedGenerating"}
+    ie = (request.query_params.get("interview_err") or "").strip()
+    if ie == "proposal_exists":
+        proposal_hub_flash = {"kind": "warning", "i18n": "hub.interviewResetBlockedProposal"}
+
+    hub_can_delete_proposal = (
+        not readonly_console
+        and user
+        and int(user.id) == int(rfp.user_id)
+        and proposal_delete_block_reason(rfp) is None
+    )
+
     proposal_scripts = (not readonly_console) and bool(proposal_html) and not hub_proposal_generating
 
     vis_offers = visible_request_offers_for_viewer(
@@ -1156,6 +1176,8 @@ def _collect_rfp_unified_hub_ctx(
         "reference_section_count": ref_section_count,
         "tabs_base_id": tabs_base_id,
         "hub_include_proposal_scripts": proposal_scripts,
+        "hub_can_delete_proposal": hub_can_delete_proposal,
+        "proposal_hub_flash": proposal_hub_flash,
         "request_offers": vis_offers,
         "request_offer_can_match": bool(user and rfp and user.id == rfp.user_id and not readonly_console),
         "request_offer_owner_match_cancel_blocked": bool(

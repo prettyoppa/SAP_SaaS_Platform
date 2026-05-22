@@ -5,6 +5,7 @@
 {% set wo = (rfp.workflow_origin or 'direct')|trim|lower %}
 {% set hub_skip_interview = wo == 'abap_analysis' %}
 {% set hub_request_edit_locked = (not hub_skip_interview and (interview_summary_messages and interview_summary_messages|length > 0)) or proposal_html or hub_proposal_generating %}
+{% set hub_interview_answer_edit_locked = proposal_html or hub_proposal_generating %}
 {% set hub_delete_locked = fs_stat != 'none' %}
 <style>
 /* 단계 본문: summary(.interview-summary-header)와 동일한 좌우 여백 + 중첩 container/col 제거로 폭 일치 */
@@ -88,6 +89,7 @@
       <span>{{ subscription_quota_flash }}</span>
     </div>
     {% endif %}
+    {% include 'partials/hub_proposal_flash.html' %}
 
     <div class="proposal-header mb-4">
       <div class="d-flex align-items-center gap-3 mb-3">
@@ -228,6 +230,14 @@
             </button>
           </form>
         </div>
+        {% elif rfp.interview_status == 'completed' and interview_summary_messages and interview_summary_messages|length > 0 and user.id == rfp.user_id %}
+        <p class="text-muted small mb-2" data-i18n="hub.proposalRegenerateHint">제안서가 없습니다. 인터뷰 답변을 바탕으로 다시 생성할 수 있습니다.</p>
+        <form method="post" action="/rfp/{{ rfp.id }}/interview/request-proposal-now" class="d-inline"
+              data-busy-agents='[{"agentKo":"「제안서」","doingKo":"개발 제안서를 작성하고 있습니다","agentEn":"「Proposal」","doingEn":"drafting the development proposal"}]'>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-file-contract me-1"></i><span data-i18n="hub.proposalRegenerateBtn">제안서 생성</span>
+          </button>
+        </form>
         {% else %}
           <p class="text-muted small mb-0" data-i18n="hub.proposalNone">제안서가 아직 없습니다. 인터뷰를 진행하면 생성할 수 있습니다.</p>
         {% endif %}

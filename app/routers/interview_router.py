@@ -16,6 +16,12 @@ from ..code_asset_access import user_may_copy_download_request_assets
 from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
 from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
+from ..proposal_export import proposal_download_filename, proposal_markdown_to_docx_bytes
+from ..proposal_lifecycle import (
+    clear_agent_proposal,
+    interview_reset_block_reason,
+    proposal_delete_block_reason,
+)
 from ..rfp_hub import rfp_hub_url
 from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
 from ..subscription_catalog import METRIC_DEV_PROPOSAL, METRIC_DEV_PROPOSAL_REGEN
@@ -679,13 +685,47 @@ def reset_interview(rfp_id: int, request: Request, db: Session = Depends(get_db)
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
 
+    block = interview_reset_block_reason(rfp)
+    if block:
+        return RedirectResponse(
+            url=f"{rfp_hub_url(rfp_id, 'interview', view_summary=True)}&interview_err={block}",
+            status_code=302,
+        )
+
     for msg in rfp.messages:
         db.delete(msg)
     rfp.interview_status = "pending"
     rfp.proposal_text = None
     rfp.status = "submitted"
     db.commit()
-    return RedirectResponse(url="/", status_code=302)
+    return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
+
+
+@router.post("/rfp/{rfp_id}/proposal/delete")
+def delete_proposal(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    rfp = db.query(models.RFP).filter(
+        models.RFP.id == rfp_id, models.RFP.user_id == user.id
+    ).first()
+    if not rfp:
+        return RedirectResponse(url="/", status_code=302)
+
+    block = proposal_delete_block_reason(rfp)
+    if block:
+        return RedirectResponse(
+            url=f"{rfp_hub_url(rfp_id, 'proposal')}&proposal_err={block}",
+            status_code=302,
+        )
+
+    clear_agent_proposal(rfp)
+    db.commit()
+    return RedirectResponse(
+        url=f"{rfp_hub_url(rfp_id, 'interview', view_summary=True)}&proposal_err=deleted",
+        status_code=302,
+    )
 
 
 @router.post("/rfp/{rfp_id}/interview/answer")
@@ -1002,12 +1042,18 @@ def download_proposal(rfp_id: int, request: Request, db: Session = Depends(get_d
     ):
         return RedirectResponse(url="/", status_code=302)
 
-    # ASCII 파일명만 사용(한글 파일명은 Content-Disposition에서 500 유발 가능)
-    body = wrap_unbracketed_agent_names(rfp.proposal_text or "").encode("utf-8")
-    filename = f"proposal_rfp_{rfp_id}.md"
+    fmt = (request.query_params.get("format") or "md").strip().lower()
+    md = wrap_unbracketed_agent_names(rfp.proposal_text or "")
+    filename = proposal_download_filename("rfp", rfp_id, fmt=fmt, title=rfp.title)
+    if fmt == "docx":
+        body = proposal_markdown_to_docx_bytes(md, document_title=rfp.title or "Development Proposal")
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        body = md.encode("utf-8")
+        media_type = "text/markdown; charset=utf-8"
     return Response(
         content=body,
-        media_type="text/markdown; charset=utf-8",
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

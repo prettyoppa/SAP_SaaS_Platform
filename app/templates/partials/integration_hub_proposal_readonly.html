@@ -4,8 +4,11 @@
     {% if proposal_html %}
     {% set _pdl = proposal_download_url|default('/integration/' ~ (ir.id|string) ~ '/proposal/download') %}
     {% if code_asset_unlocked|default(false) %}
-    <a href="{{ _pdl }}" class="btn btn-sm btn-outline-primary" download data-no-busy="true">
-      <i class="fa-solid fa-download me-1"></i>Markdown 다운로드
+    <a href="{{ _pdl }}?format=md" class="btn btn-sm btn-outline-primary" download data-no-busy="true">
+      <i class="fa-solid fa-download me-1"></i><span class="nav-ko">Markdown</span><span class="nav-en" style="display:none">Markdown</span>
+    </a>
+    <a href="{{ _pdl }}?format=docx" class="btn btn-sm btn-outline-primary" download data-no-busy="true">
+      <i class="fa-solid fa-file-word me-1"></i><span class="nav-ko">Word</span><span class="nav-en" style="display:none">Word</span>
     </a>
     {% else %}
     <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-download me-1"></i>Markdown 다운로드</span>
