@@ -2114,7 +2114,7 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   margin-bottom: 0.25rem;
 }
 .home-feature-desc--reveal {
-  --tile-reveal-duration: 22s;
+  --tile-reveal-duration: 11s;
   white-space: normal;
   overflow: hidden;
 }
@@ -2143,7 +2143,7 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   word-break: break-word;
   font-weight: 700;
   clip-path: inset(0 100% 0 0);
-  transition: clip-path var(--tile-reveal-duration, 22s) linear;
+  transition: clip-path var(--tile-reveal-duration, 11s) linear;
   will-change: clip-path;
 }
 .home-tile-reveal-line.is-revealed .home-tile-reveal-line-inner {
