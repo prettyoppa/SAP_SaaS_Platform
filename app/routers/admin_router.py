@@ -1010,7 +1010,7 @@ def admin_devtype_delete(dt_id: int, request: Request, db: Session = Depends(get
 # ── 사이트 설정 관리 ────────────────────────────────────
 
 SITE_SETTING_KEYS = [
-    ("home_hero_title", "홈페이지 제목 (최대 2줄, <br>로 줄바꿈)"),
+    ("home_hero_title", "홈페이지 제목 (최대 3줄, <br>로 줄바꿈)"),
     ("home_hero_subcopy", "홈페이지 서브카피"),
     ("home_hero_desc", "홈페이지 부제(설명)"),
     ("home_guide_video_url", "홈 사용 안내 동영상 URL (YouTube / Shorts)"),

@@ -10,13 +10,19 @@ from app.home_hero_defaults import (
 
 
 class HomeHeroFieldsTests(unittest.TestCase):
-    def test_title_br_max_two_lines(self) -> None:
+    def test_title_br_max_three_lines(self) -> None:
         stored = normalize_hero_title_storage("A<br>B<br>C")
-        self.assertEqual(stored, "A<br>B")
+        self.assertEqual(stored, "A<br>B<br>C")
         markup = str(hero_title_to_markup(stored))
         self.assertIn("A", markup)
         self.assertIn("B", markup)
-        self.assertNotIn("C", markup)
+        self.assertIn("C", markup)
+
+    def test_title_br_truncates_fourth_line(self) -> None:
+        stored = normalize_hero_title_storage("A<br>B<br>C<br>D")
+        self.assertEqual(stored, "A<br>B<br>C")
+        markup = str(hero_title_to_markup(stored))
+        self.assertNotIn("D", markup)
 
     def test_title_newline(self) -> None:
         stored = normalize_hero_title_storage("SAP 개발,\nCatchy가 함께 하겠습니다.")
