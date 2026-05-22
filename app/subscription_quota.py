@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 """구독 플랜 한도(레거시). SUBSCRIPTION_PLAN_LIMITS_ENABLED=False — AI는 ai_wallet 선불만 적용."""
 
 # 구독 플랜 폐기 · AI 크레딧(원화 잔액) 방식. 플랜 entitlement 차단은 사용하지 않음.
 SUBSCRIPTION_PLAN_LIMITS_ENABLED = False
-
-from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
