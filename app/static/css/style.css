@@ -1867,8 +1867,8 @@ html[data-theme="light"] .hero-compact .home-hero-marketing .hero-title {
   line-height: 1.38;
   color: var(--hero-mkt-desc-color);
 }
-.hero-compact .home-hero-marketing .hero-title br + br {
-  display: none;
+.hero-compact .home-hero-marketing .hero-title .hero-title-line {
+  display: block;
 }
 
 /* 히어로 바로 아래 타일 — 간격 축소 */
@@ -2114,6 +2114,7 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   margin-bottom: 0.25rem;
 }
 .home-feature-desc--reveal {
+  --tile-reveal-duration: 22s;
   white-space: normal;
   overflow: hidden;
 }
@@ -2128,20 +2129,21 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
 .home-feature-desc--reveal .home-guide-text-lines {
   font-size: inherit;
   line-height: inherit;
-  font-weight: 400;
+  font-weight: 700;
   color: inherit;
   filter: none;
 }
 .home-tile-reveal-line {
   overflow: hidden;
-  margin: 0 0 0.2rem;
+  margin: 0 0 0.15rem;
 }
 .home-tile-reveal-line-inner {
   display: block;
   white-space: pre-wrap;
   word-break: break-word;
+  font-weight: 700;
   clip-path: inset(0 100% 0 0);
-  transition: clip-path 11s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: clip-path var(--tile-reveal-duration, 22s) cubic-bezier(0.16, 1, 0.3, 1);
   will-change: clip-path;
 }
 .home-tile-reveal-line.is-revealed .home-tile-reveal-line-inner {

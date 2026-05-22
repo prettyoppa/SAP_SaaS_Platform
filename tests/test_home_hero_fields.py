@@ -24,6 +24,13 @@ class HomeHeroFieldsTests(unittest.TestCase):
         markup = str(hero_title_to_markup(stored))
         self.assertNotIn("D", markup)
 
+    def test_title_three_line_markup_blocks(self) -> None:
+        raw = "SAP 개발,<br>Catch Lab의 전문가그룹과 함께<br>저비용 · 고효율을 경험해보세요."
+        markup = str(hero_title_to_markup(raw))
+        self.assertEqual(markup.count("hero-title-line"), 3)
+        self.assertIn("함께", markup)
+        self.assertIn("저비용", markup)
+
     def test_title_newline(self) -> None:
         stored = normalize_hero_title_storage("SAP 개발,\nCatchy가 함께 하겠습니다.")
         self.assertEqual(stored, "SAP 개발,<br>Catchy가 함께 하겠습니다.")

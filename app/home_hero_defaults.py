@@ -25,12 +25,16 @@ def normalize_hero_title_storage(raw: str) -> str:
 
 
 def hero_title_to_markup(raw: str) -> Markup:
-    """표시용: 줄 단위 이스케이프 후 <br> (최대 3줄)."""
+    """표시용: 줄마다 block span (그라데이션 제목에서 <br> 줄바꿈 안정화)."""
     stored = normalize_hero_title_storage(raw)
     if not stored:
         return Markup("")
     parts = [escape(ln) for ln in _BR_SPLIT_RE.split(stored) if ln.strip()]
-    return Markup("<br>".join(parts[:HERO_TITLE_MAX_LINES]))
+    parts = parts[:HERO_TITLE_MAX_LINES]
+    if not parts:
+        return Markup("")
+    lines_html = "".join(f'<span class="hero-title-line">{p}</span>' for p in parts)
+    return Markup(lines_html)
 
 
 def resolve_home_hero_fields(settings: dict) -> dict[str, Markup | str]:

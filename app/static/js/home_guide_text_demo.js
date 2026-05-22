@@ -8,8 +8,8 @@
   var LINE_PAUSE_MS = 320;
   var HOLD_MS = 10000;
   var START_PAUSE_MS = 550;
-  var REVEAL_LINE_MS = 11600;
-  var REVEAL_LINE_GAP_MS = 800;
+  var REVEAL_LINE_MS = 22000;
+  var REVEAL_LINE_GAP_MS = 0;
   var REVEAL_HOLD_MS = 5000;
 
   function siteLang() {
@@ -255,7 +255,7 @@
         wrap.classList.add("is-revealed");
         await waitTransition(inner);
         if (gen !== runGen) return;
-        if (li < lines.length - 1) await sleep(REVEAL_LINE_GAP_MS);
+        if (REVEAL_LINE_GAP_MS > 0 && li < lines.length - 1) await sleep(REVEAL_LINE_GAP_MS);
       }
 
       await sleep(holdMs);
