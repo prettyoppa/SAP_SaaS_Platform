@@ -1,7 +1,7 @@
 {# expects desc_ko, desc_en (plain or light markdown) #}
 {% set has_desc = (desc_ko|home_guide_has_text) or (desc_en|home_guide_has_text) %}
 {% if has_desc %}
-<div class="home-feature-desc home-feature-desc--typing text-muted small" data-home-typing-text role="region">
+<div class="home-feature-desc home-feature-desc--reveal text-muted small" data-home-typing-text data-typing-mode="reveal" role="region">
   <div class="home-guide-text-viewport">
     <div class="home-guide-text-lines" aria-live="polite"></div>
   </div>

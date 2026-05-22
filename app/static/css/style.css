@@ -1705,20 +1705,18 @@ html[data-theme="light"] .home-guide-video-stage--text-demo .home-guide-code-tit
   overflow: auto;
   padding: 0.65rem 0.75rem;
   color: #93c5fd;
-  transition: box-shadow 0.35s ease;
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
 }
-/* 다크: 고정 인셋 글로우(깜빡임 없음) · 라이트: 얇은 테두리만 */
+/* 다크: 인셋 글로우만(테두리 없음 — 레이아웃·스크롤 튐 방지) */
 .home-guide-text-viewport.is-live {
-  box-shadow:
-    inset 0 0 22px rgba(99, 102, 241, 0.1),
-    inset 0 0 0 1px rgba(96, 165, 250, 0.18);
+  box-shadow: inset 0 0 22px rgba(99, 102, 241, 0.1);
 }
 html[data-theme="light"] .home-guide-text-viewport {
   color: #4338ca;
 }
 html[data-theme="light"] .home-guide-text-viewport.is-live {
-  box-shadow:
-    inset 0 0 0 1px rgba(79, 70, 229, 0.16);
+  box-shadow: inset 0 0 18px rgba(99, 102, 241, 0.08);
 }
 /* 단색 텍스트 (background-clip+text-shadow 조합은 라이트에서 글자 덩어리로 깨짐) */
 .home-guide-text-lines {
@@ -1826,10 +1824,11 @@ html[data-theme="light"] .home-guide-text-line.is-typing::after {
   --hero-mkt-subcopy-gradient: linear-gradient(135deg, #a5b4fc 0%, #c4b5fd 48%, #7dd3fc 100%);
 }
 html[data-theme="light"] .hero-compact .home-hero-marketing {
+  --hero-mkt-title-color: #c62828;
   --hero-mkt-depth-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.42),
-    0 2px 5px rgba(15, 17, 23, 0.72),
-    0 5px 16px rgba(15, 17, 23, 0.48);
+    0 1px 0 rgba(255, 255, 255, 0.55),
+    0 2px 6px rgba(198, 40, 40, 0.28),
+    0 4px 14px rgba(15, 17, 23, 0.2);
 }
 .hero-compact .home-hero-marketing .hero-title {
   width: 100%;
@@ -2112,21 +2111,45 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   line-height: 1.35;
   margin-bottom: 0.25rem;
 }
-.home-feature-desc--typing {
+.home-feature-desc--reveal {
   white-space: normal;
   overflow: hidden;
 }
-.home-feature-desc--typing .home-guide-text-viewport {
-  overflow-y: auto;
+.home-feature-desc--reveal .home-guide-text-viewport {
+  overflow: hidden;
   max-height: 5.75rem;
-  padding: 0.05rem 0;
+  padding: 0;
+  box-shadow: none !important;
+  border: none;
+  scroll-behavior: auto;
 }
-.home-feature-desc--typing .home-guide-text-lines {
+.home-feature-desc--reveal .home-guide-text-lines {
   font-size: inherit;
   line-height: inherit;
+  font-weight: 400;
+  color: inherit;
+  filter: none;
 }
-.home-feature-desc--typing .home-guide-text-line {
-  font-size: inherit;
+.home-tile-reveal-line {
+  overflow: hidden;
+  margin: 0 0 0.2rem;
+}
+.home-tile-reveal-line-inner {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: clip-path;
+}
+.home-tile-reveal-line.is-revealed .home-tile-reveal-line-inner {
+  clip-path: inset(0 0 0 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-tile-reveal-line-inner {
+    clip-path: none;
+    transition: none;
+  }
 }
 .home-feature-desc--empty {
   min-height: 0;
