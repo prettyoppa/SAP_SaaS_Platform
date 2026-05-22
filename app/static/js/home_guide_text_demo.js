@@ -47,52 +47,85 @@
     }
   }
 
-  /** 설정 줄(논리 줄) → 타일 너비에서 실제로 보이는 줄(시각 줄) */
-  function createTextMeasurer(styleEl) {
-    var canvas = document.createElement("canvas");
-    var ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    var cs = getComputedStyle(styleEl);
-    var fontParts = [
-      cs.fontStyle,
-      cs.fontVariant,
-      cs.fontWeight,
-      cs.fontSize,
-      cs.lineHeight === "normal" ? "" : "/" + cs.lineHeight,
-      cs.fontFamily,
-    ];
-    ctx.font = cs.font && cs.font !== "" ? cs.font : fontParts.filter(Boolean).join(" ");
-    return {
-      widthOf: function (s) {
-        return ctx.measureText(String(s || "")).width;
-      },
-    };
+  function waitForLayout() {
+    return new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(resolve);
+      });
+    });
   }
 
-  function wrapSegmentToVisualLines(text, maxWidth, measurer) {
+  function getRevealViewportWidth(viewport, stage) {
+    var el = viewport || stage;
+    if (!el) return 0;
+    var w = el.getBoundingClientRect().width;
+    if (w <= 4 && viewport && viewport.parentElement) {
+      w = viewport.parentElement.getBoundingClientRect().width;
+    }
+    return Math.floor(w);
+  }
+
+  /** 펼침 줄 분할용 숨김 요소 (stage 비우기와 분리) */
+  function getMeasureProbe(root) {
+    if (!root._tileRevealMeasureProbe) {
+      var probe = document.createElement("div");
+      probe.className = "home-tile-reveal-line-inner";
+      probe.setAttribute("aria-hidden", "true");
+      probe.style.cssText =
+        "position:absolute;left:-10000px;top:0;visibility:hidden;pointer-events:none;max-height:none;clip-path:none;";
+      root.appendChild(probe);
+      root._tileRevealMeasureProbe = probe;
+    }
+    return root._tileRevealMeasureProbe;
+  }
+
+  function probeLineHeight(probe) {
+    var prev = probe.textContent;
+    probe.textContent = "Hg";
+    var cs = getComputedStyle(probe);
+    var lh = parseFloat(cs.lineHeight);
+    if (isNaN(lh) || lh <= 0) lh = parseFloat(cs.fontSize) * 1.35;
+    probe.textContent = prev;
+    return lh || 16;
+  }
+
+  function wrapSegmentToVisualLinesDom(text, widthPx, probe) {
     text = String(text || "");
     if (!text) return [""];
-    if (!measurer || maxWidth <= 4) return [text];
-    if (measurer.widthOf(text) <= maxWidth) return [text];
+    if (widthPx <= 4) return [text];
 
-    function byChars(src) {
+    probe.style.width = widthPx + "px";
+    probe.style.whiteSpace = "normal";
+    probe.style.wordBreak = "break-word";
+    probe.style.overflowWrap = "anywhere";
+
+    var lh = probeLineHeight(probe);
+
+    function isSingleLine(str) {
+      probe.textContent = str;
+      return probe.offsetHeight <= lh * 1.55;
+    }
+
+    if (isSingleLine(text)) return [text];
+
+    function wrapByChars(src) {
       var out = [];
       var cur = "";
       var chars = Array.from(src);
       for (var i = 0; i < chars.length; i++) {
-        var trial = cur + chars[i];
-        if (cur && measurer.widthOf(trial) > maxWidth) {
+        probe.textContent = cur + chars[i];
+        if (cur && probe.offsetHeight > lh * 1.55) {
           out.push(cur);
           cur = chars[i];
         } else {
-          cur = trial;
+          cur += chars[i];
         }
       }
       if (cur) out.push(cur);
       return out.length ? out : [src];
     }
 
-    if (!/\s/.test(text)) return byChars(text);
+    if (!/\s/.test(text)) return wrapByChars(text);
 
     var lines = [];
     var tokens = text.split(/(\s+)/);
@@ -100,12 +133,12 @@
     for (var t = 0; t < tokens.length; t++) {
       var token = tokens[t];
       if (!token) continue;
-      var trial = cur + token;
-      if (cur && measurer.widthOf(trial) > maxWidth) {
+      probe.textContent = cur + token;
+      if (cur.trim() && probe.offsetHeight > lh * 1.55) {
         lines.push(cur.replace(/\s+$/, ""));
         cur = token.replace(/^\s+/, "");
       } else {
-        cur = trial;
+        cur += token;
       }
     }
     if (cur.trim()) lines.push(cur.replace(/\s+$/, ""));
@@ -113,18 +146,17 @@
     var fixed = [];
     lines.forEach(function (ln) {
       if (!ln) return;
-      if (measurer.widthOf(ln) <= maxWidth) fixed.push(ln);
-      else fixed.push.apply(fixed, byChars(ln));
+      if (isSingleLine(ln)) fixed.push(ln);
+      else wrapByChars(ln).forEach(function (v) {
+        fixed.push(v);
+      });
     });
-    return fixed.length ? fixed : byChars(text);
+    return fixed.length ? fixed : wrapByChars(text);
   }
 
-  function expandLogicalLinesToVisual(logicalLines, viewportEl, styleEl) {
-    var width = viewportEl ? viewportEl.clientWidth : 0;
-    if (width <= 4 && viewportEl && viewportEl.parentElement) {
-      width = viewportEl.parentElement.clientWidth;
-    }
-    var measurer = createTextMeasurer(styleEl || viewportEl);
+  function expandLogicalLinesToVisual(logicalLines, viewportEl, root) {
+    var width = getRevealViewportWidth(viewportEl, null);
+    var probe = getMeasureProbe(root);
     var visual = [];
     (logicalLines || []).forEach(function (ln) {
       var text = String(ln || "");
@@ -132,7 +164,7 @@
         visual.push("");
         return;
       }
-      wrapSegmentToVisualLines(text, width, measurer).forEach(function (v) {
+      wrapSegmentToVisualLinesDom(text, width, probe).forEach(function (v) {
         visual.push(v);
       });
     });
@@ -302,6 +334,9 @@
     }
 
     var runGen = 0;
+    var revealBusy = false;
+    var lastViewportWidth = getRevealViewportWidth(viewport, stage);
+    var pendingRelayout = false;
 
     function clearStage() {
       stage.innerHTML = "";
@@ -315,7 +350,7 @@
 
     function showAllLines(logicalLines) {
       clearStage();
-      var visual = expandLogicalLinesToVisual(logicalLines, viewport || stage, stage);
+      var visual = expandLogicalLinesToVisual(logicalLines, viewport, root);
       visual.forEach(function (ln) {
         appendRevealLine(stage, ln, true);
       });
@@ -356,24 +391,41 @@
       var logical = block.lines || [];
       if (!hasContent(block)) return;
 
-      clearStage();
-      if (REVEAL_START_PAUSE_MS > 0) await sleep(REVEAL_START_PAUSE_MS);
-      if (gen !== runGen) return;
+      revealBusy = true;
+      try {
+        clearStage();
+        if (viewport) viewport.scrollTop = 0;
+        if (REVEAL_START_PAUSE_MS > 0) await sleep(REVEAL_START_PAUSE_MS);
+        if (gen !== runGen) return;
 
-      var visual = expandLogicalLinesToVisual(logical, viewport || stage, stage);
-      for (var vi = 0; vi < visual.length; vi++) {
+        await waitForLayout();
         if (gen !== runGen) return;
-        var row = appendRevealLine(stage, visual[vi], false);
+
+        lastViewportWidth = getRevealViewportWidth(viewport, stage);
+        var visual = expandLogicalLinesToVisual(logical, viewport, root);
+        for (var vi = 0; vi < visual.length; vi++) {
+          if (gen !== runGen) return;
+          var row = appendRevealLine(stage, visual[vi], false);
+          scrollViewportEnd();
+          void row.wrap.offsetWidth;
+          row.wrap.classList.add("is-revealed");
+          await waitTransition(row.inner);
+          scrollViewportEnd();
+          if (gen !== runGen) return;
+          if (REVEAL_LINE_GAP_MS > 0 && vi < visual.length - 1) await sleep(REVEAL_LINE_GAP_MS);
+        }
+
         scrollViewportEnd();
-        void row.wrap.offsetWidth;
-        row.wrap.classList.add("is-revealed");
-        await waitTransition(row.inner);
-        scrollViewportEnd();
-        if (gen !== runGen) return;
-        if (REVEAL_LINE_GAP_MS > 0 && vi < visual.length - 1) await sleep(REVEAL_LINE_GAP_MS);
+        await sleep(holdMs);
+      } finally {
+        if (gen === runGen) {
+          revealBusy = false;
+          if (pendingRelayout) {
+            pendingRelayout = false;
+            start();
+          }
+        }
       }
-
-      await sleep(holdMs);
     }
 
     function start() {
@@ -396,10 +448,18 @@
     if (viewport && typeof ResizeObserver !== "undefined") {
       var resizeTimer = null;
       var ro = new ResizeObserver(function () {
+        var w = getRevealViewportWidth(viewport, stage);
+        if (w <= 4 || Math.abs(w - lastViewportWidth) < 2) return;
+        lastViewportWidth = w;
+        if (revealBusy) {
+          pendingRelayout = true;
+          return;
+        }
         if (resizeTimer) clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function () {
+          resizeTimer = null;
           start();
-        }, 200);
+        }, 280);
       });
       ro.observe(viewport);
     }
