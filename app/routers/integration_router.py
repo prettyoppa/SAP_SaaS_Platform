@@ -98,6 +98,12 @@ from ..request_hub_access import (
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
 from ..templates_config import layout_template_from_embed_query, templates
+from ..form_core_validation import (
+    CORE_FIELDS_INCOMPLETE_ERROR,
+    description_plain_for_validate,
+    integration_missing_core_field_labels,
+)
+from ..rfp_form_suggest import MIN_RFP_DESCRIPTION_CHARS
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from ..delivery_fs_supplements import KIND_INTEGRATION, fs_supplement_hub_template_ctx
 from ..delivery_proposal_supplements import (
@@ -192,6 +198,156 @@ def _integration_impl_ui_ctx(db: Session) -> dict:
         "impl_labels": integration_impl_labels_map(db),
         "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
     }
+
+
+def _integration_new_ai_inquiry() -> dict:
+    return {
+        "mode": "teaser",
+        "float_id": "integration-new-ai-teaser",
+        "teaser_i18n": "chat.formAiTeaserInt",
+    }
+
+
+def _integration_form_response(
+    request: Request,
+    user: models.User,
+    db: Session,
+    *,
+    error: str | None,
+    form: dict,
+    edit_ir: models.IntegrationRequest | None = None,
+    integration_ref_code_initial: dict | None = None,
+    attachment_entries: list[dict] | None = None,
+    missing_field_labels: list[str] | None = None,
+    ai_inquiry: dict | None = None,
+    status_code: int = 400,
+):
+    modules, devtypes = _get_modules_devtypes(db)
+    ctx: dict[str, Any] = {
+        "request": request,
+        "user": user,
+        "modules": modules,
+        "devtypes": devtypes,
+        "error": error,
+        "form": form,
+        "edit_ir": edit_ir,
+        "missing_field_labels": list(missing_field_labels or []),
+        **_integration_impl_ui_ctx(db),
+    }
+    if integration_ref_code_initial is not None:
+        ctx["integration_ref_code_initial"] = integration_ref_code_initial
+    elif edit_ir and edit_ir.reference_code_payload:
+        try:
+            ctx["integration_ref_code_initial"] = json.loads(edit_ir.reference_code_payload)
+        except Exception:
+            ctx["integration_ref_code_initial"] = None
+    else:
+        ctx["integration_ref_code_initial"] = None
+    if attachment_entries is not None:
+        ctx["attachment_entries"] = attachment_entries
+    elif edit_ir:
+        ctx["attachment_entries"] = _attachment_entries(edit_ir)
+    if ai_inquiry is not None:
+        ctx["ai_inquiry"] = ai_inquiry
+    elif not edit_ir:
+        ctx["ai_inquiry"] = _integration_new_ai_inquiry()
+    return templates.TemplateResponse(
+        request,
+        "integration_form.html",
+        ctx,
+        status_code=status_code,
+    )
+
+
+async def integration_form_request_validation_response(request: Request, db: Session):
+    """multipart 422 시 신규/수정 연동 폼 재표시(입력값 유지)."""
+    import re
+
+    path = request.url.path.rstrip("/") or "/"
+    edit_m = re.fullmatch(r"/integration/(\d+)/edit", path)
+    is_new = path == "/integration/new"
+    if not is_new and not edit_m:
+        return None
+
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    form_data = await request.form()
+    title = form_data.get("title") or ""
+    impl_types = list(form_data.getlist("impl_types"))
+    description = form_data.get("description") or ""
+    desc_fmt = (form_data.get("description_format") or "html").strip().lower()
+    sap_touchpoints = form_data.get("sap_touchpoints") or ""
+    environment_notes = form_data.get("environment_notes") or ""
+    save_action = form_data.get("save_action") or "submit"
+    is_draft = (save_action or "").strip().lower() == "draft"
+    notes_in = [form_data.get(f"note_{i}") or "" for i in range(5)]
+
+    allowed_impl = integration_impl_allowed_codes(db)
+    impl_clean = [x for x in impl_types if x in allowed_impl]
+    desc_plain = description_plain_for_validate(description, desc_fmt)
+    miss = integration_missing_core_field_labels(
+        title,
+        impl_clean,
+        desc_plain,
+        min_description_chars=0 if is_draft else MIN_RFP_DESCRIPTION_CHARS,
+    )
+    error = CORE_FIELDS_INCOMPLETE_ERROR if miss else "validation"
+
+    form = {
+        "title": title,
+        "impl_types": impl_types,
+        "sap_touchpoints": sap_touchpoints,
+        "environment_notes": environment_notes,
+        "description": description,
+        "description_format": desc_fmt,
+        "notes": notes_in,
+    }
+
+    ref_initial = None
+    ref_raw = (form_data.get("reference_code_json") or "").strip()
+    if ref_raw:
+        try:
+            ref_initial = json.loads(ref_raw)
+        except Exception:
+            ref_initial = None
+
+    if edit_m:
+        req_id = int(edit_m.group(1))
+        ir = (
+            db.query(models.IntegrationRequest)
+            .filter(
+                models.IntegrationRequest.id == req_id,
+                models.IntegrationRequest.user_id == user.id,
+            )
+            .first()
+        )
+        if not ir:
+            return None
+        return _integration_form_response(
+            request,
+            user,
+            db,
+            error=error,
+            form=form,
+            edit_ir=ir,
+            integration_ref_code_initial=ref_initial,
+            attachment_entries=_attachment_entries(ir),
+            missing_field_labels=miss,
+            status_code=400,
+        )
+
+    return _integration_form_response(
+        request,
+        user,
+        db,
+        error=error,
+        form=form,
+        integration_ref_code_initial=ref_initial,
+        missing_field_labels=miss,
+        status_code=400,
+    )
 
 
 def _attachment_entries(ir: models.IntegrationRequest) -> list[dict]:
@@ -1432,21 +1588,31 @@ async def integration_new_submit(
             "notes": notes_in,
         }
 
+    allowed_impl = integration_impl_allowed_codes(db)
+    impl_clean = [x for x in impl_types if x in allowed_impl]
+    desc_plain = description_plain_for_validate(description, desc_fmt)
+    min_desc = 0 if is_draft_save else MIN_RFP_DESCRIPTION_CHARS
+    miss = integration_missing_core_field_labels(
+        title, impl_clean, desc_plain, min_description_chars=min_desc
+    )
+    if miss:
+        return _integration_form_response(
+            request,
+            user,
+            db,
+            error=CORE_FIELDS_INCOMPLETE_ERROR,
+            form=_form_dict(),
+            missing_field_labels=miss,
+        )
+
     n_uploads = sum(1 for f in attachments if f.filename)
     if n_uploads > MAX_RFP_ATTACHMENTS:
-        return templates.TemplateResponse(
+        return _integration_form_response(
             request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "too_many_attachments",
-                "form": _form_dict(),
-            },
-            status_code=400,
+            user,
+            db,
+            error="too_many_attachments",
+            form=_form_dict(),
         )
 
     att_entries: list[dict] = []
@@ -1455,108 +1621,43 @@ async def integration_new_submit(
             user.id, attachments, notes_in
         )
         if err_a:
-            return templates.TemplateResponse(
-                request,
-                "integration_form.html",
-                {
-                    "request": request,
-                    "user": user,
-                    "modules": modules,
-                    "devtypes": devtypes,
-                    **_integration_impl_ui_ctx(db),
-                    "error": err_a,
-                    "form": _form_dict(),
-                },
-                status_code=400,
+            return _integration_form_response(
+                request, user, db, error=err_a, form=_form_dict()
             )
 
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
-        return templates.TemplateResponse(
+        return _integration_form_response(
             request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "reference_code_too_large",
-                "form": _form_dict(),
-            },
-            status_code=400,
+            user,
+            db,
+            error="reference_code_too_large",
+            form=_form_dict(),
         )
 
-    allowed_impl = integration_impl_allowed_codes(db)
-    impl_clean = [x for x in impl_types if x in allowed_impl]
-    if not is_draft_save and not impl_clean:
-        return templates.TemplateResponse(
-            request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "need_impl_types",
-                "form": _form_dict(),
-            },
-            status_code=400,
-        )
     title_clean = (title or "").strip()
-    if not is_draft_save and not title_clean:
-        return templates.TemplateResponse(
-            request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "need_title",
-                "form": _form_dict(),
-            },
-            status_code=400,
-        )
     qerr = try_consume_monthly(db, user, METRIC_DEV_REQUEST, 1)
     if qerr == "disabled":
-        return templates.TemplateResponse(
+        return _integration_form_response(
             request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "subscription_dev_request_disabled",
-                "form": _form_dict(),
-            },
-            status_code=400,
+            user,
+            db,
+            error="subscription_dev_request_disabled",
+            form=_form_dict(),
         )
     if qerr == "monthly_limit":
-        return templates.TemplateResponse(
+        return _integration_form_response(
             request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "subscription_dev_request_limit",
-                "form": _form_dict(),
-            },
-            status_code=400,
+            user,
+            db,
+            error="subscription_dev_request_limit",
+            form=_form_dict(),
         )
 
-    display_title = title_clean or "SAP 연동 개발 요청 (임시)"
     ir = models.IntegrationRequest(
         user_id=user.id,
-        title=display_title,
+        title=title_clean,
         impl_types=",".join(impl_clean) if impl_clean else "",
         sap_touchpoints=sap_touchpoints.strip() or None,
         environment_notes=environment_notes.strip() or None,
@@ -1574,19 +1675,8 @@ async def integration_new_submit(
         body_err = apply_requirement_body(ir, user, description, desc_fmt, "integration")
         if body_err:
             db.rollback()
-            return templates.TemplateResponse(
-                request,
-                "integration_form.html",
-                {
-                    "request": request,
-                    "user": user,
-                    "modules": modules,
-                    "devtypes": devtypes,
-                    **_integration_impl_ui_ctx(db),
-                    "error": body_err,
-                    "form": _form_dict(),
-                },
-                status_code=400,
+            return _integration_form_response(
+                request, user, db, error=body_err, form=_form_dict()
             )
         db.commit()
     except Exception:
@@ -1801,130 +1891,80 @@ async def integration_edit_submit(
             "notes": notes_in,
         }
 
+    allowed_impl = integration_impl_allowed_codes(db)
+    impl_clean = [x for x in impl_types if x in allowed_impl]
+    desc_plain = description_plain_for_validate(description, desc_fmt)
+    min_desc = 0 if is_draft_save else MIN_RFP_DESCRIPTION_CHARS
+    miss = integration_missing_core_field_labels(
+        title, impl_clean, desc_plain, min_description_chars=min_desc
+    )
+    if miss:
+        return _integration_form_response(
+            request,
+            user,
+            db,
+            error=CORE_FIELDS_INCOMPLETE_ERROR,
+            form=_form_dict(),
+            edit_ir=ir,
+            attachment_entries=_attachment_entries(ir),
+            missing_field_labels=miss,
+        )
+
     n_uploads = sum(1 for f in attachments if f.filename)
     if n_uploads > MAX_RFP_ATTACHMENTS:
-        return templates.TemplateResponse(
+        return _integration_form_response(
             request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "too_many_attachments",
-                "form": _form_dict(),
-                "edit_ir": ir,
-                "integration_ref_code_initial": None,
-                "attachment_entries": _attachment_entries(ir),
-            },
-            status_code=400,
+            user,
+            db,
+            error="too_many_attachments",
+            form=_form_dict(),
+            edit_ir=ir,
+            attachment_entries=_attachment_entries(ir),
         )
 
     try:
         norm_ref = normalize_reference_code_payload(reference_code_json)
     except ValueError:
-        # 용량 초과 시 전체 JSON을 다시 파싱하면 메모리·시간 부담으로 500이 날 수 있음 — 폼에는 비워 둠.
-        return templates.TemplateResponse(
+        return _integration_form_response(
             request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "reference_code_too_large",
-                "form": _form_dict(),
-                "edit_ir": ir,
-                "integration_ref_code_initial": None,
-                "attachment_entries": _attachment_entries(ir),
-            },
-            status_code=400,
+            user,
+            db,
+            error="reference_code_too_large",
+            form=_form_dict(),
+            edit_ir=ir,
+            integration_ref_code_initial=None,
+            attachment_entries=_attachment_entries(ir),
         )
 
     merged_att = list(_attachment_entries(ir))
     if n_uploads:
         new_e, err_a = await _build_attachment_entries_from_uploads(user.id, attachments, notes_in)
         if err_a:
-            return templates.TemplateResponse(
+            return _integration_form_response(
                 request,
-                "integration_form.html",
-                {
-                    "request": request,
-                    "user": user,
-                    "modules": modules,
-                    "devtypes": devtypes,
-                    **_integration_impl_ui_ctx(db),
-                    "error": err_a,
-                    "form": _form_dict(),
-                    "edit_ir": ir,
-                    "integration_ref_code_initial": None,
-                    "attachment_entries": merged_att,
-                },
-                status_code=400,
+                user,
+                db,
+                error=err_a,
+                form=_form_dict(),
+                edit_ir=ir,
+                integration_ref_code_initial=None,
+                attachment_entries=merged_att,
             )
         merged_att = merged_att + (new_e or [])
         if len(merged_att) > MAX_RFP_ATTACHMENTS:
-            return templates.TemplateResponse(
+            return _integration_form_response(
                 request,
-                "integration_form.html",
-                {
-                    "request": request,
-                    "user": user,
-                    "modules": modules,
-                    "devtypes": devtypes,
-                    **_integration_impl_ui_ctx(db),
-                    "error": "too_many_attachments",
-                    "form": _form_dict(),
-                    "edit_ir": ir,
-                    "integration_ref_code_initial": None,
-                    "attachment_entries": merged_att,
-                },
-                status_code=400,
+                user,
+                db,
+                error="too_many_attachments",
+                form=_form_dict(),
+                edit_ir=ir,
+                integration_ref_code_initial=None,
+                attachment_entries=merged_att,
             )
 
-    allowed_impl = integration_impl_allowed_codes(db)
-    impl_clean = [x for x in impl_types if x in allowed_impl]
-    if not is_draft_save and not impl_clean:
-        return templates.TemplateResponse(
-            request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "need_impl_types",
-                "form": _form_dict(),
-                "edit_ir": ir,
-                "integration_ref_code_initial": None,
-                "attachment_entries": merged_att,
-            },
-            status_code=400,
-        )
     title_clean = (title or "").strip()
-    if not is_draft_save and not title_clean:
-        return templates.TemplateResponse(
-            request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": "need_title",
-                "form": _form_dict(),
-                "edit_ir": ir,
-                "integration_ref_code_initial": None,
-                "attachment_entries": merged_att,
-            },
-            status_code=400,
-        )
-
-    ir.title = title_clean or ir.title or "SAP 연동 개발 요청 (임시)"
+    ir.title = title_clean
     ir.impl_types = ",".join(impl_clean) if impl_clean else ""
     ir.sap_touchpoints = sap_touchpoints.strip() or None
     ir.environment_notes = environment_notes.strip() or None
@@ -1939,22 +1979,15 @@ async def integration_edit_submit(
     body_err = apply_requirement_body(ir, user, description, desc_fmt, "integration")
     if body_err:
         db.rollback()
-        return templates.TemplateResponse(
+        return _integration_form_response(
             request,
-            "integration_form.html",
-            {
-                "request": request,
-                "user": user,
-                "modules": modules,
-                "devtypes": devtypes,
-                **_integration_impl_ui_ctx(db),
-                "error": body_err,
-                "form": _form_dict(),
-                "edit_ir": ir,
-                "integration_ref_code_initial": None,
-                "attachment_entries": merged_att,
-            },
-            status_code=400,
+            user,
+            db,
+            error=body_err,
+            form=_form_dict(),
+            edit_ir=ir,
+            integration_ref_code_initial=None,
+            attachment_entries=merged_att,
         )
     db.add(ir)
     db.commit()

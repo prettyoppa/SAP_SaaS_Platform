@@ -709,6 +709,45 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
             status_code=422,
         )
 
+    if path == "/rfp/new" or (
+        path.startswith("/rfp/") and path.endswith("/edit")
+    ):
+        db = SessionLocal()
+        try:
+            from .routers.rfp_router import rfp_form_request_validation_response
+
+            rfp_resp = await rfp_form_request_validation_response(request, db)
+            if rfp_resp is not None:
+                return rfp_resp
+        finally:
+            db.close()
+
+    if path == "/abap-analysis/new" or (
+        path.startswith("/abap-analysis/") and path.endswith("/edit")
+    ):
+        db = SessionLocal()
+        try:
+            from .routers.abap_analysis_router import abap_form_request_validation_response
+
+            abap_resp = await abap_form_request_validation_response(request, db)
+            if abap_resp is not None:
+                return abap_resp
+        finally:
+            db.close()
+
+    if path == "/integration/new" or (
+        path.startswith("/integration/") and path.endswith("/edit")
+    ):
+        db = SessionLocal()
+        try:
+            from .routers.integration_router import integration_form_request_validation_response
+
+            int_resp = await integration_form_request_validation_response(request, db)
+            if int_resp is not None:
+                return int_resp
+        finally:
+            db.close()
+
     back = safe_back_url(request, "/")
     return templates.TemplateResponse(
         request,

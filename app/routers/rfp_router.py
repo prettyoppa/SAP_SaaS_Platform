@@ -60,6 +60,7 @@ from ..rfp_download_names import (
 )
 from ..rfp_form_suggest import (
     MIN_RFP_DESCRIPTION_CHARS,
+    description_plain_for_suggest,
     description_sufficient_for_suggest,
     suggest_program_id_from_title,
     suggest_title_from_description,
@@ -165,13 +166,136 @@ def _rfp_missing_core_field_labels(
     return miss
 
 
-CORE_FIELDS_INCOMPLETE_ERROR = "core_fields_incomplete"
+from ..form_core_validation import CORE_FIELDS_INCOMPLETE_ERROR
 
 
 class RfpSuggestFieldIn(BaseModel):
     kind: str = Field(..., description="title | program_id")
     description: str = ""
+    description_format: str = "html"
     title: str = ""
+
+
+async def rfp_form_request_validation_response(request: Request, db: Session):
+    """multipart 422 시 신규/수정 RFP 폼을 그대로 다시 표시(입력값 유지)."""
+    import re
+
+    path = request.url.path.rstrip("/") or "/"
+    edit_m = re.fullmatch(r"/rfp/(\d+)/edit", path)
+    is_new = path == "/rfp/new"
+    if not is_new and not edit_m:
+        return None
+
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    form_data = await request.form()
+    title = form_data.get("title") or ""
+    program_id = form_data.get("program_id") or ""
+    transaction_code = form_data.get("transaction_code") or ""
+    description = form_data.get("description") or ""
+    desc_fmt = (form_data.get("description_format") or "html").strip().lower()
+    sap_modules = list(form_data.getlist("sap_modules"))
+    dev_types = list(form_data.getlist("dev_types"))
+    save_action = form_data.get("save_action") or "submit"
+    is_draft = (save_action or "").strip().lower() == "draft"
+    notes_in = [form_data.get(f"note_{i}") or "" for i in range(5)]
+
+    modules, devtypes = _get_modules_devtypes(db)
+    writing_tip_setting = (
+        db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
+    )
+    writing_tip = writing_tip_setting.value if writing_tip_setting else ""
+
+    form = {
+        "program_id": program_id,
+        "transaction_code": transaction_code,
+        "title": title,
+        "description": description,
+        "description_format": desc_fmt,
+        "sap_modules": sap_modules,
+        "dev_types": dev_types,
+        "notes": notes_in,
+    }
+
+    desc_plain = _description_plain_for_validate(description, desc_fmt)
+    miss = _rfp_missing_core_field_labels(
+        title,
+        program_id,
+        sap_modules,
+        dev_types,
+        desc_plain,
+        min_description_chars=0 if is_draft else None,
+    )
+    error = CORE_FIELDS_INCOMPLETE_ERROR if miss else "validation"
+    missing_field_labels = miss
+
+    ref_initial = None
+    ref_raw = (form_data.get("reference_code_json") or "").strip()
+    if ref_raw:
+        try:
+            ref_initial = json.loads(ref_raw)
+        except Exception:
+            ref_initial = None
+
+    if edit_m:
+        rfp_id = int(edit_m.group(1))
+        rfp = (
+            db.query(models.RFP)
+            .filter(models.RFP.id == rfp_id, models.RFP.user_id == user.id)
+            .first()
+        )
+        if not rfp:
+            return None
+        ctx = _rfp_form_ctx(
+            request,
+            user,
+            modules,
+            devtypes,
+            writing_tip,
+            db,
+            error=error,
+            missing_field_labels=missing_field_labels,
+            form=form,
+            rfp=rfp,
+            edit_mode=True,
+            attachment_entries=_rfp_attachment_entries(rfp),
+        )
+        if ref_initial is not None:
+            ctx["ref_code_initial"] = ref_initial
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            ctx,
+            status_code=400,
+        )
+
+    ctx = _rfp_form_ctx(
+        request,
+        user,
+        modules,
+        devtypes,
+        writing_tip,
+        db,
+        error=error,
+        missing_field_labels=missing_field_labels,
+        form=form,
+        attachment_entries=[],
+    )
+    if ref_initial is not None:
+        ctx["ref_code_initial"] = ref_initial
+    ctx["ai_inquiry"] = {
+        "mode": "teaser",
+        "float_id": "rfp-new-ai-teaser",
+        "teaser_i18n": "chat.formAiTeaserRfp",
+    }
+    return templates.TemplateResponse(
+        request,
+        "rfp_form.html",
+        ctx,
+        status_code=400,
+    )
 
 
 def _billing_flash_message(checkout: str | None) -> str | None:
@@ -465,15 +589,15 @@ async def rfp_api_suggest_field(
         return JSONResponse({"ok": False, "error": "login_required"}, status_code=401)
     k = (body.kind or "").strip().lower()
     try:
+        desc_fmt = (body.description_format or "html").strip().lower()
+        desc_plain = description_plain_for_suggest(body.description, desc_fmt)
         if k == "title":
-            if not description_sufficient_for_suggest(body.description):
+            if not description_sufficient_for_suggest(body.description, desc_fmt):
                 return JSONResponse({"ok": False, "error": "description_insufficient"}, status_code=400)
-            out = await run_in_threadpool(
-                lambda: suggest_title_from_description((body.description or "").strip())
-            )
+            out = await run_in_threadpool(lambda: suggest_title_from_description(desc_plain))
             return JSONResponse({"ok": True, "title": out})
         if k == "program_id":
-            if not description_sufficient_for_suggest(body.description):
+            if not description_sufficient_for_suggest(body.description, desc_fmt):
                 return JSONResponse({"ok": False, "error": "description_insufficient"}, status_code=400)
             tit = (body.title or "").strip()
             if not tit:
@@ -494,7 +618,7 @@ async def submit_rfp(
     request: Request,
     program_id: str = Form(""),
     transaction_code: str = Form(""),
-    title: str = Form(...),
+    title: str = Form(""),
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
     description: str = Form(""),
@@ -568,7 +692,7 @@ async def submit_rfp(
             status_code=400,
         )
 
-    pid, perr = sap_fields.validate_program_id(program_id, required=True)
+    pid, perr = sap_fields.validate_program_id(program_id, required=not is_draft)
     if perr:
         err_key = {
             "required": "program_id_required",
@@ -1829,7 +1953,7 @@ async def rfp_edit_submit(
     request: Request,
     program_id: str = Form(""),
     transaction_code: str = Form(""),
-    title: str = Form(...),
+    title: str = Form(""),
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
     description: str = Form(""),
@@ -1925,7 +2049,7 @@ async def rfp_edit_submit(
             status_code=400,
         )
 
-    pid, perr = sap_fields.validate_program_id(program_id, required=True)
+    pid, perr = sap_fields.validate_program_id(program_id, required=not is_draft)
     if perr:
         err_key = {
             "required": "program_id_required",

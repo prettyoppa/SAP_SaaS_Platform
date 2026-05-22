@@ -339,15 +339,38 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const MIN_DESC_FOR_AI = 40;
-  function rfpDescTooShortForAi() {
+  function rfpDescriptionPlainText() {
+    if (typeof window.syncAllReqRichFields === 'function') window.syncAllReqRichFields();
+    const root = document.querySelector('.req-rich-field');
+    if (root) {
+      const fmtInput = root.querySelector('.req-rich-fmt-input');
+      const richEl = root.querySelector('.req-rich-surface');
+      const plainEl = root.querySelector('.req-rich-plain');
+      if (fmtInput && fmtInput.value === 'html' && richEl) {
+        return (richEl.innerText || '').replace(/\s+/g, ' ').trim();
+      }
+      if (plainEl) return (plainEl.value || '').trim();
+    }
     const d = document.getElementById('description');
-    return !d || d.value.trim().length < MIN_DESC_FOR_AI;
+    return d ? (d.value || '').trim() : '';
+  }
+  function rfpDescriptionForSuggest() {
+    const plain = rfpDescriptionPlainText();
+    const root = document.querySelector('.req-rich-field');
+    const fmtInput = root ? root.querySelector('.req-rich-fmt-input') : null;
+    return {
+      description: plain,
+      description_format: fmtInput ? fmtInput.value : 'html',
+    };
+  }
+  function rfpDescTooShortForAi() {
+    return rfpDescriptionPlainText().length < MIN_DESC_FOR_AI;
   }
   function rfpAiInsufficientMsg() {
     const en = typeof currentLang !== 'undefined' && currentLang === 'en';
     return en
-      ? 'The free-text requirements section is too short for AI suggestions (minimum 40 characters).'
-      : '「요구사항 자유 기술」 입력정보가 부족합니다.';
+      ? 'Enter at least 40 characters in the requirements field (saved draft not required; uses text on screen).'
+      : '「요구사항 자유 기술」에 40자 이상 입력해 주세요. (임시저장 없이 화면에 입력된 내용을 사용합니다)';
   }
 
   async function postRfpSuggest(body) {
@@ -375,10 +398,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       aiTitleBtn.disabled = true;
       try {
-        const desc = document.getElementById('description');
+        const descPayload = rfpDescriptionForSuggest();
         const { res, data } = await postRfpSuggest({
           kind: 'title',
-          description: desc ? desc.value : '',
+          description: descPayload.description,
+          description_format: descPayload.description_format,
         });
         if (!res.ok) {
           if (data.error === 'description_insufficient') alert(rfpAiInsufficientMsg());
@@ -413,11 +437,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       aiProgBtn.disabled = true;
       try {
-        const desc = document.getElementById('description');
+        const descPayload = rfpDescriptionForSuggest();
         const { res, data } = await postRfpSuggest({
           kind: 'program_id',
           title: ti.value.trim(),
-          description: desc ? desc.value : '',
+          description: descPayload.description,
+          description_format: descPayload.description_format,
         });
         if (!res.ok) {
           if (data.error === 'description_insufficient') alert(rfpAiInsufficientMsg());

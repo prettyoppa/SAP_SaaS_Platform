@@ -127,8 +127,8 @@ from ..rfp_reference_code import (
 from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from .interview_router import _markdown_to_html
+from ..form_core_validation import CORE_FIELDS_INCOMPLETE_ERROR, description_plain_for_validate
 from .rfp_router import (
-    CORE_FIELDS_INCOMPLETE_ERROR,
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
     _remove_stored_file,
@@ -566,6 +566,94 @@ def _form_template_response(
     )
 
 
+async def abap_form_request_validation_response(request: Request, db: Session):
+    """multipart 422 시 신규/수정 분석·개선 폼 재표시(입력값 유지)."""
+    import re
+
+    path = request.url.path.rstrip("/") or "/"
+    edit_m = re.fullmatch(r"/abap-analysis/(\d+)/edit", path)
+    is_new = path == "/abap-analysis/new"
+    if not is_new and not edit_m:
+        return None
+
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    form_data = await request.form()
+    title = form_data.get("title") or ""
+    program_id = form_data.get("program_id") or ""
+    transaction_code = form_data.get("transaction_code") or ""
+    requirement_text = form_data.get("requirement_text") or ""
+    req_fmt = (form_data.get("requirement_text_format") or "html").strip().lower()
+    sap_modules = list(form_data.getlist("sap_modules"))
+    dev_types = list(form_data.getlist("dev_types"))
+    save_action = form_data.get("save_action") or "submit"
+    is_draft = (save_action or "").strip().lower() == "draft"
+    notes_in = [form_data.get(f"note_{i}") or "" for i in range(5)]
+
+    form = _abap_form_dict(
+        title=title,
+        requirement_text=requirement_text,
+        requirement_text_format=req_fmt,
+        program_id=program_id,
+        transaction_code=transaction_code,
+        sap_modules=sap_modules,
+        dev_types=dev_types,
+        notes=notes_in,
+    )
+
+    req_plain = description_plain_for_validate(requirement_text, req_fmt)
+    miss = _rfp_missing_core_field_labels(
+        title,
+        program_id,
+        sap_modules,
+        dev_types,
+        req_plain,
+        min_description_chars=0 if is_draft else None,
+    )
+    error = CORE_FIELDS_INCOMPLETE_ERROR if miss else "validation"
+    ref_initial = _ref_initial_from_raw((form_data.get("reference_code_json") or "").strip())
+
+    if edit_m:
+        row_id = int(edit_m.group(1))
+        row = (
+            db.query(models.AbapAnalysisRequest)
+            .filter(
+                models.AbapAnalysisRequest.id == row_id,
+                models.AbapAnalysisRequest.user_id == user.id,
+            )
+            .first()
+        )
+        if not row:
+            return None
+        return _form_template_response(
+            request,
+            user,
+            db,
+            error=error,
+            form=form,
+            ref_code_initial=ref_initial,
+            edit_row=row,
+            attachment_entries=_attachment_entries(row),
+            status_code=400,
+            missing_field_labels=miss,
+        )
+
+    return _form_template_response(
+        request,
+        user,
+        db,
+        error=error,
+        form=form,
+        ref_code_initial=ref_initial,
+        edit_row=None,
+        attachment_entries=[],
+        status_code=400,
+        missing_field_labels=miss,
+    )
+
+
 @router.get("", response_class=HTMLResponse)
 def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
@@ -735,7 +823,7 @@ async def abap_analysis_create(
     if miss:
         return _bad(CORE_FIELDS_INCOMPLETE_ERROR, missing_field_labels=miss)
 
-    pid, perr = sap_fields.validate_program_id(program_id, required=True)
+    pid, perr = sap_fields.validate_program_id(program_id, required=not is_draft_save)
     if perr:
         err_key = {
             "required": "program_id_required",
@@ -996,7 +1084,7 @@ async def abap_analysis_edit_save(
     if miss:
         return _bad(CORE_FIELDS_INCOMPLETE_ERROR, missing_field_labels=miss)
 
-    pid, perr = sap_fields.validate_program_id(program_id, required=True)
+    pid, perr = sap_fields.validate_program_id(program_id, required=not is_draft_save)
     if perr:
         err_key = {
             "required": "program_id_required",

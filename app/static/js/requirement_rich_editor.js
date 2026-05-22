@@ -463,7 +463,14 @@
 
     var initial = (fmtInput && fmtInput.value) || root.getAttribute('data-default-mode') || 'html';
     applyRich(initial === 'html');
+    root.syncReqRichBody = syncHidden;
   }
+
+  window.syncAllReqRichFields = function () {
+    document.querySelectorAll('.req-rich-field').forEach(function (r) {
+      if (typeof r.syncReqRichBody === 'function') r.syncReqRichBody();
+    });
+  };
 
   document.querySelectorAll('.req-rich-field').forEach(initReqRichRoot);
 })();

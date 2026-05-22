@@ -22,8 +22,21 @@ _PRINTABLE_ASCII = re.compile(r"^[!-~]+$")
 _CJK_RE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]")
 
 
-def description_sufficient_for_suggest(text: str | None) -> bool:
-    return len((text or "").strip()) >= MIN_RFP_DESCRIPTION_CHARS
+def description_plain_for_suggest(text: str | None, fmt: str | None = None) -> str:
+    """리치 HTML·plain 모두 평문 길이 검사용."""
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+    f = (fmt or "").strip().lower()
+    if f == "html" or ("<" in raw and ">" in raw):
+        from .requirement_rich_text import html_to_plain_text
+
+        return html_to_plain_text(raw).strip()
+    return raw
+
+
+def description_sufficient_for_suggest(text: str | None, fmt: str | None = None) -> bool:
+    return len(description_plain_for_suggest(text, fmt)) >= MIN_RFP_DESCRIPTION_CHARS
 
 
 def _configure_genai() -> genai.GenerativeModel:
