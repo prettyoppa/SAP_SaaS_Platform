@@ -10,7 +10,8 @@
   var START_PAUSE_MS = 550;
   var REVEAL_LINE_MS = 22000;
   var REVEAL_LINE_GAP_MS = 0;
-  var REVEAL_HOLD_MS = 5000;
+  var REVEAL_HOLD_MS = 1500;
+  var REVEAL_START_PAUSE_MS = 0;
 
   function siteLang() {
     return localStorage.getItem("lang") === "en" ? "en" : "ko";
@@ -215,7 +216,17 @@
       });
     }
 
+    function revealDurationMs() {
+      var raw = getComputedStyle(root).getPropertyValue("--tile-reveal-duration").trim();
+      if (!raw) return REVEAL_LINE_MS;
+      var n = parseFloat(raw);
+      if (isNaN(n)) return REVEAL_LINE_MS;
+      if (raw.indexOf("ms") !== -1) return n;
+      return n * 1000;
+    }
+
     function waitTransition(el) {
+      var durationMs = revealDurationMs();
       return new Promise(function (resolve) {
         var done = false;
         function finish() {
@@ -225,10 +236,12 @@
           resolve();
         }
         function onEnd(ev) {
-          if (ev.target === el || ev.target.classList.contains("home-tile-reveal-line-inner")) finish();
+          if (ev.target !== el) return;
+          if (ev.propertyName && ev.propertyName !== "clip-path") return;
+          finish();
         }
         el.addEventListener("transitionend", onEnd);
-        setTimeout(finish, REVEAL_LINE_MS + 80);
+        setTimeout(finish, durationMs + 60);
       });
     }
 
@@ -238,7 +251,7 @@
       if (!hasContent(block)) return;
 
       clearStage();
-      await sleep(START_PAUSE_MS);
+      if (REVEAL_START_PAUSE_MS > 0) await sleep(REVEAL_START_PAUSE_MS);
       if (gen !== runGen) return;
 
       for (var li = 0; li < lines.length; li++) {
