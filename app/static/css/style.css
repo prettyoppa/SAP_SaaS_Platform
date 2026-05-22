@@ -2141,7 +2141,7 @@ html[data-theme="dark"] .home-feature-icon-analysis .home-feature-icon-analysis-
   white-space: pre-wrap;
   word-break: break-word;
   clip-path: inset(0 100% 0 0);
-  transition: clip-path 5.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: clip-path 11s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: clip-path;
 }
 .home-tile-reveal-line.is-revealed .home-tile-reveal-line-inner {

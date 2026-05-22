@@ -8,8 +8,9 @@
   var LINE_PAUSE_MS = 320;
   var HOLD_MS = 10000;
   var START_PAUSE_MS = 550;
-  var REVEAL_LINE_MS = 5800;
-  var REVEAL_LINE_GAP_MS = 650;
+  var REVEAL_LINE_MS = 11600;
+  var REVEAL_LINE_GAP_MS = 800;
+  var REVEAL_HOLD_MS = 5000;
 
   function siteLang() {
     return localStorage.getItem("lang") === "en" ? "en" : "ko";
@@ -188,7 +189,7 @@
     if (!stage || !bundleEl) return;
 
     var bundle = parseBundle(bundleEl);
-    var holdMs = HOLD_MS;
+    var holdMs = REVEAL_HOLD_MS;
     var holdAttr = root.getAttribute("data-typing-hold-ms");
     if (holdAttr) {
       var parsed = parseInt(holdAttr, 10);
