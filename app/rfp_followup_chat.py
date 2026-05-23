@@ -18,7 +18,6 @@ from .attachment_context import build_attachment_llm_digest
 from .gemini_model import get_gemini_model_id
 from .abap_followup_chat import MAX_USER_TURNS_PER_REQUEST
 from .integration_followup_chat import validate_integration_user_message
-from .routers.interview_router import _conversation_list_for_llm
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -68,6 +67,8 @@ def _format_history(rows: list) -> str:
 
 
 def _interview_digest_for_prompt(rfp) -> str:
+    from .routers.interview_router import _conversation_list_for_llm
+
     conv = _conversation_list_for_llm(rfp)
     if not conv:
         return ""

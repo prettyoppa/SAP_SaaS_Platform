@@ -77,6 +77,10 @@ class ProposalPdfUnavailable(RuntimeError):
     """한글 PDF 폰트를 찾을 수 없을 때."""
 
 
+class ProposalPdfGenerationFailed(RuntimeError):
+    """HTML→PDF 변환 실패."""
+
+
 def _korean_pdf_font_path() -> Path | None:
     root = Path(__file__).resolve().parent
     for p in (

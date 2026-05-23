@@ -119,9 +119,9 @@ def _md_html_filter(s) -> Markup:
     raw = str(s).strip()
     if not raw:
         return Markup("")
-    from .routers.interview_router import _markdown_to_html
+    from .proposal_markdown_html import markdown_to_html
 
-    return Markup(_markdown_to_html(raw))
+    return Markup(markdown_to_html(raw))
 
 
 templates.env.filters["md_html"] = _md_html_filter
