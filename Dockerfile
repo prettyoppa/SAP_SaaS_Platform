@@ -14,7 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY scripts/fetch_proposal_pdf_font.py ./scripts/fetch_proposal_pdf_font.py
-RUN python scripts/fetch_proposal_pdf_font.py
+RUN python scripts/fetch_proposal_pdf_font.py \
+    && test -s app/static/fonts/NotoSansCJKkr-Regular.otf
 COPY admins.txt ./admins.txt
 
 EXPOSE 8000

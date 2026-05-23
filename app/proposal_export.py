@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import io
 import logging
+import re
+import urllib.request
 from pathlib import Path
 
 from fastapi.responses import Response
@@ -14,10 +16,22 @@ from .rfp_download_names import content_disposition_attachment, sanitize_path_co
 
 _log = logging.getLogger(__name__)
 
-# proposal-body (style.css) 인쇄용 — fpdf2 write_html 지원 CSS
+_FONT_DIR = Path(__file__).resolve().parent / "static" / "fonts"
+_FONT_SPECS: tuple[tuple[str, str], ...] = (
+    (
+        "NotoSansCJKkr-Regular.otf",
+        "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/Korean/NotoSansCJKkr-Regular.otf",
+    ),
+    (
+        "NotoSansCJKkr-Bold.otf",
+        "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/Korean/NotoSansCJKkr-Bold.otf",
+    ),
+)
+
+# proposal-body (style.css) 인쇄용 — fpdf2 / pymupdf 공통
 _PROPOSAL_PDF_CSS = """
 body {
-  font-family: Ko;
+  font-family: Ko, sans-serif;
   font-size: 10pt;
   color: #0f172a;
   line-height: 1.65;
@@ -33,10 +47,10 @@ h1 {
 h2 {
   font-size: 13pt;
   font-weight: bold;
-  color: #818cf8;
+  color: #6366f1;
   margin: 20pt 0 8pt 0;
   padding-left: 8pt;
-  border-left: 3px solid #6366f1;
+  border-left: 3pt solid #6366f1;
 }
 h3 {
   font-size: 11pt;
@@ -47,7 +61,7 @@ h3 {
 p { margin: 0 0 8pt 0; }
 ul, ol { margin: 0 0 10pt 14pt; padding: 0; }
 li { margin-bottom: 3pt; }
-strong { color: #818cf8; }
+strong { color: #6366f1; }
 code {
   font-size: 9pt;
   color: #0284c7;
@@ -85,7 +99,7 @@ def _korean_pdf_font_path() -> Path | None:
     root = Path(__file__).resolve().parent
     for p in (
         Path(r"C:\Windows\Fonts\malgun.ttf"),
-        root / "static" / "fonts" / "NotoSansCJKkr-Regular.otf",
+        _FONT_DIR / "NotoSansCJKkr-Regular.otf",
         root / "static" / "fonts" / "NotoSansKR-Regular.ttf",
         root / "static" / "fonts" / "NotoSansKR-Regular.otf",
         Path("/usr/share/fonts/truetype/nanum/NanumGothic.ttf"),
@@ -94,6 +108,31 @@ def _korean_pdf_font_path() -> Path | None:
         if p.is_file():
             return p
     return None
+
+
+def ensure_proposal_pdf_fonts() -> bool:
+    """배포 환경에서 폰트가 없으면 다운로드 시도. 성공 시 True."""
+    existing = _korean_pdf_font_path()
+    if existing:
+        _log.info("proposal pdf font ready: %s", existing)
+        return True
+    _FONT_DIR.mkdir(parents=True, exist_ok=True)
+    for name, url in _FONT_SPECS:
+        dest = _FONT_DIR / name
+        if dest.is_file() and dest.stat().st_size > 50_000:
+            continue
+        try:
+            _log.warning("proposal pdf: downloading font %s", name)
+            urllib.request.urlretrieve(url, dest)
+            _log.info("proposal pdf: wrote %s (%s bytes)", dest, dest.stat().st_size)
+        except Exception:
+            _log.exception("proposal pdf: font download failed for %s", name)
+    ok = _korean_pdf_font_path()
+    if ok:
+        _log.info("proposal pdf font ready after download: %s", ok)
+    else:
+        _log.error("proposal pdf: korean font still missing under %s", _FONT_DIR)
+    return ok is not None
 
 
 def _korean_pdf_font_bold_path(regular: Path) -> Path | None:
@@ -116,34 +155,85 @@ def _korean_pdf_font_bold_path(regular: Path) -> Path | None:
     return None
 
 
-def _register_pdf_fonts(pdf) -> None:
+def _simplify_html_for_pdf(fragment: str) -> str:
+    """fpdf2/pymupdf 호환 — Bootstrap class·wrapper div 제거."""
+    s = re.sub(r'\sclass="[^"]*"', "", fragment)
+    s = re.sub(r'<div class="proposal-table-wrap[^"]*">', "", s)
+    return s
+
+
+def _register_fpdf_fonts(pdf) -> Path:
     regular = _korean_pdf_font_path()
     if not regular:
         raise ProposalPdfUnavailable()
     pdf.add_font("Ko", "", str(regular))
     bold = _korean_pdf_font_bold_path(regular)
     pdf.add_font("Ko", "B", str(bold or regular))
+    return regular
 
 
-def proposal_markdown_to_pdf_bytes(markdown_text: str, *, document_title: str = "") -> bytes:
+def _pdf_bytes_fpdf(html_doc: str) -> bytes:
     from fpdf import FPDF
-
-    md = prepare_member_facing_proposal_markdown(markdown_text or "")
-    body_html = markdown_to_html(md)
-    html = (
-        f"<style>{_PROPOSAL_PDF_CSS}</style>"
-        f'<div class="proposal-body">{body_html}</div>'
-    )
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=14)
-    _register_pdf_fonts(pdf)
+    _register_fpdf_fonts(pdf)
     pdf.add_page()
     pdf.set_font("Ko", size=10)
-    pdf.write_html(html)
+    pdf.write_html(html_doc)
     buf = io.BytesIO()
     pdf.output(buf)
     return buf.getvalue()
+
+
+def _pdf_bytes_pymupdf(html_doc: str, font_regular: Path) -> bytes:
+    import pymupdf as fitz
+
+    font_bold = _korean_pdf_font_bold_path(font_regular) or font_regular
+    css = (
+        _PROPOSAL_PDF_CSS
+        + f"""
+@font-face {{ font-family: Ko; src: url({font_regular.name}); }}
+@font-face {{ font-family: Ko; font-weight: bold; src: url({font_bold.name}); }}
+"""
+    )
+    wrapped = f"<html><head><meta charset='utf-8'></head><body>{html_doc}</body></html>"
+    arch = fitz.Archive(str(font_regular.parent))
+    story = fitz.Story(html=wrapped, user_css=css, archive=arch)
+    bio = io.BytesIO()
+    writer = fitz.DocumentWriter(bio)
+    mediabox = fitz.paper_rect("a4")
+    where = mediabox + fitz.Rect(50, 50, -50, -50)
+    more = 1
+    while more:
+        dev = writer.begin_page(mediabox)
+        more, _ = story.place(where)
+        story.draw(dev)
+        writer.end_page()
+    writer.close()
+    return bio.getvalue()
+
+
+def proposal_markdown_to_pdf_bytes(markdown_text: str, *, document_title: str = "") -> bytes:
+    del document_title
+    ensure_proposal_pdf_fonts()
+    md = prepare_member_facing_proposal_markdown(markdown_text or "")
+    body_html = _simplify_html_for_pdf(markdown_to_html(md))
+    html_doc = f"<style>{_PROPOSAL_PDF_CSS}</style><div class='proposal-body'>{body_html}</div>"
+
+    font = _korean_pdf_font_path()
+    if not font:
+        raise ProposalPdfUnavailable()
+
+    try:
+        return _pdf_bytes_fpdf(html_doc)
+    except Exception as fpdf_err:
+        _log.warning("proposal pdf fpdf2 failed (%s), trying pymupdf", fpdf_err)
+        try:
+            return _pdf_bytes_pymupdf(html_doc, font)
+        except Exception as mupdf_err:
+            _log.exception("proposal pdf pymupdf failed")
+            raise ProposalPdfGenerationFailed() from mupdf_err
 
 
 def proposal_download_filename(
@@ -155,10 +245,12 @@ def proposal_download_filename(
 
 
 def proposal_pdf_download_body(markdown_text: str, *, document_title: str = "") -> bytes:
-    del document_title  # 파일명용; 본문은 제안서 MD 제목·구조 그대로
+    del document_title
     try:
         return proposal_markdown_to_pdf_bytes(markdown_text)
     except ProposalPdfUnavailable:
+        raise
+    except ProposalPdfGenerationFailed:
         raise
     except Exception as exc:
         _log.exception("proposal pdf generation failed")

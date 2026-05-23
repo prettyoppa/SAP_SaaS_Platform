@@ -621,6 +621,12 @@ async def lifespan(app: FastAPI):
             )
             await asyncio.sleep(wait)
     log_smtp_startup_checks(_log)
+    try:
+        from .proposal_export import ensure_proposal_pdf_fonts
+
+        ensure_proposal_pdf_fonts()
+    except Exception:
+        _log.exception("[PDF] startup font ensure skipped due to error")
 
     async def _purge_loop():
         await asyncio.sleep(120)
