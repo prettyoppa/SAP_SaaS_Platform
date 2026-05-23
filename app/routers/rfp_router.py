@@ -1205,6 +1205,7 @@ def _collect_rfp_unified_hub_ctx(
                 )
             ),
             return_to=f"/rfp/{rfp.id}?phase=proposal#rfp-phase-proposal",
+            request_title=(rfp.title or "").strip(),
         ),
         "section6_decisions_flash": section6_decisions_flash_from_query(request),
         **as_built_hub_template_ctx(

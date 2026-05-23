@@ -9,10 +9,9 @@ from . import models, r2_storage
 from .document_llm_digest import supplement_file_body_for_agents
 from .delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
 from .proposal_section6_decisions import (
-    format_decisions_for_downstream,
-    load_decisions_payload,
-    load_request_entity_for_decisions,
+    format_decisions_for_downstream_from_raw,
     get_entity_decisions_raw,
+    load_request_entity_for_decisions,
 )
 
 DELIVERY_PROPOSAL_SUPPLEMENT_MAX_FILES = 15
@@ -102,8 +101,7 @@ def resolved_delivery_proposal_for_downstream(
     s6_block = ""
     entity = load_request_entity_for_decisions(db, request_kind, request_id)
     if entity is not None:
-        saved = load_decisions_payload(get_entity_decisions_raw(entity))
-        s6_block = format_decisions_for_downstream(saved)
+        s6_block = format_decisions_for_downstream_from_raw(get_entity_decisions_raw(entity))
     return merge_agent_and_requester_proposal_markdown(
         agent_proposal_text or "",
         supplements,

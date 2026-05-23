@@ -1,4 +1,4 @@
-"""요청자 §6 확인 필요 사항 — 인라인 최종 결정 저장."""
+"""요청자 §6 확인 필요 사항 — 추가 인터뷰."""
 
 from __future__ import annotations
 
@@ -9,146 +9,245 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import auth, models
+from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
 from ..database import get_db
 from ..delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
+from ..interview_answer_payload import parse_answer_payload_form
 from ..proposal_section6_decisions import (
+    get_entity_decisions_raw,
     load_request_entity_for_decisions,
     parse_section6_open_items,
-    save_decisions_payload,
     set_entity_decisions_raw,
+)
+from ..proposal_section6_interview import (
+    advance_section6_interview,
+    load_section6_payload,
+    save_section6_payload,
+    start_section6_interview,
 )
 
 router = APIRouter(tags=["proposal-decisions"])
 
 
-def _redirect(return_to: str | None, *, err: str | None = None, ok: bool = False) -> str:
+def _redirect(return_to: str | None, **qp: str) -> str:
     base = (return_to or "").strip() or "/"
+    parts = [f"{k}={quote(v)}" for k, v in qp.items() if v]
+    if not parts:
+        return base
     sep = "&" if "?" in base else "?"
-    if ok:
-        return f"{base}{sep}section6_decisions=ok"
-    if err:
-        return f"{base}{sep}section6_decisions_err={quote(err)}"
-    return base
+    return f"{base}{sep}{'&'.join(parts)}"
 
 
-def _save_section6_decisions(
-  db: Session,
-  *,
-  request_kind: str,
-  request_id: int,
-  owner_user_id: int,
-  actor_id: int,
-  agent_proposal_text: str | None,
-  decisions: list[str],
-  additional: str,
-  return_to: str | None,
-) -> RedirectResponse:
-    if int(actor_id) != int(owner_user_id):
-        return RedirectResponse(url=_redirect(return_to, err="forbidden"), status_code=303)
+def _owner_entity(
+    db: Session, request_kind: str, request_id: int, actor_id: int
+) -> tuple[models.RFP | models.IntegrationRequest | models.AbapAnalysisRequest | None, str]:
     entity = load_request_entity_for_decisions(db, request_kind, request_id)
     if not entity:
-        return RedirectResponse(url=_redirect(return_to, err="not_found"), status_code=303)
-    open_items = parse_section6_open_items(agent_proposal_text or "")
-    payload = save_decisions_payload(
-        open_items=open_items,
-        decisions_by_index=decisions,
-        additional=additional,
-    )
-    set_entity_decisions_raw(entity, payload)
+        return None, ""
+    if int(getattr(entity, "user_id", 0) or 0) != int(actor_id):
+        return None, ""
+    title = (getattr(entity, "title", None) or "").strip()
+    return entity, title
+
+
+def _save_payload(db: Session, entity, payload: dict) -> None:
+    set_entity_decisions_raw(entity, save_section6_payload(payload))
     db.add(entity)
     db.commit()
-    return RedirectResponse(url=_redirect(return_to, ok=True), status_code=303)
 
 
-@router.post("/rfp/{rfp_id}/proposal-section6-decisions")
-async def rfp_save_section6_decisions(
+@router.post("/rfp/{rfp_id}/proposal-section6-interview/start")
+def rfp_section6_interview_start(
     rfp_id: int,
     request: Request,
     return_to: str = Form(""),
-    additional: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
-    if not rfp:
-        return RedirectResponse(url=_redirect(return_to, err="not_found"), status_code=303)
-    form = await request.form()
-    n = max(0, int(form.get("section6_item_count") or 0))
-    decisions = [(form.get(f"decision_{i}") or "").strip() for i in range(n)]
-    return _save_section6_decisions(
-        db,
-        request_kind=KIND_RFP,
-        request_id=int(rfp_id),
-        owner_user_id=int(rfp.user_id),
-        actor_id=int(user.id),
-        agent_proposal_text=rfp.proposal_text,
-        decisions=decisions,
-        additional=additional,
-        return_to=return_to,
+    entity, title = _owner_entity(db, KIND_RFP, int(rfp_id), int(user.id))
+    if not entity:
+        return RedirectResponse(url=_redirect(return_to, section6_decisions_err="forbidden"), status_code=303)
+    open_items = parse_section6_open_items(entity.proposal_text or "")
+    with ai_usage_scope(
+        AiUsageContext(user_id=int(user.id), request_kind="rfp", request_id=int(rfp_id))
+    ):
+        payload = start_section6_interview(open_items=open_items, request_title=title)
+    _save_payload(db, entity, payload)
+    return RedirectResponse(
+        url=_redirect(return_to, section6_interview="started"),
+        status_code=303,
     )
 
 
-@router.post("/integration/{req_id}/proposal-section6-decisions")
-async def integration_save_section6_decisions(
+@router.post("/rfp/{rfp_id}/proposal-section6-interview/answer")
+async def rfp_section6_interview_answer(
+    rfp_id: int,
+    request: Request,
+    return_to: str = Form(""),
+    current_answer: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    entity, title = _owner_entity(db, KIND_RFP, int(rfp_id), int(user.id))
+    if not entity:
+        return RedirectResponse(url=_redirect(return_to, section6_decisions_err="forbidden"), status_code=303)
+    form = await request.form()
+    answer_payload = (form.get("answer_payload") or "").strip()
+    payload = load_section6_payload(get_entity_decisions_raw(entity))
+    try:
+        with ai_usage_scope(
+            AiUsageContext(user_id=int(user.id), request_kind="rfp", request_id=int(rfp_id))
+        ):
+            o = parse_answer_payload_form(answer_payload, current_answer)
+            payload = advance_section6_interview(
+                payload,
+                answer_payload=o,
+                current_answer=current_answer,
+                request_title=title,
+            )
+    except ValueError:
+        return RedirectResponse(
+            url=_redirect(return_to, section6_decisions_err="answer_invalid"),
+            status_code=303,
+        )
+    _save_payload(db, entity, payload)
+    inv = payload.get("interview") or {}
+    if (inv.get("status") or "").strip() == "complete":
+        return RedirectResponse(url=_redirect(return_to, section6_decisions="ok"), status_code=303)
+    return RedirectResponse(url=_redirect(return_to, section6_interview="started"), status_code=303)
+
+
+@router.post("/integration/{req_id}/proposal-section6-interview/start")
+def integration_section6_interview_start(
     req_id: int,
     request: Request,
     return_to: str = Form(""),
-    additional: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
-    if not ir:
-        return RedirectResponse(url=_redirect(return_to, err="not_found"), status_code=303)
-    form = await request.form()
-    n = max(0, int(form.get("section6_item_count") or 0))
-    decisions = [(form.get(f"decision_{i}") or "").strip() for i in range(n)]
-    return _save_section6_decisions(
-        db,
-        request_kind=KIND_INTEGRATION,
-        request_id=int(req_id),
-        owner_user_id=int(ir.user_id),
-        actor_id=int(user.id),
-        agent_proposal_text=ir.proposal_text,
-        decisions=decisions,
-        additional=additional,
-        return_to=return_to,
+    entity, title = _owner_entity(db, KIND_INTEGRATION, int(req_id), int(user.id))
+    if not entity:
+        return RedirectResponse(url=_redirect(return_to, section6_decisions_err="forbidden"), status_code=303)
+    open_items = parse_section6_open_items(entity.proposal_text or "")
+    with ai_usage_scope(
+        AiUsageContext(user_id=int(user.id), request_kind="integration", request_id=int(req_id))
+    ):
+        payload = start_section6_interview(open_items=open_items, request_title=title)
+    _save_payload(db, entity, payload)
+    return RedirectResponse(
+        url=_redirect(return_to, section6_interview="started"),
+        status_code=303,
     )
 
 
-@router.post("/abap-analysis/{req_id}/proposal-section6-decisions")
-async def abap_save_section6_decisions(
+@router.post("/integration/{req_id}/proposal-section6-interview/answer")
+async def integration_section6_interview_answer(
     req_id: int,
     request: Request,
     return_to: str = Form(""),
-    additional: str = Form(""),
+    current_answer: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    row = (
-        db.query(models.AbapAnalysisRequest)
-        .filter(models.AbapAnalysisRequest.id == req_id)
-        .first()
-    )
-    if not row:
-        return RedirectResponse(url=_redirect(return_to, err="not_found"), status_code=303)
+    entity, title = _owner_entity(db, KIND_INTEGRATION, int(req_id), int(user.id))
+    if not entity:
+        return RedirectResponse(url=_redirect(return_to, section6_decisions_err="forbidden"), status_code=303)
     form = await request.form()
-    n = max(0, int(form.get("section6_item_count") or 0))
-    decisions = [(form.get(f"decision_{i}") or "").strip() for i in range(n)]
-    return _save_section6_decisions(
-        db,
-        request_kind=KIND_ANALYSIS,
-        request_id=int(req_id),
-        owner_user_id=int(row.user_id),
-        actor_id=int(user.id),
-        agent_proposal_text=row.proposal_text,
-        decisions=decisions,
-        additional=additional,
-        return_to=return_to,
+    answer_payload = (form.get("answer_payload") or "").strip()
+    payload = load_section6_payload(get_entity_decisions_raw(entity))
+    try:
+        with ai_usage_scope(
+            AiUsageContext(
+                user_id=int(user.id), request_kind="integration", request_id=int(req_id)
+            )
+        ):
+            o = parse_answer_payload_form(answer_payload, current_answer)
+            payload = advance_section6_interview(
+                payload,
+                answer_payload=o,
+                current_answer=current_answer,
+                request_title=title,
+            )
+    except ValueError:
+        return RedirectResponse(
+            url=_redirect(return_to, section6_decisions_err="answer_invalid"),
+            status_code=303,
+        )
+    _save_payload(db, entity, payload)
+    inv = payload.get("interview") or {}
+    if (inv.get("status") or "").strip() == "complete":
+        return RedirectResponse(url=_redirect(return_to, section6_decisions="ok"), status_code=303)
+    return RedirectResponse(url=_redirect(return_to, section6_interview="started"), status_code=303)
+
+
+@router.post("/abap-analysis/{req_id}/proposal-section6-interview/start")
+def abap_section6_interview_start(
+    req_id: int,
+    request: Request,
+    return_to: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    entity, title = _owner_entity(db, KIND_ANALYSIS, int(req_id), int(user.id))
+    if not entity:
+        return RedirectResponse(url=_redirect(return_to, section6_decisions_err="forbidden"), status_code=303)
+    open_items = parse_section6_open_items(entity.proposal_text or "")
+    with ai_usage_scope(
+        AiUsageContext(user_id=int(user.id), request_kind="analysis", request_id=int(req_id))
+    ):
+        payload = start_section6_interview(open_items=open_items, request_title=title)
+    _save_payload(db, entity, payload)
+    return RedirectResponse(
+        url=_redirect(return_to, section6_interview="started"),
+        status_code=303,
     )
+
+
+@router.post("/abap-analysis/{req_id}/proposal-section6-interview/answer")
+async def abap_section6_interview_answer(
+    req_id: int,
+    request: Request,
+    return_to: str = Form(""),
+    current_answer: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    entity, title = _owner_entity(db, KIND_ANALYSIS, int(req_id), int(user.id))
+    if not entity:
+        return RedirectResponse(url=_redirect(return_to, section6_decisions_err="forbidden"), status_code=303)
+    form = await request.form()
+    answer_payload = (form.get("answer_payload") or "").strip()
+    payload = load_section6_payload(get_entity_decisions_raw(entity))
+    try:
+        with ai_usage_scope(
+            AiUsageContext(user_id=int(user.id), request_kind="analysis", request_id=int(req_id))
+        ):
+            o = parse_answer_payload_form(answer_payload, current_answer)
+            payload = advance_section6_interview(
+                payload,
+                answer_payload=o,
+                current_answer=current_answer,
+                request_title=title,
+            )
+    except ValueError:
+        return RedirectResponse(
+            url=_redirect(return_to, section6_decisions_err="answer_invalid"),
+            status_code=303,
+        )
+    _save_payload(db, entity, payload)
+    inv = payload.get("interview") or {}
+    if (inv.get("status") or "").strip() == "complete":
+        return RedirectResponse(url=_redirect(return_to, section6_decisions="ok"), status_code=303)
+    return RedirectResponse(url=_redirect(return_to, section6_interview="started"), status_code=303)

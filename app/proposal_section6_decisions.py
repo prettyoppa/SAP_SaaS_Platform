@@ -1,16 +1,20 @@
-"""제안서 §6(확인 필요 사항) — 요청자 최종 결정 인라인 입력."""
+"""제안서 §6(확인 필요 사항) — 요청자 추가 인터뷰·최종 결정."""
 
 from __future__ import annotations
 
-import json
 import re
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from . import models
 from .delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
+from .proposal_section6_interview import (
+    format_section6_for_downstream,
+    has_section6_decisions,
+    load_section6_payload,
+    save_section6_payload,
+)
 
 _SECTION6_HEADING = re.compile(
     r"^##\s*6\.\s*확인\s*필요",
@@ -21,7 +25,6 @@ _LIST_ITEM = re.compile(r"^(\s*[-*•]|\s*\d+[.)])\s+(.+)$")
 
 
 def parse_section6_open_items(proposal_markdown: str) -> list[str]:
-    """Development Proposal 본문에서 §6 불릿·번호 목록 항목 추출."""
     text = (proposal_markdown or "").strip()
     if not text:
         return []
@@ -44,118 +47,6 @@ def parse_section6_open_items(proposal_markdown: str) -> list[str]:
         elif items and not line.startswith("#"):
             items[-1] = (items[-1] + " " + line).strip()
     return items
-
-
-def _empty_payload() -> dict[str, Any]:
-    return {"items": [], "additional": ""}
-
-
-def load_decisions_payload(raw: str | None) -> dict[str, Any]:
-    if not (raw or "").strip():
-        return _empty_payload()
-    try:
-        data = json.loads(raw)
-    except Exception:
-        return _empty_payload()
-    if not isinstance(data, dict):
-        return _empty_payload()
-    items = data.get("items")
-    if not isinstance(items, list):
-        items = []
-    clean: list[dict[str, str]] = []
-    for row in items:
-        if not isinstance(row, dict):
-            continue
-        clean.append(
-            {
-                "label": str(row.get("label") or "").strip(),
-                "decision": str(row.get("decision") or "").strip(),
-            }
-        )
-    return {
-        "items": clean,
-        "additional": str(data.get("additional") or "").strip(),
-        "updated_at": str(data.get("updated_at") or "").strip(),
-    }
-
-
-def save_decisions_payload(
-    *,
-    open_items: list[str],
-    decisions_by_index: list[str],
-    additional: str,
-) -> str:
-    items: list[dict[str, str]] = []
-    for i, label in enumerate(open_items):
-        dec = ""
-        if i < len(decisions_by_index):
-            dec = (decisions_by_index[i] or "").strip()
-        items.append({"label": label, "decision": dec})
-    payload = {
-        "items": items,
-        "additional": (additional or "").strip(),
-        "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-    }
-    return json.dumps(payload, ensure_ascii=False)
-
-
-def decisions_payload_for_display(
-    open_items: list[str], saved: dict[str, Any]
-) -> list[dict[str, str]]:
-    """폼 렌더용: 제안서 §6 항목 + 저장된 결정."""
-    saved_by_label = {
-        (row.get("label") or "").strip(): (row.get("decision") or "").strip()
-        for row in (saved.get("items") or [])
-        if isinstance(row, dict)
-    }
-    rows: list[dict[str, str]] = []
-    for label in open_items:
-        rows.append(
-            {
-                "label": label,
-                "decision": saved_by_label.get(label, ""),
-            }
-        )
-    if not open_items and saved.get("items"):
-        for row in saved.get("items") or []:
-            if isinstance(row, dict) and (row.get("label") or "").strip():
-                rows.append(
-                    {
-                        "label": str(row.get("label") or "").strip(),
-                        "decision": str(row.get("decision") or "").strip(),
-                    }
-                )
-    return rows
-
-
-def has_meaningful_decisions(saved: dict[str, Any]) -> bool:
-    for row in saved.get("items") or []:
-        if isinstance(row, dict) and (row.get("decision") or "").strip():
-            return True
-    return bool((saved.get("additional") or "").strip())
-
-
-def format_decisions_for_downstream(saved: dict[str, Any]) -> str:
-    if not has_meaningful_decisions(saved):
-        return ""
-    parts: list[str] = []
-    for row in saved.get("items") or []:
-        if not isinstance(row, dict):
-            continue
-        label = (row.get("label") or "").strip()
-        dec = (row.get("decision") or "").strip()
-        if not dec:
-            continue
-        if label:
-            parts.append(f"- **확인 항목:** {label}\n  - **요청자 최종 결정:** {dec}")
-        else:
-            parts.append(f"- {dec}")
-    add = (saved.get("additional") or "").strip()
-    if add:
-        parts.append(f"\n**추가 최종 결정·메모:**\n{add}")
-    if not parts:
-        return ""
-    return "\n".join(parts).strip()
 
 
 def load_request_entity_for_decisions(
@@ -188,7 +79,7 @@ def set_entity_decisions_raw(entity: Any, payload_json: str) -> None:
     entity.proposal_section6_decisions_json = payload_json
 
 
-def member_paths_for_decisions(request_kind: str, request_id: int) -> dict[str, str]:
+def member_paths_for_section6(request_kind: str, request_id: int) -> dict[str, str]:
     kind = (request_kind or "").strip().lower()
     rid = int(request_id)
     if kind == KIND_RFP:
@@ -199,7 +90,10 @@ def member_paths_for_decisions(request_kind: str, request_id: int) -> dict[str, 
         base = f"/integration/{rid}"
     else:
         raise ValueError(f"unknown request_kind: {request_kind}")
-    return {"proposal_section6_decisions_save_url": f"{base}/proposal-section6-decisions"}
+    return {
+        "proposal_section6_interview_start_url": f"{base}/proposal-section6-interview/start",
+        "proposal_section6_interview_answer_url": f"{base}/proposal-section6-interview/answer",
+    }
 
 
 def section6_decisions_flash_from_query(request) -> dict[str, str] | None:
@@ -209,21 +103,33 @@ def section6_decisions_flash_from_query(request) -> dict[str, str] | None:
     if (qp.get("section6_decisions") or "").strip() == "ok":
         return {
             "kind": "success",
-            "ko": "§6 확인 필요 사항에 대한 최종 결정을 저장했습니다.",
+            "ko": "6. 확인 필요 사항에 대한 최종 결정을 저장했습니다.",
             "en": "Your section 6 decisions have been saved.",
         }
+    if (qp.get("section6_interview") or "").strip() == "started":
+        return {
+            "kind": "info",
+            "ko": "추가 인터뷰를 시작했습니다. 질문에 답해 주세요.",
+            "en": "Follow-up interview started. Please answer the questions.",
+        }
     err = (qp.get("section6_decisions_err") or "").strip()
+    if err == "answer_invalid":
+        return {
+            "kind": "warning",
+            "ko": "좋아요·싫어요로 선택하거나 보충란에 2자 이상 입력해 주세요.",
+            "en": "Select thumbs up/down or enter at least 2 characters in the notes field.",
+        }
     if err == "forbidden":
         return {
             "kind": "danger",
-            "ko": "요청 소유자만 저장할 수 있습니다.",
-            "en": "Only the request owner can save decisions.",
+            "ko": "요청 소유자만 진행할 수 있습니다.",
+            "en": "Only the request owner can continue.",
         }
     if err:
         return {
             "kind": "warning",
-            "ko": "저장하지 못했습니다. 다시 시도해 주세요.",
-            "en": "Could not save. Please try again.",
+            "ko": "처리하지 못했습니다. 다시 시도해 주세요.",
+            "en": "Could not complete. Please try again.",
         }
     return None
 
@@ -236,21 +142,49 @@ def proposal_section6_hub_template_ctx(
     decisions_raw: str | None,
     can_edit: bool,
     return_to: str,
+    request_title: str = "",
 ) -> dict[str, Any]:
     open_items = parse_section6_open_items(agent_proposal_text or "")
-    saved = load_decisions_payload(decisions_raw)
-    rows = decisions_payload_for_display(open_items, saved)
-    paths = member_paths_for_decisions(request_kind, request_id)
-    show_panel = bool(
-        can_edit or has_meaningful_decisions(saved) or open_items
-    )
+    payload = load_section6_payload(decisions_raw)
+    inv = payload.get("interview") or {}
+    if open_items and not (inv.get("open_items") or []):
+        inv["open_items"] = open_items
+        payload["interview"] = inv
+
+    stored_open = list(inv.get("open_items") or open_items)
+    turns = inv.get("turns") or []
+    status = (inv.get("status") or "idle").strip()
+    current_index = int(inv.get("current_index") or 0)
+    current_turn = None
+    if status == "active" and turns and current_index < len(turns):
+        current_turn = turns[current_index]
+
+    paths = member_paths_for_section6(request_kind, request_id)
+    show_panel = bool(can_edit or has_section6_decisions(payload) or stored_open)
+
+    completed_turns = [
+        t
+        for t in turns
+        if isinstance(t, dict) and (t.get("decision_text") or "").strip()
+    ]
+
     return {
         "proposal_section6_show_panel": show_panel,
         "can_edit_proposal_section6_decisions": can_edit,
-        "proposal_section6_open_items": open_items,
-        "proposal_section6_decision_rows": rows,
-        "proposal_section6_additional": saved.get("additional") or "",
-        "proposal_section6_has_saved": has_meaningful_decisions(saved),
-        "proposal_section6_decisions_save_url": paths["proposal_section6_decisions_save_url"],
+        "proposal_section6_open_items": stored_open,
+        "proposal_section6_interview_status": status,
+        "proposal_section6_interview_total": len(stored_open),
+        "proposal_section6_interview_index": current_index + 1 if current_turn else 0,
+        "proposal_section6_current_turn": current_turn,
+        "proposal_section6_completed_turns": completed_turns,
+        "proposal_section6_interview_complete": status == "complete",
+        "proposal_section6_has_saved": has_section6_decisions(payload),
+        "proposal_section6_interview_start_url": paths["proposal_section6_interview_start_url"],
+        "proposal_section6_interview_answer_url": paths["proposal_section6_interview_answer_url"],
         "proposal_section6_return_to": return_to,
+        "proposal_section6_request_title": request_title,
     }
+
+
+def format_decisions_for_downstream_from_raw(raw: str | None) -> str:
+    return format_section6_for_downstream(load_section6_payload(raw))

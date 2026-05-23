@@ -2311,6 +2311,7 @@ def _collect_integration_unified_hub_ctx(
                 )
             ),
             return_to=f"/integration/{ir.id}?phase=proposal#int-phase-proposal",
+            request_title=(ir.title or "").strip(),
         ),
         "section6_decisions_flash": section6_decisions_flash_from_query(request),
         **as_built_hub_template_ctx(

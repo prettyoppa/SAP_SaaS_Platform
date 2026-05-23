@@ -1411,6 +1411,7 @@ def _prepare_abap_analysis_detail_ctx(
                 and (bool(ana_proposal_html) or ana_ist == "completed")
             ),
             return_to=f"/abap-analysis/{row.id}#abap-phase-proposal",
+            request_title=(row.title or "").strip(),
         ),
         "section6_decisions_flash": section6_decisions_flash_from_query(request),
         **as_built_hub_template_ctx(
