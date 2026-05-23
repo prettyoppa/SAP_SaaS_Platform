@@ -1632,6 +1632,8 @@ def rfp_hub_chat_post(
             status_code=303,
         )
 
+    used_ai = get_ai_inquiry_used(db, user.id, "rfp", rfp.id)
+
     prior_all = (
         db.query(models.RfpFollowupMessage)
         .filter(models.RfpFollowupMessage.rfp_id == rfp.id)
