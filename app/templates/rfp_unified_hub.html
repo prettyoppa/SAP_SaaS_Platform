@@ -428,206 +428,29 @@
   var closeBtn = document.getElementById('rfpFloatChatClose');
   if (!panel || !launcher) return;
 
-  var SIZE_KEY = 'rfp-followup-chat-size';
-  var saveTimer = null;
-
-  function clamp(n, lo, hi) {
-    return Math.max(lo, Math.min(hi, n));
-  }
-
-  function sizeBounds() {
-    var vw = window.innerWidth || 800;
-    var vh = window.innerHeight || 600;
-    return {
-      minW: 280,
-      minH: 260,
-      maxW: Math.min(vw * 0.96, 920),
-      maxH: vh * 0.9
-    };
-  }
-
-  function loadStoredSizeIfAny() {
-    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) {
-      panel.style.width = '';
-      panel.style.height = '';
-      return;
-    }
-    try {
-      var raw = localStorage.getItem(SIZE_KEY);
-      if (!raw) return;
-      var o = JSON.parse(raw);
-      if (typeof o.w !== 'number' || typeof o.h !== 'number') return;
-      var b = sizeBounds();
-      panel.style.width = clamp(o.w, b.minW, b.maxW) + 'px';
-      panel.style.height = clamp(o.h, b.minH, b.maxH) + 'px';
-    } catch (e) { /* ignore */ }
-  }
-
-  function clampPanelToViewport() {
-    if (panel.hasAttribute('hidden')) return;
-    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) {
-      panel.style.width = '';
-      panel.style.height = '';
-      return;
-    }
-    var b = sizeBounds();
-    var r = panel.getBoundingClientRect();
-    if (r.width < 1 || r.height < 1) return;
-    var w = clamp(Math.round(r.width), b.minW, b.maxW);
-    var h = clamp(Math.round(r.height), b.minH, b.maxH);
-    panel.style.width = w + 'px';
-    panel.style.height = h + 'px';
-  }
-
-  function scheduleSaveSize() {
-    if (window.matchMedia && window.matchMedia('(max-width: 576px)').matches) return;
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () {
-      saveTimer = null;
-      if (panel.hasAttribute('hidden')) return;
-      try {
-        var r = panel.getBoundingClientRect();
-        var b = sizeBounds();
-        var w = clamp(Math.round(r.width), b.minW, b.maxW);
-        var h = clamp(Math.round(r.height), b.minH, b.maxH);
-        localStorage.setItem(SIZE_KEY, JSON.stringify({ w: w, h: h }));
-      } catch (e) { /* ignore */ }
-    }, 200);
-  }
-
-  loadStoredSizeIfAny();
-
-  function bindResizeGrip() {
-    var grip = document.getElementById('rfpFloatChatResize');
-    if (!grip) return;
-    function desktopOnly() {
-      return !(window.matchMedia && window.matchMedia('(max-width: 576px)').matches);
-    }
-    grip.addEventListener('pointerdown', function (e) {
-      if (!desktopOnly() || e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      var pid = e.pointerId;
-      try { grip.setPointerCapture(pid); } catch (err) {}
-      var startX = e.clientX;
-      var startY = e.clientY;
-      var rect = panel.getBoundingClientRect();
-      var w0 = rect.width;
-      var h0 = rect.height;
-      var ta = panel.querySelector('.abap-followup-msg-input');
-      var wrap = ta && ta.closest ? ta.closest('.abap-followup-ta-wrap') : null;
-      var taMinH = 56, taMaxH = 420, taMinW = 120;
-      var panelH0 = h0, panelW0 = w0;
-      var taH0 = ta ? ta.offsetHeight : 0;
-      var taW0 = ta ? ta.offsetWidth : 0;
-      function move(ev) {
-        if (!desktopOnly()) return;
-        var dw = startX - ev.clientX;
-        var dh = startY - ev.clientY;
-        var b = sizeBounds();
-        var nw = clamp(Math.round(w0 + dw), b.minW, b.maxW);
-        var nh = clamp(Math.round(h0 + dh), b.minH, b.maxH);
-        panel.style.width = nw + 'px';
-        panel.style.height = nh + 'px';
-        if (ta) {
-          var dHp = nh - panelH0;
-          var dWp = nw - panelW0;
-          ta.style.height = clamp(Math.round(taH0 + dHp), taMinH, taMaxH) + 'px';
-          ta.style.minHeight = taMinH + 'px';
-          if (wrap) {
-            var maxInnerW = Math.max(taMinW, wrap.clientWidth);
-            if (ta.style.width && String(ta.style.width).indexOf('%') === -1) {
-              ta.style.width = clamp(Math.round(taW0 + dWp), taMinW, maxInnerW) + 'px';
-            } else {
-              ta.style.width = '';
-            }
-            ta.style.maxWidth = '100%';
-          }
-        }
-      }
-      function up(ev) {
-        try {
-          if (ev && grip.hasPointerCapture && grip.hasPointerCapture(ev.pointerId)) grip.releasePointerCapture(ev.pointerId);
-        } catch (err2) {}
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        window.removeEventListener('pointercancel', up);
-        scheduleSaveSize();
-      }
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-      window.addEventListener('pointercancel', up);
-    });
-  }
-
-  function bindTextareaResizeGrip() {
-    var ta = document.getElementById('rfp-followup-msg');
-    var grip = document.getElementById('rfpFollowupTaResize');
-    var wrap = ta && ta.closest ? ta.closest('.abap-followup-ta-wrap') : null;
-    if (!ta || !grip || !wrap) return;
-
-    var minH = 56;
-    var maxH = 420;
-    var minW = 120;
-
-    grip.addEventListener('pointerdown', function (e) {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      var pid = e.pointerId;
-      try { grip.setPointerCapture(pid); } catch (err) {}
-      var startX = e.clientX;
-      var startY = e.clientY;
-      var w0 = ta.offsetWidth;
-      var h0 = ta.offsetHeight;
-      var panelW0 = panel.offsetWidth;
-      var panelH0 = panel.offsetHeight;
-      function move(ev) {
-        var maxW = Math.max(minW, wrap.clientWidth);
-        var dw = startX - ev.clientX;
-        var dh = startY - ev.clientY;
-        var nw = clamp(Math.round(w0 + dw), minW, maxW);
-        var nh = clamp(Math.round(h0 + dh), minH, maxH);
-        ta.style.width = nw + 'px';
-        ta.style.maxWidth = '100%';
-        ta.style.height = nh + 'px';
-        ta.style.minHeight = minH + 'px';
-        var b = sizeBounds();
-        var newPH = clamp(Math.round(panelH0 + (nh - h0)), b.minH, b.maxH);
-        var newPW = clamp(Math.round(panelW0 + (nw - w0)), b.minW, b.maxW);
-        panel.style.height = newPH + 'px';
-        panel.style.width = newPW + 'px';
-      }
-      function up(ev) {
-        try {
-          if (ev && grip.hasPointerCapture && grip.hasPointerCapture(ev.pointerId)) grip.releasePointerCapture(ev.pointerId);
-        } catch (err2) {}
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        window.removeEventListener('pointercancel', up);
-        scheduleSaveSize();
-      }
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-      window.addEventListener('pointercancel', up);
-    });
-  }
-
-  bindResizeGrip();
-  bindTextareaResizeGrip();
-
-  window.addEventListener('resize', clampPanelToViewport);
+  var resizeApi = typeof window.initAbapFloatChatResize === 'function'
+    ? window.initAbapFloatChatResize({
+        panel: panel,
+        sizeKey: 'rfp-followup-chat-size',
+        panelGrip: document.getElementById('rfpFloatChatResize'),
+        textarea: document.getElementById('rfp-followup-msg'),
+        taGrip: document.getElementById('rfpFollowupTaResize'),
+      })
+    : null;
+  if (resizeApi) resizeApi.loadStoredSizeIfAny();
 
   function openPanel() {
     panel.removeAttribute('hidden');
     launcher.setAttribute('aria-expanded', 'true');
-    loadStoredSizeIfAny();
-    clampPanelToViewport();
+    if (resizeApi) {
+      resizeApi.loadStoredSizeIfAny();
+      resizeApi.clampPanelToViewport();
+    }
   }
   function closePanel() {
     panel.setAttribute('hidden', '');
     launcher.setAttribute('aria-expanded', 'false');
-    scheduleSaveSize();
+    if (resizeApi) resizeApi.scheduleSaveSize();
   }
   function togglePanel() {
     if (panel.hasAttribute('hidden')) openPanel();
