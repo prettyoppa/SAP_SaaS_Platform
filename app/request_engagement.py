@@ -130,8 +130,8 @@ def engagement_flash_message(code: str | None) -> dict[str, str] | None:
         return None
     mapping: dict[str, tuple[str, str]] = {
         "ok": (
-            "개발 의뢰가 활성화되었습니다. 전문가 그룹이 오퍼를 제안할 수 있습니다.",
-            "Your development request is open. Our expert group may submit offers.",
+            "개발 의뢰가 활성화되었습니다. 오퍼를 받으면 오퍼한 전문가 프로필 확인 후 매칭 여부를 결정하세요.",
+            "Your development request is open. When you receive an offer, review the expert's profile and decide whether to match.",
         ),
         "no_proposal": (
             "개발 제안서를 확인·생성한 뒤 개발 의뢰하기를 이용할 수 있습니다.",
