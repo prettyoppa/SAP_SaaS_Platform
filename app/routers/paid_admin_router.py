@@ -33,7 +33,9 @@ from ..delivery_fs_supplements import (
     KIND_INTEGRATION,
     KIND_RFP,
     fs_supplement_admin_paths,
+    hub_delivery_return_path,
     list_delivery_fs_supplements,
+    resolve_delivery_return_url,
 )
 from ..paid_tier import user_can_operate_delivery
 from ..templates_config import templates
@@ -51,6 +53,10 @@ def _require_delivery_operator(request: Request, db: Session):
     return user
 
 
+def _delivery_operator_prefers_readonly_hub(actor) -> bool:
+    return bool(getattr(actor, "is_consultant", False) and not getattr(actor, "is_admin", False))
+
+
 @router.get("/rfp/{rfp_id}/delivery", response_class=HTMLResponse)
 def admin_rfp_delivery_page(
     rfp_id: int,
@@ -61,64 +67,15 @@ def admin_rfp_delivery_page(
     actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
-
-    rfp = (
-        db.query(models.RFP)
-        .options(
-            joinedload(models.RFP.owner),
-            joinedload(models.RFP.fs_supplements),
-        )
-        .filter(models.RFP.id == rfp_id)
-        .first()
+    url = hub_delivery_return_path(
+        KIND_RFP,
+        rfp_id,
+        phase="fs",
+        readonly_console=_delivery_operator_prefers_readonly_hub(actor),
     )
-    if not rfp:
-        return RedirectResponse(url="/admin", status_code=302)
-
-    fs_body, fs_src_err = resolved_fs_markdown_for_codegen(db, rfp)
-    can_start_code = bool(fs_body and fs_body.strip()) and (rfp.delivered_code_status or "").strip() != "generating"
-
-    fs_busy = (rfp.fs_status or "").strip() == "generating"
-    dc_busy = (rfp.delivered_code_status or "").strip() == "generating"
-    gen_busy = fs_busy or dc_busy
-    sups = getattr(rfp, "fs_supplements", None) or []
-    has_fs_material = bool(
-        ((rfp.fs_status or "").strip() == "ready" and (rfp.fs_text or "").strip()) or len(sups) > 0
-    )
-    has_code_material = rfp_delivered_body_ready(rfp)
-
-    ph = rfp_phase_gates(rfp, actor, db)
-    dev_code_view_href = ph.get("dev_code_href")
-    has_dev_code_nav = bool(ph.get("has_dev_code"))
-
-    from ..delivery_fs_supplements import fs_supplement_hub_template_ctx
-
-    return templates.TemplateResponse(
-        request,
-        "admin/rfp_delivery.html",
-        {
-            "request": request,
-            "user": actor,
-            "rfp": rfp,
-            "delivery_err": err,
-            "can_start_delivered_code": can_start_code,
-            "can_operate_delivery": True,
-            "fs_codegen_preview_error": fs_src_err,
-            "job_log_poll_ms": 2500,
-            "fs_busy": fs_busy,
-            "dc_busy": dc_busy,
-            "gen_busy": gen_busy,
-            "has_fs_material": has_fs_material,
-            "has_code_material": has_code_material,
-            "dev_code_view_href": dev_code_view_href,
-            "has_dev_code_nav": has_dev_code_nav,
-            **fs_supplement_hub_template_ctx(
-                db,
-                request_kind=KIND_RFP,
-                request_id=int(rfp.id),
-                return_to=f"/admin/rfp/{rfp_id}/delivery",
-            ),
-        },
-    )
+    if err:
+        url = f"{url}{'&' if '?' in url else '?'}{'err=' + err}"
+    return RedirectResponse(url=url, status_code=302)
 
 
 @router.get("/rfp/{rfp_id}/delivery/generation-log")
@@ -151,6 +108,7 @@ def admin_start_fs_generation(
     rfp_id: int,
     request: Request,
     background_tasks: BackgroundTasks,
+    return_to: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = _require_delivery_operator(request, db)
@@ -159,14 +117,21 @@ def admin_start_fs_generation(
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
     if not rfp:
         return RedirectResponse(url="/admin", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_RFP,
+        rfp_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
     if (rfp.fs_status or "").strip() == "generating":
-        return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
+        return RedirectResponse(url=back, status_code=302)
     rfp.fs_status = "generating"
     rfp.fs_error = None
     rfp.fs_job_log = None
     db.commit()
     background_tasks.add_task(run_fs_generation_job, rfp_id)
-    return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
+    return RedirectResponse(url=back, status_code=302)
 
 
 @router.post("/rfp/{rfp_id}/delivery/code-start")
@@ -174,6 +139,7 @@ def admin_start_delivered_code(
     rfp_id: int,
     request: Request,
     background_tasks: BackgroundTasks,
+    return_to: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = _require_delivery_operator(request, db)
@@ -182,20 +148,25 @@ def admin_start_delivered_code(
     rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
     if not rfp:
         return RedirectResponse(url="/admin", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_RFP,
+        rfp_id,
+        return_to,
+        phase="devcode",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
     fs_body, fs_err = resolved_fs_markdown_for_codegen(db, rfp)
     if fs_err or not (fs_body or "").strip():
-        return RedirectResponse(
-            url=f"/admin/rfp/{rfp_id}/delivery?err=fs_not_ready",
-            status_code=302,
-        )
+        sep = "&" if "?" in back else "?"
+        return RedirectResponse(url=f"{back}{sep}err=fs_not_ready", status_code=302)
     if (rfp.delivered_code_status or "").strip() == "generating":
-        return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
+        return RedirectResponse(url=back, status_code=302)
     rfp.delivered_code_status = "generating"
     rfp.delivered_code_error = None
     rfp.delivered_job_log = None
     db.commit()
     background_tasks.add_task(run_delivered_code_job, rfp_id)
-    return RedirectResponse(url=f"/admin/rfp/{rfp_id}/delivery", status_code=302)
+    return RedirectResponse(url=back, status_code=302)
 
 
 def _delivery_redirect_after_fs_upload(
@@ -208,9 +179,7 @@ def _delivery_redirect_after_fs_upload(
     if return_to and return_to.startswith("/") and "//" not in return_to:
         url = return_to
     else:
-        url = fs_supplement_admin_paths(request_kind, request_id)["fs_supplement_upload_url"].replace(
-            "/fs-supplement-upload", ""
-        )
+        url = hub_delivery_return_path(request_kind, request_id, phase="fs")
     if err:
         sep = "&" if "?" in url else "?"
         url = f"{url}{sep}err={err}"
@@ -451,6 +420,7 @@ def admin_integration_fs_start(
     req_id: int,
     request: Request,
     background_tasks: BackgroundTasks,
+    return_to: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = _require_delivery_operator(request, db)
@@ -459,14 +429,21 @@ def admin_integration_fs_start(
     ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
     if not ir:
         return RedirectResponse(url="/admin", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_INTEGRATION,
+        req_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
     if (ir.fs_status or "").strip() == "generating":
-        return RedirectResponse(url=f"/integration/{req_id}?phase=fs", status_code=302)
+        return RedirectResponse(url=back, status_code=302)
     ir.fs_status = "generating"
     ir.fs_error = None
     ir.fs_job_log = None
     db.commit()
     background_tasks.add_task(run_integration_fs_job, req_id)
-    return RedirectResponse(url=f"/integration/{req_id}?phase=fs", status_code=302)
+    return RedirectResponse(url=back, status_code=302)
 
 
 @router.post("/integration/{req_id}/delivery/code-start")
@@ -474,6 +451,7 @@ def admin_integration_code_start(
     req_id: int,
     request: Request,
     background_tasks: BackgroundTasks,
+    return_to: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = _require_delivery_operator(request, db)
@@ -482,12 +460,20 @@ def admin_integration_code_start(
     ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
     if not ir:
         return RedirectResponse(url="/admin", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_INTEGRATION,
+        req_id,
+        return_to,
+        phase="devcode",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
     fs_body = (ir.fs_text or "").strip()
     if not fs_body or (ir.fs_status or "").strip() != "ready":
-        return RedirectResponse(url=f"/integration/{req_id}?phase=fs&err=fs_not_ready", status_code=302)
+        sep = "&" if "?" in back else "?"
+        return RedirectResponse(url=f"{back}{sep}err=fs_not_ready", status_code=302)
     dc_generating = (ir.delivered_code_status or "").strip() == "generating"
     if dc_generating and not integration_deliverable_job_stale(ir, minutes=8):
-        return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)
+        return RedirectResponse(url=back, status_code=302)
     if dc_generating and integration_deliverable_job_stale(ir, minutes=8):
         append_integration_job_log(req_id, "delivered_job_log", "이전 generating 무응답 — 작업 재시작")
     elif not dc_generating:
@@ -496,13 +482,14 @@ def admin_integration_code_start(
     ir.delivered_code_error = None
     db.commit()
     background_tasks.add_task(run_integration_deliverable_job, req_id)
-    return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)
+    return RedirectResponse(url=back, status_code=302)
 
 
 @router.post("/integration/{req_id}/delivery/code-cancel")
 def admin_integration_code_cancel(
     req_id: int,
     request: Request,
+    return_to: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     """generating 고착 시 운영자가 수동으로 중단하고 재시도할 수 있게 한다."""
@@ -512,12 +499,19 @@ def admin_integration_code_cancel(
     ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id).first()
     if not ir:
         return RedirectResponse(url="/admin", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_INTEGRATION,
+        req_id,
+        return_to,
+        phase="devcode",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
     if (ir.delivered_code_status or "").strip() == "generating":
         append_integration_job_log(req_id, "delivered_job_log", "운영자 수동 중단")
         ir.delivered_code_status = "failed"
         ir.delivered_code_error = "구현 산출물 생성 작업이 중단되었습니다."
         db.commit()
-    return RedirectResponse(url=f"/integration/{req_id}?phase=devcode", status_code=302)
+    return RedirectResponse(url=back, status_code=302)
 
 
 @router.get("/abap-analysis/{analysis_id}/delivery", response_class=HTMLResponse)
@@ -530,48 +524,15 @@ def admin_abap_analysis_delivery_page(
     actor = _require_delivery_operator(request, db)
     if not actor:
         return RedirectResponse(url="/", status_code=302)
-    row = (
-        db.query(models.AbapAnalysisRequest)
-        .options(joinedload(models.AbapAnalysisRequest.owner))
-        .filter(models.AbapAnalysisRequest.id == analysis_id)
-        .first()
+    url = hub_delivery_return_path(
+        KIND_ANALYSIS,
+        analysis_id,
+        phase="fs",
+        readonly_console=_delivery_operator_prefers_readonly_hub(actor),
     )
-    if not row:
-        return RedirectResponse(url="/admin", status_code=302)
-    fs_body, fs_src_err = resolved_abap_analysis_fs_for_codegen(db, row)
-    can_start_code = bool(fs_body and fs_body.strip()) and (row.delivered_code_status or "").strip() != "generating"
-    fs_busy = (row.fs_status or "").strip() == "generating"
-    dc_busy = (row.delivered_code_status or "").strip() == "generating"
-    gen_busy = fs_busy or dc_busy
-    has_fs_material = (row.fs_status or "").strip() == "ready" and (row.fs_text or "").strip()
-    has_code_material = rfp_delivered_body_ready(row)
-    from ..delivery_fs_supplements import fs_supplement_hub_template_ctx
-
-    return templates.TemplateResponse(
-        request,
-        "admin/abap_analysis_delivery.html",
-        {
-            "request": request,
-            "user": actor,
-            "row": row,
-            "delivery_err": err,
-            "can_start_delivered_code": can_start_code,
-            "can_operate_delivery": True,
-            "fs_codegen_preview_error": fs_src_err,
-            "job_log_poll_ms": 2500,
-            "fs_busy": fs_busy,
-            "dc_busy": dc_busy,
-            "gen_busy": gen_busy,
-            "has_fs_material": has_fs_material,
-            "has_code_material": has_code_material,
-            **fs_supplement_hub_template_ctx(
-                db,
-                request_kind=KIND_ANALYSIS,
-                request_id=int(row.id),
-                return_to=f"/admin/abap-analysis/{analysis_id}/delivery",
-            ),
-        },
-    )
+    if err:
+        url = f"{url}{'&' if '?' in url else '?'}{'err=' + err}"
+    return RedirectResponse(url=url, status_code=302)
 
 
 @router.get("/abap-analysis/{analysis_id}/delivery/generation-log")
@@ -605,6 +566,7 @@ def admin_abap_analysis_start_fs_generation(
     analysis_id: int,
     request: Request,
     background_tasks: BackgroundTasks,
+    return_to: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = _require_delivery_operator(request, db)
@@ -613,15 +575,22 @@ def admin_abap_analysis_start_fs_generation(
     row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == analysis_id).first()
     if not row:
         return RedirectResponse(url="/admin", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_ANALYSIS,
+        analysis_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
     row = reconcile_abap_analysis_delivery_status(db, row)
     if (row.fs_status or "").strip() == "generating":
-        return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-fs", status_code=302)
+        return RedirectResponse(url=back, status_code=302)
     row.fs_status = "generating"
     row.fs_error = None
     row.fs_job_log = None
     db.commit()
     background_tasks.add_task(run_abap_analysis_fs_job, analysis_id)
-    return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-fs", status_code=302)
+    return RedirectResponse(url=back, status_code=302)
 
 
 @router.post("/abap-analysis/{analysis_id}/delivery/code-start")
@@ -629,6 +598,7 @@ def admin_abap_analysis_start_delivered_code(
     analysis_id: int,
     request: Request,
     background_tasks: BackgroundTasks,
+    return_to: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = _require_delivery_operator(request, db)
@@ -637,18 +607,23 @@ def admin_abap_analysis_start_delivered_code(
     row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == analysis_id).first()
     if not row:
         return RedirectResponse(url="/admin", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_ANALYSIS,
+        analysis_id,
+        return_to,
+        phase="devcode",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
     row = reconcile_abap_analysis_delivery_status(db, row)
     fs_body, fs_err = resolved_abap_analysis_fs_for_codegen(db, row)
     if fs_err or not (fs_body or "").strip():
-        return RedirectResponse(
-            url=f"/abap-analysis/{analysis_id}?err=fs_not_ready#abap-phase-fs",
-            status_code=302,
-        )
+        sep = "&" if "?" in back else "?"
+        return RedirectResponse(url=f"{back}{sep}err=fs_not_ready", status_code=302)
     if (row.delivered_code_status or "").strip() == "generating":
-        return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-devcode", status_code=302)
+        return RedirectResponse(url=back, status_code=302)
     row.delivered_code_status = "generating"
     row.delivered_code_error = None
     row.delivered_job_log = None
     db.commit()
     background_tasks.add_task(run_abap_analysis_delivered_code_job, analysis_id)
-    return RedirectResponse(url=f"/abap-analysis/{analysis_id}#abap-phase-devcode", status_code=302)
+    return RedirectResponse(url=back, status_code=302)

@@ -4,28 +4,7 @@
     {% include 'partials/nav_prev_screen.html' %}
     {% endif %}
     {% if can_operate_delivery|default(false) %}
-    <div class="alert alert-warning border mb-4">
-      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-        <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline"
-              data-busy-agents='[{"agentKo":"「FS설계」","doingKo":"RFP·인터뷰·제안서를 바탕으로 상세 기능명세서(FS)를 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification from the RFP, interview, and proposal"}]'>
-          <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy or not can_start_fs|default(false) %}disabled{% endif %}>
-            {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
-          </button>
-        </form>
-        <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline"
-              data-busy-agents='[{"agentKo":"「ABAP」","doingKo":"기능명세를 바탕으로 납품 ABAP 초안을 작성하고 있습니다","agentEn":"「ABAP」","doingEn":"drafting delivered ABAP from the FS"},{"agentKo":"「코드검수」","doingKo":"초안을 검토·보완하고 있습니다","agentEn":"「Code Review」","doingEn":"reviewing and refining the draft"},{"agentKo":"「테스트」","doingKo":"단위 테스트 시나리오를 작성하고 있습니다","agentEn":"「Test」","doingEn":"writing unit test scenarios"}]'>
-          <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
-            {% if has_delivered_preview|default(false) %}개발코드 재생성{% else %}개발코드 생성 시작{% endif %}
-          </button>
-        </form>
-      </div>
-      <p class="small text-muted mb-2 mb-md-0">컨설턴트 FS 첨부·실행 로그는 <a href="/admin/rfp/{{ rfp.id }}/delivery" class="fw-semibold">납품 관리</a>에서 처리합니다.</p>
-      <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="collapse" data-bs-target="#adminFsHubEdit" aria-expanded="false" aria-controls="adminFsHubEdit">추가 안내</button>
-      <div class="collapse mt-2" id="adminFsHubEdit">
-        <hr class="my-2">
-        <p class="small text-muted mb-0">FS·납품 코드는 서버에서 순차 실행됩니다. 실행 로그는 납품 관리 화면에서 확인하세요.</p>
-      </div>
-    </div>
+    {% include 'partials/rfp_hub_fs_admin_bar.html' %}
     {% endif %}
 
     <div class="proposal-header mb-4">

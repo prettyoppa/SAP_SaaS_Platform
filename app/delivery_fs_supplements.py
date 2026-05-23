@@ -103,13 +103,66 @@ def fs_supplement_hub_template_ctx(
     return_to: str,
 ) -> dict:
     paths = fs_supplement_admin_paths(request_kind, request_id)
+    readonly = "console-readonly" in (return_to or "")
     return {
         "fs_supplements": list_delivery_fs_supplements(db, request_kind, request_id),
         "fs_supplement_upload_url": paths["fs_supplement_upload_url"],
         "fs_supplement_delete_url_prefix": paths["fs_supplement_delete_url_prefix"],
         "fs_supplement_return_to": return_to,
+        "delivery_return_to_devcode": hub_delivery_return_path(
+            request_kind, request_id, phase="devcode", readonly_console=readonly
+        ),
         "fs_supplement_max_files": DELIVERY_FS_SUPPLEMENT_MAX_FILES,
     }
+
+
+def hub_delivery_return_path(
+    request_kind: str,
+    request_id: int,
+    *,
+    phase: str = "fs",
+    readonly_console: bool = False,
+) -> str:
+    """통합 허브 FS·개발코드 단계 URL (별도 /admin/.../delivery 콘솔 대신)."""
+    kind = (request_kind or "").strip().lower()
+    rid = int(request_id)
+    ph = (phase or "fs").strip().lower()
+    if kind == KIND_RFP:
+        base = f"/rfp/{rid}/console-readonly" if readonly_console else f"/rfp/{rid}"
+        if ph == "devcode":
+            return f"{base}?phase=devcode#rfp-phase-devcode"
+        return f"{base}?phase=fs#rfp-phase-fs"
+    if kind == KIND_INTEGRATION:
+        base = f"/integration/{rid}/console-readonly" if readonly_console else f"/integration/{rid}"
+        if ph == "devcode":
+            return f"{base}?phase=devcode#int-phase-devcode"
+        return f"{base}?phase=fs#int-phase-fs"
+    if kind == KIND_ANALYSIS:
+        base = f"/abap-analysis/{rid}/console-readonly" if readonly_console else f"/abap-analysis/{rid}"
+        if ph == "devcode":
+            return f"{base}#abap-phase-devcode"
+        return f"{base}#abap-phase-fs"
+    return "/"
+
+
+def resolve_delivery_return_url(
+    request_kind: str,
+    request_id: int,
+    return_to: str | None,
+    *,
+    phase: str = "fs",
+    default_readonly_console: bool = False,
+) -> str:
+    """POST fs-start·code-start 후 리다이렉트 — return_to가 허브·콘솔 읽기 전용이면 우선."""
+    s = (return_to or "").strip()
+    if s.startswith("/") and ".." not in s and "//" not in s and "\n" not in s and "\r" not in s:
+        for prefix in ("/rfp/", "/integration/", "/abap-analysis/"):
+            if s.startswith(prefix):
+                return s
+    readonly = default_readonly_console or ("console-readonly" in s)
+    return hub_delivery_return_path(
+        request_kind, request_id, phase=phase, readonly_console=readonly
+    )
 
 
 def fs_supplement_admin_paths(request_kind: str, request_id: int) -> dict[str, str]:

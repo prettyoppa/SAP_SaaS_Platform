@@ -3,22 +3,34 @@
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <form method="post" action="/admin/integration/{{ ir.id }}/delivery/fs-start" class="d-inline" data-preflight-fs-upload
           data-busy-agents='[{"agentKo":"「FS」","doingKo":"연동 요청·인터뷰·제안을 바탕으로 비 ABAP 기능명세를 작성하고 있습니다","agentEn":"「FS」","doingEn":"drafting the non-ABAP integration functional spec"}]'>
+      {% if fs_supplement_return_to|default('') %}
+      <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
+      {% endif %}
       <button type="submit" class="btn btn-sm btn-warning" {% if fs_busy or not can_start_fs|default(false) %}disabled{% endif %}>
-        {% if fs_stat == 'ready' and fs_html %}FS 재생성{% else %}FS 생성 시작{% endif %}
+        {% if fs_stat == 'ready' and fs_html %}<span class="nav-ko">FS 재생성</span><span class="nav-en" style="display:none">Regenerate FS</span>{% else %}<span class="nav-ko">FS 생성 시작</span><span class="nav-en" style="display:none">Start FS generation</span>{% endif %}
       </button>
     </form>
     <form method="post" action="/admin/integration/{{ ir.id }}/delivery/code-start" class="d-inline" data-preflight-fs-upload
           data-busy-agents='[{"agentKo":"「구현」","doingKo":"FS를 바탕으로 구현 가이드·스켈레톤을 작성하고 있습니다","agentEn":"「Implementation」","doingEn":"drafting implementation guide from the FS"}]'>
+      {% if delivery_return_to_devcode|default('') %}
+      <input type="hidden" name="return_to" value="{{ delivery_return_to_devcode }}">
+      {% endif %}
       <button type="submit" class="btn btn-sm btn-primary" {% if dc_busy or not can_start_delivered_code %}disabled{% endif %}>
-        {% if has_delivered_preview|default(false) %}구현 산출물 재생성{% else %}구현 산출물 생성 시작{% endif %}
+        {% if has_delivered_preview|default(false) %}<span class="nav-ko">구현 산출물 재생성</span><span class="nav-en" style="display:none">Regenerate deliverable</span>{% else %}<span class="nav-ko">구현 산출물 생성 시작</span><span class="nav-en" style="display:none">Start deliverable generation</span>{% endif %}
       </button>
     </form>
     {% if dc_busy %}
     <form method="post" action="/admin/integration/{{ ir.id }}/delivery/code-cancel" class="d-inline ms-1">
-      <button type="submit" class="btn btn-sm btn-outline-danger">생성 중단</button>
+      {% if delivery_return_to_devcode|default('') %}
+      <input type="hidden" name="return_to" value="{{ delivery_return_to_devcode }}">
+      {% endif %}
+      <button type="submit" class="btn btn-sm btn-outline-danger"><span class="nav-ko">생성 중단</span><span class="nav-en" style="display:none">Cancel generation</span></button>
     </form>
     {% endif %}
   </div>
-  <p class="small text-muted mb-0">매칭된 컨설턴트가 연동 FS·구현 가이드를 생성합니다. 다른 화면으로 이동해도 서버에서 계속됩니다.{% if not can_start_fs|default(false) %} 제안서가 준비된 뒤 FS를 시작할 수 있습니다.{% endif %} (비 ABAP 마크다운)</p>
+  <p class="small text-muted mb-0">
+    <span class="nav-ko">매칭된 컨설턴트가 연동 FS·구현 가이드를 생성합니다. 다른 화면으로 이동해도 서버에서 계속됩니다.{% if not can_start_fs|default(false) %} 제안서가 준비된 뒤 FS를 시작할 수 있습니다.{% endif %} (비 ABAP 마크다운)</span>
+    <span class="nav-en" style="display:none">The matched consultant generates integration FS and implementation guides. Jobs continue on the server if you leave.{% if not can_start_fs|default(false) %} Start FS after the proposal is ready.{% endif %} (Non-ABAP markdown)</span>
+  </p>
 </div>
 {% endif %}

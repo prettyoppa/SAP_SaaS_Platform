@@ -315,6 +315,9 @@ html[data-theme="dark"] .btn-console-offer:hover {
                 <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
                 <span>매칭</span>
                 <span class="text-muted">({{ counts_by_kind['matching']['all'] }})</span>
+                {% if console_matching_pending_inquiry is defined and console_matching_pending_inquiry %}
+                <span class="console-tree-pending-dot" title="답변 대기 문의가 있습니다" aria-hidden="true"></span>
+                {% endif %}
                 {% if console_matching_notice_pending is defined and console_matching_notice_pending %}
                 <span class="console-tree-pending-dot" title="새 매칭 알림" aria-hidden="true"></span>
                 {% endif %}

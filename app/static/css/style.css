@@ -4057,6 +4057,12 @@ html[data-theme="light"] .offer-inquiry-privacy-note {
 .offer-inquiry-panel-inner .offer-inquiry-reply-form {
   border-top-color: var(--border) !important;
 }
+.offer-inquiry-form--submitting .offer-inquiry-submit-btn {
+  pointer-events: none;
+}
+.offer-inquiry-progress .spinner-border {
+  vertical-align: -0.15em;
+}
 .offer-consent-inline {
   max-width: 100%;
 }

@@ -574,6 +574,27 @@ def _request_console_return_location(
     return "/request-console?" + urlencode(params)
 
 
+def _pending_inquiry_console_tree_flags(
+    db: Session, pending_offer_ids: set[int]
+) -> tuple[bool, bool]:
+    """(오퍼 노드, 매칭 노드) — 답변 대기 문의가 각 Console 트리와 맞는지."""
+    if not pending_offer_ids:
+        return False, False
+    offer_dot = False
+    matching_dot = False
+    for _oid, st in (
+        db.query(models.RequestOffer.id, models.RequestOffer.status)
+        .filter(models.RequestOffer.id.in_(sorted(pending_offer_ids)))
+        .all()
+    ):
+        s = (st or "").strip()
+        if s == "matched":
+            matching_dot = True
+        elif s == "offered":
+            offer_dot = True
+    return offer_dot, matching_dot
+
+
 def _console_sel_key_to_offer_lookup_key(sel_key: str) -> tuple[str, int] | None:
     sk = (sel_key or "").strip()
     if sk.startswith("rfp:"):
@@ -1091,7 +1112,9 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             row["request_offer_matched_count"] = int(n_matched)
             row["request_has_matched"] = int(n_matched) > 0
 
-    console_offer_pending_inquiry = bool(pending_inquiry_offer_ids)
+    console_offer_pending_inquiry, console_matching_pending_inquiry = (
+        _pending_inquiry_console_tree_flags(db, pending_inquiry_offer_ids)
+    )
     console_pending_inquiry_rows: list[dict[str, Any]] = []
     if getattr(user, "is_admin", False):
         console_pending_inquiry_rows = _admin_pending_inquiry_monitor_rows(request, db)
@@ -1127,6 +1150,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "menu_date_from_raw": date_from_raw or "",
             "menu_date_to_raw": date_to_raw or "",
             "console_offer_pending_inquiry": console_offer_pending_inquiry,
+            "console_matching_pending_inquiry": console_matching_pending_inquiry,
             "console_offer_notify_warn": (
                 request.query_params.get("console_offer_notify_warn") or ""
             ).strip(),

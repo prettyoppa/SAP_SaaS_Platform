@@ -387,20 +387,51 @@ function formatLocalDateTimes() {
 /** AI 후속 질문: 전역 busy 대신 패널 안 로컬 오버레이 + 제출 후 패널 유지(sessionStorage). */
 const _KEEP_AI_LAUNCHER_KEY = 'keepAiPanelOpenLauncher';
 
+function lockOfferInquiryForm(form) {
+  if (!(form instanceof HTMLFormElement)) return false;
+  if (form.dataset.offerInquirySubmitting === '1') return false;
+  form.dataset.offerInquirySubmitting = '1';
+  form.classList.add('offer-inquiry-form--submitting');
+  const btn = form.querySelector('button[type="submit"]');
+  if (btn) {
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    const spin = btn.querySelector('.offer-inquiry-submit-spinner');
+    if (spin) spin.classList.remove('d-none');
+  }
+  form.querySelectorAll('textarea, button, select, input').forEach((el) => {
+    if (el instanceof HTMLInputElement && el.type === 'hidden') return;
+    if (el === btn) return;
+    el.disabled = true;
+  });
+  const prog = form.querySelector('.offer-inquiry-progress');
+  if (prog) {
+    const lang =
+      document.documentElement.getAttribute('data-lang') ||
+      document.documentElement.lang ||
+      'ko';
+    const msg =
+      (lang === 'en' && form.dataset.offerInquiryBusyEn) ||
+      form.dataset.offerInquiryBusyKo ||
+      form.dataset.offerInquiryBusyEn ||
+      '전송 중입니다…';
+    prog.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>${msg}`;
+    prog.classList.remove('d-none');
+  }
+  return true;
+}
+
 document.addEventListener(
   'submit',
   (e) => {
     const form = e.target;
     if (!(form instanceof HTMLFormElement)) return;
     if (form.classList.contains('offer-inquiry-form')) {
-      const msg =
-        (form.dataset && form.dataset.offerInquiryBusyKo) ||
-        '전송 중입니다…';
-      const prog = form.querySelector('.offer-inquiry-progress');
-      if (prog) {
-        prog.textContent = msg;
-        prog.classList.remove('d-none');
+      if (form.dataset.offerInquirySubmitting === '1') {
+        e.preventDefault();
+        return;
       }
+      lockOfferInquiryForm(form);
       return;
     }
     if (!form.classList.contains('abap-followup-form')) return;
