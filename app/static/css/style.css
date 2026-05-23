@@ -1202,6 +1202,24 @@ html[data-theme="dark"] .nav-icon-analysis .nav-icon-analysis-dark { display: in
   background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.3);
   color: #86efac; border-radius: var(--radius-sm);
 }
+/* Bootstrap alert vars follow data-bs-theme=light; dark UI needs explicit warning panel contrast */
+html[data-theme="dark"] .alert-warning {
+  background: rgba(234, 179, 8, 0.14);
+  border-color: rgba(234, 179, 8, 0.4);
+  color: #fde68a;
+  border-radius: var(--radius-sm);
+}
+html[data-theme="dark"] .alert-warning .text-muted,
+html[data-theme="dark"] .alert-warning .small.text-muted {
+  color: #d6d3d1 !important;
+}
+html[data-theme="dark"] .alert-warning a {
+  color: #fef08a;
+  font-weight: 600;
+}
+html[data-theme="dark"] .alert-warning a:hover {
+  color: #fffbeb;
+}
 
 /* Dropdown */
 .dropdown-menu {
@@ -1360,6 +1378,23 @@ html {
 .proposal-body code {
   background: var(--surface2); padding: .1rem .4rem; border-radius: 4px;
   font-size: .85em; color: #7dd3fc;
+}
+html[data-theme="light"] .proposal-body h2 {
+  color: var(--primary-dark);
+}
+html[data-theme="light"] .proposal-body strong {
+  color: var(--text);
+  font-weight: 700;
+}
+html[data-theme="light"] .proposal-body code {
+  color: var(--code-text);
+}
+html[data-theme="dark"] .proposal-body strong {
+  color: var(--text);
+  font-weight: 700;
+}
+html[data-theme="dark"] .proposal-body code {
+  color: #bae6fd;
 }
 
 /* Interview Summary (details toggle) */

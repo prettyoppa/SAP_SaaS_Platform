@@ -17,7 +17,7 @@
   {% endif %}
   {% if offer_inquiry_reply_ok is defined and offer_inquiry_reply_ok %}
   <div class="alert alert-success small py-2 mb-2">
-    <span class="nav-ko">답변을 전송했습니다.</span><span class="nav-en" style="display:none">Your reply was sent.</span>
+    <span class="nav-ko">메시지를 전송했습니다.</span><span class="nav-en" style="display:none">Your message was sent.</span>
   </div>
   {% endif %}
   {% if offer_match_err is defined and offer_match_err %}
@@ -61,8 +61,9 @@
     {% set is_offer_staff = user and (user.is_consultant or user.is_admin) %}
     {% set can_send_inquiry = request_offer_can_inquire|default(false) and request_offer_inquiry_url_builder is defined %}
     {% set last_inq = inq_list[-1] if inq_list|length > 0 else none %}
-    {% set can_reply_as_consultant = user and user.is_consultant and of.consultant_user_id == user.id and last_inq and last_inq.author_user_id != user.id and request_offer_inquiry_reply_url_builder is defined %}
-    {% set can_see_inquiry_block = can_send_inquiry or (is_offer_staff and inq_list|length > 0) or can_reply_as_consultant %}
+    {% set can_compose_as_consultant = user and user.is_consultant and of.consultant_user_id == user.id and of.status == 'matched' and request_offer_inquiry_reply_url_builder is defined %}
+    {% set consultant_inquiry_pending = can_compose_as_consultant and last_inq and last_inq.author_user_id != user.id %}
+    {% set can_see_inquiry_block = can_send_inquiry or can_compose_as_consultant or (is_offer_staff and inq_list|length > 0) %}
     <div class="list-group-item px-3 py-2">
       <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
         <div class="flex-grow-1" style="min-width: 0;">
@@ -95,22 +96,23 @@
           <div class="small text-muted">{{ of.created_at|local_dt_span }}</div>
         </div>
         <div class="d-flex flex-wrap gap-1 justify-content-end align-items-start">
-          {% if can_send_inquiry %}
+          {% if can_send_inquiry or can_compose_as_consultant %}
           <button type="button" class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1"
                   data-bs-toggle="collapse" data-bs-target="#offer-inq-body-{{ of.id }}"
-                  aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
-            <i class="fa-solid fa-envelope" aria-hidden="true"></i><span class="nav-ko">문의</span><span class="nav-en" style="display:none">Inquire</span>
+                  aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}"
+                  {% if consultant_inquiry_pending %}title="요청자 메시지에 회신이 필요합니다"{% endif %}>
+            <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+            {% if consultant_inquiry_pending %}
+            <span class="console-mail-pending-dot flex-shrink-0" title="요청자 메시지에 회신이 필요합니다" aria-hidden="true"></span>
+            {% endif %}
+            <span class="nav-ko">문의</span><span class="nav-en" style="display:none">Messages</span>
           </button>
-          {% elif (is_offer_staff and inq_list|length > 0) or can_reply_as_consultant %}
+          {% elif is_offer_staff and inq_list|length > 0 %}
           <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
                   data-bs-toggle="collapse" data-bs-target="#offer-inq-body-{{ of.id }}"
-                  aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}"
-                  {% if can_reply_as_consultant %}title="요청자 문의에 답변이 필요합니다"{% endif %}>
+                  aria-expanded="false" aria-controls="offer-inq-body-{{ of.id }}">
             <i class="fa-solid fa-comments" aria-hidden="true"></i>
-            {% if can_reply_as_consultant %}
-            <span class="console-mail-pending-dot flex-shrink-0" title="요청자 문의에 답변이 필요합니다" aria-hidden="true"></span>
-            {% endif %}
-            {% if can_reply_as_consultant %}<span class="nav-ko">문의 / 답변</span><span class="nav-en" style="display:none">Inquiry / reply</span>{% else %}<span class="nav-ko">문의 내역</span><span class="nav-en" style="display:none">History</span>{% endif %}
+            <span class="nav-ko">문의 내역</span><span class="nav-en" style="display:none">History</span>
           </button>
           {% endif %}
           {% if request_offer_profile_url_builder is defined %}
@@ -189,8 +191,8 @@
             </div>
           </form>
           {% endif %}
-          {% if can_reply_as_consultant %}
-          <form method="post" action="{{ request_offer_inquiry_reply_url_builder(of.id) }}" class="offer-inquiry-form offer-inquiry-reply-form mt-3 pt-3 border-top" data-no-busy="true"
+          {% if can_compose_as_consultant %}
+          <form method="post" action="{{ request_offer_inquiry_reply_url_builder(of.id) }}" class="offer-inquiry-form offer-inquiry-reply-form{% if inq_list|length > 0 %} mt-3 pt-3 border-top{% endif %}" data-no-busy="true"
                 {% if owner is defined and owner %}
                 {% set owem = owner.ops_email_opt_in %}
                 {% set owsm = owner.ops_sms_opt_in and owner.phone_verified %}
@@ -199,13 +201,13 @@
             {% if hub_readonly_return_url is defined and hub_readonly_return_url %}
             <input type="hidden" name="return_hub" value="{{ hub_readonly_return_url }}" />
             {% endif %}
-            <p class="small offer-inquiry-privacy-note mb-2">회원 개인정보 보호를 위해 문의 내용은 Catch Lab 이름으로 발신됩니다.</p>
-            <p class="small text-muted mb-2">한 번에 최대 1,000자까지 입력할 수 있습니다. 상세한 논의는 매칭 후 연락처를 주고받아 진행해 주세요.</p>
-            <label class="form-label small offer-inquiry-label mb-1">요청자 문의에 답변</label>
-            <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="1000" required placeholder="요청자에게 전달할 답변을 입력하세요."></textarea>
+            <p class="small offer-inquiry-privacy-note mb-2"><span class="nav-ko">회원 개인정보 보호를 위해 전달 내용은 Catch Lab 이름으로 발신됩니다.</span><span class="nav-en" style="display:none">Messages to the member are sent under the Catch Lab name for privacy.</span></p>
+            <p class="small text-muted mb-2"><span class="nav-ko">한 번에 최대 1,000자까지 입력할 수 있습니다. 상세한 논의는 연락처를 주고받아 진행해 주세요.</span><span class="nav-en" style="display:none">Up to 1,000 characters per message. Exchange contact details for longer discussions.</span></p>
+            <label class="form-label small offer-inquiry-label mb-1"><span class="nav-ko">메시지 작성</span><span class="nav-en" style="display:none">Compose message</span></label>
+            <textarea name="body" class="form-control form-control-sm" rows="3" maxlength="1000" required placeholder="요청자에게 전달할 내용을 입력하세요."></textarea>
             <p class="small text-primary mb-0 mt-1 offer-inquiry-progress d-none" role="status" aria-live="polite"></p>
             <div class="d-flex justify-content-end mt-2">
-              <button type="submit" class="btn btn-sm btn-primary">답변 전송</button>
+              <button type="submit" class="btn btn-sm btn-primary"><span class="nav-ko">전송</span><span class="nav-en" style="display:none">Send</span></button>
             </div>
           </form>
           {% endif %}

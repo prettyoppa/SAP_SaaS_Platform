@@ -692,7 +692,7 @@ class RequestOffer(Base):
 
 
 class RequestOfferInquiry(Base):
-    """요청 소유자가 오퍼한 컨설턴트에게 보낸 문의(이력)."""
+    """오퍼 단위 요청자↔컨설턴트 메시지 이력(이메일·SMS 알림)."""
 
     __tablename__ = "request_offer_inquiries"
 

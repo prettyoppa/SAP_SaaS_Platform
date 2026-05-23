@@ -67,7 +67,6 @@ from ..offer_inquiry_service import (
     pending_inquiry_reply_offer_ids_for_consultant,
     public_request_url,
     sanitize_console_readonly_return_url,
-    send_consultant_matched_first_inquiry_to_owner,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
     withdraw_request_offer,
@@ -1102,22 +1101,6 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
     if selected_row is None and rows:
         selected_row = rows[0]
 
-    if selected_row:
-        if getattr(user, "is_consultant", False):
-            oid = selected_row.get("console_offer_id")
-            st = (selected_row.get("console_offer_status") or "").strip()
-            can_init = False
-            if oid and st == "matched":
-                cnt = (
-                    db.query(models.RequestOfferInquiry)
-                    .filter(models.RequestOfferInquiry.request_offer_id == int(oid))
-                    .count()
-                )
-                can_init = cnt == 0
-            selected_row["console_can_init_inquiry"] = can_init
-        else:
-            selected_row["console_can_init_inquiry"] = False
-
     bucket_meta = standard_menu_bucket_meta()
     kind_labels = {
         "all": "전체",
@@ -1144,11 +1127,6 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "menu_date_from_raw": date_from_raw or "",
             "menu_date_to_raw": date_to_raw or "",
             "console_offer_pending_inquiry": console_offer_pending_inquiry,
-            "console_consultant_inquiry_err": (
-                request.query_params.get("console_consultant_inquiry_err") or ""
-            ).strip(),
-            "console_consultant_inquiry_ok": (request.query_params.get("console_consultant_inquiry_ok") or "").strip()
-            == "1",
             "console_offer_notify_warn": (
                 request.query_params.get("console_offer_notify_warn") or ""
             ).strip(),
@@ -1161,92 +1139,6 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "console_matching_notice_pending": console_matching_notice_pending,
         },
     )
-
-
-@router.post("/request-console/consultant-inquiry")
-def request_console_consultant_inquiry_submit(
-    request: Request,
-    sel_key: str = Form(""),
-    body: str = Form(""),
-    return_kind: str = Form("all"),
-    return_bucket: str = Form("all"),
-    return_sel: str = Form(""),
-    return_title: str = Form(""),
-    return_date_from: str = Form(""),
-    return_date_to: str = Form(""),
-    db: Session = Depends(get_db),
-):
-    user = auth.get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login?next=/request-console", status_code=302)
-    if not getattr(user, "is_consultant", False):
-        return RedirectResponse(url="/", status_code=302)
-
-    raw = (sel_key or "").strip().lower()
-    if ":" not in raw:
-        return RedirectResponse(url="/request-console", status_code=303)
-    prefix, sid = raw.split(":", 1)
-    try:
-        req_id = int(sid)
-    except Exception:
-        return RedirectResponse(url="/request-console", status_code=303)
-
-    if prefix == "rfp":
-        req_kind = "rfp"
-    elif prefix == "int":
-        req_kind = "integration"
-    elif prefix == "ana":
-        req_kind = "analysis"
-    else:
-        return RedirectResponse(url="/request-console", status_code=303)
-
-    offer = (
-        db.query(models.RequestOffer)
-        .filter(
-            models.RequestOffer.request_kind == req_kind,
-            models.RequestOffer.request_id == req_id,
-            models.RequestOffer.consultant_user_id == user.id,
-            models.RequestOffer.status == "matched",
-        )
-        .first()
-    )
-    base = _request_console_return_location(
-        return_kind=return_kind,
-        return_bucket=return_bucket,
-        return_sel=(return_sel or "").strip() or raw,
-        return_title=return_title,
-        return_date_from=return_date_from,
-        return_date_to=return_date_to,
-    )
-    sep = "&" if "?" in base else "?"
-
-    if not offer:
-        return RedirectResponse(
-            url=f"{base}{sep}console_consultant_inquiry_err={quote('매칭된 요청에서만 회원에게 먼저 문의할 수 있습니다.')}",
-            status_code=303,
-        )
-
-    owner, title = _console_request_title_and_owner(db, req_kind, req_id)
-    if not owner:
-        return RedirectResponse(
-            url=f"{base}{sep}console_consultant_inquiry_err={quote('요청을 찾을 수 없습니다.')}",
-            status_code=303,
-        )
-
-    detail = _console_public_detail_url(request, req_kind, req_id)
-    err, _row = send_consultant_matched_first_inquiry_to_owner(
-        db,
-        request=request,
-        consultant=user,
-        offer=offer,
-        owner=owner,
-        request_title=title,
-        request_detail_url=detail,
-        body_raw=body,
-    )
-    if err:
-        return RedirectResponse(url=f"{base}{sep}console_consultant_inquiry_err={quote(err)}", status_code=303)
-    return RedirectResponse(url=f"{base}{sep}console_consultant_inquiry_ok=1", status_code=303)
 
 
 @router.post("/request-console/offer")
