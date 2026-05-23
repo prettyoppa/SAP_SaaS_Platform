@@ -83,6 +83,10 @@ from ..delivery_proposal_supplements import (
     proposal_ready_for_delivery,
     proposal_supplement_hub_template_ctx,
 )
+from ..proposal_section6_decisions import (
+    proposal_section6_hub_template_ctx,
+    section6_decisions_flash_from_query,
+)
 from ..abap_analysis_proposal_service import run_abap_analysis_proposal_background
 from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
 from ..code_asset_access import user_may_copy_download_request_assets
@@ -1394,6 +1398,21 @@ def _prepare_abap_analysis_detail_ctx(
                 )
             ),
         ),
+        **proposal_section6_hub_template_ctx(
+            request_kind=KIND_ANALYSIS,
+            request_id=int(row.id),
+            agent_proposal_text=row.proposal_text,
+            decisions_raw=getattr(row, "proposal_section6_decisions_json", None),
+            can_edit=bool(
+                user
+                and not readonly_console
+                and int(user.id) == int(row.user_id)
+                and ana_ist != "generating_proposal"
+                and (bool(ana_proposal_html) or ana_ist == "completed")
+            ),
+            return_to=f"/abap-analysis/{row.id}#abap-phase-proposal",
+        ),
+        "section6_decisions_flash": section6_decisions_flash_from_query(request),
         **as_built_hub_template_ctx(
             row,
             user=user,

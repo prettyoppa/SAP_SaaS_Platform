@@ -38,6 +38,10 @@ from ..delivery_proposal_supplements import (
     proposal_ready_for_delivery,
     proposal_supplement_hub_template_ctx,
 )
+from ..proposal_section6_decisions import (
+    proposal_section6_hub_template_ctx,
+    section6_decisions_flash_from_query,
+)
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..request_hub_access import (
@@ -1185,6 +1189,24 @@ def _collect_rfp_unified_hub_ctx(
                 )
             ),
         ),
+        **proposal_section6_hub_template_ctx(
+            request_kind=KIND_RFP,
+            request_id=int(rfp.id),
+            agent_proposal_text=rfp.proposal_text,
+            decisions_raw=getattr(rfp, "proposal_section6_decisions_json", None),
+            can_edit=bool(
+                user
+                and not readonly_console
+                and int(user.id) == int(rfp.user_id)
+                and (rfp.interview_status or "") != "generating_proposal"
+                and (
+                    bool(proposal_html)
+                    or (rfp.interview_status or "") == "completed"
+                )
+            ),
+            return_to=f"/rfp/{rfp.id}?phase=proposal#rfp-phase-proposal",
+        ),
+        "section6_decisions_flash": section6_decisions_flash_from_query(request),
         **as_built_hub_template_ctx(
             rfp,
             user=user,

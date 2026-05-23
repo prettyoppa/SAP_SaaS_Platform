@@ -337,6 +337,7 @@
             <div class="proposal-card mb-3">
               <div class="proposal-body">{{ ana_proposal_html|safe }}</div>
             </div>
+            {% include 'partials/proposal_section6_decisions_panel.html' %}
             {% include 'partials/hub_proposal_supplement_panel.html' %}
             {% if engagement_flash is defined and engagement_flash %}
             <div class="alert alert-{{ engagement_flash.kind|default('info') }} small mt-3 mb-0">

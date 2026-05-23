@@ -35,7 +35,15 @@ from .subscription_quota import plan_row_for_entitlements, user_subscription_pla
 from .routers import auth_router, rfp_router, interview_router, codelib_router, abap_analysis_router
 from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import site_content_router, seo_router, legal_content_router
-from .routers import payments_router, paid_admin_router, proposal_supplements_router, billing_router, ai_wallet_router, as_built_router
+from .routers import (
+    payments_router,
+    paid_admin_router,
+    proposal_supplements_router,
+    proposal_decisions_router,
+    billing_router,
+    ai_wallet_router,
+    as_built_router,
+)
 from .templates_config import templates
 
 _log = logging.getLogger("uvicorn.error")
@@ -86,6 +94,7 @@ def _run_migrations():
         ("integration_requests", "proposal_generated_at", "DATETIME", "TIMESTAMP"),
         ("integration_requests", "interview_status", "VARCHAR DEFAULT 'pending'", "VARCHAR DEFAULT 'pending'"),
         ("integration_requests", "reference_code_payload", "TEXT", "TEXT"),
+        ("rfps", "proposal_section6_decisions_json", "TEXT", "TEXT"),
         ("rfps", "paid_engagement_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
         ("rfps", "paid_activated_at", "DATETIME", "TIMESTAMP"),
         ("rfps", "stripe_checkout_session_id", "VARCHAR", "VARCHAR"),
@@ -106,6 +115,7 @@ def _run_migrations():
         ("abap_analysis_requests", "interview_status", "VARCHAR DEFAULT 'pending'", "VARCHAR DEFAULT 'pending'"),
         ("abap_analysis_requests", "proposal_text", "TEXT", "TEXT"),
         ("abap_analysis_requests", "proposal_generated_at", "DATETIME", "TIMESTAMP"),
+        ("abap_analysis_requests", "proposal_section6_decisions_json", "TEXT", "TEXT"),
         ("abap_analysis_requests", "fs_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
         ("abap_analysis_requests", "fs_text", "TEXT", "TEXT"),
         ("abap_analysis_requests", "fs_generated_at", "DATETIME", "TIMESTAMP"),
@@ -851,6 +861,7 @@ app.include_router(integration_router.router)
 app.include_router(payments_router.router)
 app.include_router(paid_admin_router.router)
 app.include_router(proposal_supplements_router.router)
+app.include_router(proposal_decisions_router.router)
 app.include_router(billing_router.router)
 app.include_router(ai_wallet_router.router)
 app.include_router(as_built_router.router)

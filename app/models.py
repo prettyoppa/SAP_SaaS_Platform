@@ -109,6 +109,8 @@ class RFP(Base):
     interview_status = Column(String, default="pending")  # pending | in_progress | generating_proposal | completed
     proposal_text = Column(Text, nullable=True)
     proposal_generated_at = Column(DateTime, nullable=True)
+    # §6 확인 필요 사항 — 요청자 인라인 최종 결정(JSON)
+    proposal_section6_decisions_json = Column(Text, nullable=True)
     # 유료 개발 의뢰 — FS·납품 ABAP (조회: 회원·관리자 / 생성: 관리자만)
     paid_engagement_status = Column(String, default="none")  # none | checkout_pending | active | cancelled
     paid_activated_at = Column(DateTime, nullable=True)
@@ -238,6 +240,7 @@ class IntegrationRequest(Base):
     interview_status = Column(String, default="pending")
     proposal_text = Column(Text, nullable=True)
     proposal_generated_at = Column(DateTime, nullable=True)
+    proposal_section6_decisions_json = Column(Text, nullable=True)
     # 연동 전용: 기능명세(FS)·구현 산출(비-ABAP, 마크다운)
     fs_status = Column(String, default="none")  # none | generating | ready | failed
     fs_text = Column(Text, nullable=True)
@@ -372,6 +375,7 @@ class AbapAnalysisRequest(Base):
     interview_status = Column(String, default="pending", nullable=False)
     proposal_text = Column(Text, nullable=True)
     proposal_generated_at = Column(DateTime, nullable=True)
+    proposal_section6_decisions_json = Column(Text, nullable=True)
     fs_status = Column(String, default="none", nullable=False)
     fs_text = Column(Text, nullable=True)
     fs_generated_at = Column(DateTime, nullable=True)

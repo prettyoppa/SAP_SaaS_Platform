@@ -8,13 +8,19 @@ from sqlalchemy.orm import Session
 from . import models, r2_storage
 from .document_llm_digest import supplement_file_body_for_agents
 from .delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
+from .proposal_section6_decisions import (
+    format_decisions_for_downstream,
+    load_decisions_payload,
+    load_request_entity_for_decisions,
+    get_entity_decisions_raw,
+)
 
 DELIVERY_PROPOSAL_SUPPLEMENT_MAX_FILES = 15
 
 _PROPOSAL_PRIORITY_PREAMBLE = (
-    "**제안서 입력 안내:** 아래에 **요청자 제안서 첨부**가 있으면 "
-    "에이전트 자동 제안서와 충돌할 때 **첨부 제안서를 최우선**으로 따른다. "
-    "첨부가 없으면 에이전트 제안서만 사용한다.\n\n"
+    "**제안서 입력 안내:** **§6 확인 필요 사항에 대한 요청자 최종 결정**과 "
+    "**요청자 제안서 파일 첨부**가 있으면 에이전트 자동 제안서보다 **우선**한다. "
+    "충돌 시 §6 결정·첨부 순으로 따르고, 에이전트 제안서는 보조 참고만 한다.\n\n"
 )
 
 
@@ -46,8 +52,11 @@ def has_delivery_proposal_supplements(db: Session, request_kind: str, request_id
 def merge_agent_and_requester_proposal_markdown(
     agent_proposal: str,
     supplements: list[models.RfpProposalSupplement],
+    *,
+    section6_decisions_block: str = "",
 ) -> str:
     agent_proposal = (agent_proposal or "").strip()
+    s6 = (section6_decisions_block or "").strip()
     requester_parts: list[str] = []
     for sup in supplements:
         raw = r2_storage.read_bytes_from_ref(sup.stored_path)
@@ -58,17 +67,26 @@ def merge_agent_and_requester_proposal_markdown(
             continue
         requester_parts.append(f"### 요청자 제안서 첨부: {sup.filename}\n\n{body.strip()}")
 
+    owner_blocks: list[str] = []
+    if s6:
+        owner_blocks.append(
+            "### 요청자 최종 결정 — §6 확인 필요 사항 (**최우선**)\n\n" + s6
+        )
     if requester_parts:
-        merged_req = "\n\n---\n\n".join(requester_parts)
+        owner_blocks.append(
+            "### 요청자 제안서 파일 첨부\n\n" + "\n\n---\n\n".join(requester_parts)
+        )
+
+    if owner_blocks:
+        merged_owner = "\n\n---\n\n".join(owner_blocks)
         if agent_proposal:
             return (
                 _PROPOSAL_PRIORITY_PREAMBLE
-                + "### 요청자 제안서 첨부 (**최우선**)\n\n"
-                + merged_req
-                + "\n\n---\n\n### 에이전트 생성 제안서 (참고 — 첨부와 충돌 시 첨부 우선)\n\n"
+                + merged_owner
+                + "\n\n---\n\n### 에이전트 생성 제안서 (참고 — 요청자 결정·첨부와 충돌 시 요청자 우선)\n\n"
                 + agent_proposal
             )
-        return _PROPOSAL_PRIORITY_PREAMBLE + merged_req
+        return _PROPOSAL_PRIORITY_PREAMBLE + merged_owner
 
     return agent_proposal
 
@@ -81,7 +99,16 @@ def resolved_delivery_proposal_for_downstream(
     agent_proposal_text: str | None,
 ) -> str:
     supplements = list_delivery_proposal_supplements(db, request_kind, request_id)
-    return merge_agent_and_requester_proposal_markdown(agent_proposal_text or "", supplements)
+    s6_block = ""
+    entity = load_request_entity_for_decisions(db, request_kind, request_id)
+    if entity is not None:
+        saved = load_decisions_payload(get_entity_decisions_raw(entity))
+        s6_block = format_decisions_for_downstream(saved)
+    return merge_agent_and_requester_proposal_markdown(
+        agent_proposal_text or "",
+        supplements,
+        section6_decisions_block=s6_block,
+    )
 
 
 def proposal_ready_for_delivery(

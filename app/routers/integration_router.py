@@ -109,6 +109,10 @@ from ..delivery_proposal_supplements import (
     proposal_ready_for_delivery,
     proposal_supplement_hub_template_ctx,
 )
+from ..proposal_section6_decisions import (
+    proposal_section6_hub_template_ctx,
+    section6_decisions_flash_from_query,
+)
 from ..paid_tier import user_can_operate_delivery
 from ..proposal_lifecycle import proposal_delete_block_reason
 from ..integration_followup_chat import (
@@ -2291,6 +2295,24 @@ def _collect_integration_unified_hub_ctx(
                 )
             ),
         ),
+        **proposal_section6_hub_template_ctx(
+            request_kind=KIND_INTEGRATION,
+            request_id=int(ir.id),
+            agent_proposal_text=ir.proposal_text,
+            decisions_raw=getattr(ir, "proposal_section6_decisions_json", None),
+            can_edit=bool(
+                user
+                and not readonly_console
+                and int(user.id) == int(ir.user_id)
+                and (ir.interview_status or "") != "generating_proposal"
+                and (
+                    bool(proposal_html)
+                    or (ir.interview_status or "") == "completed"
+                )
+            ),
+            return_to=f"/integration/{ir.id}?phase=proposal#int-phase-proposal",
+        ),
+        "section6_decisions_flash": section6_decisions_flash_from_query(request),
         **as_built_hub_template_ctx(
             ir,
             user=user,
