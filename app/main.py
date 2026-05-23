@@ -92,6 +92,7 @@ def _run_migrations():
         ("abap_analysis_requests", "is_draft", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("integration_requests", "proposal_text", "TEXT", "TEXT"),
         ("integration_requests", "proposal_generated_at", "DATETIME", "TIMESTAMP"),
+        ("integration_requests", "proposal_section6_decisions_json", "TEXT", "TEXT"),
         ("integration_requests", "interview_status", "VARCHAR DEFAULT 'pending'", "VARCHAR DEFAULT 'pending'"),
         ("integration_requests", "reference_code_payload", "TEXT", "TEXT"),
         ("rfps", "proposal_section6_decisions_json", "TEXT", "TEXT"),
