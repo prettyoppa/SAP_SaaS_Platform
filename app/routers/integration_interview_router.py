@@ -467,8 +467,11 @@ def integration_delete_proposal(req_id: int, request: Request, db: Session = Dep
 def integration_proposal_download(req_id: int, request: Request, db: Session = Depends(get_db)):
     from fastapi.responses import Response
 
-    from ..agent_display import wrap_unbracketed_agent_names
-    from ..proposal_export import proposal_download_filename, proposal_markdown_to_docx_bytes
+    from ..proposal_export import (
+        ProposalPdfUnavailable,
+        proposal_download_filename,
+        proposal_pdf_download_body,
+    )
     from ..rfp_download_names import content_disposition_attachment
 
     user = auth.get_current_user(request, db)
@@ -489,18 +492,19 @@ def integration_proposal_download(req_id: int, request: Request, db: Session = D
         owner_user_id=int(ir.user_id),
     ):
         return RedirectResponse(url="/integration", status_code=302)
-    fmt = (request.query_params.get("format") or "md").strip().lower()
-    md = wrap_unbracketed_agent_names(ir.proposal_text or "")
-    fname = proposal_download_filename("integration", req_id, fmt=fmt, title=ir.title)
-    if fmt == "docx":
-        body = proposal_markdown_to_docx_bytes(md, document_title=ir.title or "Development Proposal")
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    else:
-        body = md.encode("utf-8")
-        media_type = "text/markdown; charset=utf-8"
+    fname = proposal_download_filename("integration", req_id, title=ir.title)
+    try:
+        body = proposal_pdf_download_body(
+            ir.proposal_text or "", document_title=ir.title or "Development Proposal"
+        )
+    except ProposalPdfUnavailable:
+        return RedirectResponse(
+            url=f"{integration_hub_url(req_id, 'proposal')}&proposal_err=pdf_unavailable",
+            status_code=302,
+        )
     return Response(
         content=body,
-        media_type=media_type,
+        media_type="application/pdf",
         headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
 

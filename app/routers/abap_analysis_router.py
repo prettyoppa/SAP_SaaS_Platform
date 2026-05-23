@@ -96,7 +96,11 @@ from ..delivered_code_package import (
     rfp_delivered_body_ready,
 )
 from ..paid_tier import user_can_operate_delivery
-from ..proposal_export import proposal_download_filename, proposal_markdown_to_docx_bytes
+from ..proposal_export import (
+    ProposalPdfUnavailable,
+    proposal_download_filename,
+    proposal_pdf_download_body,
+)
 from ..proposal_lifecycle import clear_agent_proposal, proposal_delete_block_reason
 from ..offer_inquiry_service import (
     apply_request_offer_match_action,
@@ -1293,6 +1297,8 @@ def _prepare_abap_analysis_detail_ctx(
         proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalDeleteBlockedDownstream"}
     elif pe == "generating":
         proposal_hub_flash = {"kind": "info", "i18n": "hub.proposalDeleteBlockedGenerating"}
+    elif pe == "pdf_unavailable":
+        proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalPdfUnavailableFlash"}
 
     engagement_flash = None
     if (request.query_params.get("engagement") or "").strip() == "ok":
@@ -1634,18 +1640,19 @@ def abap_analysis_proposal_download(
         owner_user_id=int(row.user_id),
     ):
         return RedirectResponse(url="/abap-analysis", status_code=302)
-    fmt = (request.query_params.get("format") or "md").strip().lower()
-    md = wrap_unbracketed_agent_names(row.proposal_text or "")
-    fname = proposal_download_filename("analysis", req_id, fmt=fmt, title=row.title)
-    if fmt == "docx":
-        body = proposal_markdown_to_docx_bytes(md, document_title=row.title or "Development Proposal")
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    else:
-        body = md.encode("utf-8")
-        media_type = "text/markdown; charset=utf-8"
+    fname = proposal_download_filename("analysis", req_id, title=row.title)
+    try:
+        body = proposal_pdf_download_body(
+            row.proposal_text or "", document_title=row.title or "Development Proposal"
+        )
+    except ProposalPdfUnavailable:
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?proposal_err=pdf_unavailable#abap-phase-proposal",
+            status_code=302,
+        )
     return Response(
         content=body,
-        media_type=media_type,
+        media_type="application/pdf",
         headers={"Content-Disposition": content_disposition_attachment(fname)},
     )
 

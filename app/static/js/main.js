@@ -182,8 +182,16 @@ function _readDatasetBusy(form, submitter) {
   return null;
 }
 
-function _resolveAppConfirmMessage(i18nKey, legacyMsg) {
+function _resolveAppConfirmMessage(i18nKey, legacyMsg, form) {
   let msg = legacyMsg;
+  if (form instanceof HTMLFormElement) {
+    const lang =
+      typeof currentLang !== 'undefined' && currentLang === 'en' ? 'en' : 'ko';
+    const localized = form.getAttribute('data-app-confirm-' + lang);
+    if (localized != null && String(localized).trim()) {
+      return String(localized).trim();
+    }
+  }
   if ((!msg || !String(msg).trim()) && i18nKey && typeof window.t === 'function') {
     const tr = window.t(i18nKey);
     if (tr != null && typeof tr === 'object' && !Array.isArray(tr)) {
@@ -446,7 +454,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       const i18nKey = form.getAttribute('data-app-confirm-i18n');
-      const msg = _resolveAppConfirmMessage(i18nKey, form.getAttribute('data-app-confirm'));
+      const msg = _resolveAppConfirmMessage(
+        i18nKey,
+        form.getAttribute('data-app-confirm'),
+        form,
+      );
       if (!msg) return;
       e.preventDefault();
       e.stopPropagation();

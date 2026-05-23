@@ -1,11 +1,11 @@
-{# Owner-only: open consultant offers after reviewing the proposal (AI credits, not Stripe). #}
+{# Owner-only: open consultant offers after reviewing the proposal (no AI credit charge). #}
 {% if user and not readonly_console|default(false) and entity_owner_id is defined and user.id == entity_owner_id %}
   {% if paid_engagement_active %}
   <div class="alert alert-success small mb-3 d-flex flex-wrap align-items-center gap-2 justify-content-between">
     <span>
       <i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>
-      <span class="nav-ko"><strong>개발 의뢰 활성</strong> — 컨설턴트가 오퍼를 제안할 수 있습니다. FS·납품 코드는 관리자가 생성합니다.</span>
-      <span class="nav-en" style="display:none"><strong>Development request open</strong> — consultants may submit offers. FS and deliverables are produced by admins.</span>
+      <span class="nav-ko"><strong>개발 의뢰 활성</strong> — 전문가 그룹이 오퍼를 제안할 수 있습니다. FS·납품 코드는 관리자가 생성합니다.</span>
+      <span class="nav-en" style="display:none"><strong>Development request open</strong> — our expert group may submit offers. FS and deliverables are produced by admins.</span>
     </span>
     {% if fs_phase_url is defined and fs_phase_url %}
     <a href="{{ fs_phase_url }}" class="btn btn-sm btn-outline-primary mb-0">
@@ -17,24 +17,18 @@
   <div class="next-step-cta mt-4 mb-3">
     <div class="alert alert-warning border-warning small mb-0">
       <p class="mb-2">
-        <span class="nav-ko">개발 제안서를 검토·수정·보완한 뒤, 컨설턴트에게 오퍼를 받으려면 아래 버튼으로 <strong>개발 의뢰</strong>를 열어 주세요.</span>
-        <span class="nav-en" style="display:none">After you review, edit, or supplement the proposal, open a <strong>development request</strong> below so consultants can submit offers.</span>
+        <span class="nav-ko">개발 제안서를 검토·수정·보완한 뒤, 전문가 그룹으로부터 오퍼를 받으려면 아래 버튼으로 <strong>개발 의뢰</strong>를 열어 주세요.</span>
+        <span class="nav-en" style="display:none">After you review, edit, or supplement the proposal, open a <strong>development request</strong> below to receive offers from our expert group.</span>
       </p>
-      {% if dev_engagement_price_krw|default(0) > 0 %}
       <p class="small text-muted mb-2">
-        <span class="nav-ko">AI 크레딧 <strong class="font-monospace">{{ "{:,}".format(dev_engagement_price_krw) }}</strong>원이 차감됩니다. (잔액 <span class="font-monospace">{{ "{:,}".format(wallet_balance_krw|default(0)) }}</span>원)</span>
-        <span class="nav-en" style="display:none"><strong class="font-monospace">{{ "{:,}".format(dev_engagement_price_krw) }}</strong> KRW in AI credits will be debited. (Balance: <span class="font-monospace">{{ "{:,}".format(wallet_balance_krw|default(0)) }}</span> KRW)</span>
+        <span class="nav-ko"><i class="fa-solid fa-wallet me-1" aria-hidden="true"></i><strong>AI 크레딧 차감은 없습니다.</strong></span>
+        <span class="nav-en" style="display:none"><i class="fa-solid fa-wallet me-1" aria-hidden="true"></i><strong>No AI credits will be charged.</strong></span>
       </p>
-      {% endif %}
-      {% if dev_engagement_wallet_short|default(false) %}
-      <p class="small text-danger mb-2">
-        <span class="nav-ko">잔액이 부족합니다. <a href="/account/ai-credits">AI 크레딧 충전</a> 후 다시 시도해 주세요.</span>
-        <span class="nav-en" style="display:none">Insufficient balance. <a href="/account/ai-credits">Top up AI credits</a> and try again.</span>
-      </p>
-      {% endif %}
       <form method="post" action="{{ dev_engagement_activate_url }}" class="mb-0"
-            data-app-confirm-i18n="hub.devEngagementConfirm">
-        <button type="submit" class="btn btn-primary"{% if dev_engagement_wallet_short|default(false) %} disabled{% endif %}>
+            data-app-confirm-i18n="hub.devEngagementConfirm"
+            data-app-confirm-ko="개발 의뢰를 오픈하고 전문가그룹으로부터 오퍼를 받아 보세요. AI 크레딧 차감은 없습니다."
+            data-app-confirm-en="Open your development request and receive offers from our expert group. No AI credits will be charged.">
+        <button type="submit" class="btn btn-primary">
           <i class="fa-solid fa-paper-plane me-2" aria-hidden="true"></i>
           <span class="nav-ko">개발 의뢰하기</span><span class="nav-en" style="display:none">Request development</span>
         </button>

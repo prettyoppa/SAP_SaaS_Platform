@@ -1064,6 +1064,8 @@ def _collect_rfp_unified_hub_ctx(
         proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalDeleteBlockedDownstream"}
     elif pe == "generating":
         proposal_hub_flash = {"kind": "info", "i18n": "hub.proposalDeleteBlockedGenerating"}
+    elif pe == "pdf_unavailable":
+        proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalPdfUnavailableFlash"}
     ie = (request.query_params.get("interview_err") or "").strip()
     if ie == "proposal_exists":
         proposal_hub_flash = {"kind": "warning", "i18n": "hub.interviewResetBlockedProposal"}
@@ -1377,11 +1379,11 @@ def rfp_activate_dev_engagement(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """요청자: 개발 제안서 검토 후 컨설턴트 오퍼 수신을 위해 개발 의뢰 활성화 (AI 크레딧)."""
+    """요청자: 개발 제안서 검토 후 전문가 그룹 오퍼 수신을 위해 개발 의뢰 활성화 (무료)."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url=f"/login?next=/rfp/{rfp_id}?phase=proposal", status_code=302)
-    rfp = rfp_owned_only(db, rfp_id, user)
+    rfp = rfp_owned_only(db, user_id=int(user.id), rfp_id=int(rfp_id))
     if not rfp:
         return RedirectResponse(url="/services/abap", status_code=302)
     err = activate_request_engagement(db, user, "rfp", int(rfp_id))

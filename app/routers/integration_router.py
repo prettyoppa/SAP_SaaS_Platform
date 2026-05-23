@@ -2186,6 +2186,8 @@ def _collect_integration_unified_hub_ctx(
         proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalDeleteBlockedDownstream"}
     elif pe == "generating":
         proposal_hub_flash = {"kind": "info", "i18n": "hub.proposalDeleteBlockedGenerating"}
+    elif pe == "pdf_unavailable":
+        proposal_hub_flash = {"kind": "warning", "i18n": "hub.proposalPdfUnavailableFlash"}
     ie = (request.query_params.get("interview_err") or "").strip()
     if ie == "proposal_exists":
         proposal_hub_flash = {"kind": "warning", "i18n": "hub.interviewResetBlockedProposal"}

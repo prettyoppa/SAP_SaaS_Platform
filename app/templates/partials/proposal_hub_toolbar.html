@@ -2,18 +2,12 @@
 {% set _pab = proposal_actions_base|default('/rfp/' ~ (rfp.id|string)) %}
 <div class="d-flex gap-2 flex-wrap align-items-center proposal-hub-toolbar">
   {% if code_asset_unlocked|default(false) %}
-  <a href="{{ _pab }}/proposal/download?format=md" class="btn btn-outline-primary" download data-no-busy="true">
-    <i class="fa-solid fa-download me-2"></i><span class="nav-ko">Markdown 다운로드</span><span class="nav-en" style="display:none">Download Markdown</span>
-  </a>
-  <a href="{{ _pab }}/proposal/download?format=docx" class="btn btn-outline-primary" download data-no-busy="true">
-    <i class="fa-solid fa-file-word me-2"></i><span class="nav-ko">Word(.docx) 다운로드</span><span class="nav-en" style="display:none">Download Word (.docx)</span>
+  <a href="{{ _pab }}/proposal/download" class="btn btn-outline-primary" download data-no-busy="true">
+    <i class="fa-solid fa-file-pdf me-2"></i><span class="nav-ko">PDF 다운로드</span><span class="nav-en" style="display:none">Download PDF</span>
   </a>
   {% else %}
   <span class="btn btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true">
-    <i class="fa-solid fa-download me-2"></i><span class="nav-ko">Markdown 다운로드</span><span class="nav-en" style="display:none">Download Markdown</span>
-  </span>
-  <span class="btn btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true">
-    <i class="fa-solid fa-file-word me-2"></i><span class="nav-ko">Word(.docx) 다운로드</span><span class="nav-en" style="display:none">Download Word (.docx)</span>
+    <i class="fa-solid fa-file-pdf me-2"></i><span class="nav-ko">PDF 다운로드</span><span class="nav-en" style="display:none">Download PDF</span>
   </span>
   {% endif %}
   {% if hub_can_delete_proposal|default(false) and user.id == rfp.user_id %}

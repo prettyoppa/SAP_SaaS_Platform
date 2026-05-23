@@ -1,4 +1,4 @@
-"""요청자 「개발 의뢰하기」 — 컨설턴트 오퍼·FS 파이프라인 게이트 (AI 크레딧, Stripe 아님)."""
+"""요청자 「개발 의뢰하기」 — 컨설턴트 오퍼 게이트 (무료, AI 크레딧 차감 없음)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from . import models
-from .ai_wallet import apply_wallet_debit, wallet_balance_krw
 from .delivery_proposal_supplements import (
     KIND_ANALYSIS,
     KIND_INTEGRATION,
@@ -16,22 +15,6 @@ from .delivery_proposal_supplements import (
     has_delivery_proposal_supplements,
 )
 from .paid_tier import PAID_ACTIVE, paid_engagement_is_active
-
-DEV_ENGAGEMENT_KRW_KEY = "dev_engagement_krw"
-
-
-def dev_engagement_price_krw(db: Session) -> int:
-    row = (
-        db.query(models.SiteSettings)
-        .filter(models.SiteSettings.key == DEV_ENGAGEMENT_KRW_KEY)
-        .first()
-    )
-    raw = (row.value if row else "") or "0"
-    try:
-        n = int(str(raw).strip().replace(",", ""))
-    except (TypeError, ValueError):
-        return 0
-    return max(0, n)
 
 
 def _entity_paid_status(entity: Any) -> str:
@@ -123,9 +106,7 @@ def can_activate_request_engagement(
 def activate_request_engagement(
     db: Session, user: models.User, request_kind: str, request_id: int
 ) -> str | None:
-    """
-    개발 의뢰 활성화. 성공 시 None, 실패 시 안정적인 오류 코드(쿼리 engagement_err).
-  """
+    """개발 의뢰 활성화(무료). 성공 시 None, 실패 시 engagement_err 코드."""
     entity = load_engagement_entity(db, request_kind, request_id)
     if not entity:
         return "not_found"
@@ -135,33 +116,22 @@ def activate_request_engagement(
         return "already_active"
     if not request_has_publishable_proposal(db, entity):
         return "no_proposal"
-    price = dev_engagement_price_krw(db)
-    if price > 0 and wallet_balance_krw(user) < price:
-        return "wallet_insufficient"
-    if price > 0:
-        apply_wallet_debit(user, price)
     entity.paid_engagement_status = PAID_ACTIVE
     if hasattr(entity, "paid_activated_at"):
         entity.paid_activated_at = datetime.utcnow()
     db.add(entity)
-    db.add(user)
     db.commit()
     return None
 
 
 def engagement_flash_message(code: str | None) -> dict[str, str] | None:
-    """bilingual flash via i18n key or inline ko/en in template."""
     key = (code or "").strip()
     if not key:
         return None
     mapping: dict[str, tuple[str, str]] = {
         "ok": (
-            "개발 의뢰가 활성화되었습니다. 컨설턴트가 오퍼를 제안할 수 있습니다.",
-            "Your development request is open. Consultants may submit offers.",
-        ),
-        "wallet_insufficient": (
-            "AI 크레딧 잔액이 부족합니다. 계정 메뉴에서 충전한 뒤 다시 시도해 주세요.",
-            "Insufficient AI credit balance. Top up in Account, then try again.",
+            "개발 의뢰가 활성화되었습니다. 전문가 그룹이 오퍼를 제안할 수 있습니다.",
+            "Your development request is open. Our expert group may submit offers.",
         ),
         "no_proposal": (
             "개발 제안서를 확인·생성한 뒤 개발 의뢰하기를 이용할 수 있습니다.",
@@ -194,16 +164,9 @@ def request_engagement_hub_ctx(
     activate_url: str,
 ) -> dict[str, Any]:
     active = request_engagement_is_active(entity)
-    price = dev_engagement_price_krw(db)
     can = bool(not active and can_activate_request_engagement(db, user, entity))
-    bal = wallet_balance_krw(user) if user else 0
     return {
         "paid_engagement_active": active,
         "can_activate_dev_engagement": can,
-        "dev_engagement_price_krw": price,
-        "wallet_balance_krw": bal,
         "dev_engagement_activate_url": activate_url,
-        "dev_engagement_wallet_short": bool(
-            can and price > 0 and bal < price
-        ),
     }
