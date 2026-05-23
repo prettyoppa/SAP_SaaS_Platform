@@ -11,7 +11,7 @@ from . import models
 from .as_built_deliverable import as_built_entry
 from .integration_hub import integration_hub_url
 from .request_hub_access import consultant_has_request_offer, menu_abap_detail_url, menu_entity_hub_url
-from .paid_tier import PAID_ACTIVE
+from .proposal_lifecycle import has_generated_fs_material
 from .rfp_hub import rfp_hub_url
 from .rfp_reference_code import normalize_reference_code_payload
 
@@ -59,7 +59,7 @@ def rfp_phase_gates(
 ) -> dict[str, Any]:
     """
     Jinja 필터용. has_* / href 키는 템플릿에서 사용.
-    FS: 결제 완료·FS/납품 파이프라인 시작 후 활성 — **관리자**는 결제 전에도 링크 허브로 진입 가능(납품 콘솔 테스트).
+    FS: 에이전트 FS(ready+본문) 또는 컨설턴트 FS 첨부가 있을 때만 목록 토글 활성.
     개발코드 버튼: (1) 고객이 첨부한 참조 ABAP → /rfp/{id}/dev-code
                      (2) 에이전트 납품 ABAP 진행·완료 → /rfp/{id}/fs (같은 허브에서 미리보기·다운로드)
     """
@@ -67,14 +67,8 @@ def rfp_phase_gates(
     owner_id = int(rfp.user_id)
     has_ref_dev = _reference_code_has_content(rfp)
 
-    paid_on = (rfp.paid_engagement_status or "none").strip() == PAID_ACTIVE
-    fs_s = (getattr(rfp, "fs_status", None) or "none").strip()
     dc_s = (getattr(rfp, "delivered_code_status", None) or "none").strip()
-    pipeline = fs_s != "none" or dc_s != "none"
-    is_operator = bool(
-        user and (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
-    )
-    has_fs = paid_on or pipeline or is_operator
+    has_fs = has_generated_fs_material(rfp, db, request_kind="rfp")
     fs_href = menu_entity_hub_url(user=user, owner_user_id=owner_id, request_kind="rfp", request_id=rid, phase="fs") if has_fs else None
 
     st = (rfp.status or "").strip()
@@ -169,13 +163,8 @@ def integration_phase_gates(
     """
     iid = int(ir.id)
     owner_id = int(ir.user_id)
-    fs_s = (getattr(ir, "fs_status", None) or "none").strip()
     dc_s = (getattr(ir, "delivered_code_status", None) or "none").strip()
-    pipeline = fs_s != "none" or dc_s != "none"
-    is_operator = bool(
-        user and (getattr(user, "is_admin", False) or getattr(user, "is_consultant", False))
-    )
-    has_fs = pipeline or is_operator
+    has_fs = has_generated_fs_material(ir, db, request_kind="integration")
     fs_href = integration_hub_url(iid, "fs") if has_fs else None
 
     st = (getattr(ir, "status", None) or "").strip().lower()
@@ -271,10 +260,8 @@ def abap_analysis_phase_gates(row: models.AbapAnalysisRequest, user: Optional[An
     has_analysis = analyzed
     analysis_href = f"{base}#abap-phase-analysis" if has_analysis else None
 
-    fs_s = ((getattr(row, "fs_status", None) or "none").strip().lower() or "none")
     dc_s = ((getattr(row, "delivered_code_status", None) or "none").strip().lower() or "none")
-    pipeline = fs_s not in ("none", "") or dc_s not in ("none", "")
-    has_fs = pipeline
+    has_fs = has_generated_fs_material(row, request_kind="analysis")
     fs_href = f"{base}#abap-phase-fs" if has_fs else None
 
     dc_started = dc_s not in ("none", "")

@@ -1008,7 +1008,7 @@ def _collect_rfp_unified_hub_ctx(
         key=lambda x: (x.round_number, x.id),
     )
     interview_summary_messages = _interview_views._messages_to_list(answered_sorted)
-    proposal_round_messages = interview_summary_messages
+    proposal_round_messages = [] if readonly_console else interview_summary_messages
 
     hub_proposal_generating = hub_proposal_generating_override or (
         (rfp.interview_status or "") == "generating_proposal"
@@ -1210,7 +1210,11 @@ def _collect_rfp_unified_hub_ctx(
                     or (rfp.interview_status or "") == "completed"
                 )
             ),
-            return_to=f"/rfp/{rfp.id}?phase=proposal#rfp-phase-proposal",
+            return_to=(
+                f"/rfp/{rfp.id}/console-readonly?phase=proposal#rfp-phase-proposal"
+                if readonly_console
+                else f"/rfp/{rfp.id}?phase=proposal#rfp-phase-proposal"
+            ),
             request_title=(rfp.title or "").strip(),
         ),
         "section6_decisions_flash": section6_decisions_flash_from_query(request),

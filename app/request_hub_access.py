@@ -135,11 +135,11 @@ def user_can_view_request_deliverables(
     except (TypeError, ValueError):
         return False
     if uid == owner_id:
-        if paid_entity is None:
+        if paid_entity is not None and paid_delivery_pipeline_started(paid_entity):
             return True
-        if paid_engagement_is_active(paid_entity):
-            return True
-        return paid_delivery_pipeline_started(paid_entity)
+        return request_has_matched_offer(
+            db, request_kind=request_kind, request_id=int(request_id)
+        )
     if getattr(user, "is_consultant", False):
         return consultant_is_matched_on_request(
             db,
@@ -231,6 +231,42 @@ def apply_hub_deliverables_visibility(
     ctx["ana_dc_busy"] = False
     ctx["ana_gen_busy"] = False
     ctx["fs_supplements"] = []
+
+
+def request_has_matched_offer(db: Session, *, request_kind: str, request_id: int) -> bool:
+    """요청에 status=matched 오퍼가 하나라도 있으면 True."""
+    kind = (request_kind or "").strip().lower()
+    return (
+        db.query(models.RequestOffer.id)
+        .filter(
+            models.RequestOffer.request_kind == kind,
+            models.RequestOffer.request_id == int(request_id),
+            models.RequestOffer.status == "matched",
+        )
+        .first()
+        is not None
+    )
+
+
+def batch_matched_request_ids(
+    db: Session, *, request_kind: str, request_ids: list[int]
+) -> set[int]:
+    """목록 화면용 — 매칭된 request_id 집합."""
+    kind = (request_kind or "").strip().lower()
+    ids = [int(x) for x in request_ids if x]
+    if not ids:
+        return set()
+    rows = (
+        db.query(models.RequestOffer.request_id)
+        .filter(
+            models.RequestOffer.request_kind == kind,
+            models.RequestOffer.request_id.in_(ids),
+            models.RequestOffer.status == "matched",
+        )
+        .distinct()
+        .all()
+    )
+    return {int(r[0]) for r in rows}
 
 
 def consultant_is_matched_on_request(

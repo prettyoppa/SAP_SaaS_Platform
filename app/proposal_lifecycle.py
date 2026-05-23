@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from sqlalchemy.orm import Session
+
 
 class _ProposalEntity(Protocol):
     proposal_text: str | None
@@ -20,6 +22,28 @@ def delivery_pipeline_started(entity: _ProposalEntity) -> bool:
     fs_s = (getattr(entity, "fs_status", None) or "none").strip()
     dc_s = (getattr(entity, "delivered_code_status", None) or "none").strip()
     return fs_s != "none" or dc_s != "none"
+
+
+def has_generated_fs_material(
+    entity: Any,
+    db: Session | None = None,
+    *,
+    request_kind: str | None = None,
+) -> bool:
+    """목록 FS 단계 토글: 실제 FS(ready 본문 또는 컨설턴트 FS 첨부)가 있을 때만 True."""
+    fs_s = (getattr(entity, "fs_status", None) or "none").strip()
+    if fs_s == "ready" and (getattr(entity, "fs_text", None) or "").strip():
+        return True
+    supps = getattr(entity, "fs_supplements", None)
+    if supps is not None and len(supps) > 0:
+        return True
+    kind = (request_kind or "").strip().lower()
+    rid = int(getattr(entity, "id", 0) or 0)
+    if db is not None and kind and rid:
+        from .delivery_fs_supplements import list_delivery_fs_supplements
+
+        return bool(list_delivery_fs_supplements(db, kind, rid))
+    return False
 
 
 def proposal_is_generating(entity: _ProposalEntity) -> bool:

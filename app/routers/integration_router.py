@@ -2071,7 +2071,7 @@ def _collect_integration_unified_hub_ctx(
     imsgs = sorted(list(ir.interview_messages or []), key=lambda m: (m.round_number, m.id))
     answered_sorted = [m for m in imsgs if m.is_answered]
     interview_summary_messages = _messages_to_list(answered_sorted)
-    proposal_round_messages = interview_summary_messages
+    proposal_round_messages = [] if readonly_console else interview_summary_messages
 
     hub_proposal_generating = hub_proposal_generating_override or (
         (ir.interview_status or "") == "generating_proposal"
@@ -2318,7 +2318,11 @@ def _collect_integration_unified_hub_ctx(
                     or (ir.interview_status or "") == "completed"
                 )
             ),
-            return_to=f"/integration/{ir.id}?phase=proposal#int-phase-proposal",
+            return_to=(
+                f"/integration/{ir.id}/console-readonly?phase=proposal#int-phase-proposal"
+                if readonly_console
+                else f"/integration/{ir.id}?phase=proposal#int-phase-proposal"
+            ),
             request_title=(ir.title or "").strip(),
         ),
         "section6_decisions_flash": section6_decisions_flash_from_query(request),

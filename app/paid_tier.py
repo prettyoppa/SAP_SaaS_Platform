@@ -39,15 +39,12 @@ def user_can_access_fs_hub(
     """
     FS/납품 조회·다운로드 허용.
 
-    - 결제 활성이면 항상.
-    - 관리자는 결제 여부와 무관하게 조회.
-    - 소유자: 미결제여도 납품 파이프라인이 시작됐으면 조회.
+    - 관리자는 결제·매칭 여부와 무관하게 조회.
+    - 소유자: FS·납품 파이프라인 시작 후, 또는 컨설턴트 매칭 후 (개발 의뢰 활성만으로는 불가).
     - 컨설턴트: 해당 요청에 매칭(matched)된 경우만 (db·request_kind·request_id 필요).
     """
     if not user:
         return False
-    if paid_engagement_is_active(rfp):
-        return True
     if getattr(user, "is_admin", False):
         return True
     try:
@@ -56,15 +53,21 @@ def user_can_access_fs_hub(
     except (TypeError, ValueError):
         owner_id = 0
         uid = 0
+    kind = (request_kind or "rfp").strip().lower()
+    rid = int(request_id if request_id is not None else getattr(rfp, "id", 0) or 0)
     if uid and uid == owner_id:
-        return paid_delivery_pipeline_started(rfp)
+        if paid_delivery_pipeline_started(rfp):
+            return True
+        if db is None:
+            return False
+        from .request_hub_access import request_has_matched_offer
+
+        return request_has_matched_offer(db, request_kind=kind, request_id=rid)
     if getattr(user, "is_consultant", False):
         if db is None:
             return False
         from .request_hub_access import user_can_view_request_deliverables
 
-        kind = (request_kind or "rfp").strip().lower()
-        rid = int(request_id if request_id is not None else getattr(rfp, "id", 0) or 0)
         return user_can_view_request_deliverables(
             db,
             user,
@@ -73,7 +76,7 @@ def user_can_access_fs_hub(
             owner_user_id=owner_id,
             paid_entity=rfp,
         )
-    return paid_delivery_pipeline_started(rfp)
+    return False
 
 
 def user_can_operate_delivery(user: _UserLike | None) -> bool:
