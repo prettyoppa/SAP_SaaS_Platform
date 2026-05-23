@@ -1,0 +1,23 @@
+{# proposal_section6_completed_turns: [{ question, decision_text, ... }] — AI 인터뷰 이력과 동일한 말풍선 #}
+{% if proposal_section6_completed_turns and proposal_section6_completed_turns|length > 0 %}
+<div class="abap-msg-stream interview-msg-stream proposal-section6-msg-stream mb-0" role="log">
+  {% for t in proposal_section6_completed_turns %}
+    {% set q = t.question or '' %}
+    {% set a = t.decision_text or '' %}
+    {% if q %}
+    <div class="abap-msg-row abap-msg-row--them">
+      <div class="abap-msg-stack">
+        <div class="abap-msg-bubble abap-msg-bubble--them chat-md-body">{{ q|md_html }}</div>
+      </div>
+    </div>
+    {% endif %}
+    {% if a %}
+    <div class="abap-msg-row abap-msg-row--me">
+      <div class="abap-msg-stack">
+        <div class="abap-msg-bubble abap-msg-bubble--me chat-md-body">{{ a|md_html }}</div>
+      </div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}

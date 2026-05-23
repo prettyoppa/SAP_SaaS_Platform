@@ -43,11 +43,11 @@ def format_parsed_step_answer(o: dict) -> str:
     free = (o.get("free") or "").strip()
     parts = []
     if like:
-        parts.append("【선택(좋아요)】\n" + "\n".join(f"· {x}" for x in like))
+        parts.append("**선택**\n" + "\n".join(f"- {x}" for x in like))
     if dis:
-        parts.append("【비선택(싫어요)】\n" + "\n".join(f"· {x}" for x in dis))
+        parts.append("**제외한 답**\n" + "\n".join(f"- {x}" for x in dis))
     if free:
-        parts.append("【보충/추가】\n" + free)
+        parts.append("**보충**\n" + free)
     if parts:
         return "\n\n".join(parts)
     return free
