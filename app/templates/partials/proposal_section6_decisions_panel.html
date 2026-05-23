@@ -17,7 +17,7 @@
   .proposal-section6-interview-details .interview-suggestion-row.is-like { border-color: rgba(34, 197, 94, 0.45); }
   .proposal-section6-interview-details .interview-suggestion-row.is-dislike { border-color: rgba(239, 68, 68, 0.45); }
 </style>
-<div class="proposal-card mb-3 border border-primary-subtle" style="border-color:var(--border)!important;background:var(--surface2);">
+<div id="proposal-section6-interview" class="proposal-card mb-3 border border-primary-subtle" style="border-color:var(--border)!important;background:var(--surface2);">
   <h5 class="h6 text-primary mb-2">
     <span class="nav-ko">6. 확인 필요 사항 — 최종 결정</span>
     <span class="nav-en" style="display:none">Section 6 — final decisions</span>
@@ -37,8 +37,8 @@
     </summary>
 
     <p class="small text-muted mb-3">
-      <span class="nav-ko">제안서 <strong>6. 확인 필요 사항</strong>은 전문 용어로 적혀 있을 수 있습니다. <strong>추가 인터뷰</strong>로 쉬운 질문·예상 답(좋아요/싫어요)을 받고, 그 결과가 FS·코드 생성에 반영됩니다. 긴 전체 수정본은 아래 <strong>수정 제안서 첨부</strong>를 이용하세요.</span>
-      <span class="nav-en" style="display:none">Section 6 may use technical wording. Use <strong>follow-up interview</strong> for plain-language Q&amp;A with thumbs up/down options. Use <strong>file attachments</strong> below for full revised proposals.</span>
+      <span class="nav-ko">제안서 <strong>6. 확인 필요 사항</strong>에 대해 <strong>추가 인터뷰</strong>로 질문·예상 답(좋아요/싫어요)을 받습니다. 결과는 FS·코드 생성에 반영됩니다. 긴 전체 수정본은 아래 <strong>수정 제안서 첨부</strong>를 이용하세요.</span>
+      <span class="nav-en" style="display:none">Use <strong>follow-up interview</strong> for section 6 Q&amp;A with thumbs up/down options. Results feed into FS and code generation. Use <strong>file attachments</strong> below for full revised proposals.</span>
     </p>
 
     {% if proposal_section6_open_items %}
@@ -60,7 +60,7 @@
       <form method="post" action="{{ proposal_section6_interview_start_url }}" class="mb-0">
         <input type="hidden" name="return_to" value="{{ proposal_section6_return_to|default('') }}">
         <button type="submit" class="btn btn-primary btn-sm"
-                data-busy-agents='[{"agentKo":"「질의」","doingKo":"확인 필요 사항을 쉬운 질문으로 바꾸고 있습니다","agentEn":"「Q&A」","doingEn":"preparing plain-language questions"}]'>
+                data-busy-agents='[{"agentKo":"「질의」","doingKo":"확인 필요 사항에 대해 인터뷰 질의를 생성 준비 중입니다","agentEn":"「Q&A」","doingEn":"preparing interview questions for open items"}]'>
           <i class="fa-solid fa-play me-1" aria-hidden="true"></i>
           <span class="nav-ko">추가 인터뷰 시작</span>
           <span class="nav-en" style="display:none">Start interview</span>
@@ -100,7 +100,7 @@
           <input type="hidden" name="answer_payload" id="s6-answer-payload-json" value=""/>
           <div class="d-flex justify-content-end mt-3">
             <button type="submit" class="btn btn-primary btn-sm" id="s6-seq-next-btn"
-                    data-busy-agents='[{"agentKo":"「질의」","doingKo":"답변을 저장하고 다음 질문을 준비하고 있습니다","agentEn":"「Q&A」","doingEn":"saving your answer and preparing the next question"}]'>
+                    data-busy-agents='[{"agentKo":"「질의」","doingKo":"답변을 저장하고 다음 인터뷰 질의를 생성 준비 중입니다","agentEn":"「Q&A」","doingEn":"saving your answer and preparing the next interview question"}]'>
               <i class="fa-solid fa-arrow-right me-1" aria-hidden="true"></i>
               <span class="nav-ko">{% if proposal_section6_interview_index >= proposal_section6_interview_total %}완료{% else %}다음{% endif %}</span>
               <span class="nav-en" style="display:none">{% if proposal_section6_interview_index >= proposal_section6_interview_total %}Finish{% else %}Next{% endif %}</span>
@@ -140,5 +140,5 @@
     {% endif %}
   </details>
 </div>
-<script src="/static/js/proposal_section6_interview.js?v=20260521a"></script>
+<script src="/static/js/proposal_section6_interview.js?v=20260522s6scroll"></script>
 {% endif %}

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from urllib.parse import quote
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
@@ -28,14 +28,21 @@ from ..proposal_section6_interview import (
 
 router = APIRouter(tags=["proposal-decisions"])
 
+SECTION6_INTERVIEW_ANCHOR = "proposal-section6-interview"
 
-def _redirect(return_to: str | None, **qp: str) -> str:
-    base = (return_to or "").strip() or "/"
-    parts = [f"{k}={quote(v)}" for k, v in qp.items() if v]
-    if not parts:
-        return base
-    sep = "&" if "?" in base else "?"
-    return f"{base}{sep}{'&'.join(parts)}"
+
+def _redirect(return_to: str | None, *, focus_section6: bool = False, **qp: str) -> str:
+    raw = (return_to or "").strip() or "/"
+    parts = urlsplit(raw)
+    query_items = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+    for k, v in qp.items():
+        if not v:
+            continue
+        query_items = [(k2, v2) for k2, v2 in query_items if k2 != k]
+        query_items.append((k, v))
+    new_query = urlencode(query_items)
+    fragment = SECTION6_INTERVIEW_ANCHOR if focus_section6 else parts.fragment
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, new_query, fragment))
 
 
 def _owner_entity(
@@ -76,7 +83,7 @@ def rfp_section6_interview_start(
         payload = start_section6_interview(open_items=open_items, request_title=title)
     _save_payload(db, entity, payload)
     return RedirectResponse(
-        url=_redirect(return_to, section6_interview="started"),
+        url=_redirect(return_to, focus_section6=True, section6_interview="started"),
         status_code=303,
     )
 
@@ -117,8 +124,14 @@ async def rfp_section6_interview_answer(
     _save_payload(db, entity, payload)
     inv = payload.get("interview") or {}
     if (inv.get("status") or "").strip() == "complete":
-        return RedirectResponse(url=_redirect(return_to, section6_decisions="ok"), status_code=303)
-    return RedirectResponse(url=_redirect(return_to, section6_interview="started"), status_code=303)
+        return RedirectResponse(
+            url=_redirect(return_to, focus_section6=True, section6_decisions="ok"),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_redirect(return_to, focus_section6=True, section6_interview="started"),
+        status_code=303,
+    )
 
 
 @router.post("/integration/{req_id}/proposal-section6-interview/start")
@@ -141,7 +154,7 @@ def integration_section6_interview_start(
         payload = start_section6_interview(open_items=open_items, request_title=title)
     _save_payload(db, entity, payload)
     return RedirectResponse(
-        url=_redirect(return_to, section6_interview="started"),
+        url=_redirect(return_to, focus_section6=True, section6_interview="started"),
         status_code=303,
     )
 
@@ -184,8 +197,14 @@ async def integration_section6_interview_answer(
     _save_payload(db, entity, payload)
     inv = payload.get("interview") or {}
     if (inv.get("status") or "").strip() == "complete":
-        return RedirectResponse(url=_redirect(return_to, section6_decisions="ok"), status_code=303)
-    return RedirectResponse(url=_redirect(return_to, section6_interview="started"), status_code=303)
+        return RedirectResponse(
+            url=_redirect(return_to, focus_section6=True, section6_decisions="ok"),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_redirect(return_to, focus_section6=True, section6_interview="started"),
+        status_code=303,
+    )
 
 
 @router.post("/abap-analysis/{req_id}/proposal-section6-interview/start")
@@ -208,7 +227,7 @@ def abap_section6_interview_start(
         payload = start_section6_interview(open_items=open_items, request_title=title)
     _save_payload(db, entity, payload)
     return RedirectResponse(
-        url=_redirect(return_to, section6_interview="started"),
+        url=_redirect(return_to, focus_section6=True, section6_interview="started"),
         status_code=303,
     )
 
@@ -249,5 +268,11 @@ async def abap_section6_interview_answer(
     _save_payload(db, entity, payload)
     inv = payload.get("interview") or {}
     if (inv.get("status") or "").strip() == "complete":
-        return RedirectResponse(url=_redirect(return_to, section6_decisions="ok"), status_code=303)
-    return RedirectResponse(url=_redirect(return_to, section6_interview="started"), status_code=303)
+        return RedirectResponse(
+            url=_redirect(return_to, focus_section6=True, section6_decisions="ok"),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_redirect(return_to, focus_section6=True, section6_interview="started"),
+        status_code=303,
+    )

@@ -1,4 +1,38 @@
 (function () {
+  function shouldFocusSection6Interview() {
+    try {
+      var hash = (window.location.hash || '').replace(/^#/, '');
+      if (hash === 'proposal-section6-interview') return true;
+      var params = new URLSearchParams(window.location.search);
+      if (params.has('section6_interview')) return true;
+      if (params.get('section6_decisions') === 'ok') return true;
+    } catch (e) {}
+    return false;
+  }
+  window.section6InterviewShouldFocus = shouldFocusSection6Interview;
+
+  function focusSection6InterviewPanel() {
+    if (!shouldFocusSection6Interview()) return;
+    var phaseIds = ['rfp-phase-proposal', 'int-phase-proposal', 'abap-phase-proposal'];
+    for (var i = 0; i < phaseIds.length; i++) {
+      var phase = document.getElementById(phaseIds[i]);
+      if (phase && phase.tagName === 'DETAILS') phase.open = true;
+    }
+    var root = document.getElementById('proposal-section6-interview');
+    if (!root) return;
+    var details = root.querySelector('.proposal-section6-interview-details');
+    if (details && details.tagName === 'DETAILS') details.open = true;
+    root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(focusSection6InterviewPanel, 80);
+    });
+  } else {
+    setTimeout(focusSection6InterviewPanel, 80);
+  }
+
   function buildPayload() {
     var rows = document.querySelectorAll('.interview-suggestion-row');
     var like = [];

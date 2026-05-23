@@ -439,8 +439,11 @@
 <script>
 (function () {
   var hash = (window.location.hash || '').replace(/^#/, '');
-  if (!hash || hash.indexOf('abap-phase-') !== 0) return;
+  if (!hash) return;
+  if (hash === 'proposal-section6-interview') return;
+  if (hash.indexOf('abap-phase-') !== 0) return;
   document.addEventListener('DOMContentLoaded', function () {
+    if (typeof window.section6InterviewShouldFocus === 'function' && window.section6InterviewShouldFocus()) return;
     var el = document.getElementById(hash);
     if (el && el.tagName === 'DETAILS') el.open = true;
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
