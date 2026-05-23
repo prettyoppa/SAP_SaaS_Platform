@@ -57,3 +57,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Proposal PDF fonts (Docker build: scripts/fetch_proposal_pdf_font.py)
+app/static/fonts/*.otf
+app/static/fonts/*.ttf

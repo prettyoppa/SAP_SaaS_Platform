@@ -17,9 +17,11 @@ from ..rfp_phase_gates import rfp_for_owner_or_admin
 from ..stripe_service import stripe_keys_configured
 from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
 from ..proposal_export import (
+    ProposalPdfGenerationFailed,
     ProposalPdfUnavailable,
     proposal_download_filename,
     proposal_pdf_download_body,
+    proposal_pdf_error_http_response,
 )
 from ..proposal_markdown_html import markdown_to_html as _markdown_to_html
 from ..rfp_download_names import content_disposition_attachment
@@ -1054,10 +1056,9 @@ def download_proposal(rfp_id: int, request: Request, db: Session = Depends(get_d
             rfp.proposal_text or "", document_title=rfp.title or "Development Proposal"
         )
     except ProposalPdfUnavailable:
-        return RedirectResponse(
-            url=f"{rfp_hub_url(rfp_id, 'proposal')}&proposal_err=pdf_unavailable",
-            status_code=302,
-        )
+        return proposal_pdf_error_http_response(reason="unavailable")
+    except ProposalPdfGenerationFailed:
+        return proposal_pdf_error_http_response(reason="generation")
     return Response(
         content=body,
         media_type="application/pdf",

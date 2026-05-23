@@ -468,9 +468,11 @@ def integration_proposal_download(req_id: int, request: Request, db: Session = D
     from fastapi.responses import Response
 
     from ..proposal_export import (
+        ProposalPdfGenerationFailed,
         ProposalPdfUnavailable,
         proposal_download_filename,
         proposal_pdf_download_body,
+        proposal_pdf_error_http_response,
     )
     from ..rfp_download_names import content_disposition_attachment
 
@@ -498,10 +500,9 @@ def integration_proposal_download(req_id: int, request: Request, db: Session = D
             ir.proposal_text or "", document_title=ir.title or "Development Proposal"
         )
     except ProposalPdfUnavailable:
-        return RedirectResponse(
-            url=f"{integration_hub_url(req_id, 'proposal')}&proposal_err=pdf_unavailable",
-            status_code=302,
-        )
+        return proposal_pdf_error_http_response(reason="unavailable")
+    except ProposalPdfGenerationFailed:
+        return proposal_pdf_error_http_response(reason="generation")
     return Response(
         content=body,
         media_type="application/pdf",

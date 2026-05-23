@@ -97,9 +97,11 @@ from ..delivered_code_package import (
 )
 from ..paid_tier import user_can_operate_delivery
 from ..proposal_export import (
+    ProposalPdfGenerationFailed,
     ProposalPdfUnavailable,
     proposal_download_filename,
     proposal_pdf_download_body,
+    proposal_pdf_error_http_response,
 )
 from ..proposal_lifecycle import clear_agent_proposal, proposal_delete_block_reason
 from ..offer_inquiry_service import (
@@ -1320,6 +1322,11 @@ def _prepare_abap_analysis_detail_ctx(
     ana_hub: dict[str, Any] = {
         "ana_hub_proposal_generating": ana_hub_proposal_generating,
         "ana_proposal_html": ana_proposal_html,
+        "proposal_pdf_filename": (
+            proposal_download_filename("analysis", int(row.id), title=row.title)
+            if ana_proposal_html
+            else ""
+        ),
         "ana_interview_status": ana_ist,
         "hub_can_delete_proposal": hub_can_delete_proposal,
         "proposal_hub_flash": proposal_hub_flash,
@@ -1646,10 +1653,9 @@ def abap_analysis_proposal_download(
             row.proposal_text or "", document_title=row.title or "Development Proposal"
         )
     except ProposalPdfUnavailable:
-        return RedirectResponse(
-            url=f"/abap-analysis/{req_id}?proposal_err=pdf_unavailable#abap-phase-proposal",
-            status_code=302,
-        )
+        return proposal_pdf_error_http_response(reason="unavailable")
+    except ProposalPdfGenerationFailed:
+        return proposal_pdf_error_http_response(reason="generation")
     return Response(
         content=body,
         media_type="application/pdf",

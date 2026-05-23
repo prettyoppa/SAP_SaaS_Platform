@@ -224,7 +224,10 @@ function appConfirm(message) {
       return;
     }
     const body = document.getElementById('appConfirmModalBody');
-    if (body) body.textContent = text;
+    if (body) {
+      body.style.whiteSpace = 'pre-line';
+      body.textContent = text;
+    }
     const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
     let resolved = false;
     const finish = (v) => {
@@ -583,6 +586,62 @@ function settleRequestConsoleNavBubble() {
 }
 
 /* 참고·개발 코드 등: 잠금 영역에서 복사/잘라내기 차단(허용 사용자는 .code-asset-locked 없음) */
+function _contentDispositionFilename(cd) {
+  if (!cd) return '';
+  const star = /filename\*=UTF-8''([^;\s]+)/i.exec(cd);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1]);
+    } catch (_) {
+      return star[1];
+    }
+  }
+  const plain = /filename="([^"]+)"/i.exec(cd);
+  return plain ? plain[1] : '';
+}
+
+/** 제안서 PDF — fetch 후 blob 저장(리다이렉트 HTML이 .htm 으로 저장되는 문제 방지). */
+document.addEventListener(
+  'click',
+  (e) => {
+    const a = e.target.closest('a[data-proposal-pdf-download]');
+    if (!a || e.defaultPrevented || e.button !== 0) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const href = (a.getAttribute('href') || '').trim();
+    if (!href) return;
+    e.preventDefault();
+    const fallbackName = (a.getAttribute('download') || 'proposal.pdf').trim() || 'proposal.pdf';
+    const failMsg =
+      typeof window.t === 'function'
+        ? window.t('hub.proposalPdfDownloadFailed')
+        : 'Could not download the proposal PDF.';
+    (async () => {
+      try {
+        const res = await fetch(href, { credentials: 'same-origin' });
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        if (!res.ok || !ct.includes('application/pdf')) {
+          window.alert(failMsg);
+          return;
+        }
+        const blob = await res.blob();
+        const name = _contentDispositionFilename(res.headers.get('content-disposition')) || fallbackName;
+        const url = URL.createObjectURL(blob);
+        const tmp = document.createElement('a');
+        tmp.href = url;
+        tmp.download = name;
+        tmp.rel = 'noopener';
+        document.body.appendChild(tmp);
+        tmp.click();
+        tmp.remove();
+        URL.revokeObjectURL(url);
+      } catch (_) {
+        window.alert(failMsg);
+      }
+    })();
+  },
+  true,
+);
+
 document.addEventListener(
   'copy',
   (e) => {

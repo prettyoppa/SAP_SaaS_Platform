@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import io
+import logging
 from pathlib import Path
+
+from fastapi.responses import Response
 
 from .agent_display import prepare_member_facing_proposal_markdown
 from .proposal_markdown_html import markdown_to_html
-from .rfp_download_names import sanitize_path_component
+from .rfp_download_names import content_disposition_attachment, sanitize_path_component
+
+_log = logging.getLogger(__name__)
 
 # proposal-body (style.css) 인쇄용 — fpdf2 write_html 지원 CSS
 _PROPOSAL_PDF_CSS = """
@@ -76,6 +81,7 @@ def _korean_pdf_font_path() -> Path | None:
     root = Path(__file__).resolve().parent
     for p in (
         Path(r"C:\Windows\Fonts\malgun.ttf"),
+        root / "static" / "fonts" / "NotoSansCJKkr-Regular.otf",
         root / "static" / "fonts" / "NotoSansKR-Regular.ttf",
         root / "static" / "fonts" / "NotoSansKR-Regular.otf",
         Path("/usr/share/fonts/truetype/nanum/NanumGothic.ttf"),
@@ -92,8 +98,9 @@ def _korean_pdf_font_bold_path(regular: Path) -> Path | None:
     if name == "malgun.ttf":
         bold = parent / "malgunbd.ttf"
         return bold if bold.is_file() else None
-    if name.startswith("notosanskr"):
+    if name.startswith("notosanscjkkr") or name.startswith("notosanskr"):
         for cand in (
+            parent / "NotoSansCJKkr-Bold.otf",
             parent / "NotoSansKR-Bold.ttf",
             parent / "NotoSansKR-Bold.otf",
         ):
@@ -145,4 +152,32 @@ def proposal_download_filename(
 
 def proposal_pdf_download_body(markdown_text: str, *, document_title: str = "") -> bytes:
     del document_title  # 파일명용; 본문은 제안서 MD 제목·구조 그대로
-    return proposal_markdown_to_pdf_bytes(markdown_text)
+    try:
+        return proposal_markdown_to_pdf_bytes(markdown_text)
+    except ProposalPdfUnavailable:
+        raise
+    except Exception as exc:
+        _log.exception("proposal pdf generation failed")
+        raise ProposalPdfGenerationFailed() from exc
+
+
+def proposal_pdf_error_http_response(*, reason: str = "unavailable") -> Response:
+    """PDF 실패 시 HTML 리다이렉트 대신 503 — download 속성으로 .htm 저장되는 것 방지."""
+    if reason == "generation":
+        body = (
+            "Proposal PDF could not be generated. Please try again later or contact support.\n"
+            "제안서 PDF를 생성하지 못했습니다. 잠시 후 다시 시도하거나 문의해 주세요."
+        )
+        fname = "proposal-pdf-error.txt"
+    else:
+        body = (
+            "Proposal PDF is unavailable (Korean font missing on server).\n"
+            "PDF 다운로드를 사용할 수 없습니다(서버에 한글 폰트 없음)."
+        )
+        fname = "proposal-pdf-unavailable.txt"
+    return Response(
+        content=body.encode("utf-8"),
+        status_code=503,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": content_disposition_attachment(fname)},
+    )

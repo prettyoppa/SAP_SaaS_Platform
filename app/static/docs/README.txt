@@ -14,4 +14,8 @@ PDF 수정 후 다시 만들려면 (Windows 에 맑은 고딕이 있는 경우):
   pip install fpdf2
   python scripts/build_user_guide_pdf.py
 
-한글 폰트가 없으면 app/static/fonts/ 에 NotoSansKR-Regular.ttf 를 두거나 위 스크립트의 폰트 경로를 조정하세요.
+제안서 PDF 한글 폰트 (운영 Docker 빌드 시 자동 설치):
+
+  python scripts/fetch_proposal_pdf_font.py
+
+로컬에서도 위 스크립트를 실행하면 app/static/fonts/ 에 NotoSansCJKkr-Regular.otf 가 받아집니다.

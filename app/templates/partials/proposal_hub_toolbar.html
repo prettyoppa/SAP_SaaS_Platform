@@ -1,8 +1,9 @@
 {# proposal_actions_base: e.g. /rfp/12 or /integration/5 #}
 {% set _pab = proposal_actions_base|default('/rfp/' ~ (rfp.id|string)) %}
+{% set _pdf_fn = proposal_pdf_filename|default('proposal.pdf') %}
 <div class="d-flex gap-2 flex-wrap align-items-center proposal-hub-toolbar">
   {% if code_asset_unlocked|default(false) %}
-  <a href="{{ _pab }}/proposal/download" class="btn btn-outline-primary" download data-no-busy="true">
+  <a href="{{ _pab }}/proposal/download" class="btn btn-outline-primary" data-proposal-pdf-download download="{{ _pdf_fn }}" data-no-busy="true">
     <i class="fa-solid fa-file-pdf me-2"></i><span class="nav-ko">PDF 다운로드</span><span class="nav-en" style="display:none">Download PDF</span>
   </a>
   {% else %}

@@ -114,6 +114,7 @@ from ..proposal_section6_decisions import (
     section6_decisions_flash_from_query,
 )
 from ..paid_tier import user_can_operate_delivery
+from ..proposal_export import proposal_download_filename
 from ..proposal_lifecycle import proposal_delete_block_reason
 from ..integration_followup_chat import (
     generate_integration_followup_reply,
@@ -2248,6 +2249,11 @@ def _collect_integration_unified_hub_ctx(
         "proposal_round_messages": proposal_round_messages,
         "hub_proposal_generating": hub_proposal_generating,
         "proposal_html": proposal_html,
+        "proposal_pdf_filename": (
+            proposal_download_filename("integration", int(ir.id), title=ir.title)
+            if proposal_html
+            else ""
+        ),
         "engagement_flash": engagement_flash,
         "entity_owner_id": int(ir.user_id),
         **request_engagement_hub_ctx(

@@ -61,6 +61,7 @@ from ..request_engagement import (
     engagement_flash_message,
     request_engagement_hub_ctx,
 )
+from ..proposal_export import proposal_download_filename
 from ..proposal_lifecycle import proposal_delete_block_reason
 from ..rfp_download_names import (
     content_disposition_attachment,
@@ -1134,6 +1135,9 @@ def _collect_rfp_unified_hub_ctx(
         "proposal_round_messages": proposal_round_messages,
         "hub_proposal_generating": hub_proposal_generating,
         "proposal_html": proposal_html,
+        "proposal_pdf_filename": (
+            proposal_download_filename("rfp", int(rfp.id), title=rfp.title) if proposal_html else ""
+        ),
         "billing_flash": _billing_flash_message(checkout),
         "paid_engagement_active": paid_engagement_is_active(rfp),
         "engagement_flash": engagement_flash,

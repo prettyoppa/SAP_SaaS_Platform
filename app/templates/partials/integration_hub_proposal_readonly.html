@@ -3,8 +3,9 @@
     <h5 class="mb-0 me-auto small text-uppercase text-muted">Integration Proposal</h5>
     {% if proposal_html %}
     {% set _pdl = proposal_download_url|default('/integration/' ~ (ir.id|string) ~ '/proposal/download') %}
+    {% set _pdf_fn = proposal_pdf_filename|default('proposal.pdf') %}
     {% if code_asset_unlocked|default(false) %}
-    <a href="{{ _pdl }}" class="btn btn-sm btn-outline-primary" download data-no-busy="true">
+    <a href="{{ _pdl }}" class="btn btn-sm btn-outline-primary" data-proposal-pdf-download download="{{ _pdf_fn }}" data-no-busy="true">
       <i class="fa-solid fa-file-pdf me-1"></i><span class="nav-ko">PDF</span><span class="nav-en" style="display:none">PDF</span>
     </a>
     {% else %}

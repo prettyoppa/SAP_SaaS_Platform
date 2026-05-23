@@ -278,7 +278,7 @@
         <h5 class="modal-title" id="appConfirmModalTitle" data-i18n="app.confirmTitle">확인</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" data-i18n-aria-label="app.confirmCloseAria" aria-label="Close"></button>
       </div>
-      <div class="modal-body" id="appConfirmModalBody"></div>
+      <div class="modal-body" id="appConfirmModalBody" style="white-space:pre-line"></div>
       <div class="modal-footer border-top" style="border-color:var(--border)!important;">
         <button type="button" class="btn btn-outline-secondary" id="appConfirmModalCancel" data-bs-dismiss="modal" data-i18n="app.confirmCancel">취소</button>
         <button type="button" class="btn btn-primary" id="appConfirmModalOk" data-i18n="app.confirmOk">확인</button>
@@ -291,7 +291,7 @@
 <script>window.__I18nEnOverrides = {{ request.state.i18n_en_overrides | tojson }};</script>
 <script src="/static/js/i18n.js?v=20260521successbtn"></script>
 <script src="/static/js/abap_float_chat_resize.js?v=20260521"></script>
-<script src="/static/js/main.js?v=20260522devconfirm"></script>
+<script src="/static/js/main.js?v=20260522pdfconfirm"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}
 </body>
