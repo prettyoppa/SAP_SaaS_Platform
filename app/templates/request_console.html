@@ -251,6 +251,12 @@ html[data-theme="dark"] .btn-console-offer:hover {
     {% if console_consultant_inquiry_ok is defined and console_consultant_inquiry_ok %}
     <div class="alert alert-success small py-2 mb-2 mx-1">회원에게 문의를 보냈습니다.</div>
     {% endif %}
+    {% if console_offer_engagement_err is defined and console_offer_engagement_err %}
+    <div class="alert alert-warning small py-2 mb-2 mx-1">
+      <span class="nav-ko">요청자가 「개발 의뢰하기」를 완료하기 전에는 오퍼할 수 없습니다.</span>
+      <span class="nav-en" style="display:none">You can submit an offer only after the requester opens the development request.</span>
+    </div>
+    {% endif %}
     {% if user.is_admin and console_pending_inquiry_rows is defined and console_pending_inquiry_rows %}
     <details class="border rounded small mb-2 mx-1">
       <summary class="px-2 py-2 fw-semibold user-select-none" style="cursor:pointer">문의 답변 대기 (관리자) · {{ console_pending_inquiry_rows|length }}건</summary>
@@ -397,7 +403,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
 
     <aside class="console-pane console-pane-right p-3" id="pane-right">
       {% if selected_row %}
-      {% set can_console_offer = user.is_consultant and kind not in ('offer', 'matching') and selected_row.bucket == 'proposal' and not selected_row.consultant_has_offered %}
+      {% set can_console_offer = user.is_consultant and kind not in ('offer', 'matching') and selected_row.bucket == 'proposal' and not selected_row.consultant_has_offered and selected_row.engagement_open_for_offers|default(false) %}
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div>
           <div class="small text-muted">{{ selected_row.request_no }} · {{ selected_row.kind_ko }}</div>
@@ -416,7 +422,11 @@ html[data-theme="dark"] .btn-console-offer:hover {
         </div>
         <div class="d-flex gap-1 align-items-start">
           <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
-          {% if can_console_offer %}
+          {% if user.is_consultant and kind not in ('offer', 'matching') and selected_row.bucket == 'proposal' and not selected_row.consultant_has_offered and not selected_row.engagement_open_for_offers|default(false) %}
+          <span class="small text-muted align-self-center" title="요청자가 개발 의뢰하기를 누른 뒤 오퍼할 수 있습니다.">
+            <span class="nav-ko">개발 의뢰 대기</span><span class="nav-en" style="display:none">Awaiting dev request</span>
+          </span>
+          {% elif can_console_offer %}
           <form method="post" action="/request-console/offer" id="console-offer-form" data-no-busy="true"
                 data-offer-confirm-message="{{ console_offer_confirm_message }}">
             <input type="hidden" name="sel_key" value="{{ selected_row.sel_key }}" />

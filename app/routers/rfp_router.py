@@ -52,6 +52,11 @@ from ..paid_tier import (
     user_can_access_fs_hub,
     user_can_operate_delivery,
 )
+from ..request_engagement import (
+    activate_request_engagement,
+    engagement_flash_message,
+    request_engagement_hub_ctx,
+)
 from ..proposal_lifecycle import proposal_delete_block_reason
 from ..rfp_download_names import (
     content_disposition_attachment,
@@ -1036,6 +1041,17 @@ def _collect_rfp_unified_hub_ctx(
     elif qe == "proposal_regen_disabled":
         subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
 
+    engagement_flash = None
+    if (request.query_params.get("engagement") or "").strip() == "ok":
+        engagement_flash = {**(engagement_flash_message("ok") or {}), "kind": "success"}
+    else:
+        ee = (request.query_params.get("engagement_err") or "").strip()
+        if ee:
+            em = engagement_flash_message(ee)
+            if em:
+                kind = "danger" if ee == "wallet_insufficient" else "warning"
+                engagement_flash = {**em, "kind": kind}
+
     proposal_hub_flash = None
     pe = (request.query_params.get("proposal_err") or "").strip()
     if pe == "deleted":
@@ -1114,6 +1130,14 @@ def _collect_rfp_unified_hub_ctx(
         "proposal_html": proposal_html,
         "billing_flash": _billing_flash_message(checkout),
         "paid_engagement_active": paid_engagement_is_active(rfp),
+        "engagement_flash": engagement_flash,
+        "entity_owner_id": int(rfp.user_id),
+        **request_engagement_hub_ctx(
+            db,
+            user,
+            rfp,
+            activate_url=f"/rfp/{rfp.id}/activate-dev-engagement",
+        ),
         "rfp_eligible_for_checkout": rfp_eligible_for_stripe_checkout(
             rfp,
             has_proposal_supplements=has_delivery_proposal_supplements(
@@ -1322,6 +1346,26 @@ def _rfp_ai_chat_redirect(rfp_id: int, return_to: str | None, chat_err: str | No
     base = f"/rfp/{rfp_id}/edit" if rt == "edit" else f"/rfp/{rfp_id}"
     suffix = f"?chat_err={quote(chat_err)}" if chat_err else ""
     return f"{base}{suffix}#rfp-followup-chat"
+
+
+@router.post("/rfp/{rfp_id}/activate-dev-engagement")
+def rfp_activate_dev_engagement(
+    rfp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """요청자: 개발 제안서 검토 후 컨설턴트 오퍼 수신을 위해 개발 의뢰 활성화 (AI 크레딧)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url=f"/login?next=/rfp/{rfp_id}?phase=proposal", status_code=302)
+    rfp = rfp_owned_only(db, rfp_id, user)
+    if not rfp:
+        return RedirectResponse(url="/services/abap", status_code=302)
+    err = activate_request_engagement(db, user, "rfp", int(rfp_id))
+    base = f"/rfp/{rfp_id}?phase=proposal#rfp-phase-proposal"
+    if err:
+        return RedirectResponse(url=f"{base}&engagement_err={quote(err)}", status_code=303)
+    return RedirectResponse(url=f"{base}&engagement=ok", status_code=303)
 
 
 @router.post("/rfp/{rfp_id}/offers/{offer_id}/match")

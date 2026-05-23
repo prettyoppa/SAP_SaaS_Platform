@@ -254,6 +254,9 @@ class IntegrationRequest(Base):
     # 분석·연동 → 신규 개발(RFP) 제안·FS·납품 파이프라인 연결
     workflow_rfp_id = Column(Integer, ForeignKey("rfps.id"), nullable=True)
     improvement_request_text = Column(Text, nullable=True)
+    # 요청자 「개발 의뢰하기」 후 컨설턴트 오퍼·FS 파이프라인 (AI 크레딧, Stripe 아님)
+    paid_engagement_status = Column(String, default="none")
+    paid_activated_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -381,6 +384,8 @@ class AbapAnalysisRequest(Base):
     delivered_code_error = Column(Text, nullable=True)
     delivered_job_log = Column(Text, nullable=True)
     as_built_zip_json = Column(Text, nullable=True)
+    paid_engagement_status = Column(String, default="none")
+    paid_activated_at = Column(DateTime, nullable=True)
 
     owner = relationship("User", foreign_keys=[user_id], back_populates="abap_analysis_requests")
     workflow_rfp = relationship("RFP", foreign_keys=[workflow_rfp_id])

@@ -38,6 +38,13 @@ from ..menu_landing import (
     request_ids_with_unmatched_offers_only,
     user_proposal_pending_offer_badges,
 )
+from ..request_engagement import (
+    activate_request_engagement,
+    engagement_flash_message,
+    request_engagement_accepts_offers,
+    request_engagement_hub_ctx,
+    request_engagement_is_active,
+)
 from ..rfp_landing import (
     DEFAULT_SERVICE_ABAP_INTRO_MD_KO,
     filtered_rfp_list_for_landing,
@@ -793,6 +800,7 @@ def _console_row_from_rfp(r: models.RFP, user) -> dict[str, Any]:
         "detail_href": detail_href,
         "preview_href": preview_href,
         "summary": (r.description or "").strip(),
+        "engagement_open_for_offers": request_engagement_is_active(r),
     }
 
 
@@ -820,6 +828,7 @@ def _console_row_from_analysis(row: models.AbapAnalysisRequest, user) -> dict[st
         "detail_href": detail_href,
         "preview_href": preview_href,
         "summary": (row.requirement_text or "").strip(),
+        "engagement_open_for_offers": request_engagement_is_active(row),
     }
 
 
@@ -847,6 +856,7 @@ def _console_row_from_integration(ir: models.IntegrationRequest, user) -> dict[s
         "detail_href": detail_href,
         "preview_href": preview_href,
         "summary": (ir.description or "").strip(),
+        "engagement_open_for_offers": request_engagement_is_active(ir),
     }
 
 
@@ -1137,6 +1147,10 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "console_offer_notify_warn": (
                 request.query_params.get("console_offer_notify_warn") or ""
             ).strip(),
+            "console_offer_engagement_err": (
+                request.query_params.get("console_offer_engagement_err") or ""
+            ).strip()
+            == "1",
             "console_offer_confirm_message": CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
             "console_pending_inquiry_rows": console_pending_inquiry_rows,
             "console_matching_notice_pending": console_matching_notice_pending,
@@ -1267,6 +1281,22 @@ def request_console_offer_submit(
         req_kind = "analysis"
     else:
         return RedirectResponse(url="/request-console", status_code=303)
+
+    base = _request_console_return_location(
+        return_kind=return_kind,
+        return_bucket=return_bucket,
+        return_sel=(return_sel or "").strip() or raw,
+        return_title=return_title,
+        return_date_from=return_date_from,
+        return_date_to=return_date_to,
+    )
+    sep = "&" if "?" in base else "?"
+
+    if not request_engagement_accepts_offers(db, req_kind, req_id):
+        return RedirectResponse(
+            url=f"{base}{sep}console_offer_engagement_err=1",
+            status_code=303,
+        )
 
     exists = (
         db.query(models.RequestOffer)
@@ -2133,6 +2163,17 @@ def _collect_integration_unified_hub_ctx(
     elif qe == "proposal_regen_disabled":
         subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
 
+    engagement_flash = None
+    if (request.query_params.get("engagement") or "").strip() == "ok":
+        engagement_flash = {**(engagement_flash_message("ok") or {}), "kind": "success"}
+    else:
+        ee = (request.query_params.get("engagement_err") or "").strip()
+        if ee:
+            em = engagement_flash_message(ee)
+            if em:
+                kind = "danger" if ee == "wallet_insufficient" else "warning"
+                engagement_flash = {**em, "kind": kind}
+
     proposal_hub_flash = None
     pe = (request.query_params.get("proposal_err") or "").strip()
     if pe == "deleted":
@@ -2201,6 +2242,14 @@ def _collect_integration_unified_hub_ctx(
         "proposal_round_messages": proposal_round_messages,
         "hub_proposal_generating": hub_proposal_generating,
         "proposal_html": proposal_html,
+        "engagement_flash": engagement_flash,
+        "entity_owner_id": int(ir.user_id),
+        **request_engagement_hub_ctx(
+            db,
+            user,
+            ir,
+            activate_url=f"/integration/{ir.id}/activate-dev-engagement",
+        ),
         "fs_html": fs_html,
         **dc_hub,
         "delivered_code_error_display": _integration_delivered_code_error_for_viewer(
@@ -2574,6 +2623,34 @@ def integration_chat_post(
         record_ai_inquiry_user_turn(db, user.id, "integration", ir.id, ledger_after=used_ai + 1)
     db.commit()
     return RedirectResponse(url=f"{chat_base}#integration-followup-chat", status_code=303)
+
+
+@router.post("/integration/{req_id}/activate-dev-engagement")
+def integration_activate_dev_engagement(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(
+            url=f"/login?next=/integration/{req_id}?phase=proposal", status_code=302
+        )
+    ir = (
+        db.query(models.IntegrationRequest)
+        .filter(
+            models.IntegrationRequest.id == req_id,
+            models.IntegrationRequest.user_id == user.id,
+        )
+        .first()
+    )
+    if not ir:
+        return RedirectResponse(url="/services/integration", status_code=302)
+    err = activate_request_engagement(db, user, "integration", int(req_id))
+    base = f"/integration/{req_id}?phase=proposal#int-phase-proposal"
+    if err:
+        return RedirectResponse(url=f"{base}&engagement_err={quote(err)}", status_code=303)
+    return RedirectResponse(url=f"{base}&engagement=ok", status_code=303)
 
 
 @router.post("/integration/{req_id}/offers/{offer_id}/match")

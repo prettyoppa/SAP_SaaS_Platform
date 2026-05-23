@@ -47,12 +47,9 @@
             {% if billing_flash %}
             <div class="alert alert-info small mb-3">{{ billing_flash }}</div>
             {% endif %}
-            {% if paid_engagement_active %}
-            <div class="alert alert-success small mb-3 d-flex flex-wrap align-items-center gap-2 justify-content-between">
-              <span><i class="fa-solid fa-circle-check me-1"></i> <strong>개발 의뢰(결제 활성)</strong>가 표시되어 있습니다. FS·납품 코드는 관리자가 생성하며, <strong>FS</strong> 메뉴나 제안서 위의 콘솔 링크에서 확인합니다.</span>
-              <a href="/rfp/{{ rfp.id }}?phase=fs" class="btn btn-sm btn-outline-primary mb-0">FS·납품 보기</a>
-            </div>
-            {% endif %}
+            {% set entity_owner_id = rfp.user_id %}
+            {% set fs_phase_url = '/rfp/' ~ (rfp.id|string) ~ '?phase=fs' %}
+            {% include 'partials/proposal_dev_engagement_cta.html' %}
 
             {% set proposal_actions_base = '/rfp/' ~ (rfp.id|string) %}
             {% include 'partials/proposal_hub_toolbar.html' %}
@@ -70,6 +67,13 @@
         </div>
 
         {% include 'partials/hub_proposal_supplement_panel.html' %}
+
+        {% if engagement_flash is defined and engagement_flash %}
+        <div class="alert alert-{{ engagement_flash.kind|default('info') }} small mt-3 mb-0">
+          <span class="nav-ko">{{ engagement_flash.ko }}</span>
+          <span class="nav-en" style="display:none">{{ engagement_flash.en }}</span>
+        </div>
+        {% endif %}
 
         {% if user.is_admin and not hide_hub_nav|default(false) %}
         <div class="next-step-cta mt-5">

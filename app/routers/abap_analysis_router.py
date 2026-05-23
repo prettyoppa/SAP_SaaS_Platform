@@ -26,6 +26,11 @@ from ..abap_followup_chat import (
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from ..database import get_db
 from ..followup_messages_util import followup_created_at_sort_key
+from ..request_engagement import (
+    activate_request_engagement,
+    engagement_flash_message,
+    request_engagement_hub_ctx,
+)
 from ..request_hub_access import (
     abap_analysis_consultant_read_scope,
     consultant_is_matched_on_request,
@@ -1285,6 +1290,17 @@ def _prepare_abap_analysis_detail_ctx(
     elif pe == "generating":
         proposal_hub_flash = {"kind": "info", "i18n": "hub.proposalDeleteBlockedGenerating"}
 
+    engagement_flash = None
+    if (request.query_params.get("engagement") or "").strip() == "ok":
+        engagement_flash = {**(engagement_flash_message("ok") or {}), "kind": "success"}
+    else:
+        ee = (request.query_params.get("engagement_err") or "").strip()
+        if ee:
+            em = engagement_flash_message(ee)
+            if em:
+                kind = "danger" if ee == "wallet_insufficient" else "warning"
+                engagement_flash = {**em, "kind": kind}
+
     hub_can_delete_proposal = (
         not readonly_console
         and int(user.id) == int(row.user_id)
@@ -1297,6 +1313,14 @@ def _prepare_abap_analysis_detail_ctx(
         "ana_interview_status": ana_ist,
         "hub_can_delete_proposal": hub_can_delete_proposal,
         "proposal_hub_flash": proposal_hub_flash,
+        "engagement_flash": engagement_flash,
+        "entity_owner_id": int(row.user_id),
+        **request_engagement_hub_ctx(
+            db,
+            user,
+            row,
+            activate_url=f"/abap-analysis/{row.id}/activate-dev-engagement",
+        ),
         "request_offers": vis_offers,
         "request_offer_can_match": bool(
             user and int(user.id) == int(row.user_id) and not readonly_console
@@ -1780,6 +1804,30 @@ def abap_analysis_chat_post(
         record_ai_inquiry_user_turn(db, user.id, "analysis", row.id, ledger_after=used_ai + 1)
     db.commit()
     return RedirectResponse(url=f"{chat_base}#abap-followup-chat", status_code=303)
+
+
+@router.post("/{req_id}/activate-dev-engagement")
+def abap_analysis_activate_dev_engagement(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = (
+        db.query(models.AbapAnalysisRequest)
+        .filter(
+            models.AbapAnalysisRequest.id == req_id,
+            models.AbapAnalysisRequest.user_id == user.id,
+        )
+        .first()
+    )
+    if not row:
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    err = activate_request_engagement(db, user, "analysis", int(req_id))
+    base = f"/abap-analysis/{req_id}#abap-phase-proposal"
+    if err:
+        return RedirectResponse(url=f"{base}?engagement_err={quote(err)}", status_code=303)
+    return RedirectResponse(url=f"{base}?engagement=ok", status_code=303)
 
 
 @router.post("/{req_id}/offers/{offer_id}/match")
