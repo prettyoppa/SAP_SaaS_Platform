@@ -589,6 +589,7 @@ def admin_users_export_xlsx(
                 "Y" if u.email_verified else "N",
                 phone,
                 phone_v,
+                "Y" if getattr(u, "allow_shared_phone", False) else "N",
                 created,
                 plan,
                 "Y" if getattr(u, "pending_account_deletion", False) else "N",
@@ -611,6 +612,56 @@ def admin_users_export_xlsx(
         content=bio.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+def _admin_users_list_redirect(
+    *,
+    q: str = "",
+    verified: str = "all",
+    pending: str = "all",
+    user_kind: str = "all",
+    extra: str | None = None,
+) -> str:
+    from urllib.parse import urlencode
+
+    params: dict[str, str] = {}
+    if (q or "").strip():
+        params["q"] = q.strip()
+    if verified and verified != "all":
+        params["verified"] = verified
+    if pending and pending != "all":
+        params["pending"] = pending
+    if user_kind and user_kind != "all":
+        params["user_kind"] = user_kind
+    if extra:
+        params["saved"] = extra
+    qs = urlencode(params)
+    return f"/admin/users?{qs}" if qs else "/admin/users"
+
+
+@router.post("/users/{user_id}/allow-shared-phone-toggle")
+def admin_user_toggle_allow_shared_phone(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str = Form(""),
+    verified: str = Form("all"),
+    pending: str = Form("all"),
+    user_kind: str = Form("all"),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    target.allow_shared_phone = not bool(getattr(target, "allow_shared_phone", False))
+    db.add(target)
+    db.commit()
+    return RedirectResponse(
+        url=_admin_users_list_redirect(q=q, verified=verified, pending=pending, user_kind=user_kind),
+        status_code=302,
     )
 
 

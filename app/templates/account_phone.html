@@ -22,6 +22,13 @@
     </div>
     {% endif %}
 
+    {% if user.allow_shared_phone %}
+    <div class="alert alert-info small" role="status">
+      <span class="nav-ko">이 계정은 관리자가 <strong>다른 회원과 동일한 휴대폰 번호</strong> 인증을 허용했습니다. 문자로 받은 인증번호로 본인 확인 후 저장하세요.</span>
+      <span class="nav-en" style="display:none">An admin allowed <strong>the same mobile number as another member</strong> on this account. Complete verification with the SMS code.</span>
+    </div>
+    {% endif %}
+
     {% if sent_ok %}
     <div class="alert alert-success small" role="alert">
       <span class="nav-ko">인증번호를 발송했습니다. 문자를 확인해 주세요.</span>
@@ -36,7 +43,10 @@
     {% elif error == 'already_verified' %}
     <div class="alert alert-info small"><span class="nav-ko">이미 이 번호로 인증되어 있습니다.</span><span class="nav-en" style="display:none">This number is already verified on your account.</span></div>
     {% elif error == 'duplicate' %}
-    <div class="alert alert-danger small"><span class="nav-ko">다른 계정에서 사용 중인 번호입니다.</span><span class="nav-en" style="display:none">This number is used by another account.</span></div>
+    <div class="alert alert-danger small">
+      <span class="nav-ko">다른 계정에서 사용 중인 번호입니다. 동일 번호가 필요하면 관리자에게 <strong>동일번호 허용</strong> 설정을 요청하세요.</span>
+      <span class="nav-en" style="display:none">This number is used by another account. Ask an admin to enable <strong>shared phone</strong> on your account if you need the same number.</span>
+    </div>
     {% elif error == 'cooldown' %}
     <div class="alert alert-warning small"><span class="nav-ko">너무 잦은 요청입니다. 잠시 후 다시 시도해 주세요.</span><span class="nav-en" style="display:none">Please wait before requesting another code.</span></div>
     {% elif error == 'send_failed' %}

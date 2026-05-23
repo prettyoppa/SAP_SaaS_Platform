@@ -31,6 +31,7 @@ from ..email_smtp import (
 )
 from ..templates_config import templates
 from ..subscription_quota import user_subscription_plan_display_names
+from ..phone_uniqueness import phone_blocked_by_other_user
 from ..sms_sender import (
     send_account_phone_otp_sms,
     send_email_hint_otp_sms,
@@ -140,18 +141,6 @@ def _normalize_phone_e164(raw: str) -> str | None:
     if len(digits) < 8 or len(digits) > 15:
         return None
     return f"+{digits}"
-
-
-def _other_user_has_phone(db: Session, phone_e164: str, exclude_user_id: int) -> bool:
-    return (
-        db.query(models.User)
-        .filter(
-            models.User.id != exclude_user_id,
-            models.User.phone_number == phone_e164,
-        )
-        .first()
-        is not None
-    )
 
 
 def _form_bool(raw: str | None) -> bool:
@@ -1786,7 +1775,7 @@ def account_phone_send_post(
     cur = (getattr(user, "phone_number", None) or "").strip()
     if phone_e164 == cur and getattr(user, "phone_verified", False):
         return RedirectResponse(url="/account/phone?err=already_verified", status_code=302)
-    if _other_user_has_phone(db, phone_e164, user.id):
+    if phone_blocked_by_other_user(db, phone_e164, user.id):
         return RedirectResponse(url="/account/phone?err=duplicate", status_code=302)
 
     now = datetime.utcnow()
@@ -1858,6 +1847,9 @@ def account_phone_confirm_post(
         db.add(row)
         db.commit()
         return RedirectResponse(url="/account/phone?err=bad_code", status_code=302)
+
+    if phone_blocked_by_other_user(db, phone_e164, user.id):
+        return RedirectResponse(url="/account/phone?err=duplicate", status_code=302)
 
     old = (getattr(user, "phone_number", None) or "").strip()
     number_changed = old != phone_e164

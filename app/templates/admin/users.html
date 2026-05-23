@@ -141,6 +141,7 @@
               <th style="width:90px">관리자</th>
               <th style="width:110px">컨설턴트</th>
               <th style="width:90px">인증</th>
+              <th class="admin-users-actions-col" style="min-width:140px">휴대폰·번호공유</th>
               <th style="width:120px">가입일</th>
               <th style="width:110px">RFP</th>
               <th style="width:110px">RFP 제출</th>
@@ -183,6 +184,30 @@
                 {% endif %}
               </td>
               <td>{% if u.email_verified %}<span class="badge" style="background:rgba(34,197,94,.2);color:#4ade80">Y</span>{% else %}<span class="badge bg-secondary">N</span>{% endif %}</td>
+              <td class="admin-users-actions-col small">
+                {% if u.phone_number %}
+                <div class="font-monospace text-muted mb-1" title="{{ u.phone_number }}">
+                  {{ u.phone_number }}
+                  {% if u.phone_verified %}<span class="badge bg-success ms-1">인증</span>{% endif %}
+                </div>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+                <form method="post" action="/admin/users/{{ u.id }}/allow-shared-phone-toggle" class="d-inline mt-1"
+                      data-app-confirm-i18n="{% if u.allow_shared_phone %}admin.users.confirmSharedPhoneOff{% else %}admin.users.confirmSharedPhoneOn{% endif %}">
+                  <input type="hidden" name="q" value="{{ q or '' }}">
+                  <input type="hidden" name="verified" value="{{ verified }}">
+                  <input type="hidden" name="pending" value="{{ pending }}">
+                  <input type="hidden" name="user_kind" value="{{ user_kind }}">
+                  <button type="submit" class="btn btn-sm {% if u.allow_shared_phone %}btn-outline-warning{% else %}btn-outline-secondary{% endif %}">
+                    {% if u.allow_shared_phone %}
+                    <span class="nav-ko">동일번호 허용 해제</span><span class="nav-en" style="display:none">Revoke shared phone</span>
+                    {% else %}
+                    <span class="nav-ko">동일번호 허용</span><span class="nav-en" style="display:none">Allow shared phone</span>
+                    {% endif %}
+                  </button>
+                </form>
+              </td>
               <td class="small text-muted">{% if u.created_at %}{{ u.created_at|local_dt_span('date') }}{% else %}—{% endif %}</td>
               <td><span class="badge bg-secondary">{{ row.rfp_count }}</span></td>
               <td><span class="badge bg-secondary">{{ row.rfp_submitted_count }}</span></td>

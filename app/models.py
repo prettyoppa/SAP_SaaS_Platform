@@ -20,6 +20,8 @@ class User(Base):
     phone_number = Column(String(32), nullable=True)
     phone_verified = Column(Boolean, default=False)
     phone_verified_at = Column(DateTime, nullable=True)
+    # 관리자 허용 시 다른 계정과 동일 E.164 휴대폰 인증 가능(OTP 소유 증명은 동일)
+    allow_shared_phone = Column(Boolean, default=False)
     # 업무 알림(요청 진행/납품 등) 수신 동의
     ops_email_opt_in = Column(Boolean, default=False)
     ops_sms_opt_in = Column(Boolean, default=False)

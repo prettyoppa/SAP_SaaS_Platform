@@ -75,6 +75,7 @@ def _run_migrations():
         ("users", "phone_number", "VARCHAR(32)", "VARCHAR(32)"),
         ("users", "phone_verified", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("users", "phone_verified_at", "DATETIME", "TIMESTAMP"),
+        ("users", "allow_shared_phone", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("users", "ops_email_opt_in", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("users", "ops_sms_opt_in", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("users", "marketing_email_opt_in", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),

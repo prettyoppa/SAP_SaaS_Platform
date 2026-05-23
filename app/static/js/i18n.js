@@ -462,6 +462,8 @@ const TRANSLATIONS = {
     "admin.kb.confirmReject": "Reject this article? It will stay unpublished.",
     "admin.kb.confirmDelete": "Delete this article permanently?",
     "admin.kb.confirmBatchStop": "Keep completed drafts and stop remaining keywords? The keyword currently in flight may finish its API call.",
+    "admin.users.confirmSharedPhoneOn": "Allow this member to verify a phone number already used by another account? They still need the SMS code.",
+    "admin.users.confirmSharedPhoneOff": "Revoke shared-phone permission for this member? They cannot verify a number already used elsewhere until re-enabled.",
     "kb.searchPlaceholder": "Search title, excerpt, tags",
   },
 
@@ -921,6 +923,8 @@ const TRANSLATIONS = {
     "admin.kb.confirmReject": "이 글을 반려할까요? 공개되지 않습니다.",
     "admin.kb.confirmDelete": "이 글을 삭제할까요?",
     "admin.kb.confirmBatchStop": "이미 완료된 초안은 유지하고 남은 키워드만 중지합니다. 진행 중인 키워드 1건은 API가 끝날 때까지 계속될 수 있습니다. 계속할까요?",
+    "admin.users.confirmSharedPhoneOn": "이 회원이 다른 계정과 동일한 휴대폰 번호로 인증할 수 있게 할까요? SMS 인증번호는 여전히 필요합니다.",
+    "admin.users.confirmSharedPhoneOff": "이 회원의 동일번호 허용을 해제할까요? 해제 후에는 다른 계정이 쓰는 번호로 인증할 수 없습니다.",
     "kb.searchPlaceholder": "제목·요약·태그 검색",
   }
 };
