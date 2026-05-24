@@ -1,0 +1,76 @@
+{# FS·납품 코드 생성 실행 로그 — Bootstrap 이중 모달 대신 사이드 오버레이 #}
+<div id="hubDeliveryJobLogPanel" class="delivery-job-log-overlay d-none" aria-hidden="true">
+  <div class="delivery-job-log-backdrop" data-close-hub-delivery-log="1" aria-hidden="true"></div>
+  <div class="delivery-job-log-sheet border shadow" role="dialog" aria-modal="true" aria-labelledby="hubDeliveryJobLogTitle">
+    <div class="d-flex align-items-center border-bottom px-3 py-2 flex-shrink-0 bg-body">
+      <h5 class="modal-title mb-0" id="hubDeliveryJobLogTitle">
+        <span class="nav-ko">생성 작업 실행 로그</span>
+        <span class="nav-en" style="display:none">Generation job log</span>
+      </h5>
+      <button type="button" class="btn-close ms-auto" data-close-hub-delivery-log="1" aria-label="Close">
+        <span class="visually-hidden nav-ko">닫기</span>
+        <span class="visually-hidden nav-en" style="display:none">Close</span>
+      </button>
+    </div>
+    <div class="delivery-job-log-body p-3">
+      <div class="d-flex flex-wrap gap-2 mb-2 small">
+        <span id="hubJobLogFsBadge" class="badge bg-secondary">fs: —</span>
+        <span id="hubJobLogDcBadge" class="badge bg-secondary">code: —</span>
+      </div>
+      <ul class="nav nav-tabs small" id="hubJobLogTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="hub-tab-fslog" data-bs-toggle="tab" data-bs-target="#hubPaneFsLog" type="button" role="tab">
+            <span class="nav-ko">기능명세(FS)</span>
+            <span class="nav-en" style="display:none">Functional spec (FS)</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="hub-tab-dclog" data-bs-toggle="tab" data-bs-target="#hubPaneDcLog" type="button" role="tab">
+            <span class="nav-ko">납품 코드</span>
+            <span class="nav-en" style="display:none">Delivered code</span>
+          </button>
+        </li>
+      </ul>
+      <div class="tab-content border border-top-0 rounded-bottom p-2" id="hubJobLogTabContent">
+        <div class="tab-pane fade show active" id="hubPaneFsLog" role="tabpanel">
+          <pre id="hubJobLogFs" class="small mb-0 p-2 rounded hub-job-log-pre">(불러오는 중…)</pre>
+        </div>
+        <div class="tab-pane fade" id="hubPaneDcLog" role="tabpanel">
+          <pre id="hubJobLogDc" class="small mb-0 p-2 rounded hub-job-log-pre">(불러오는 중…)</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+.delivery-job-log-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+.delivery-job-log-overlay.d-none { display: none !important; }
+.delivery-job-log-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+.delivery-job-log-sheet {
+  position: relative;
+  z-index: 1;
+  width: min(42rem, 96vw);
+  max-width: 100%;
+  background: var(--surface, #fff);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+.delivery-job-log-body { flex: 1; min-height: 0; overflow: auto; }
+.hub-job-log-pre {
+  max-height: 50vh;
+  background: var(--surface2);
+  white-space: pre-wrap;
+}
+</style>

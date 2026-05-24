@@ -1782,6 +1782,10 @@ def rfp_paid_generation_status(rfp_id: int, request: Request, db: Session = Depe
         {
             "fs_status": getattr(rfp, "fs_status", None) or "none",
             "delivered_code_status": getattr(rfp, "delivered_code_status", None) or "none",
+            "fs_job_log": getattr(rfp, "fs_job_log", None) or "",
+            "delivered_job_log": getattr(rfp, "delivered_job_log", None) or "",
+            "fs_error": getattr(rfp, "fs_error", None) or "",
+            "delivered_code_error": getattr(rfp, "delivered_code_error", None) or "",
         },
         headers={"Cache-Control": "no-store"},
     )
