@@ -76,7 +76,8 @@ from ..request_offer_lifecycle import (
     OFFER_STATUS_WITHDRAWN,
     request_has_deliverables,
 )
-from ..code_asset_access import user_may_copy_download_request_assets
+from ..code_asset_access import fs_download_hub_ctx, user_may_copy_download_request_assets
+from ..fs_download_http import fs_download_http_response
 from ..delivered_code_package import (
     build_integration_delivered_zip_bytes,
     build_integration_legacy_delivered_zip_bytes,
@@ -112,7 +113,7 @@ from ..proposal_section6_decisions import (
     proposal_section6_hub_template_ctx,
     section6_decisions_flash_from_query,
 )
-from ..paid_tier import user_can_operate_delivery
+from ..paid_tier import user_can_access_fs_hub, user_can_operate_delivery
 from ..proposal_export import proposal_download_filename
 from ..proposal_lifecycle import proposal_delete_block_reason
 from ..integration_followup_chat import (
@@ -2130,6 +2131,17 @@ def _collect_integration_unified_hub_ctx(
         request_id=req_id,
         owner_user_id=int(ir.user_id),
     )
+    fs_download_flags = fs_download_hub_ctx(
+        db,
+        user,
+        request_kind="integration",
+        request_id=int(ir.id),
+        owner_user_id=int(ir.user_id),
+        fs_status=ir.fs_status,
+        fs_text=ir.fs_text,
+        code_asset_unlocked=code_asset_unlocked,
+        download_base=f"/integration/{ir.id}/fs/download",
+    )
 
     hub_int_ai_chat_enabled = False
     if not readonly_console:
@@ -2150,6 +2162,7 @@ def _collect_integration_unified_hub_ctx(
         "ir": ir,
         "rfp": ir,
         "code_asset_unlocked": code_asset_unlocked,
+        **fs_download_flags,
         "iv_submit_base": f"/integration/{req_id}",
         "owner": owner,
         "delete_blocked_reason": delete_blocked,
@@ -2369,6 +2382,41 @@ def integration_generation_status(req_id: int, request: Request, db: Session = D
             "delivered_code_error": getattr(ir, "delivered_code_error", None) or "",
         },
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/integration/{req_id}/fs/download")
+def integration_fs_download(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    format: str = "pdf",
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
+    )
+    ir = q.first()
+    if not ir or not user_can_access_fs_hub(
+        user, ir, db=db, request_kind="integration", request_id=int(req_id)
+    ):
+        return RedirectResponse(url="/", status_code=302)
+    return fs_download_http_response(
+        db,
+        user,
+        request_kind="integration",
+        request_id=int(req_id),
+        owner_user_id=int(ir.user_id),
+        fs_status=ir.fs_status,
+        fs_text=ir.fs_text,
+        program_id=getattr(ir, "program_id", None),
+        title=getattr(ir, "title", None),
+        format_param=format,
+        not_ready_redirect_url=integration_hub_url(req_id, "fs"),
+        md_denied_redirect_url=integration_hub_url(req_id, "fs"),
     )
 
 

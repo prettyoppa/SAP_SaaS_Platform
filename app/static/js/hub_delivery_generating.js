@@ -1,6 +1,7 @@
 /**
  * FS·납품 코드 생성 진행 모달 — 제안서 생성 패널과 동일한 단계·아이콘 UX.
- * data-delivery-gen-status-url 폴링, .hub-delivery-gen-hint-open 으로 모달 재오픈.
+ * data-delivery-gen-status-url 폴링. 페이지 로드 시에는 compact hint만 표시하고,
+ * .hub-delivery-gen-hint-open 클릭 시 모달을 연다 (auto-show=0).
  */
 (function () {
   function activateSteps(container, activeIndex) {
@@ -22,6 +23,8 @@
 
     var stepsWrap = modalEl.querySelector('.hub-delivery-gen-steps');
     var pipeline = stepsWrap ? stepsWrap.getAttribute('data-pipeline') || '' : '';
+    if (!pipeline && dcStart) pipeline = 'dc';
+    if (!pipeline && fsStart) pipeline = 'fs';
     var stepCount = pipeline === 'dc' ? 3 : 1;
     var stepIdx = 0;
     var animTimer = null;
@@ -89,6 +92,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hideGlobalBusy === 'function') hideGlobalBusy();
     document.querySelectorAll('.hub-delivery-gen-modal').forEach(initModal);
     bindHintButtons();
   });

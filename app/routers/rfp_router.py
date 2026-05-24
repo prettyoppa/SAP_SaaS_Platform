@@ -43,7 +43,11 @@ from ..proposal_section6_decisions import (
     section6_decisions_flash_from_query,
 )
 from ..paid_generation import resolved_fs_markdown_for_codegen
-from ..code_asset_access import user_may_copy_download_request_assets
+from ..code_asset_access import (
+    fs_download_hub_ctx,
+    user_may_copy_download_request_assets,
+)
+from ..fs_download_http import fs_download_http_response
 from ..request_hub_access import (
     apply_hub_deliverables_visibility,
     consultant_has_request_offer,
@@ -67,7 +71,6 @@ from ..rfp_download_names import (
     content_disposition_attachment,
     delivered_abap_download_basename,
     delivered_code_zip_basename,
-    fs_md_download_basename,
 )
 from ..rfp_form_suggest import (
     MIN_RFP_DESCRIPTION_CHARS,
@@ -1094,6 +1097,17 @@ def _collect_rfp_unified_hub_ctx(
         request_id=rfp_id,
         owner_user_id=int(rfp.user_id),
     )
+    fs_download_flags = fs_download_hub_ctx(
+        db,
+        user,
+        request_kind="rfp",
+        request_id=int(rfp.id),
+        owner_user_id=int(rfp.user_id),
+        fs_status=rfp.fs_status,
+        fs_text=rfp.fs_text,
+        code_asset_unlocked=code_asset_unlocked,
+        download_base=f"/rfp/{rfp.id}/fs/download",
+    )
 
     hub_rfp_ai_chat_enabled = False
     if not readonly_console:
@@ -1124,6 +1138,7 @@ def _collect_rfp_unified_hub_ctx(
         "rfp": rfp,
         "owner": owner,
         "code_asset_unlocked": code_asset_unlocked,
+        **fs_download_flags,
         "delete_blocked_reason": delete_blocked,
         "subscription_quota_flash": subscription_quota_flash,
         "hub_phase_open": display_phase,
@@ -1773,7 +1788,12 @@ def rfp_paid_generation_status(rfp_id: int, request: Request, db: Session = Depe
 
 
 @router.get("/rfp/{rfp_id}/fs/download")
-def rfp_fs_download(rfp_id: int, request: Request, db: Session = Depends(get_db)):
+def rfp_fs_download(
+    rfp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    format: str = "pdf",
+):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -1792,12 +1812,19 @@ def rfp_fs_download(rfp_id: int, request: Request, db: Session = Depends(get_db)
         return RedirectResponse(url="/", status_code=302)
     if (rfp.fs_status or "") != "ready" or not (rfp.fs_text or "").strip():
         return RedirectResponse(url=rfp_hub_url(rfp_id, "fs"), status_code=302)
-    body = (rfp.fs_text or "").encode("utf-8")
-    fname = fs_md_download_basename(getattr(rfp, "program_id", None), getattr(rfp, "title", None))
-    return Response(
-        content=body,
-        media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": content_disposition_attachment(fname)},
+    return fs_download_http_response(
+        db,
+        user,
+        request_kind="rfp",
+        request_id=int(rfp_id),
+        owner_user_id=int(rfp.user_id),
+        fs_status=rfp.fs_status,
+        fs_text=rfp.fs_text,
+        program_id=getattr(rfp, "program_id", None),
+        title=getattr(rfp, "title", None),
+        format_param=format,
+        not_ready_redirect_url=rfp_hub_url(rfp_id, "fs"),
+        md_denied_redirect_url=rfp_hub_url(rfp_id, "fs"),
     )
 
 

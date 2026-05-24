@@ -2,6 +2,7 @@
 <div class="alert alert-warning border mb-3">
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/fs-start" class="d-inline" data-preflight-fs-upload
+          data-app-confirm-i18n="{% if fs_stat == 'ready' and fs_html %}hub.fsRegenerateConfirm{% else %}hub.fsStartConfirm{% endif %}"
           data-busy-agents='[{"agentKo":"「FS설계」","doingKo":"RFP·인터뷰·제안서를 바탕으로 상세 기능명세서(FS)를 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification from the RFP, interview, and proposal"}]'>
       {% if fs_supplement_return_to|default('') %}
       <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
@@ -11,6 +12,7 @@
       </button>
     </form>
     <form method="post" action="/admin/rfp/{{ rfp.id }}/delivery/code-start" class="d-inline" data-preflight-fs-upload
+          data-app-confirm-i18n="{% if has_delivered_preview|default(false) %}hub.devCodeRegenerateConfirm{% else %}hub.devCodeStartConfirm{% endif %}"
           data-busy-agents='[{"agentKo":"「ABAP」","doingKo":"기능명세를 바탕으로 납품 ABAP 초안을 작성하고 있습니다","agentEn":"「ABAP」","doingEn":"drafting delivered ABAP from the FS"},{"agentKo":"「코드검수」","doingKo":"초안을 검토·보완하고 있습니다","agentEn":"「Code Review」","doingEn":"reviewing and refining the draft"},{"agentKo":"「테스트」","doingKo":"단위 테스트 시나리오를 작성하고 있습니다","agentEn":"「Test」","doingEn":"writing unit test scenarios"}]'>
       {% if delivery_return_to_devcode|default('') %}
       <input type="hidden" name="return_to" value="{{ delivery_return_to_devcode }}">
@@ -20,17 +22,9 @@
       </button>
     </form>
   </div>
-  <p class="small text-muted mb-2 mb-md-0">
-    <span class="nav-ko">매칭된 컨설턴트가 FS·납품 ABAP을 생성합니다. 다른 화면으로 이동해도 서버에서 계속됩니다.{% if not can_start_fs|default(false) %} 제안서가 준비된 뒤 FS를 시작할 수 있습니다.{% endif %} FS 첨부·실행 로그는 이 화면에서 확인할 수 있습니다.</span>
-    <span class="nav-en" style="display:none">The matched consultant generates FS and delivered ABAP. Jobs continue on the server if you leave this page.{% if not can_start_fs|default(false) %} Start FS after the proposal is ready.{% endif %} Upload FS supplements and view job logs on this screen.</span>
+  <p class="small text-muted mb-0">
+    <span class="nav-ko">매칭된 컨설턴트가 FS·납품 ABAP을 생성합니다. 다른 화면으로 이동해도 서버에서 계속됩니다.{% if not can_start_fs|default(false) %} 제안서가 준비된 뒤 FS를 시작할 수 있습니다.{% endif %}</span>
+    <span class="nav-en" style="display:none">The matched consultant generates FS and delivered ABAP. Jobs continue on the server if you leave this page.{% if not can_start_fs|default(false) %} Start FS after the proposal is ready.{% endif %}</span>
   </p>
-  <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="collapse" data-bs-target="#adminFsHubEditHub" aria-expanded="false" aria-controls="adminFsHubEditHub"><span class="nav-ko">추가 안내</span><span class="nav-en" style="display:none">More info</span></button>
-  <div class="collapse mt-2" id="adminFsHubEditHub">
-    <hr class="my-2">
-    <p class="small text-muted mb-0">
-      <span class="nav-ko">FS·납품 코드는 서버에서 순차 실행되며, 완료까지 수 분 걸릴 수 있습니다. 진행 중이면 상단 진행 모달·실행 로그 링크를 확인하세요.</span>
-      <span class="nav-en" style="display:none">FS and delivered code run sequentially on the server and may take several minutes. While running, use the progress modal or job log link above.</span>
-    </p>
-  </div>
 </div>
 {% endif %}

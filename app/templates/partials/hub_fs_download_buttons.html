@@ -1,0 +1,32 @@
+{# fs_download_base required (or rfp / ir / row for default). fs_download_allow_pdf, fs_download_allow_md #}
+{% if fs_download_allow_pdf|default(false) or fs_download_allow_md|default(false) %}
+{% if fs_download_base is defined and fs_download_base %}
+{% set _fs_dl = fs_download_base %}
+{% elif rfp is defined %}
+{% set _fs_dl = '/rfp/' ~ (rfp.id|string) ~ '/fs/download' %}
+{% elif ir is defined %}
+{% set _fs_dl = '/integration/' ~ (ir.id|string) ~ '/fs/download' %}
+{% elif row is defined %}
+{% set _fs_dl = '/abap-analysis/' ~ (row.id|string) ~ '/fs/download' %}
+{% else %}
+{% set _fs_dl = '' %}
+{% endif %}
+{% if _fs_dl %}
+<div class="d-flex flex-wrap gap-2 align-items-center">
+  {% if fs_download_allow_pdf|default(false) %}
+  <a href="{{ _fs_dl }}?format=pdf" class="btn btn-sm btn-outline-primary" download data-no-busy="true">
+    <i class="fa-solid fa-download me-1"></i><span class="nav-ko">FS 다운로드 (PDF)</span><span class="nav-en" style="display:none">Download FS (PDF)</span>
+  </a>
+  {% endif %}
+  {% if fs_download_allow_md|default(false) %}
+  <a href="{{ _fs_dl }}?format=md" class="btn btn-sm btn-outline-secondary" download data-no-busy="true">
+    <i class="fa-solid fa-download me-1"></i><span class="nav-ko">FS 다운로드 (MD)</span><span class="nav-en" style="display:none">Download FS (MD)</span>
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+{% elif code_asset_unlocked|default(false) %}
+<span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true">
+  <i class="fa-solid fa-download me-1"></i><span class="nav-ko">FS 다운로드</span><span class="nav-en" style="display:none">Download FS</span>
+</span>
+{% endif %}

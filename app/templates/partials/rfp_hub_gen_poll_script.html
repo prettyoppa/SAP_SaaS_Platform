@@ -1,65 +1,27 @@
+{# 레거시: 통합 허브는 hub_delivery_generating_bundle + hub_delivery_generating.js 사용. 자동 모달 표시 없음. #}
 {% if gen_busy %}
 <script>
 (function () {
-  const rfpId = {{ rfp.id }};
-  const statusUrl = '/rfp/' + rfpId + '/paid-generation-status';
+  const statusUrl = '/rfp/' + {{ rfp.id }} + '/paid-generation-status';
   const fsBusyStart = {{ fs_busy|tojson }};
   const dcBusyStart = {{ dc_busy|tojson }};
-  const progressModal = document.getElementById('memberDeliveryProgressModal');
-  const dcStepIds = ['mem-dc-step1', 'mem-dc-step2', 'mem-dc-step3'];
-  let dcStepIdx = 0;
-  let dcAnimTimer = null;
-
-  function activateDcStep(i) {
-    dcStepIds.forEach(function (id, idx) {
-      const el = document.getElementById(id);
-      if (el) el.classList.toggle('active', idx === i);
-    });
-  }
-
-  if (progressModal && typeof bootstrap !== 'undefined') {
-    bootstrap.Modal.getOrCreateInstance(progressModal).show();
-    if (dcBusyStart) {
-      dcStepIdx = 0;
-      activateDcStep(0);
-      let elapsed = 0;
-      dcAnimTimer = setInterval(function () {
-        elapsed += 1;
-        if (elapsed % 25 === 0 && dcStepIdx < dcStepIds.length - 1) {
-          dcStepIdx++;
-          activateDcStep(dcStepIdx);
-        }
-      }, 1000);
+  async function checkDone() {
+    try {
+      const r = await fetch(statusUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      if (!r.ok) return false;
+      const j = await r.json();
+      const fsSt = String(j.fs_status || '').trim();
+      const dcSt = String(j.delivered_code_status || '').trim();
+      if (fsBusyStart && fsSt === 'generating') return false;
+      if (dcBusyStart && dcSt === 'generating') return false;
+      return true;
+    } catch (e) {
+      return false;
     }
-    async function checkDone() {
-      try {
-        const r = await fetch(statusUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
-        if (!r.ok) return false;
-        const j = await r.json();
-        let done = true;
-        const fsSt = String(j.fs_status || '').trim();
-        const dcSt = String(j.delivered_code_status || '').trim();
-        if (fsBusyStart && fsSt === 'generating') done = false;
-        if (dcBusyStart && dcSt === 'generating') done = false;
-        return done;
-      } catch (e) {
-        return false;
-      }
-    }
-    checkDone().then(function (done) {
-      if (done) {
-        if (dcAnimTimer) clearInterval(dcAnimTimer);
-        window.location.reload();
-      }
-    });
-    const statusPoll = setInterval(async function () {
-      if (await checkDone()) {
-        clearInterval(statusPoll);
-        if (dcAnimTimer) clearInterval(dcAnimTimer);
-        window.location.reload();
-      }
-    }, 5000);
   }
+  setInterval(async function () {
+    if (await checkDone()) window.location.reload();
+  }, 5000);
 })();
 </script>
 {% endif %}

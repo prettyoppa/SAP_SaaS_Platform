@@ -11,7 +11,7 @@
      data-delivery-gen-status-url="{{ _dg_status_url }}"
      data-delivery-gen-fs-busy="{{ '1' if _dg_fs else '0' }}"
      data-delivery-gen-dc-busy="{{ '1' if _dg_dc else '0' }}"
-     data-delivery-gen-auto-show="1">
+     data-delivery-gen-auto-show="0">
   <div class="modal-dialog modal-dialog-centered" style="max-width:640px">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-body py-4 px-4 proposal-generating-wait">
@@ -23,27 +23,18 @@
             </div>
           </div>
 
-          {% if _dg_fs and not _dg_dc %}
-          <h3 class="mb-2">기능명세(FS) 작성 중</h3>
+          {% if _dg_dc %}
+          <h3 class="mb-2">{% if delivery_gen_dc_title is defined and delivery_gen_dc_title %}{{ delivery_gen_dc_title }}{% else %}납품 코드 작성 중{% endif %}</h3>
           <p class="text-muted mb-1 hub-delivery-gen-agents-line">
-            <strong>{{ 'p_architect'|agent_label }}</strong>가 RFP·인터뷰·제안서를 바탕으로
-            상세 기능명세서(FS)를 작성하고 있습니다.
-          </p>
-          <p class="text-muted small mb-4">약 1~3분 소요될 수 있습니다.</p>
-          <div class="d-flex justify-content-center gap-3 mb-4 hub-delivery-gen-steps" data-pipeline="fs">
-            <div class="text-center generating-step active" data-step-index="0">
-              <div class="step-icon">📐</div>
-              <div class="step-label small">{{ 'p_architect'|agent_label }}<br><span class="text-muted">기능명세 작성</span></div>
-            </div>
-          </div>
-          {% elif _dg_dc and not _dg_fs %}
-          <h3 class="mb-2">납품 코드 작성 중</h3>
-          <p class="text-muted mb-1 hub-delivery-gen-agents-line">
+            {% if delivery_gen_dc_agents_line is defined and delivery_gen_dc_agents_line %}
+            {{ delivery_gen_dc_agents_line|safe }}
+            {% else %}
             <strong>{{ 'p_coder'|agent_label }}</strong>가 기능명세를 바탕으로 납품 ABAP 초안을 작성하고,
             <strong>{{ 'p_inspector'|agent_label }}</strong>가 검토·보완하며,
             <strong>{{ 'p_tester'|agent_label }}</strong>가 단위 테스트 시나리오를 작성하고 있습니다.
+            {% endif %}
           </p>
-          <p class="text-muted small mb-4">AI 에이전트 3명이 순차적으로 작업 중입니다. 약 1~5분 소요될 수 있습니다.</p>
+          <p class="text-muted small mb-4">{% if delivery_gen_dc_eta is defined and delivery_gen_dc_eta %}{{ delivery_gen_dc_eta }}{% else %}AI 에이전트 3명이 순차적으로 작업 중입니다. 약 1~5분 소요될 수 있습니다.{% endif %}</p>
           <div class="d-flex justify-content-center gap-3 mb-4 hub-delivery-gen-steps" data-pipeline="dc">
             <div class="text-center generating-step active" data-step-index="0">
               <div class="step-icon">✍️</div>
@@ -58,6 +49,19 @@
             <div class="text-center generating-step" data-step-index="2">
               <div class="step-icon">✅</div>
               <div class="step-label small">{{ 'p_tester'|agent_label }}<br><span class="text-muted">테스트 시나리오</span></div>
+            </div>
+          </div>
+          {% elif _dg_fs %}
+          <h3 class="mb-2">기능명세(FS) 작성 중</h3>
+          <p class="text-muted mb-1 hub-delivery-gen-agents-line">
+            <strong>{{ 'p_architect'|agent_label }}</strong>가 RFP·인터뷰·제안서를 바탕으로
+            상세 기능명세서(FS)를 작성하고 있습니다.
+          </p>
+          <p class="text-muted small mb-4">약 1~3분 소요될 수 있습니다.</p>
+          <div class="d-flex justify-content-center gap-3 mb-4 hub-delivery-gen-steps" data-pipeline="fs">
+            <div class="text-center generating-step active" data-step-index="0">
+              <div class="step-icon">📐</div>
+              <div class="step-label small">{{ 'p_architect'|agent_label }}<br><span class="text-muted">기능명세 작성</span></div>
             </div>
           </div>
           {% else %}
@@ -85,5 +89,5 @@
 .hub-delivery-gen-modal .step-icon { font-size: 2rem; margin-bottom: 4px; }
 .hub-delivery-gen-modal .proposal-generating-wait .step-label { color: var(--text, var(--bs-body-color)); }
 </style>
-<script src="/static/js/hub_delivery_generating.js?v=20260516d"></script>
+<script src="/static/js/hub_delivery_generating.js?v=20260520b"></script>
 {% endif %}

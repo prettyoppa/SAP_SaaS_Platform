@@ -89,13 +89,14 @@ from ..proposal_section6_decisions import (
 )
 from ..abap_analysis_proposal_service import run_abap_analysis_proposal_background
 from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
-from ..code_asset_access import user_may_copy_download_request_assets
+from ..code_asset_access import fs_download_hub_ctx, user_may_copy_download_request_assets
+from ..fs_download_http import fs_download_http_response
 from ..delivered_code_package import (
     delivered_package_has_body,
     parse_delivered_code_payload,
     rfp_delivered_body_ready,
 )
-from ..paid_tier import user_can_operate_delivery
+from ..paid_tier import user_can_access_fs_hub, user_can_operate_delivery
 from ..proposal_export import (
     ProposalPdfGenerationFailed,
     ProposalPdfUnavailable,
@@ -1253,6 +1254,17 @@ def _prepare_abap_analysis_detail_ctx(
         request_id=int(row.id),
         owner_user_id=int(row.user_id),
     )
+    fs_download_flags = fs_download_hub_ctx(
+        db,
+        user,
+        request_kind="analysis",
+        request_id=int(row.id),
+        owner_user_id=int(row.user_id),
+        fs_status=row.fs_status,
+        fs_text=row.fs_text,
+        code_asset_unlocked=code_asset_unlocked,
+        download_base=f"/abap-analysis/{row.id}/fs/download",
+    )
 
     req_ctx = _requirement_display_ctx(row, "abap", row.id)
 
@@ -1383,6 +1395,7 @@ def _prepare_abap_analysis_detail_ctx(
         == "1",
         "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
         "ana_fs_html": ana_fs_html,
+        **fs_download_flags,
         **_abap_analysis_hub_delivered_fields(row),
         **fs_supplement_hub_template_ctx(
             db,
@@ -1700,6 +1713,36 @@ def abap_analysis_generation_status(req_id: int, request: Request, db: Session =
             "delivered_code_error": getattr(row, "delivered_code_error", None) or "",
         },
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/{req_id}/fs/download")
+def abap_analysis_fs_download(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    format: str = "pdf",
+):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row or not user_can_access_fs_hub(
+        user, row, db=db, request_kind="analysis", request_id=int(req_id)
+    ):
+        return RedirectResponse(url="/abap-analysis", status_code=302)
+    fs_redirect = f"/abap-analysis/{req_id}#abap-phase-fs"
+    return fs_download_http_response(
+        db,
+        user,
+        request_kind="analysis",
+        request_id=int(req_id),
+        owner_user_id=int(row.user_id),
+        fs_status=row.fs_status,
+        fs_text=row.fs_text,
+        program_id=getattr(row, "program_id", None),
+        title=getattr(row, "title", None),
+        format_param=format,
+        not_ready_redirect_url=fs_redirect,
+        md_denied_redirect_url=fs_redirect,
     )
 
 

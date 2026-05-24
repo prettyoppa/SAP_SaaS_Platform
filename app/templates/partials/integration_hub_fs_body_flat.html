@@ -18,6 +18,10 @@
   {% include 'partials/hub_delivery_generating_compact_hint.html' %}
   {% endwith %}
   {% elif fs_html %}
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <h5 class="mb-0 me-auto small text-uppercase text-muted"><span class="nav-ko">Markdown 미리보기</span><span class="nav-en" style="display:none">Markdown preview</span></h5>
+    {% include 'partials/hub_fs_download_buttons.html' %}
+  </div>
   <div class="proposal-body proposal-prose border rounded p-3{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="background:var(--surface2);border-color:var(--border)!important;">
     {{ fs_html | safe }}
   </div>

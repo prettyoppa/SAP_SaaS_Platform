@@ -2,6 +2,7 @@
 <div class="alert alert-warning border mb-3">
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <form method="post" action="/admin/abap-analysis/{{ row.id }}/delivery/fs-start" class="d-inline" data-preflight-fs-upload
+          data-app-confirm-i18n="{% if ana_fs_stat|default('none') == 'ready' and ana_fs_html|default('') %}hub.fsRegenerateConfirm{% else %}hub.fsStartConfirm{% endif %}"
           data-busy-agents='[{"agentKo":"「FS설계」","doingKo":"분석·제안서를 바탕으로 기능명세(FS)를 작성하고 있습니다","agentEn":"「FS Design」","doingEn":"drafting the functional specification from analysis and proposal"}]'>
       {% if fs_supplement_return_to|default('') %}
       <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
@@ -11,6 +12,7 @@
       </button>
     </form>
     <form method="post" action="/admin/abap-analysis/{{ row.id }}/delivery/code-start" class="d-inline" data-preflight-fs-upload
+          data-app-confirm-i18n="{% if has_delivered_preview|default(false) %}hub.devCodeRegenerateConfirm{% else %}hub.devCodeStartConfirm{% endif %}"
           data-busy-agents='[{"agentKo":"「ABAP」","doingKo":"기능명세를 바탕으로 납품 ABAP 초안을 작성하고 있습니다","agentEn":"「ABAP」","doingEn":"drafting delivered ABAP from the FS"},{"agentKo":"「코드검수」","doingKo":"초안을 검토·보완하고 있습니다","agentEn":"「Code Review」","doingEn":"reviewing and refining the draft"},{"agentKo":"「테스트」","doingKo":"단위 테스트 시나리오를 작성하고 있습니다","agentEn":"「Test」","doingEn":"writing unit test scenarios"}]'>
       {% if delivery_return_to_devcode|default('') %}
       <input type="hidden" name="return_to" value="{{ delivery_return_to_devcode }}">

@@ -26,7 +26,10 @@
   {% endif %}
 
   {% if ana_fs_stat == 'ready' and ana_fs_html %}
-  <h5 class="mb-2 small text-uppercase text-muted">Markdown 미리보기</h5>
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <h5 class="mb-0 small text-uppercase text-muted"><span class="nav-ko">Markdown 미리보기</span><span class="nav-en" style="display:none">Markdown preview</span></h5>
+    {% include 'partials/hub_fs_download_buttons.html' %}
+  </div>
   <div class="proposal-card mb-0">
     <div class="proposal-body proposal-prose small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ ana_fs_html|safe }}</div>
   </div>

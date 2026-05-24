@@ -21,14 +21,24 @@ def sanitize_path_component(raw: str, max_len: int) -> str:
     return s or "unnamed"
 
 
-def fs_md_download_basename(program_id: str | None, title: str | None) -> str:
-    """FS_{프로그램ID}_{요청제목}.md — 제목 길이는 상한까지 자름."""
+def fs_download_basename(program_id: str | None, title: str | None, *, ext: str) -> str:
+    """FS_{프로그램ID}_{요청제목}.{md|pdf} — 제목 길이는 상한까지 자름."""
+    ext_norm = ext if ext.startswith(".") else f".{ext}"
+    if ext_norm not in (".md", ".pdf"):
+        ext_norm = ".pdf"
     pid = sanitize_path_component(program_id or "NO_PID", 40)
-    # "FS_", "_", ".md" 를 남긴 만큼 제목에 할당
-    reserve = len("FS_") + len("_") + len(".md") + len(pid)
+    reserve = len("FS_") + len("_") + len(ext_norm) + len(pid)
     tit_max = max(8, FILENAME_BASENAME_MAX_LEN - reserve)
     tit = sanitize_path_component(title or "untitled", tit_max)
-    return f"FS_{pid}_{tit}.md"
+    return f"FS_{pid}_{tit}{ext_norm}"
+
+
+def fs_md_download_basename(program_id: str | None, title: str | None) -> str:
+    return fs_download_basename(program_id, title, ext=".md")
+
+
+def fs_pdf_download_basename(program_id: str | None, title: str | None) -> str:
+    return fs_download_basename(program_id, title, ext=".pdf")
 
 
 def delivered_abap_download_basename(program_id: str | None, title: str | None) -> str:
