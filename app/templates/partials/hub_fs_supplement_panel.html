@@ -1,5 +1,6 @@
 {# can_operate_delivery, fs_supplements, fs_supplement_upload_url, fs_supplement_delete_url_prefix, fs_supplement_return_to, fs_supplement_max_files #}
 {% if can_operate_delivery|default(false) %}
+{% include 'partials/hub_fs_consultant_addendum_panel.html' %}
 <div class="proposal-card mb-3 border" style="border-color:var(--border)!important;background:var(--surface2);">
   <h6 class="text-muted small text-uppercase mb-2">
     <i class="fa-solid fa-paperclip me-1"></i><span class="nav-ko">컨설턴트 FS 첨부</span><span class="nav-en" style="display:none">Consultant FS attachments</span>

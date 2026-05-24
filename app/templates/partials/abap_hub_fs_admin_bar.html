@@ -26,5 +26,6 @@
     <span class="nav-ko">매칭된 컨설턴트가 FS·납품 ABAP을 생성합니다. 다른 화면으로 이동해도 서버에서 계속됩니다.{% if not can_start_fs|default(false) %} 제안서가 준비된 뒤 FS를 시작할 수 있습니다.{% endif %}</span>
     <span class="nav-en" style="display:none">The matched consultant generates FS and delivered ABAP. Jobs continue on the server if you leave.{% if not can_start_fs|default(false) %} Start FS after the proposal is ready.{% endif %}</span>
   </p>
+  {% include 'partials/hub_delivery_clear_actions.html' %}
 </div>
 {% endif %}

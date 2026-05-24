@@ -1,0 +1,60 @@
+{% if chat_enabled|default(false) %}
+<script>
+(function () {
+  var root = document.getElementById('abap-followup-chat');
+  if (!root) return;
+  var panel = document.getElementById('abapFloatChatPanel');
+  var launcher = document.getElementById('abapFloatChatLauncher');
+  var closeBtn = document.getElementById('abapFloatChatClose');
+  if (!panel || !launcher) return;
+
+  var resizeApi = typeof window.initAbapFloatChatResize === 'function'
+    ? window.initAbapFloatChatResize({
+        panel: panel,
+        sizeKey: 'abap-followup-chat-size',
+        panelGrip: document.getElementById('abapFloatChatResize'),
+        textarea: document.getElementById('abap-followup-msg'),
+        taGrip: document.getElementById('abapFollowupTaResize'),
+      })
+    : null;
+  if (resizeApi) resizeApi.loadStoredSizeIfAny();
+
+  function openPanel() {
+    panel.removeAttribute('hidden');
+    launcher.setAttribute('aria-expanded', 'true');
+    if (resizeApi) {
+      resizeApi.loadStoredSizeIfAny();
+      resizeApi.clampPanelToViewport();
+    }
+  }
+  function closePanel() {
+    panel.setAttribute('hidden', '');
+    launcher.setAttribute('aria-expanded', 'false');
+    if (resizeApi) resizeApi.scheduleSaveSize();
+  }
+  function togglePanel() {
+    if (panel.hasAttribute('hidden')) openPanel();
+    else closePanel();
+  }
+
+  launcher.addEventListener('click', function (e) {
+    e.stopPropagation();
+    togglePanel();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', function () { closePanel(); });
+
+  function shouldAutoOpen() {
+    if (window.location.hash === '#abap-followup-chat') return true;
+    try {
+      return new URLSearchParams(window.location.search).has('chat_err');
+    } catch (e) {
+      return false;
+    }
+  }
+  if (shouldAutoOpen()) {
+    openPanel();
+    if (typeof window.scrollAiChatPanelToEnd === 'function') window.scrollAiChatPanelToEnd(panel);
+  }
+})();
+</script>
+{% endif %}

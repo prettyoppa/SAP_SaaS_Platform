@@ -1,0 +1,62 @@
+{# hub_rfp_ai_chat_enabled, rfp, rfp_followup_turns, rfp_chat_*, hub_phase_open, hub_readonly_return_url #}
+{% if hub_rfp_ai_chat_enabled|default(false) %}
+<div id="rfp-followup-chat" class="abap-float-chat" aria-live="polite">
+  <div id="rfpFloatChatPanel" class="abap-float-chat-panel" hidden
+       data-i18n-title="chat.panelResizeTitle" title="왼쪽 위 모서리의 아이콘을 드래그하면 패널 크기를 조절할 수 있습니다.">
+    {% include 'partials/abap_float_chat_local_busy.html' %}
+    <button type="button" class="abap-float-chat-resize" id="rfpFloatChatResize" data-i18n-aria-label="chat.panelResizeAria" data-i18n-title="chat.panelResizeHint" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
+      <i class="fa-solid fa-up-right-and-down-left-from-center abap-resize-fa abap-resize-fa--panel" aria-hidden="true"></i>
+    </button>
+    <div class="abap-float-chat-header">
+      <span class="abap-float-chat-header-title" data-i18n="chat.rfpHeaderTitle">이 신규 개발 요청에 대해 질문하기</span>
+      <button type="button" class="abap-float-chat-close" id="rfpFloatChatClose" data-i18n-title="chat.closeTitle" data-i18n-aria-label="chat.closeAria" title="닫기" aria-label="채팅 패널 닫기">
+        <i class="fa-solid fa-xmark fa-lg"></i>
+      </button>
+    </div>
+    <div class="abap-float-chat-body">
+      <p class="small text-muted mb-2 mb-md-3" data-i18n="chat.rfpContextHelp">
+        지금까지 적어 주신 요청·인터뷰·제안서(있는 경우)를 바탕으로 답합니다.
+      </p>
+      {% if rfp_chat_error %}
+      <div class="alert alert-warning py-2 small mb-3">{{ rfp_chat_error }}</div>
+      {% endif %}
+      {% if rfp_followup_turns and rfp_followup_turns|length > 0 %}
+      {% set followup_turns = rfp_followup_turns %}
+      <div class="abap-chat-log abap-chat-log-panel mb-0">
+        {% include 'partials/abap_followup_messenger_log.html' %}
+      </div>
+      {% else %}
+      <p class="small text-muted fst-italic mb-0" data-i18n="chat.noThreadsYet">아직 대화가 없습니다. 아래에서 질문을 보내 보세요.</p>
+      {% endif %}
+    </div>
+    <div class="abap-float-chat-footer">
+      {% if rfp_chat_limit_reached %}
+      <p class="small text-muted mb-0" data-i18n="chat.limitReached">후속 질문 횟수에 도달했습니다.</p>
+      {% else %}
+      <form method="post" action="/rfp/{{ rfp.id }}/chat" class="abap-followup-form mb-0" data-no-busy="true"
+            data-busy-agents='[{"agentKo":"「질의」","doingKo":"추가 질문에 맞는 응답을 작성하고 있습니다","agentEn":"「Q&A」","doingEn":"composing a reply to your follow-up question"}]'>
+        <input type="hidden" name="return_to" value="{{ 'console-readonly' if hub_readonly_return_url else 'hub' }}"/>
+        {% include 'partials/hub_ai_chat_context_fields.html' %}
+        <label class="form-label small text-muted mb-1" for="rfp-followup-msg" data-i18n="chat.messageLabel">메시지</label>
+        <div class="abap-followup-ta-wrap">
+          <textarea id="rfp-followup-msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required data-i18n-placeholder="chat.messagePlaceholder" placeholder="추가로 궁금한 점을 입력하세요."></textarea>
+          <button type="button" class="abap-followup-ta-resize" id="rfpFollowupTaResize" data-i18n-aria-label="chat.taResizeAria" data-i18n-title="chat.taResizeTitle" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
+            <i class="fa-solid fa-up-right-and-down-left-from-center abap-resize-fa abap-resize-fa--ta" aria-hidden="true"></i>
+          </button>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">
+          <i class="fa-solid fa-paper-plane me-1"></i><span data-i18n="chat.send">보내기</span>
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <button type="button" class="abap-float-chat-launcher" id="rfpFloatChatLauncher" aria-expanded="false" aria-controls="rfpFloatChatPanel">
+    <i class="fa-solid fa-comments fa-lg abap-float-chat-launcher-icon" aria-hidden="true"></i>
+    <span class="abap-float-chat-launcher-text" data-i18n="chat.continueAsk">AI 에게 문의</span>
+    {% if rfp_followup_turns and rfp_followup_turns|length > 0 %}
+    <span class="abap-float-chat-count" aria-hidden="true">{{ rfp_followup_turns|length }}</span>
+    {% endif %}
+  </button>
+</div>
+{% endif %}

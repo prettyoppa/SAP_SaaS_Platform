@@ -91,7 +91,9 @@ from ..request_hub_access import (
     consultant_has_request_offer,
     consultant_is_matched_on_request,
     consultant_menu_matched_scope,
+    menu_entity_hub_url,
     user_can_view_request_deliverables,
+    user_may_use_request_ai_inquiry,
 )
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
@@ -103,7 +105,11 @@ from ..form_core_validation import (
 )
 from ..rfp_form_suggest import MIN_RFP_DESCRIPTION_CHARS
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
-from ..delivery_fs_supplements import KIND_INTEGRATION, fs_supplement_hub_template_ctx
+from ..delivery_fs_supplements import (
+    KIND_INTEGRATION,
+    fs_supplement_hub_template_ctx,
+    resolved_delivery_fs_for_member_view,
+)
 from ..delivery_proposal_supplements import (
     has_delivery_proposal_supplements,
     proposal_ready_for_delivery,
@@ -1668,8 +1674,7 @@ def integration_delete(req_id: int, request: Request, db: Session = Depends(get_
     ir = q.first()
     if not ir:
         return RedirectResponse(url="/integration", status_code=302)
-    fs_s = (getattr(ir, "fs_status", None) or "none").strip().lower() or "none"
-    if fs_s == "ready" and (getattr(ir, "fs_text", None) or "").strip():
+    if request_has_deliverables(db, "integration", int(req_id)):
         return RedirectResponse(url=f"/integration/{req_id}?delete_blocked=fs", status_code=302)
     for ent in _attachment_entries(ir):
         _remove_stored_file(ent.get("path"))
@@ -2006,8 +2011,15 @@ def _collect_integration_unified_hub_ctx(
         ir = maybe_fail_stale_integration_deliverable(db, ir, minutes=10)
         dc_stat = (getattr(ir, "delivered_code_status", None) or "none").strip() or "none"
     fs_html = ""
-    if fs_stat == "ready" and (getattr(ir, "fs_text", None) or "").strip():
-        fs_html = _markdown_to_html(ir.fs_text)
+    if fs_stat == "ready":
+        display_fs = resolved_delivery_fs_for_member_view(
+            db,
+            request_kind=KIND_INTEGRATION,
+            request_id=int(ir.id),
+            agent_fs_text=getattr(ir, "fs_text", None),
+        )
+        if display_fs:
+            fs_html = _markdown_to_html(display_fs)
 
     dc_hub = _hub_integration_delivered_fields(ir)
     can_operate_delivery_flag = user_can_operate_delivery(user)
@@ -2016,7 +2028,12 @@ def _collect_integration_unified_hub_ctx(
     dc_busy = dc_stat == "generating"
     gen_busy = fs_busy or dc_busy
 
-    fs_body = (getattr(ir, "fs_text", None) or "").strip()
+    fs_body = resolved_delivery_fs_for_member_view(
+        db,
+        request_kind=KIND_INTEGRATION,
+        request_id=int(ir.id),
+        agent_fs_text=getattr(ir, "fs_text", None),
+    )
     fs_ready = fs_stat == "ready" and bool(fs_body)
     proposal_ready = proposal_ready_for_delivery(
         db,
@@ -2037,37 +2054,27 @@ def _collect_integration_unified_hub_ctx(
         )
     )
 
-    if readonly_console:
-        followup_turns = []
-        snap_hub_ro = ai_inquiry_snapshot(db, user, "integration", ir.id)
-        chat_limit_reached = snap_hub_ro["reached"]
-        chat_error = None
-        hub_scripts = False
-        int_max_followup = snap_hub_ro["max_turns_display"]
-        int_ai_unlimited = snap_hub_ro["unlimited"]
-        int_followup_cap = snap_hub_ro["cap"]
-    else:
-        follow_raw = sorted(
-            list(ir.followup_messages or []),
-            key=lambda m: (
-                followup_created_at_sort_key(m, fallback=ir.created_at),
-                getattr(m, "id", 0) or 0,
-            ),
-        )
-        follow_msgs = filter_followup_messages_for_viewer(
-            follow_raw,
-            request_owner_id=int(ir.user_id),
-            viewer_user_id=int(user.id),
-            viewer_is_admin=bool(getattr(user, "is_admin", False)),
-        )
-        followup_turns = _pair_integration_followup_turns(follow_msgs)
-        snap_hub = ai_inquiry_snapshot(db, user, "integration", ir.id)
-        chat_limit_reached = snap_hub["reached"]
-        chat_error = (request.query_params.get("chat_err") or "").strip() or None
-        hub_scripts = bool(proposal_html) and not hub_proposal_generating
-        int_max_followup = snap_hub["max_turns_display"]
-        int_ai_unlimited = snap_hub["unlimited"]
-        int_followup_cap = snap_hub["cap"]
+    follow_raw = sorted(
+        list(ir.followup_messages or []),
+        key=lambda m: (
+            followup_created_at_sort_key(m, fallback=ir.created_at),
+            getattr(m, "id", 0) or 0,
+        ),
+    )
+    follow_msgs = filter_followup_messages_for_viewer(
+        follow_raw,
+        request_owner_id=int(ir.user_id),
+        viewer_user_id=int(user.id),
+        viewer_is_admin=bool(getattr(user, "is_admin", False)),
+    )
+    followup_turns = _pair_integration_followup_turns(follow_msgs)
+    snap_hub = ai_inquiry_snapshot(db, user, "integration", ir.id)
+    chat_limit_reached = snap_hub["reached"]
+    chat_error = (request.query_params.get("chat_err") or "").strip() or None
+    hub_scripts = (not readonly_console) and bool(proposal_html) and not hub_proposal_generating
+    int_max_followup = snap_hub["max_turns_display"]
+    int_ai_unlimited = snap_hub["unlimited"]
+    int_followup_cap = snap_hub["cap"]
 
     delete_blocked = (request.query_params.get("delete_blocked") or "").strip()
     qe = (request.query_params.get("quota_err") or "").strip()
@@ -2143,18 +2150,13 @@ def _collect_integration_unified_hub_ctx(
         download_base=f"/integration/{ir.id}/fs/download",
     )
 
-    hub_int_ai_chat_enabled = False
-    if not readonly_console:
-        hub_int_ai_chat_enabled = (
-            int(user.id) == int(ir.user_id)
-            or getattr(user, "is_admin", False)
-            or (
-                getattr(user, "is_consultant", False)
-                and consultant_is_matched_on_request(
-                    db, consultant_user_id=user.id, request_kind="integration", request_id=int(req_id)
-                )
-            )
-        )
+    hub_int_ai_chat_enabled = user_may_use_request_ai_inquiry(
+        db,
+        user,
+        request_owner_id=int(ir.user_id),
+        request_kind="integration",
+        request_id=int(req_id),
+    )
 
     ctx: dict[str, Any] = {
         "request": request,
@@ -2404,6 +2406,12 @@ def integration_fs_download(
         user, ir, db=db, request_kind="integration", request_id=int(req_id)
     ):
         return RedirectResponse(url="/", status_code=302)
+    display_fs = resolved_delivery_fs_for_member_view(
+        db,
+        request_kind=KIND_INTEGRATION,
+        request_id=int(req_id),
+        agent_fs_text=getattr(ir, "fs_text", None),
+    )
     return fs_download_http_response(
         db,
         user,
@@ -2411,7 +2419,7 @@ def integration_fs_download(
         request_id=int(req_id),
         owner_user_id=int(ir.user_id),
         fs_status=ir.fs_status,
-        fs_text=ir.fs_text,
+        fs_text=display_fs,
         program_id=getattr(ir, "program_id", None),
         title=getattr(ir, "title", None),
         format_param=format,
@@ -2563,8 +2571,13 @@ def integration_chat_post(
     if st == "draft" and int(user.id) == int(ir.user_id):
         chat_base = f"/integration/{req_id}/edit"
     else:
-        phase = normalize_integration_hub_phase(hub_phase or None)
-        chat_base = integration_hub_url(req_id, phase)
+        chat_base = menu_entity_hub_url(
+            user=user,
+            owner_user_id=int(ir.user_id),
+            request_kind="integration",
+            request_id=int(req_id),
+            phase=hub_phase or "request",
+        )
 
     msg, verr = validate_integration_user_message(message)
     if verr:

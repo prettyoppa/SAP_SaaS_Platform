@@ -1,0 +1,63 @@
+{# can_operate_delivery, fs_clear_deliverable_url, delivered_code_clear_url, fs_supplement_return_to, fs_stat_for_delivery, fs_supplements, fs_consultant_addendum, has_delivered_preview #}
+{% if can_operate_delivery|default(false) %}
+{% set _has_fs = (fs_stat_for_delivery|default('none') in ['ready', 'failed']) or fs_supplements|default([])|length > 0 or (fs_consultant_addendum|default('')|trim) %}
+{% set _has_dc = has_delivered_preview|default(false) %}
+{% if _has_fs or _has_dc %}
+<div class="border-top pt-2 mt-2">
+  <div class="small text-muted mb-2">
+    <span class="nav-ko">요청자는 FS·납품물이 있으면 요청을 삭제할 수 없습니다. 합의 후 아래에서 납품물을 제거하면 요청자 삭제가 가능해집니다.</span>
+    <span class="nav-en" style="display:none">The requester cannot delete the request while deliverables exist. After agreement, remove deliverables here so they may delete the request.</span>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    {% if _has_fs and fs_clear_deliverable_url|default('') %}
+    <form method="post" action="{{ fs_clear_deliverable_url }}" class="d-inline"
+          data-app-confirm-i18n="hub.fsClearConfirm">
+      {% if fs_supplement_return_to|default('') %}
+      <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
+      {% endif %}
+      <button type="submit" class="btn btn-sm btn-outline-danger">
+        <span class="nav-ko">FS 납품물 삭제</span>
+        <span class="nav-en" style="display:none">Remove FS deliverable</span>
+      </button>
+    </form>
+    {% endif %}
+    {% if _has_dc and delivered_code_clear_url|default('') %}
+    <form method="post" action="{{ delivered_code_clear_url }}" class="d-inline"
+          data-app-confirm-i18n="hub.devCodeClearConfirm">
+      {% if fs_supplement_return_to|default('') %}
+      <input type="hidden" name="return_to" value="{{ delivery_return_to_devcode|default(fs_supplement_return_to) }}">
+      {% endif %}
+      <button type="submit" class="btn btn-sm btn-outline-danger">
+        <span class="nav-ko">개발코드 납품물 삭제</span>
+        <span class="nav-en" style="display:none">Remove dev code deliverable</span>
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% if request and request.query_params.get('fs_cleared') == '1' %}
+  <div class="alert alert-success py-2 small mt-2 mb-0">
+    <span class="nav-ko">FS 납품물을 삭제했습니다.</span>
+    <span class="nav-en" style="display:none">FS deliverable removed.</span>
+  </div>
+  {% endif %}
+  {% if request and request.query_params.get('devcode_cleared') == '1' %}
+  <div class="alert alert-success py-2 small mt-2 mb-0">
+    <span class="nav-ko">개발코드 납품물을 삭제했습니다.</span>
+    <span class="nav-en" style="display:none">Dev code deliverable removed.</span>
+  </div>
+  {% endif %}
+  {% set err = request.query_params.get('err') if request else '' %}
+  {% if err == 'fs_generating' %}
+  <div class="alert alert-warning py-2 small mt-2 mb-0">
+    <span class="nav-ko">FS 생성 중에는 삭제할 수 없습니다.</span>
+    <span class="nav-en" style="display:none">Cannot remove FS while generation is running.</span>
+  </div>
+  {% elif err == 'devcode_generating' %}
+  <div class="alert alert-warning py-2 small mt-2 mb-0">
+    <span class="nav-ko">개발코드 생성 중에는 삭제할 수 없습니다.</span>
+    <span class="nav-en" style="display:none">Cannot remove dev code while generation is running.</span>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endif %}

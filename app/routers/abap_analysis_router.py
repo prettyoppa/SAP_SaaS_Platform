@@ -26,6 +26,7 @@ from ..abap_followup_chat import (
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from ..database import get_db
 from ..followup_messages_util import followup_created_at_sort_key
+from ..followup_thread_scope import filter_followup_messages_for_viewer
 from ..request_engagement import (
     activate_request_engagement,
     engagement_flash_message,
@@ -35,6 +36,8 @@ from ..request_hub_access import (
     abap_analysis_consultant_read_scope,
     consultant_is_matched_on_request,
     consultant_menu_matched_scope,
+    menu_abap_detail_url,
+    user_may_use_request_ai_inquiry,
 )
 from ..menu_landing import (
     DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO,
@@ -77,7 +80,11 @@ from ..abap_analysis_generation import (
     reconcile_abap_analysis_delivery_status,
     resolved_abap_analysis_fs_for_codegen,
 )
-from ..delivery_fs_supplements import KIND_ANALYSIS, fs_supplement_hub_template_ctx
+from ..delivery_fs_supplements import (
+    KIND_ANALYSIS,
+    fs_supplement_hub_template_ctx,
+    resolved_delivery_fs_for_member_view,
+)
 from ..delivery_proposal_supplements import (
     has_delivery_proposal_supplements,
     proposal_ready_for_delivery,
@@ -1279,8 +1286,15 @@ def _prepare_abap_analysis_detail_ctx(
     ana_fs_stat = (getattr(row, "fs_status", None) or "none").strip() or "none"
     ana_dc_stat = (getattr(row, "delivered_code_status", None) or "none").strip() or "none"
     ana_fs_html = ""
-    if ana_fs_stat == "ready" and (getattr(row, "fs_text", None) or "").strip():
-        ana_fs_html = _markdown_to_html(row.fs_text or "")
+    if ana_fs_stat == "ready":
+        display_fs = resolved_delivery_fs_for_member_view(
+            db,
+            request_kind=KIND_ANALYSIS,
+            request_id=int(row.id),
+            agent_fs_text=getattr(row, "fs_text", None),
+        )
+        if display_fs:
+            ana_fs_html = _markdown_to_html(display_fs)
 
     can_operate_delivery_flag = user_can_operate_delivery(user)
     proposal_ready = proposal_ready_for_delivery(
@@ -1453,39 +1467,30 @@ def _prepare_abap_analysis_detail_ctx(
         ),
     }
 
-    if readonly_console:
-        ro_ctx = {
-            "request": request,
-            "user": user,
-            "row": row,
-            "analysis": analysis,
-            "attachment_entries": _attachment_entries(row),
-            **req_ctx,
-            "owner": owner,
-            "code_asset_unlocked": code_asset_unlocked,
-            "source_program_groups": program_groups,
-            **ana_hub,
-        }
-        apply_hub_deliverables_visibility(
-            ro_ctx,
-            db=db,
-            user=user,
-            request_kind="analysis",
-            request_id=int(row.id),
-            owner_user_id=int(row.user_id),
-            paid_entity=row,
-        )
-        return ro_ctx
-
-    followup_messages = sorted(
+    follow_raw = sorted(
         list(row.followup_messages or []),
         key=lambda m: (
             followup_created_at_sort_key(m, fallback=row.created_at),
             getattr(m, "id", 0) or 0,
         ),
     )
-    followup_turns = _pair_abap_followup_turns(followup_messages)
-    chat_enabled = (not row.is_draft) and bool(eff_src.strip())
+    follow_msgs = filter_followup_messages_for_viewer(
+        follow_raw,
+        request_owner_id=int(row.user_id),
+        viewer_user_id=int(user.id),
+        viewer_is_admin=bool(getattr(user, "is_admin", False)),
+    )
+    followup_turns = _pair_abap_followup_turns(follow_msgs)
+    may_inquiry = user_may_use_request_ai_inquiry(
+        db,
+        user,
+        request_owner_id=int(row.user_id),
+        request_kind="analysis",
+        request_id=int(row.id),
+    )
+    chat_enabled = may_inquiry and not row.is_draft and (
+        bool(eff_src.strip()) or _has_requirement_context(row)
+    )
     snap_d = ai_inquiry_snapshot(db, user, "analysis", row.id)
     chat_limit_reached = snap_d["reached"]
     chat_error = (request.query_params.get("chat_err") or "").strip() or None
@@ -1730,6 +1735,12 @@ def abap_analysis_fs_download(
     ):
         return RedirectResponse(url="/abap-analysis", status_code=302)
     fs_redirect = f"/abap-analysis/{req_id}#abap-phase-fs"
+    display_fs = resolved_delivery_fs_for_member_view(
+        db,
+        request_kind=KIND_ANALYSIS,
+        request_id=int(req_id),
+        agent_fs_text=getattr(row, "fs_text", None),
+    )
     return fs_download_http_response(
         db,
         user,
@@ -1737,7 +1748,7 @@ def abap_analysis_fs_download(
         request_id=int(req_id),
         owner_user_id=int(row.user_id),
         fs_status=row.fs_status,
-        fs_text=row.fs_text,
+        fs_text=display_fs,
         program_id=getattr(row, "program_id", None),
         title=getattr(row, "title", None),
         format_param=format,
@@ -1814,7 +1825,14 @@ def abap_analysis_chat_post(
     row = _get_request_for_user(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=303)
-    chat_base = f"/abap-analysis/{req_id}/edit" if row.is_draft else f"/abap-analysis/{req_id}"
+    if row.is_draft and int(user.id) == int(row.user_id):
+        chat_base = f"/abap-analysis/{req_id}/edit"
+    else:
+        chat_base = menu_abap_detail_url(
+            user=user,
+            owner_user_id=int(row.user_id),
+            request_id=int(req_id),
+        )
     anchor = (hub_anchor or "").strip().lstrip("#")
     phase_frag = f"#{anchor}" if anchor else ""
     eff_src = _effective_abap_source(row)
@@ -1842,11 +1860,17 @@ def abap_analysis_chat_post(
     if row.is_draft:
         analysis = {}
 
-    prior = (
+    prior_all = (
         db.query(models.AbapAnalysisFollowupMessage)
         .filter(models.AbapAnalysisFollowupMessage.request_id == row.id)
         .order_by(models.AbapAnalysisFollowupMessage.created_at.asc())
         .all()
+    )
+    prior = filter_followup_messages_for_viewer(
+        prior_all,
+        request_owner_id=int(row.user_id),
+        viewer_user_id=int(user.id),
+        viewer_is_admin=bool(getattr(user, "is_admin", False)),
     )
 
     try:
@@ -1865,11 +1889,13 @@ def abap_analysis_chat_post(
     except Exception:
         reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 
+    tid = int(user.id)
     db.add(
         models.AbapAnalysisFollowupMessage(
             request_id=row.id,
             role="user",
             content=msg,
+            thread_user_id=tid,
         )
     )
     db.add(
@@ -1877,6 +1903,7 @@ def abap_analysis_chat_post(
             request_id=row.id,
             role="assistant",
             content=reply,
+            thread_user_id=tid,
         )
     )
     if not getattr(user, "is_admin", False):
@@ -2269,6 +2296,11 @@ def abap_analysis_delete(req_id: int, request: Request, db: Session = Depends(ge
     row = _get_request_for_user(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
+    if request_has_deliverables(db, "analysis", int(req_id)):
+        return RedirectResponse(
+            url=f"/abap-analysis/{req_id}?delete_blocked=fs",
+            status_code=302,
+        )
     for ent in _attachment_entries(row):
         _remove_stored_file(ent.get("path"))
     remove_requirement_screenshots(_screenshot_entries(row))

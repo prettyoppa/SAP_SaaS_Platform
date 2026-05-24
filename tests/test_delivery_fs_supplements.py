@@ -46,3 +46,22 @@ def test_merge_neither_returns_error():
     text, err = merge_agent_and_consultant_fs_markdown("", [])
     assert text is None
     assert err
+
+
+def test_merge_consultant_addendum_before_agent():
+    text, err = merge_agent_and_consultant_fs_markdown(
+        "# agent\n\nauto", [], consultant_addendum="추가 조항"
+    )
+    assert err is None
+    assert text is not None
+    assert "컨설턴트 FS 추가 보완 (텍스트)" in text
+    assert "추가 조항" in text
+    assert text.index("추가 조항") < text.index("에이전트")
+
+
+def test_merge_addendum_only_without_agent():
+    text, err = merge_agent_and_consultant_fs_markdown(
+        "", [], consultant_addendum="# 보완만\n\n본문"
+    )
+    assert err is None
+    assert "보완만" in (text or "")

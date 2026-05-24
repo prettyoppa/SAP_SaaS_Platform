@@ -42,6 +42,7 @@ from ..proposal_section6_decisions import (
     proposal_section6_hub_template_ctx,
     section6_decisions_flash_from_query,
 )
+from ..delivery_fs_supplements import KIND_RFP as _KIND_RFP_FS, resolved_delivery_fs_for_member_view
 from ..paid_generation import resolved_fs_markdown_for_codegen
 from ..code_asset_access import (
     fs_download_hub_ctx,
@@ -52,6 +53,7 @@ from ..request_hub_access import (
     apply_hub_deliverables_visibility,
     consultant_has_request_offer,
     consultant_is_matched_on_request,
+    user_may_use_request_ai_inquiry,
 )
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..paid_tier import (
@@ -913,7 +915,7 @@ def _collect_rfp_unified_hub_ctx(
             rfp_id=rfp_id,
             load_messages=True,
             load_fs_supplements=True,
-            load_followup_messages=False,
+            load_followup_messages=True,
         )
     else:
         rfp = rfp_for_owner_or_admin(
@@ -979,8 +981,15 @@ def _collect_rfp_unified_hub_ctx(
     dc_s = (rfp.delivered_code_status or "none").strip() or "none"
 
     fs_html = ""
-    if (rfp.fs_status or "") == "ready" and (rfp.fs_text or "").strip():
-        fs_html = _interview_views._markdown_to_html(rfp.fs_text)
+    if (rfp.fs_status or "") == "ready":
+        display_fs = resolved_delivery_fs_for_member_view(
+            db,
+            request_kind=_KIND_RFP_FS,
+            request_id=int(rfp.id),
+            agent_fs_text=rfp.fs_text,
+        )
+        if display_fs:
+            fs_html = _interview_views._markdown_to_html(display_fs)
 
     delivered_fields = _hub_delivered_fields(rfp)
 
@@ -1109,18 +1118,13 @@ def _collect_rfp_unified_hub_ctx(
         download_base=f"/rfp/{rfp.id}/fs/download",
     )
 
-    hub_rfp_ai_chat_enabled = False
-    if not readonly_console:
-        hub_rfp_ai_chat_enabled = (
-            int(user.id) == int(rfp.user_id)
-            or getattr(user, "is_admin", False)
-            or (
-                getattr(user, "is_consultant", False)
-                and consultant_is_matched_on_request(
-                    db, consultant_user_id=user.id, request_kind="rfp", request_id=int(rfp.id)
-                )
-            )
-        )
+    hub_rfp_ai_chat_enabled = user_may_use_request_ai_inquiry(
+        db,
+        user,
+        request_owner_id=int(rfp.user_id),
+        request_kind="rfp",
+        request_id=int(rfp.id),
+    )
 
     hub_abap_proposal_start_eligible = bool(
         hub_skip_interview
@@ -1287,43 +1291,31 @@ def _collect_rfp_unified_hub_ctx(
         if wf_ctx:
             ctx.update(wf_ctx)
 
-    if readonly_console:
-        snap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)
-        ctx.update(
-            {
-                "rfp_followup_turns": [],
-                "rfp_chat_limit_reached": snap["reached"],
-                "rfp_chat_error": None,
-                "rfp_followup_max_user": snap["cap"],
-                "rfp_ai_inquiry_unlimited": snap["unlimited"],
-            }
-        )
-    else:
-        follow_raw = sorted(
-            list(rfp.followup_messages or []),
-            key=lambda m: (
-                followup_created_at_sort_key(m, fallback=rfp.created_at),
-                getattr(m, "id", 0) or 0,
-            ),
-        )
-        follow_msgs = filter_followup_messages_for_viewer(
-            follow_raw,
-            request_owner_id=int(rfp.user_id),
-            viewer_user_id=int(user.id),
-            viewer_is_admin=bool(getattr(user, "is_admin", False)),
-        )
-        followup_turns = pair_followup_turn_messages(follow_msgs)
-        snap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)
-        rfp_chat_error = (request.query_params.get("chat_err") or "").strip() or None
-        ctx.update(
-            {
-                "rfp_followup_turns": followup_turns,
-                "rfp_chat_limit_reached": snap["reached"],
-                "rfp_chat_error": rfp_chat_error,
-                "rfp_followup_max_user": snap["cap"],
-                "rfp_ai_inquiry_unlimited": snap["unlimited"],
-            }
-        )
+    follow_raw = sorted(
+        list(rfp.followup_messages or []),
+        key=lambda m: (
+            followup_created_at_sort_key(m, fallback=rfp.created_at),
+            getattr(m, "id", 0) or 0,
+        ),
+    )
+    follow_msgs = filter_followup_messages_for_viewer(
+        follow_raw,
+        request_owner_id=int(rfp.user_id),
+        viewer_user_id=int(user.id),
+        viewer_is_admin=bool(getattr(user, "is_admin", False)),
+    )
+    followup_turns = pair_followup_turn_messages(follow_msgs)
+    snap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)
+    rfp_chat_error = (request.query_params.get("chat_err") or "").strip() or None
+    ctx.update(
+        {
+            "rfp_followup_turns": followup_turns,
+            "rfp_chat_limit_reached": snap["reached"],
+            "rfp_chat_error": rfp_chat_error,
+            "rfp_followup_max_user": snap["cap"],
+            "rfp_ai_inquiry_unlimited": snap["unlimited"],
+        }
+    )
 
     apply_hub_deliverables_visibility(
         ctx,
@@ -1397,7 +1389,12 @@ def _rfp_ai_chat_redirect(
     hub_phase: str | None = None,
 ) -> str:
     rt = (return_to or "hub").strip().lower()
-    base = f"/rfp/{rfp_id}/edit" if rt == "edit" else f"/rfp/{rfp_id}"
+    if rt in ("console-readonly", "console_readonly"):
+        base = f"/rfp/{rfp_id}/console-readonly"
+    elif rt == "edit":
+        base = f"/rfp/{rfp_id}/edit"
+    else:
+        base = f"/rfp/{rfp_id}"
     params: list[str] = []
     if hub_phase and rt != "edit":
         params.append(f"phase={quote(normalize_rfp_hub_phase(hub_phase))}")
@@ -1831,7 +1828,13 @@ def rfp_fs_download(
         owner_user_id=int(rfp.user_id),
     ):
         return RedirectResponse(url="/", status_code=302)
-    if (rfp.fs_status or "") != "ready" or not (rfp.fs_text or "").strip():
+    display_fs = resolved_delivery_fs_for_member_view(
+        db,
+        request_kind=_KIND_RFP_FS,
+        request_id=int(rfp_id),
+        agent_fs_text=rfp.fs_text,
+    )
+    if (rfp.fs_status or "") != "ready" or not display_fs:
         return RedirectResponse(url=rfp_hub_url(rfp_id, "fs"), status_code=302)
     return fs_download_http_response(
         db,
@@ -1840,7 +1843,7 @@ def rfp_fs_download(
         request_id=int(rfp_id),
         owner_user_id=int(rfp.user_id),
         fs_status=rfp.fs_status,
-        fs_text=rfp.fs_text,
+        fs_text=display_fs,
         program_id=getattr(rfp, "program_id", None),
         title=getattr(rfp, "title", None),
         format_param=format,
@@ -1958,8 +1961,7 @@ def rfp_delete(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     rfp = q.first()
     if not rfp:
         return RedirectResponse(url="/services/abap", status_code=302)
-    fs_st = (getattr(rfp, "fs_status", None) or "").strip() or "none"
-    if fs_st != "none":
+    if request_has_deliverables(db, "rfp", int(rfp_id)):
         return RedirectResponse(
             url=f"/rfp/{rfp_id}?delete_blocked=fs",
             status_code=302,

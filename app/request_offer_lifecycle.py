@@ -44,6 +44,8 @@ def _entity_has_deliverables(db: Session, request_kind: str, row: Any) -> bool:
     rid = int(getattr(row, "id", 0) or 0)
     if (getattr(row, "fs_text", None) or "").strip():
         return True
+    if (getattr(row, "fs_consultant_addendum", None) or "").strip():
+        return True
     if list_delivery_fs_supplements(db, kind, rid):
         return True
     fs_st = (getattr(row, "fs_status", None) or "").strip()

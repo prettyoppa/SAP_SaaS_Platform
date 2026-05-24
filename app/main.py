@@ -102,6 +102,7 @@ def _run_migrations():
         ("rfps", "stripe_checkout_session_id", "VARCHAR", "VARCHAR"),
         ("rfps", "fs_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
         ("rfps", "fs_text", "TEXT", "TEXT"),
+        ("rfps", "fs_consultant_addendum", "TEXT", "TEXT"),
         ("rfps", "fs_generated_at", "DATETIME", "TIMESTAMP"),
         ("rfps", "fs_error", "TEXT", "TEXT"),
         ("rfps", "delivered_code_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
@@ -148,6 +149,7 @@ def _run_migrations():
         ("integration_requests", "paid_activated_at", "DATETIME", "TIMESTAMP"),
         ("integration_requests", "fs_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
         ("integration_requests", "fs_text", "TEXT", "TEXT"),
+        ("integration_requests", "fs_consultant_addendum", "TEXT", "TEXT"),
         ("integration_requests", "fs_generated_at", "DATETIME", "TIMESTAMP"),
         ("integration_requests", "fs_error", "TEXT", "TEXT"),
         ("integration_requests", "fs_job_log", "TEXT", "TEXT"),
@@ -166,6 +168,7 @@ def _run_migrations():
         ("request_offer_inquiries", "parent_inquiry_id", "INTEGER", "INTEGER"),
         ("rfp_followup_messages", "thread_user_id", "INTEGER", "INTEGER"),
         ("integration_followup_messages", "thread_user_id", "INTEGER", "INTEGER"),
+        ("abap_analysis_followup_messages", "thread_user_id", "INTEGER", "INTEGER"),
         ("request_offers", "match_notice_pending", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("notices", "sort_order", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
         ("reviews", "admin_suppressed", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
@@ -252,6 +255,14 @@ def _run_migrations():
                     "UPDATE integration_followup_messages SET thread_user_id = "
                     "(SELECT user_id FROM integration_requests WHERE integration_requests.id = "
                     "integration_followup_messages.request_id) "
+                    "WHERE thread_user_id IS NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "UPDATE abap_analysis_followup_messages SET thread_user_id = "
+                    "(SELECT user_id FROM abap_analysis_requests WHERE abap_analysis_requests.id = "
+                    "abap_analysis_followup_messages.request_id) "
                     "WHERE thread_user_id IS NULL"
                 )
             )

@@ -27,8 +27,10 @@ from ..integration_generation import (
     run_integration_deliverable_job,
     run_integration_fs_job,
 )
+from ..delivery_fs_clear import clear_delivered_code_deliverable, clear_fs_deliverable
 from ..delivery_fs_supplements import (
     DELIVERY_FS_SUPPLEMENT_MAX_FILES,
+    FS_CONSULTANT_ADDENDUM_MAX_CHARS,
     KIND_ANALYSIS,
     KIND_INTEGRATION,
     KIND_RFP,
@@ -37,6 +39,7 @@ from ..delivery_fs_supplements import (
     list_delivery_fs_supplements,
     resolve_delivery_return_url,
 )
+from ..request_offer_lifecycle import load_request_row
 from ..paid_tier import user_can_operate_delivery
 from ..templates_config import templates
 from ..rfp_phase_gates import rfp_phase_gates
@@ -627,3 +630,281 @@ def admin_abap_analysis_start_delivered_code(
     db.commit()
     background_tasks.add_task(run_abap_analysis_delivered_code_job, analysis_id)
     return RedirectResponse(url=back, status_code=302)
+
+
+def _delivery_back_with_query(back: str, **params: str) -> str:
+    sep = "&" if "?" in back else "?"
+    parts = [f"{k}={v}" for k, v in params.items() if v]
+    if not parts:
+        return back
+    return f"{back}{sep}{'&'.join(parts)}"
+
+
+def _save_fs_consultant_addendum(
+    db: Session,
+    *,
+    request_kind: str,
+    request_id: int,
+    addendum: str,
+) -> str | None:
+    row = load_request_row(db, request_kind, request_id)
+    if row is None:
+        return "not_found"
+    text = (addendum or "").strip()
+    if len(text) > FS_CONSULTANT_ADDENDUM_MAX_CHARS:
+        return "addendum_too_long"
+    row.fs_consultant_addendum = text or None
+    db.commit()
+    return None
+
+
+def _delivery_clear_fs(
+    db: Session,
+    *,
+    request_kind: str,
+    request_id: int,
+) -> str | None:
+    ok, err = clear_fs_deliverable(db, request_kind, request_id)
+    if not ok:
+        return err or "not_found"
+    return None
+
+
+def _delivery_clear_devcode(
+    db: Session,
+    *,
+    request_kind: str,
+    request_id: int,
+) -> str | None:
+    ok, err = clear_delivered_code_deliverable(db, request_kind, request_id)
+    if not ok:
+        return err or "not_found"
+    return None
+
+
+@router.post("/rfp/{rfp_id}/delivery/fs-addendum")
+def admin_rfp_save_fs_addendum(
+    rfp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    addendum: str = Form(""),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_RFP,
+        rfp_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _save_fs_consultant_addendum(
+        db, request_kind=KIND_RFP, request_id=rfp_id, addendum=addendum
+    )
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(
+        url=_delivery_back_with_query(back, fs_addendum_saved="1"), status_code=302
+    )
+
+
+@router.post("/integration/{req_id}/delivery/fs-addendum")
+def admin_integration_save_fs_addendum(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    addendum: str = Form(""),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_INTEGRATION,
+        req_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _save_fs_consultant_addendum(
+        db, request_kind=KIND_INTEGRATION, request_id=req_id, addendum=addendum
+    )
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(
+        url=_delivery_back_with_query(back, fs_addendum_saved="1"), status_code=302
+    )
+
+
+@router.post("/abap-analysis/{analysis_id}/delivery/fs-addendum")
+def admin_abap_save_fs_addendum(
+    analysis_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    addendum: str = Form(""),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_ANALYSIS,
+        analysis_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _save_fs_consultant_addendum(
+        db, request_kind=KIND_ANALYSIS, request_id=analysis_id, addendum=addendum
+    )
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(
+        url=_delivery_back_with_query(back, fs_addendum_saved="1"), status_code=302
+    )
+
+
+@router.post("/rfp/{rfp_id}/delivery/clear-fs")
+def admin_rfp_clear_fs(
+    rfp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_RFP,
+        rfp_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _delivery_clear_fs(db, request_kind=KIND_RFP, request_id=rfp_id)
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(url=_delivery_back_with_query(back, fs_cleared="1"), status_code=302)
+
+
+@router.post("/integration/{req_id}/delivery/clear-fs")
+def admin_integration_clear_fs(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_INTEGRATION,
+        req_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _delivery_clear_fs(db, request_kind=KIND_INTEGRATION, request_id=req_id)
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(url=_delivery_back_with_query(back, fs_cleared="1"), status_code=302)
+
+
+@router.post("/abap-analysis/{analysis_id}/delivery/clear-fs")
+def admin_abap_clear_fs(
+    analysis_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_ANALYSIS,
+        analysis_id,
+        return_to,
+        phase="fs",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _delivery_clear_fs(db, request_kind=KIND_ANALYSIS, request_id=analysis_id)
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(url=_delivery_back_with_query(back, fs_cleared="1"), status_code=302)
+
+
+@router.post("/rfp/{rfp_id}/delivery/clear-devcode")
+def admin_rfp_clear_devcode(
+    rfp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_RFP,
+        rfp_id,
+        return_to,
+        phase="devcode",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _delivery_clear_devcode(db, request_kind=KIND_RFP, request_id=rfp_id)
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(
+        url=_delivery_back_with_query(back, devcode_cleared="1"), status_code=302
+    )
+
+
+@router.post("/integration/{req_id}/delivery/clear-devcode")
+def admin_integration_clear_devcode(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_INTEGRATION,
+        req_id,
+        return_to,
+        phase="devcode",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _delivery_clear_devcode(db, request_kind=KIND_INTEGRATION, request_id=req_id)
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(
+        url=_delivery_back_with_query(back, devcode_cleared="1"), status_code=302
+    )
+
+
+@router.post("/abap-analysis/{analysis_id}/delivery/clear-devcode")
+def admin_abap_clear_devcode(
+    analysis_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    return_to: str | None = Form(None),
+):
+    actor = _require_delivery_operator(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    back = resolve_delivery_return_url(
+        KIND_ANALYSIS,
+        analysis_id,
+        return_to,
+        phase="devcode",
+        default_readonly_console=_delivery_operator_prefers_readonly_hub(actor),
+    )
+    err = _delivery_clear_devcode(db, request_kind=KIND_ANALYSIS, request_id=analysis_id)
+    if err:
+        return RedirectResponse(url=_delivery_back_with_query(back, err=err), status_code=302)
+    return RedirectResponse(
+        url=_delivery_back_with_query(back, devcode_cleared="1"), status_code=302
+    )

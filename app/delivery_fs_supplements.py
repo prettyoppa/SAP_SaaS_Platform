@@ -14,6 +14,7 @@ KIND_INTEGRATION = "integration"
 
 # 컨설턴트 FS .md: 요청당 누적 상한 · 1회 스테이징(드롭존) 상한
 DELIVERY_FS_SUPPLEMENT_MAX_FILES = 15
+FS_CONSULTANT_ADDENDUM_MAX_CHARS = 80_000
 
 _FS_PRIORITY_PREAMBLE = (
     "**코드 생성 FS 입력 안내:** 아래에 **컨설턴트 FS 첨부**가 있으면 "
@@ -43,9 +44,26 @@ def list_delivery_fs_supplements(
     )
 
 
+def load_fs_consultant_addendum(db: Session, request_kind: str, request_id: int) -> str:
+    from .request_offer_lifecycle import load_request_row
+
+    row = load_request_row(db, request_kind, request_id)
+    if row is None:
+        return ""
+    return (getattr(row, "fs_consultant_addendum", None) or "").strip()
+
+
+def _consultant_addendum_block(addendum: str) -> str | None:
+    text = (addendum or "").strip()
+    if not text:
+        return None
+    return f"### 컨설턴트 FS 추가 보완 (텍스트)\n\n{text}"
+
+
 def merge_agent_and_consultant_fs_markdown(
     agent_fs: str,
     supplements: list[models.RfpFsSupplement],
+    consultant_addendum: str | None = None,
 ) -> tuple[str | None, str | None]:
     """
     ABAP/연동 코드 생성용 FS 본문.
@@ -54,6 +72,9 @@ def merge_agent_and_consultant_fs_markdown(
     """
     agent_fs = (agent_fs or "").strip()
     consultant_parts: list[str] = []
+    addendum_block = _consultant_addendum_block(consultant_addendum or "")
+    if addendum_block:
+        consultant_parts.append(addendum_block)
     for sup in supplements:
         raw = r2_storage.read_bytes_from_ref(sup.stored_path)
         if raw is None:
@@ -90,9 +111,33 @@ def resolved_delivery_fs_for_codegen(
     request_kind: str,
     request_id: int,
     agent_fs_text: str | None,
+    consultant_addendum: str | None = None,
 ) -> tuple[str | None, str | None]:
     supplements = list_delivery_fs_supplements(db, request_kind, request_id)
-    return merge_agent_and_consultant_fs_markdown(agent_fs_text or "", supplements)
+    if consultant_addendum is None:
+        consultant_addendum = load_fs_consultant_addendum(db, request_kind, request_id)
+    return merge_agent_and_consultant_fs_markdown(
+        agent_fs_text or "", supplements, consultant_addendum=consultant_addendum
+    )
+
+
+def resolved_delivery_fs_for_member_view(
+    db: Session,
+    *,
+    request_kind: str,
+    request_id: int,
+    agent_fs_text: str | None,
+) -> str:
+    """허브 미리보기·다운로드용 — 병합 실패 시 에이전트 FS만."""
+    body, _err = resolved_delivery_fs_for_codegen(
+        db,
+        request_kind=request_kind,
+        request_id=request_id,
+        agent_fs_text=agent_fs_text,
+    )
+    if body and body.strip():
+        return body.strip()
+    return (agent_fs_text or "").strip()
 
 
 def fs_supplement_hub_template_ctx(
@@ -102,17 +147,28 @@ def fs_supplement_hub_template_ctx(
     request_id: int,
     return_to: str,
 ) -> dict:
+    from .request_offer_lifecycle import load_request_row
+
     paths = fs_supplement_admin_paths(request_kind, request_id)
     readonly = "console-readonly" in (return_to or "")
+    addendum = load_fs_consultant_addendum(db, request_kind, request_id)
+    row = load_request_row(db, request_kind, request_id)
+    fs_stat = (getattr(row, "fs_status", None) or "none").strip() if row else "none"
     return {
         "fs_supplements": list_delivery_fs_supplements(db, request_kind, request_id),
         "fs_supplement_upload_url": paths["fs_supplement_upload_url"],
         "fs_supplement_delete_url_prefix": paths["fs_supplement_delete_url_prefix"],
+        "fs_consultant_addendum": addendum,
+        "fs_addendum_save_url": paths["fs_addendum_save_url"],
+        "fs_clear_deliverable_url": paths["fs_clear_deliverable_url"],
+        "delivered_code_clear_url": paths["delivered_code_clear_url"],
         "fs_supplement_return_to": return_to,
+        "fs_stat_for_delivery": fs_stat,
         "delivery_return_to_devcode": hub_delivery_return_path(
             request_kind, request_id, phase="devcode", readonly_console=readonly
         ),
         "fs_supplement_max_files": DELIVERY_FS_SUPPLEMENT_MAX_FILES,
+        "fs_addendum_max_chars": FS_CONSULTANT_ADDENDUM_MAX_CHARS,
     }
 
 
@@ -179,4 +235,7 @@ def fs_supplement_admin_paths(request_kind: str, request_id: int) -> dict[str, s
     return {
         "fs_supplement_upload_url": f"{base}/fs-supplement-upload",
         "fs_supplement_delete_url_prefix": f"{base}/fs-supplement",
+        "fs_addendum_save_url": f"{base}/fs-addendum",
+        "fs_clear_deliverable_url": f"{base}/clear-fs",
+        "delivered_code_clear_url": f"{base}/clear-devcode",
     }

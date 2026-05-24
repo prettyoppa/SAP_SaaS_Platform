@@ -121,6 +121,8 @@ class RFP(Base):
     fs_text = Column(Text, nullable=True)
     fs_generated_at = Column(DateTime, nullable=True)
     fs_error = Column(Text, nullable=True)
+    # 컨설턴트 FS 추가 보완(마크다운) — 에이전트 FS 대비 소량 수정·추가
+    fs_consultant_addendum = Column(Text, nullable=True)
     # 관리자용: 생성 백그라운드 작업 진행 로그(텍스트, 단순 줄 단위 축적)
     fs_job_log = Column(Text, nullable=True)
     delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
@@ -248,6 +250,7 @@ class IntegrationRequest(Base):
     fs_text = Column(Text, nullable=True)
     fs_generated_at = Column(DateTime, nullable=True)
     fs_error = Column(Text, nullable=True)
+    fs_consultant_addendum = Column(Text, nullable=True)
     fs_job_log = Column(Text, nullable=True)
     delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
     delivered_code_text = Column(Text, nullable=True)
@@ -382,6 +385,7 @@ class AbapAnalysisRequest(Base):
     fs_text = Column(Text, nullable=True)
     fs_generated_at = Column(DateTime, nullable=True)
     fs_error = Column(Text, nullable=True)
+    fs_consultant_addendum = Column(Text, nullable=True)
     fs_job_log = Column(Text, nullable=True)
     delivered_code_status = Column(String, default="none", nullable=False)
     delivered_code_text = Column(Text, nullable=True)
@@ -418,6 +422,7 @@ class AbapAnalysisFollowupMessage(Base):
     role = Column(String(16), nullable=False)  # user | assistant
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    thread_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     request = relationship("AbapAnalysisRequest", back_populates="followup_messages")
 

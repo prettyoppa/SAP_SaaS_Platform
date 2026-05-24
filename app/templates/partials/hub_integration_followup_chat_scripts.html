@@ -1,0 +1,60 @@
+{% if hub_int_ai_chat_enabled|default(false) %}
+<script>
+(function () {
+  var root = document.getElementById('integration-followup-chat');
+  if (!root) return;
+  var panel = document.getElementById('integrationFloatChatPanel');
+  var launcher = document.getElementById('integrationFloatChatLauncher');
+  var closeBtn = document.getElementById('integrationFloatChatClose');
+  if (!panel || !launcher) return;
+
+  var resizeApi = typeof window.initAbapFloatChatResize === 'function'
+    ? window.initAbapFloatChatResize({
+        panel: panel,
+        sizeKey: 'integration-followup-chat-size',
+        panelGrip: document.getElementById('integrationFloatChatResize'),
+        textarea: document.getElementById('integration-followup-msg'),
+        taGrip: document.getElementById('integrationFollowupTaResize'),
+      })
+    : null;
+  if (resizeApi) resizeApi.loadStoredSizeIfAny();
+
+  function openPanel() {
+    panel.removeAttribute('hidden');
+    launcher.setAttribute('aria-expanded', 'true');
+    if (resizeApi) {
+      resizeApi.loadStoredSizeIfAny();
+      resizeApi.clampPanelToViewport();
+    }
+  }
+  function closePanel() {
+    panel.setAttribute('hidden', '');
+    launcher.setAttribute('aria-expanded', 'false');
+    if (resizeApi) resizeApi.scheduleSaveSize();
+  }
+  function togglePanel() {
+    if (panel.hasAttribute('hidden')) openPanel();
+    else closePanel();
+  }
+
+  launcher.addEventListener('click', function (e) {
+    e.stopPropagation();
+    togglePanel();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', function () { closePanel(); });
+
+  function shouldAutoOpen() {
+    if (window.location.hash === '#integration-followup-chat') return true;
+    try {
+      return new URLSearchParams(window.location.search).has('chat_err');
+    } catch (e) {
+      return false;
+    }
+  }
+  if (shouldAutoOpen()) {
+    openPanel();
+    if (typeof window.scrollAiChatPanelToEnd === 'function') window.scrollAiChatPanelToEnd(panel);
+  }
+})();
+</script>
+{% endif %}
