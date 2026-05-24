@@ -31,6 +31,12 @@
         <span class="account-ai-credits-balance-currency" aria-hidden="true">₩</span>
         <span class="account-ai-credits-balance-value font-monospace">{{ "{:,}".format(wallet_balance_krw) }}</span>
       </p>
+      {% if user.is_consultant and not user.is_admin %}
+      <p class="small text-muted mb-0 mt-2">
+        <span class="nav-ko">매칭 요청에서 FS·개발코드 생성 시 <strong>본인 계정</strong> 크레딧이 차감됩니다. 요청자 잔액은 사용되지 않습니다.</span>
+        <span class="nav-en" style="display:none">FS and dev code generation on matched requests debits <strong>your</strong> credits, not the requester's.</span>
+      </p>
+      {% endif %}
     </section>
     <section id="topup-form" class="rfp-section account-ai-credits-panel account-ai-credits-topup">
       <h3 class="h6 mb-2 account-ai-credits-topup-title">

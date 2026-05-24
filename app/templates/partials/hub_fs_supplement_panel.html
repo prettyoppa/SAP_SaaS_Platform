@@ -10,6 +10,12 @@
     <span class="nav-en" style="display:none">Upload FS documents (MD, PDF, Office, images). Embedded images are summarized for agents. Attached FS overrides agent FS at code generation.</span>
   </p>
   {% set error = request.query_params.get('err') if request else '' %}
+  {% if error == 'wallet_insufficient' %}
+  <div class="alert alert-danger py-2 small mb-3">
+    <span class="nav-ko">AI 크레딧 잔액이 부족해 FS·개발코드 생성을 시작할 수 없습니다. <a href="/account/ai-credits">AI 크레딧</a>에서 충전한 뒤 다시 시도하세요.</span>
+    <span class="nav-en" style="display:none">Insufficient AI credits to start FS or dev code generation. Top up on <a href="/account/ai-credits">AI credits</a> and try again.</span>
+  </div>
+  {% endif %}
   {% include 'partials/attachment_upload_err_alerts.html' %}
 
   {% if fs_supplements %}

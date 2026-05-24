@@ -16,7 +16,8 @@ from .agent_display import agent_label_ko
 from .agents.agent_tools import get_code_library_context
 from .agents.paid_crew import generate_delivered_abap_artifact, generate_fs_markdown
 from .database import SessionLocal
-from .ai_usage_recorder import AiUsageContext, ai_usage_scope
+from .ai_usage_billing import ai_usage_context_for_delivery_job
+from .ai_usage_recorder import ai_usage_scope
 
 _MAX_JOB_LOG_CHARS = 48_000
 _HEARTBEAT_SEC = 40
@@ -75,7 +76,7 @@ def _delivered_heartbeat(
         )
 
 
-def run_fs_generation_job(rfp_id: int) -> None:
+def run_fs_generation_job(rfp_id: int, billing_user_id: int) -> None:
     from .routers import interview_router as interview_router_module
 
     db = SessionLocal()
@@ -127,7 +128,11 @@ def run_fs_generation_job(rfp_id: int) -> None:
                 agent_proposal_text=rfp.proposal_text,
             )
             with ai_usage_scope(
-                AiUsageContext(user_id=int(rfp.user_id), request_kind="rfp", request_id=int(rfp.id))
+                ai_usage_context_for_delivery_job(
+                    billing_user_id=billing_user_id,
+                    request_kind="rfp",
+                    request_id=int(rfp.id),
+                )
             ):
                 rfp.fs_text = generate_fs_markdown(
                     rfp_dict,
@@ -163,7 +168,7 @@ def resolved_fs_markdown_for_codegen(db, rfp: models.RFP) -> tuple[str | None, s
     )
 
 
-def run_delivered_code_job(rfp_id: int) -> None:
+def run_delivered_code_job(rfp_id: int, billing_user_id: int) -> None:
     from .routers import interview_router as interview_router_module
 
     db = SessionLocal()
@@ -236,7 +241,11 @@ def run_delivered_code_job(rfp_id: int) -> None:
                 agent_proposal_text=rfp.proposal_text,
             )
             with ai_usage_scope(
-                AiUsageContext(user_id=int(rfp.user_id), request_kind="rfp", request_id=int(rfp.id))
+                ai_usage_context_for_delivery_job(
+                    billing_user_id=billing_user_id,
+                    request_kind="rfp",
+                    request_id=int(rfp.id),
+                )
             ):
                 pkg, legacy_md = generate_delivered_abap_artifact(
                     rfp_dict,

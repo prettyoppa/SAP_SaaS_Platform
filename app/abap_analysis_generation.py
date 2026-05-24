@@ -17,7 +17,8 @@ from .agents.paid_crew import generate_delivered_abap_artifact, generate_fs_mark
 from .abap_analysis_crew_adapter import abap_analysis_request_to_crew_rfp_dict, _member_safe_for_abap_analysis
 from .abap_analysis_proposal_service import abap_analysis_synthetic_conversation
 from .database import SessionLocal
-from .ai_usage_recorder import AiUsageContext, ai_usage_scope
+from .ai_usage_billing import ai_usage_context_for_delivery_job
+from .ai_usage_recorder import ai_usage_scope
 from .delivery_fs_supplements import KIND_ANALYSIS, resolved_delivery_fs_for_codegen
 from .delivery_proposal_supplements import resolved_delivery_proposal_for_downstream
 from .delivered_code_package import (
@@ -177,7 +178,7 @@ def resolved_abap_analysis_fs_for_codegen(
     )
 
 
-def run_abap_analysis_fs_job(analysis_id: int) -> None:
+def run_abap_analysis_fs_job(analysis_id: int, billing_user_id: int) -> None:
     db = SessionLocal()
     hb_thr: threading.Thread | None = None
     hb_stop = threading.Event()
@@ -228,8 +229,8 @@ def run_abap_analysis_fs_job(analysis_id: int) -> None:
                 agent_proposal_text=row.proposal_text,
             )
             with ai_usage_scope(
-                AiUsageContext(
-                    user_id=int(row.user_id),
+                ai_usage_context_for_delivery_job(
+                    billing_user_id=billing_user_id,
                     request_kind="analysis",
                     request_id=int(row.id),
                 )
@@ -258,7 +259,7 @@ def run_abap_analysis_fs_job(analysis_id: int) -> None:
         db.close()
 
 
-def run_abap_analysis_delivered_code_job(analysis_id: int) -> None:
+def run_abap_analysis_delivered_code_job(analysis_id: int, billing_user_id: int) -> None:
     db = SessionLocal()
     hb_thr: threading.Thread | None = None
     hb_stop = threading.Event()
@@ -319,8 +320,8 @@ def run_abap_analysis_delivered_code_job(analysis_id: int) -> None:
                 agent_proposal_text=row.proposal_text,
             )
             with ai_usage_scope(
-                AiUsageContext(
-                    user_id=int(row.user_id),
+                ai_usage_context_for_delivery_job(
+                    billing_user_id=billing_user_id,
                     request_kind="analysis",
                     request_id=int(row.id),
                 )

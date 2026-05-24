@@ -18,7 +18,8 @@ from .agent_playbook import (
     playbook_prompt_wrap,
 )
 from .database import SessionLocal
-from .ai_usage_recorder import AiUsageContext, ai_usage_scope, logged_crew_kickoff
+from .ai_usage_billing import ai_usage_context_for_delivery_job
+from .ai_usage_recorder import ai_usage_scope, logged_crew_kickoff
 from .delivered_code_package import (
     _integration_pkg_needs_slot_expansion,
     ensure_python_script_delivery_package,
@@ -124,7 +125,7 @@ def _fmt_conv_short(ir: models.IntegrationRequest) -> str:
     return "\n".join(parts)[:52000]
 
 
-def run_integration_fs_job(ir_id: int) -> None:
+def run_integration_fs_job(ir_id: int, billing_user_id: int) -> None:
     from .agents.free_crew import _get_llm
 
     db = SessionLocal()
@@ -192,7 +193,11 @@ ABAP Report/Function 모듈 작성 지시는 쓰지 말고, 외부 코드·스�
         )
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
         with ai_usage_scope(
-            AiUsageContext(user_id=int(ir.user_id), request_kind="integration", request_id=int(ir.id))
+            ai_usage_context_for_delivery_job(
+                billing_user_id=billing_user_id,
+                request_kind="integration",
+                request_id=int(ir.id),
+            )
         ):
             raw = str(logged_crew_kickoff(crew, stage="fs", agent_key="p_architect"))
         ir.fs_text = raw.strip()
@@ -212,7 +217,7 @@ ABAP Report/Function 모듈 작성 지시는 쓰지 말고, 외부 코드·스�
         db.close()
 
 
-def run_integration_deliverable_job(ir_id: int) -> None:
+def run_integration_deliverable_job(ir_id: int, billing_user_id: int) -> None:
     db = SessionLocal()
     ir: models.IntegrationRequest | None = None
     try:
@@ -264,7 +269,11 @@ def run_integration_deliverable_job(ir_id: int) -> None:
             agent_proposal_text=ir.proposal_text,
         )
         with ai_usage_scope(
-            AiUsageContext(user_id=int(ir.user_id), request_kind="integration", request_id=int(ir.id))
+            ai_usage_context_for_delivery_job(
+                billing_user_id=billing_user_id,
+                request_kind="integration",
+                request_id=int(ir.id),
+            )
         ):
             pkg, legacy_md = generate_integration_deliverable_artifact(
                 rfp_dict,

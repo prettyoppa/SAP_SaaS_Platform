@@ -27,6 +27,7 @@ from ..integration_generation import (
     run_integration_deliverable_job,
     run_integration_fs_job,
 )
+from ..ai_usage_billing import delivery_job_billing_user_id, wallet_preflight_for_delivery_stage
 from ..delivery_fs_clear import clear_delivered_code_deliverable, clear_fs_deliverable
 from ..delivery_fs_supplements import (
     DELIVERY_FS_SUPPLEMENT_MAX_FILES,
@@ -58,6 +59,11 @@ def _require_delivery_operator(request: Request, db: Session):
 
 def _delivery_operator_prefers_readonly_hub(actor) -> bool:
     return bool(getattr(actor, "is_consultant", False) and not getattr(actor, "is_admin", False))
+
+
+def _delivery_redirect_with_err(back: str, err: str) -> str:
+    sep = "&" if "?" in back else "?"
+    return f"{back}{sep}err={err}"
 
 
 @router.get("/rfp/{rfp_id}/delivery", response_class=HTMLResponse)
@@ -129,11 +135,16 @@ def admin_start_fs_generation(
     )
     if (rfp.fs_status or "").strip() == "generating":
         return RedirectResponse(url=back, status_code=302)
+    werr = wallet_preflight_for_delivery_stage(db, actor, stage="fs")
+    if werr:
+        return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
     rfp.fs_status = "generating"
     rfp.fs_error = None
     rfp.fs_job_log = None
     db.commit()
-    background_tasks.add_task(run_fs_generation_job, rfp_id)
+    background_tasks.add_task(
+        run_fs_generation_job, rfp_id, delivery_job_billing_user_id(int(actor.id))
+    )
     return RedirectResponse(url=back, status_code=302)
 
 
@@ -164,11 +175,16 @@ def admin_start_delivered_code(
         return RedirectResponse(url=f"{back}{sep}err=fs_not_ready", status_code=302)
     if (rfp.delivered_code_status or "").strip() == "generating":
         return RedirectResponse(url=back, status_code=302)
+    werr = wallet_preflight_for_delivery_stage(db, actor, stage="delivered_code")
+    if werr:
+        return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
     rfp.delivered_code_status = "generating"
     rfp.delivered_code_error = None
     rfp.delivered_job_log = None
     db.commit()
-    background_tasks.add_task(run_delivered_code_job, rfp_id)
+    background_tasks.add_task(
+        run_delivered_code_job, rfp_id, delivery_job_billing_user_id(int(actor.id))
+    )
     return RedirectResponse(url=back, status_code=302)
 
 
@@ -441,11 +457,16 @@ def admin_integration_fs_start(
     )
     if (ir.fs_status or "").strip() == "generating":
         return RedirectResponse(url=back, status_code=302)
+    werr = wallet_preflight_for_delivery_stage(db, actor, stage="fs")
+    if werr:
+        return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
     ir.fs_status = "generating"
     ir.fs_error = None
     ir.fs_job_log = None
     db.commit()
-    background_tasks.add_task(run_integration_fs_job, req_id)
+    background_tasks.add_task(
+        run_integration_fs_job, req_id, delivery_job_billing_user_id(int(actor.id))
+    )
     return RedirectResponse(url=back, status_code=302)
 
 
@@ -481,10 +502,15 @@ def admin_integration_code_start(
         append_integration_job_log(req_id, "delivered_job_log", "이전 generating 무응답 — 작업 재시작")
     elif not dc_generating:
         ir.delivered_job_log = None
+    werr = wallet_preflight_for_delivery_stage(db, actor, stage="integration_deliverable")
+    if werr:
+        return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
     ir.delivered_code_status = "generating"
     ir.delivered_code_error = None
     db.commit()
-    background_tasks.add_task(run_integration_deliverable_job, req_id)
+    background_tasks.add_task(
+        run_integration_deliverable_job, req_id, delivery_job_billing_user_id(int(actor.id))
+    )
     return RedirectResponse(url=back, status_code=302)
 
 
@@ -588,11 +614,16 @@ def admin_abap_analysis_start_fs_generation(
     row = reconcile_abap_analysis_delivery_status(db, row)
     if (row.fs_status or "").strip() == "generating":
         return RedirectResponse(url=back, status_code=302)
+    werr = wallet_preflight_for_delivery_stage(db, actor, stage="fs")
+    if werr:
+        return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
     row.fs_status = "generating"
     row.fs_error = None
     row.fs_job_log = None
     db.commit()
-    background_tasks.add_task(run_abap_analysis_fs_job, analysis_id)
+    background_tasks.add_task(
+        run_abap_analysis_fs_job, analysis_id, delivery_job_billing_user_id(int(actor.id))
+    )
     return RedirectResponse(url=back, status_code=302)
 
 
@@ -624,11 +655,18 @@ def admin_abap_analysis_start_delivered_code(
         return RedirectResponse(url=f"{back}{sep}err=fs_not_ready", status_code=302)
     if (row.delivered_code_status or "").strip() == "generating":
         return RedirectResponse(url=back, status_code=302)
+    werr = wallet_preflight_for_delivery_stage(db, actor, stage="delivered_code")
+    if werr:
+        return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
     row.delivered_code_status = "generating"
     row.delivered_code_error = None
     row.delivered_job_log = None
     db.commit()
-    background_tasks.add_task(run_abap_analysis_delivered_code_job, analysis_id)
+    background_tasks.add_task(
+        run_abap_analysis_delivered_code_job,
+        analysis_id,
+        delivery_job_billing_user_id(int(actor.id)),
+    )
     return RedirectResponse(url=back, status_code=302)
 
 
