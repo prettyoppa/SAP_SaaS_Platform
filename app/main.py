@@ -121,6 +121,7 @@ def _run_migrations():
         ("abap_analysis_requests", "proposal_section6_decisions_json", "TEXT", "TEXT"),
         ("abap_analysis_requests", "fs_status", "VARCHAR DEFAULT 'none'", "VARCHAR DEFAULT 'none'"),
         ("abap_analysis_requests", "fs_text", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "fs_consultant_addendum", "TEXT", "TEXT"),
         ("abap_analysis_requests", "fs_generated_at", "DATETIME", "TIMESTAMP"),
         ("abap_analysis_requests", "fs_error", "TEXT", "TEXT"),
         ("abap_analysis_requests", "fs_job_log", "TEXT", "TEXT"),
