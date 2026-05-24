@@ -28,8 +28,7 @@
     <input type="hidden" name="return_to" value="{{ fs_supplement_return_to }}">
     {% endif %}
     <textarea name="addendum" class="form-control font-monospace small mb-2" rows="8"
-              maxlength="{{ fs_addendum_max_chars|default(80000) }}"
-              placeholder="예: §3.2 인터페이스 — RFC 호출 시 타임아웃 60초로 명시">{{ fs_consultant_addendum|default('') }}</textarea>
+              maxlength="{{ fs_addendum_max_chars|default(80000) }}">{{ fs_consultant_addendum|default('') }}</textarea>
     <button type="submit" class="btn btn-sm btn-outline-primary">
       <span class="nav-ko">보완 내용 저장</span>
       <span class="nav-en" style="display:none">Save supplement</span>
