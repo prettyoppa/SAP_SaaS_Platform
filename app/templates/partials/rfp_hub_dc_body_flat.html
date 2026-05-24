@@ -30,7 +30,10 @@
     <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)</span>
     {% endif %}
   </div>
-  <p class="small text-muted mb-3">파일별 탭에서 ABAP 소스를 확인하세요. 에디터에 옮길 때 슬롯 파일명을 INCLUDE / 서브루틴 구조에 맞게 사용하세요.</p>
+  <p class="small text-muted mb-3">
+    <span class="nav-ko">파일별 탭에서 ABAP 소스를 확인하세요. ZIP에는 <strong>SE38 구현 가이드</strong>(GUI 단계)·구현·운영 가이드·테스트 시나리오가 포함됩니다.</span>
+    <span class="nav-en" style="display:none">Review ABAP per file tab. The ZIP includes an <strong>SE38 implementation guide</strong> (GUI steps), ops guide, and test scenarios.</span>
+  </p>
 
   {% with delivered_slots=delivered_package.slots, tabs_id='delivered-dc-rfp-' ~ (rfp.id|string), panel_title='납품 ABAP' %}
   {% include 'partials/delivered_code_slots_tabs.html' %}
@@ -44,6 +47,8 @@
     </div>
   </details>
   {% endif %}
+
+  {% include 'partials/hub_delivered_se38_guide.html' %}
 
   {% if delivered_test_scenarios_html %}
   <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">

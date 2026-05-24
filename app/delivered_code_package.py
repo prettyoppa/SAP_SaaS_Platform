@@ -21,6 +21,8 @@ _ALLOWED_ROLES = frozenset(
 
 def sanitize_test_scenarios_markdown(md: str) -> str:
     """테스트 시나리오 마크다운에서 과도한 구분선·빈 줄을 줄인다."""
+    from .proposal_markdown_html import _is_md_table_row, _is_md_table_separator_data_row
+
     s = (md or "").strip()
     if not s:
         return ""
@@ -29,6 +31,8 @@ def sanitize_test_scenarios_markdown(md: str) -> str:
     dash_run = 0
     for line in lines:
         stripped = line.strip()
+        if _is_md_table_row(stripped) and _is_md_table_separator_data_row(stripped):
+            continue
         if re.match(r"^[\s\-:|]+$", stripped) and set(stripped) <= {"-", " ", "|", ":"}:
             dash_run += 1
             if dash_run > 2:
@@ -99,6 +103,9 @@ def normalize_delivered_package(data: dict[str, Any]) -> dict[str, Any] | None:
         "slots": slots,
         "coder_notes": notes,
         "implementation_guide_md": (str(data.get("implementation_guide_md") or "")).strip(),
+        "se38_implementation_guide_md": (
+            str(data.get("se38_implementation_guide_md") or "")
+        ).strip(),
         "test_scenarios_md": sanitize_test_scenarios_markdown(
             str(data.get("test_scenarios_md") or "")
         ),
@@ -263,12 +270,49 @@ def merge_slots_json_with_extras(
     *,
     implementation_guide_md: str,
     test_scenarios_md: str,
+    se38_implementation_guide_md: str = "",
 ) -> dict[str, Any] | None:
     """코더/검수 JSON에 가이드·테스트 필드를 붙여 최종 패키지 dict 생성."""
     base = dict(slots_obj)
     base["implementation_guide_md"] = (implementation_guide_md or "").strip()
+    base["se38_implementation_guide_md"] = (se38_implementation_guide_md or "").strip()
     base["test_scenarios_md"] = sanitize_test_scenarios_markdown(test_scenarios_md or "")
     return normalize_delivered_package(base)
+
+
+def iter_abap_delivered_zip_members(pkg: dict[str, Any]) -> list[tuple[str, bytes]]:
+    """ABAP 납품 ZIP: 가이드·SE38 가이드·테스트·슬롯 소스."""
+    out: list[tuple[str, bytes]] = []
+    ig = (pkg.get("implementation_guide_md") or "").encode("utf-8")
+    if ig:
+        out.append(("IMPLEMENTATION_GUIDE.md", ig))
+    se38 = (pkg.get("se38_implementation_guide_md") or "").strip().encode("utf-8")
+    if se38:
+        out.append(("SE38_IMPLEMENTATION_GUIDE.md", se38))
+    ts = (pkg.get("test_scenarios_md") or "").encode("utf-8")
+    if ts:
+        out.append(("TEST_SCENARIOS.md", ts))
+    used_names: set[str] = set()
+    for idx, sl in enumerate(pkg.get("slots") or []):
+        if not isinstance(sl, dict):
+            continue
+        base_fn = (str(sl.get("filename") or f"slot_{idx + 1}.abap")).strip() or f"slot_{idx + 1}.abap"
+        fn = base_fn
+        if fn in used_names:
+            stem = base_fn.rsplit(".", 1)[0] if "." in base_fn else base_fn
+            ext = base_fn.rsplit(".", 1)[-1] if "." in base_fn else "abap"
+            fn = f"{idx + 1:02d}_{stem}.{ext}"
+        used_names.add(fn)
+        out.append((fn, (str(sl.get("source") or "")).encode("utf-8")))
+    return out
+
+
+def build_abap_delivered_zip_bytes(pkg: dict[str, Any]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path, raw in iter_abap_delivered_zip_members(pkg):
+            zf.writestr(path.replace("\\", "/"), raw)
+    return buf.getvalue()
 
 
 # --- 연동 개발(비 ABAP): 파일·역할 단위 슬롯 패키지 ---

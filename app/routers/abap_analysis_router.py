@@ -171,15 +171,20 @@ def _abap_analysis_hub_delivered_fields(row: models.AbapAnalysisRequest) -> dict
     if dc_ready and txt and not has_pkg:
         delivered_code_html = _markdown_to_html(row.delivered_code_text or "")
     impl_html = ""
+    se38_html = ""
     test_html = ""
     if delivered_package:
         impl_html = _markdown_to_html(delivered_package.get("implementation_guide_md") or "")
+        se38_html = _markdown_to_html(
+            delivered_package.get("se38_implementation_guide_md") or ""
+        )
         test_html = _markdown_to_html(delivered_package.get("test_scenarios_md") or "")
     has_delivered_preview = bool(dc_ready and (has_pkg or bool(txt)))
     return {
         "delivered_package": delivered_package,
         "delivered_code_html": delivered_code_html,
         "delivered_impl_guide_html": impl_html,
+        "delivered_se38_guide_html": se38_html,
         "delivered_test_scenarios_html": test_html,
         "has_delivered_preview": has_delivered_preview,
     }
@@ -1775,29 +1780,9 @@ def abap_analysis_delivered_code_download(req_id: int, request: Request, db: Ses
         return RedirectResponse(url=f"/abap-analysis/{req_id}#abap-phase-proposal", status_code=302)
     pkg = parse_delivered_code_payload(getattr(row, "delivered_code_payload", None))
     if pkg and delivered_package_has_body(pkg):
-        buf = io.BytesIO()
-        used_names: set[str] = set()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr(
-                "IMPLEMENTATION_GUIDE.md",
-                (pkg.get("implementation_guide_md") or "").encode("utf-8"),
-            )
-            zf.writestr(
-                "TEST_SCENARIOS.md",
-                (pkg.get("test_scenarios_md") or "").encode("utf-8"),
-            )
-            for idx, sl in enumerate(pkg.get("slots") or []):
-                if not isinstance(sl, dict):
-                    continue
-                base_fn = (str(sl.get("filename") or f"slot_{idx + 1}.abap")).strip() or f"slot_{idx + 1}.abap"
-                fn = base_fn
-                if fn in used_names:
-                    stem = base_fn.rsplit(".", 1)[0] if "." in base_fn else base_fn
-                    ext = base_fn.rsplit(".", 1)[-1] if "." in base_fn else "abap"
-                    fn = f"{idx + 1:02d}_{stem}.{ext}"
-                used_names.add(fn)
-                zf.writestr(fn, (sl.get("source") or "").encode("utf-8"))
-        body = buf.getvalue()
+        from ..delivered_code_package import build_abap_delivered_zip_bytes
+
+        body = build_abap_delivered_zip_bytes(pkg)
         fname = delivered_code_zip_basename(getattr(row, "program_id", None), getattr(row, "title", None))
         return Response(
             content=body,

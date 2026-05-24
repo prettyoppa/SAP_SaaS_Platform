@@ -24,6 +24,26 @@ def _is_md_table_separator(s: str) -> bool:
     return True
 
 
+def _is_md_separator_cell(cell: str) -> bool:
+    """GFM 표 정렬 셀(---, :--- 등) 또는 빈 셀."""
+    t = (cell or "").strip()
+    if not t:
+        return True
+    if not set(t) <= {"-", ":", " "}:
+        return False
+    return bool(re.fullmatch(r":?-+:?", t))
+
+
+def _is_md_table_separator_data_row(line: str) -> bool:
+    """표 구분선 행 또는 모든 셀이 --- 인 데이터 행(LLM이 중복 출력할 때)."""
+    if _is_md_table_separator(line):
+        return True
+    if not _is_md_table_row(line):
+        return False
+    cells = _md_table_cells(line)
+    return bool(cells) and all(_is_md_separator_cell(c) for c in cells)
+
+
 def _md_table_cells(line: str) -> list[str]:
     parts = [p.strip() for p in line.strip().split("|")]
     if parts and parts[0] == "":
@@ -52,8 +72,11 @@ def _md_cell_inline_html(raw: str) -> str:
 def _gfm_table_block_to_html(rows: list[str]) -> str:
     if not rows:
         return ""
-    if len(rows) == 1:
-        cells = _md_table_cells(rows[0])
+    usable = [r for r in rows if not _is_md_table_separator_data_row(r)]
+    if not usable:
+        return ""
+    if len(usable) == 1:
+        cells = _md_table_cells(usable[0])
         if not any(c.strip() for c in cells):
             return ""
         tds = "".join(f"<td>{_md_cell_inline_html(c)}</td>" for c in cells)
@@ -62,12 +85,8 @@ def _gfm_table_block_to_html(rows: list[str]) -> str:
             '<table class="table table-bordered table-sm proposal-md-table align-middle">'
             f"<tbody><tr>{tds}</tr></tbody></table></div>"
         )
-    if len(rows) >= 2 and _is_md_table_separator(rows[1]):
-        head = _md_table_cells(rows[0])
-        data_lines = rows[2:]
-    else:
-        head = _md_table_cells(rows[0])
-        data_lines = rows[1:]
+    head = _md_table_cells(usable[0])
+    data_lines = usable[1:]
 
     ncols = max(
         len(head),
@@ -79,6 +98,8 @@ def _gfm_table_block_to_html(rows: list[str]) -> str:
     )
     trs: list[str] = []
     for line in data_lines:
+        if _is_md_table_separator_data_row(line):
+            continue
         b = _md_table_cells(line)
         tds = "".join(
             f"<td>{_md_cell_inline_html(b[i] if i < len(b) else '')}</td>" for i in range(ncols)

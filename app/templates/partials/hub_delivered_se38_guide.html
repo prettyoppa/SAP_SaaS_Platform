@@ -1,0 +1,11 @@
+  {% if delivered_se38_guide_html %}
+  <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">
+    <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">
+      <span class="nav-ko">SE38 구현 가이드</span>
+      <span class="nav-en" style="display:none">SE38 implementation guide</span>
+    </summary>
+    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
+      {{ delivered_se38_guide_html | safe }}
+    </div>
+  </details>
+  {% endif %}

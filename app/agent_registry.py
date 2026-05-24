@@ -140,7 +140,7 @@ def all_agent_specs() -> tuple[AgentSpec, ...]:
             category_en=AGENT_SHORT_EN["p_coder"],
             crew_module="app/agents/paid_crew.py · app/agents/integration_deliverable_crew.py",
             workflow_ko=(
-                "FS를 입력으로 납품 ABAP JSON 슬롯(프로그램별 소스) + 구현·운영 가이드 마크다운 생성. "
+                "FS를 입력으로 납품 ABAP JSON 슬롯 + 구현·운영 가이드 + SE38 상세 구현 가이드 마크다운 생성. "
                 "실패 시 레거시 단일 마크다운 폴백."
             ),
             used_in_ko=(

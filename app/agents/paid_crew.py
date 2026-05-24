@@ -2,7 +2,7 @@
 Paid Tier — FS·납품 ABAP
 
 - FS: CrewAI / Gemini (대외명 「FS설계」 에이전트, 내부 role p_architect). 키 없으면 예외만(가짜 문서 없음).
-- 납품 ABAP(권장): JSON 슬롯(코더→검수) + 구현·운영 가이드 마크다운 + 테스트 시나리오 마크다운.
+- 납품 ABAP(권장): JSON 슬롯(코더→검수) + 구현·운영 가이드 + SE38 상세 구현 가이드 + 테스트 시나리오 마크다운.
   JSON 실패 시 레거시 단일 마크다운(ABAP 펜스 + 말미 테스트)으로 폴백한다. 키 필수.
 """
 
@@ -32,6 +32,7 @@ from ..delivered_code_package import (
     sanitize_test_scenarios_markdown,
     delivered_package_has_body,
 )
+from ..delivery_se38_guide import build_se38_guide_task_description, slots_program_id_hint
 from ..gemini_model import get_gemini_model_id
 from ..ai_usage_recorder import logged_crew_kickoff
 
@@ -400,7 +401,17 @@ def generate_delivered_abap_artifact(
     guide_agent = Agent(
         role="SAP 구현·운영 컨설턴트",
         goal="납품 코드 패키지에 대한 구현·운영 가이드를 한국어 마크다운으로 쓴다",
-        backstory="""전환·권한·배포·운영 점검·의존성을 실무 관점에서 정리한다. 소스 전체를 반복 붙여넣지 않는다.""",
+        backstory="""전환·권한·배포·운영 점검·의존성을 실무 관점에서 정리한다.
+SE38 붙여넣기·Include 생성 등 GUI 단계는 `SE38_IMPLEMENTATION_GUIDE.md`에 맡기고, 이 문서는 운영·이행 관점만 쓴다.""",
+        verbose=False,
+        llm=llm,
+        allow_delegation=False,
+    )
+    se38_guide_agent = Agent(
+        role="SAP ABAP SE38 이행 가이드 작성자",
+        goal="납품 ABAP 슬롯을 SE38·SE93에서 구현할 수 있는 단계별 가이드를 한국어 마크다운으로 쓴다",
+        backstory="""SI 현장에서 컨설턴트가 ZIP 소스를 SAP에 올릴 때 쓰는 체크리스트·SE38 메뉴 경로·필수 수정(MODULE/FORM, MODIF ID 등)을
+소스를 읽고 구체적으로 적는다. 운영·권한 일반론은 짧게 IMPLEMENTATION_GUIDE로 넘긴다.""",
         verbose=False,
         llm=llm,
         allow_delegation=False,
@@ -533,10 +544,12 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
         data["program_id"] = cust_pid
 
     slots_summary = _tail_for_followup_prompt(json.dumps(data, ensure_ascii=False), max_chars=96_000)
+    pkg_pid = slots_program_id_hint(data) or cust_pid
+    coder_notes = (str(data.get("coder_notes") or "")).strip()
 
     guide_task = Task(
-        description=f"""아래 FS 발췌와 **납품 ABAP 패키지 JSON**(slots 소스 포함)을 읽고,
-운영·이행 담당자를 위한 **구현·운영 가이드**만 작성하라.
+        description=f"""아래 FS 발췌와 **납품 ABAP 패키지 JSON**을 읽고,
+운영·이행 담당자를 위한 **구현·운영 가이드**(`IMPLEMENTATION_GUIDE.md`)만 작성하라.
 
 ### FS (발췌)
 {_truncate(fs_block, 72_000)}
@@ -545,8 +558,9 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
 {slots_summary}
 
 출력: **마크다운 본문만**. 첫 제목은 `# 구현·운영 가이드` 로 시작.
-내용: 배포/트랜스포트, 권한·역할, 데이터 이관, 운영 모니터링, 알려진 제한, 고객 확인 사항.
-각 슬롯 파일명을 참조할 수 있으나 ABAP 소스 전체를 반복하지 마라.
+내용: 배포/트랜스포트, 권한·역할(S_DEVELOP·S_TCODE·배치·파일 등 소스·FS 근거), 데이터 이관, 운영 모니터링(SM37·AL11 등), 알려진 제한, 고객 확인 사항.
+**SE38 붙여넣기·Include 생성·구문 수정 절차는 쓰지 말고** — 동일 ZIP의 `SE38_IMPLEMENTATION_GUIDE.md`를 참고하라고 안내한다.
+각 슬롯 파일명만 참조하고 ABAP 소스 전체를 반복하지 마라.
 {_ms}
 """,
         agent=guide_agent,
@@ -561,6 +575,30 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
     )
     guide_md = str(logged_crew_kickoff(crew_g, stage="delivered_code", agent_key="p_coder")).strip()
     _ph("구현·운영 가이드 완료")
+
+    se38_task = Task(
+        description=build_se38_guide_task_description(
+            program_id=pkg_pid,
+            transaction_code=tcode,
+            slots_summary=slots_summary,
+            fs_excerpt=_truncate(fs_block, 48_000),
+            coder_notes=coder_notes,
+            member_safe_suffix=_ms,
+        ),
+        agent=se38_guide_agent,
+        expected_output="SE38 구현 가이드 마크다운",
+    )
+    _ph(f"{agent_label_ko('p_coder')} — SE38 구현 가이드 Gemini 호출 시작")
+    crew_se38 = Crew(
+        agents=[se38_guide_agent],
+        tasks=[se38_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+    se38_md = str(
+        logged_crew_kickoff(crew_se38, stage="delivered_code", agent_key="p_coder")
+    ).strip()
+    _ph("SE38 구현 가이드 완료")
 
     test_task = Task(
         description=f"""아래 FS 발췌와 납품 패키지 JSON(slots)을 바탕으로 **테스트 시나리오**만 작성하라.
@@ -594,6 +632,7 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
     pkg = merge_slots_json_with_extras(
         data,
         implementation_guide_md=guide_md,
+        se38_implementation_guide_md=se38_md,
         test_scenarios_md=test_md,
     )
     if not pkg or not delivered_package_has_body(pkg):
