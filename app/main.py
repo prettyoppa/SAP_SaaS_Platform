@@ -802,6 +802,18 @@ app.add_middleware(
 
 
 @app.middleware("http")
+async def search_referral_alert_middleware(request: Request, call_next):
+    """검색엔진 Referer 유입 시 관리자 SMS(직접·자사·봇·관리자 세션 제외)."""
+    try:
+        from .search_referral_alert import schedule_search_referral_check
+
+        schedule_search_referral_check(request)
+    except Exception:
+        _log.exception("search_referral_alert_middleware failed")
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def nav_proposal_offer_badges_middleware(request: Request, call_next):
     """상단 메뉴(신규·분석·연동) 오퍼 알림 점용 — 제안 버킷에 미매칭 오퍼가 있으면 True."""
     badges = {"rfp": False, "analysis": False, "integration": False}
