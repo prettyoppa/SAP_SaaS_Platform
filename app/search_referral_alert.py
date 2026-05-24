@@ -148,7 +148,7 @@ def _rate_limit_ok(client_ip: str, engine: str) -> bool:
 
 
 def _notify_admins_search_referral(db: Session, search_source: str) -> None:
-    body = f"{search_source}+접속확인"
+    body = f"[SAP Dev Hub] {search_source}+접속확인"
     for admin in _admin_ops_recipients(db):
         sms_ok, phone = _admin_alert_sms(admin)
         if not sms_ok or not phone:
