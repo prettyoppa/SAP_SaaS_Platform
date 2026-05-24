@@ -69,6 +69,10 @@
         {% if ai_inquiry.return_to %}
         <input type="hidden" name="return_to" value="{{ ai_inquiry.return_to }}"/>
         {% endif %}
+        {% if ai_inquiry.hub_phase is defined and ai_inquiry.hub_phase %}
+        <input type="hidden" name="hub_phase" value="{{ ai_inquiry.hub_phase }}"/>
+        {% endif %}
+        <input type="hidden" name="hub_anchor" value="{{ ai_inquiry.hub_anchor|default('', true) }}" data-hub-anchor-field="1"/>
         <label class="form-label small text-muted mb-1" for="{{ ai_inquiry.float_id }}Msg" data-i18n="chat.messageLabel">메시지</label>
         <div class="abap-followup-ta-wrap">
           <textarea id="{{ ai_inquiry.float_id }}Msg" name="message" class="form-control form-control-sm abap-followup-msg-input" rows="3" maxlength="4000" required data-i18n-placeholder="chat.messagePlaceholder" placeholder="추가로 궁금한 점을 입력하세요."></textarea>
@@ -133,7 +137,12 @@
     if (window.location.hash === '#' + fid) return true;
     try { return new URLSearchParams(window.location.search).has('chat_err'); } catch (e) { return false; }
   }
-  if (shouldAutoOpen()) openPanel();
+  if (shouldAutoOpen()) {
+    openPanel();
+    if (typeof window.scrollAiChatPanelToEnd === 'function') {
+      window.scrollAiChatPanelToEnd(panel);
+    }
+  }
 })();
 </script>
 {% endif %}

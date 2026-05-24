@@ -1807,6 +1807,7 @@ def abap_analysis_chat_post(
     req_id: int,
     request: Request,
     message: str = Form(""),
+    hub_anchor: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
@@ -1814,6 +1815,8 @@ def abap_analysis_chat_post(
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=303)
     chat_base = f"/abap-analysis/{req_id}/edit" if row.is_draft else f"/abap-analysis/{req_id}"
+    anchor = (hub_anchor or "").strip().lstrip("#")
+    phase_frag = f"#{anchor}" if anchor else ""
     eff_src = _effective_abap_source(row)
     if not eff_src.strip() and not _has_requirement_context(row):
         return RedirectResponse(
@@ -1824,7 +1827,7 @@ def abap_analysis_chat_post(
     msg, verr = validate_user_message(message)
     if verr:
         return RedirectResponse(
-            url=f"{chat_base}?chat_err={quote(verr)}",
+            url=f"{chat_base}?chat_err={quote(verr)}#abap-followup-chat",
             status_code=303,
         )
 
@@ -1879,7 +1882,7 @@ def abap_analysis_chat_post(
     if not getattr(user, "is_admin", False):
         record_ai_inquiry_user_turn(db, user.id, "analysis", row.id, ledger_after=used_ai + 1)
     db.commit()
-    return RedirectResponse(url=f"{chat_base}#abap-followup-chat", status_code=303)
+    return RedirectResponse(url=f"{chat_base}{phase_frag}", status_code=303)
 
 
 @router.post("/{req_id}/activate-dev-engagement")

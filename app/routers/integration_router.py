@@ -2534,6 +2534,7 @@ def integration_chat_post(
     req_id: int,
     request: Request,
     message: str = Form(""),
+    hub_phase: str = Form(""),
     db: Session = Depends(get_db),
 ):
     from urllib.parse import quote
@@ -2559,11 +2560,11 @@ def integration_chat_post(
         return RedirectResponse(url="/integration", status_code=302)
 
     st = (ir.status or "").strip().lower()
-    chat_base = (
-        f"/integration/{req_id}/edit"
-        if st == "draft" and int(user.id) == int(ir.user_id)
-        else integration_hub_url(req_id, "interview")
-    )
+    if st == "draft" and int(user.id) == int(ir.user_id):
+        chat_base = f"/integration/{req_id}/edit"
+    else:
+        phase = normalize_integration_hub_phase(hub_phase or None)
+        chat_base = integration_hub_url(req_id, phase)
 
     msg, verr = validate_integration_user_message(message)
     if verr:
@@ -2621,7 +2622,7 @@ def integration_chat_post(
     if not getattr(user, "is_admin", False):
         record_ai_inquiry_user_turn(db, user.id, "integration", ir.id, ledger_after=used_ai + 1)
     db.commit()
-    return RedirectResponse(url=f"{chat_base}#integration-followup-chat", status_code=303)
+    return RedirectResponse(url=chat_base, status_code=303)
 
 
 @router.post("/integration/{req_id}/activate-dev-engagement")

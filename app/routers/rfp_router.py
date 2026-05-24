@@ -1389,11 +1389,24 @@ def rfp_unified_hub(
     return templates.TemplateResponse(request, "rfp_unified_hub.html", out)
 
 
-def _rfp_ai_chat_redirect(rfp_id: int, return_to: str | None, chat_err: str | None = None) -> str:
+def _rfp_ai_chat_redirect(
+    rfp_id: int,
+    return_to: str | None,
+    chat_err: str | None = None,
+    *,
+    hub_phase: str | None = None,
+) -> str:
     rt = (return_to or "hub").strip().lower()
     base = f"/rfp/{rfp_id}/edit" if rt == "edit" else f"/rfp/{rfp_id}"
-    suffix = f"?chat_err={quote(chat_err)}" if chat_err else ""
-    return f"{base}{suffix}#rfp-followup-chat"
+    params: list[str] = []
+    if hub_phase and rt != "edit":
+        params.append(f"phase={quote(normalize_rfp_hub_phase(hub_phase))}")
+    if chat_err:
+        params.append(f"chat_err={quote(chat_err)}")
+    q = ("?" + "&".join(params)) if params else ""
+    if chat_err:
+        return f"{base}{q}#rfp-followup-chat"
+    return f"{base}{q}"
 
 
 @router.post("/rfp/{rfp_id}/activate-dev-engagement")
@@ -1647,6 +1660,7 @@ def rfp_hub_chat_post(
     request: Request,
     message: str = Form(""),
     return_to: str = Form("hub"),
+    hub_phase: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -1676,7 +1690,7 @@ def rfp_hub_chat_post(
     msg, verr = validate_rfp_user_message(message)
     if verr:
         return RedirectResponse(
-            url=_rfp_ai_chat_redirect(rfp_id, return_to, verr),
+            url=_rfp_ai_chat_redirect(rfp_id, return_to, verr, hub_phase=hub_phase or None),
             status_code=303,
         )
 
@@ -1728,7 +1742,10 @@ def rfp_hub_chat_post(
     if not getattr(user, "is_admin", False):
         record_ai_inquiry_user_turn(db, user.id, "rfp", rfp.id, ledger_after=used_ai + 1)
     db.commit()
-    return RedirectResponse(url=_rfp_ai_chat_redirect(rfp_id, return_to), status_code=303)
+    return RedirectResponse(
+        url=_rfp_ai_chat_redirect(rfp_id, return_to, hub_phase=hub_phase or None),
+        status_code=303,
+    )
 
 
 @router.get("/rfp/{rfp_id}/request", response_class=HTMLResponse)
