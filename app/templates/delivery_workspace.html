@@ -7,10 +7,15 @@
 <div class="container col-lg-10 py-4 delivery-workspace-page" id="delivery-workspace"
      data-initial-slot="{{ slot_index }}">
   {% include 'partials/nav_prev_screen.html' %}
-  <p class="small text-muted mb-2">
-    <span class="nav-ko">SE38 납품 작업실</span>
-    <span class="nav-en" style="display:none">SE38 Delivery Studio</span>
-  </p>
+  <div class="delivery-workspace-studio-heading mb-3" role="doc-subtitle">
+    <span class="delivery-workspace-studio-icon" aria-hidden="true">
+      <i class="fa-solid fa-screwdriver-wrench"></i>
+    </span>
+    <span class="delivery-workspace-studio-label">
+      <span class="nav-ko">SE38 납품 작업실</span>
+      <span class="nav-en" style="display:none">SE38 Delivery Studio</span>
+    </span>
+  </div>
   {% include 'partials/delivery_workspace_request_header.html' %}
 
   {% if ws_err %}

@@ -3143,6 +3143,65 @@ html[data-theme="light"] .kb-ai-source-tabs .nav-link.active {
   border-bottom-color: var(--primary) !important;
 }
 
+/* ── SE38 납품 작업실: 화면 제목 ─────────────────────────────── */
+.delivery-workspace-studio-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.1rem;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.18) 0%,
+    rgba(245, 158, 11, 0.1) 100%
+  );
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+.delivery-workspace-studio-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  background: rgba(99, 102, 241, 0.25);
+  color: #c7d2fe;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+.delivery-workspace-studio-label {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: #e0e7ff;
+}
+html[data-theme="dark"] .delivery-workspace-studio-heading {
+  border-color: rgba(129, 140, 248, 0.55);
+}
+html[data-theme="dark"] .delivery-workspace-studio-label {
+  color: #eef2ff;
+  text-shadow: 0 0 24px rgba(99, 102, 241, 0.35);
+}
+html[data-theme="light"] .delivery-workspace-studio-heading {
+  background: linear-gradient(
+    135deg,
+    rgba(79, 70, 229, 0.1) 0%,
+    rgba(245, 158, 11, 0.08) 100%
+  );
+  border-color: rgba(79, 70, 229, 0.35);
+  box-shadow: none;
+}
+html[data-theme="light"] .delivery-workspace-studio-icon {
+  background: rgba(79, 70, 229, 0.15);
+  color: var(--primary);
+}
+html[data-theme="light"] .delivery-workspace-studio-label {
+  color: #3730a3;
+  text-shadow: none;
+}
+
 /* ── SE38 납품 작업실: 카드·폼 (다크에서 라벨·본문 대비) ─────────── */
 .delivery-workspace-page .card {
   background: var(--surface);
