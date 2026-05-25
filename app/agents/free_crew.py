@@ -466,6 +466,8 @@ def _workflow_origin_rfp_addendum(rfp: dict) -> str:
 
 
 def _fmt_rfp(rfp: dict) -> str:
+    from ..sap_system_version import agent_prompt_lines
+
     modules = [_MODULE_LABELS.get(m, m) for m in rfp.get("sap_modules", [])]
     devtypes = [_DEVTYPE_LABELS.get(d, d) for d in rfp.get("dev_types", [])]
     pid = (rfp.get("program_id") or "").strip()
@@ -474,6 +476,7 @@ def _fmt_rfp(rfp: dict) -> str:
         f"- 요청 제목: {rfp.get('title', '(없음)')}\n"
         f"- SAP 모듈: {', '.join(modules) or '(미선택)'}\n"
         f"- 개발 유형: {', '.join(devtypes) or '(미선택)'}\n"
+        f"{agent_prompt_lines(rfp)}"
         f"- 고객이 지정한 프로그램 ID(있으면 이 이름/식별자로 확정): {pid or '(미입력·제안서에서 임의 Z/Y는 금지)'}\n"
         f"- 고객이 지정한 트랜잭션 코드(있으면 실행 경로는 이 코드로만): {tcode or '(미입력·제안서에서 임의 T-Code는 금지)'}\n"
         f"- 요구사항:\n{rfp.get('description', '(없음)')}"

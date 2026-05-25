@@ -97,6 +97,8 @@ class RFP(Base):
     title = Column(String, nullable=False)
     sap_modules = Column(String, nullable=True)        # comma-separated, 최대 3개
     dev_types = Column(String, nullable=True)          # comma-separated, 최대 3개
+    sap_system_version = Column(String(32), nullable=True)  # s4hana | ecc740 | other
+    sap_system_version_note = Column(String(120), nullable=True)  # other 일 때
     description = Column(Text, nullable=True)
     description_format = Column(String(16), nullable=False, default="plain")
     requirement_screenshots_json = Column(Text, nullable=True)
@@ -360,6 +362,8 @@ class AbapAnalysisRequest(Base):
     transaction_code = Column(String, nullable=True)
     sap_modules = Column(String, nullable=True)
     dev_types = Column(String, nullable=True)
+    sap_system_version = Column(String(32), nullable=True)
+    sap_system_version_note = Column(String(120), nullable=True)
     requirement_text = Column(Text, nullable=False, default="")
     # plain | html — html이면 requirement_text에 서식·인라인 이미지 HTML
     requirement_text_format = Column(String(16), nullable=False, default="plain")

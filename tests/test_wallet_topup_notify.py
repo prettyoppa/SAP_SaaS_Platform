@@ -24,6 +24,7 @@ class WalletTopupNotifyTests(unittest.TestCase):
             full_name="Admin User",
             hashed_password="x",
             is_admin=True,
+            is_active=True,
             ops_email_opt_in=True,
             ops_sms_opt_in=False,
         )
@@ -122,7 +123,9 @@ class WalletTopupNotifyTests(unittest.TestCase):
             full_name="Admin",
             hashed_password="x",
             is_admin=True,
-            ops_email_opt_in=True,
+            is_active=True,
+            phone_number="+821011111111",
+            phone_verified=True,
         )
         db.query.return_value.filter.return_value.all.return_value = [admin]
         user = models.User(
@@ -134,9 +137,15 @@ class WalletTopupNotifyTests(unittest.TestCase):
         )
         notify_admins_new_registration(db, user)
         mock_email.assert_called_once()
-        body = mock_email.call_args[0][2]
-        self.assertIn("신규", body)
+        subject, body = mock_email.call_args[0][1], mock_email.call_args[0][2]
+        self.assertIn("신규 회원 가입", subject)
+        self.assertIn("가입회원 이름: 신규", body)
+        self.assertIn("이메일 주소: new@test.com", body)
         self.assertIn("컨설턴트", body)
+        mock_sms.assert_called_once()
+        sms_body = mock_sms.call_args[0][1]
+        self.assertIn("신규", sms_body)
+        self.assertIn("new@test.com", sms_body)
 
 
 if __name__ == "__main__":

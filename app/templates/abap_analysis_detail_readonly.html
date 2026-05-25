@@ -78,6 +78,16 @@
                     {% endfor %}
                     {% else %}—{% endif %}
                   </dd>
+                  <dt class="col-sm-3 text-muted">
+                    <span class="nav-ko">SAP 시스템</span>
+                    <span class="nav-en" style="display:none">SAP system</span>
+                  </dt>
+                  <dd class="col-sm-9">
+                    {% if row.sap_system_version == 's4hana' %}S/4HANA
+                    {% elif row.sap_system_version == 'ecc740' %}ECC 7.40
+                    {% elif row.sap_system_version == 'other' %}<span class="nav-ko">기타</span><span class="nav-en" style="display:none">Other</span>{% if row.sap_system_version_note %} — {{ row.sap_system_version_note }}{% endif %}
+                    {% else %}—{% endif %}
+                  </dd>
                   <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
                   <dd class="col-sm-9">{{ row.created_at|local_dt_span }}</dd>
                 </dl>

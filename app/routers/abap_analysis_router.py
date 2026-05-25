@@ -210,6 +210,8 @@ def _abap_form_dict(
     transaction_code: str = "",
     sap_modules: Optional[List[str]] = None,
     dev_types: Optional[List[str]] = None,
+    sap_system_version: str = "",
+    sap_system_version_note: str = "",
     notes: Optional[List[str]] = None,
 ) -> dict:
     n = notes if notes is not None else [""] * 5
@@ -222,6 +224,8 @@ def _abap_form_dict(
         "transaction_code": transaction_code or "",
         "sap_modules": list(sap_modules or []),
         "dev_types": list(dev_types or []),
+        "sap_system_version": sap_system_version or "",
+        "sap_system_version_note": sap_system_version_note or "",
         "notes": pad[:5],
     }
 
@@ -237,6 +241,8 @@ def _abap_form_dict_from_row(row: models.AbapAnalysisRequest) -> dict:
         transaction_code=getattr(row, "transaction_code", None) or "",
         sap_modules=_split_csv_chips(getattr(row, "sap_modules", None)),
         dev_types=_split_csv_chips(getattr(row, "dev_types", None)),
+        sap_system_version=getattr(row, "sap_system_version", None) or "",
+        sap_system_version_note=getattr(row, "sap_system_version_note", None) or "",
         notes=notes,
     )
 
@@ -603,6 +609,8 @@ async def abap_form_request_validation_response(request: Request, db: Session):
     req_fmt = (form_data.get("requirement_text_format") or "html").strip().lower()
     sap_modules = list(form_data.getlist("sap_modules"))
     dev_types = list(form_data.getlist("dev_types"))
+    sap_system_version = form_data.get("sap_system_version") or ""
+    sap_system_version_note = form_data.get("sap_system_version_note") or ""
     save_action = form_data.get("save_action") or "submit"
     is_draft = (save_action or "").strip().lower() == "draft"
     notes_in = [form_data.get(f"note_{i}") or "" for i in range(5)]
@@ -615,6 +623,8 @@ async def abap_form_request_validation_response(request: Request, db: Session):
         transaction_code=transaction_code,
         sap_modules=sap_modules,
         dev_types=dev_types,
+        sap_system_version=sap_system_version,
+        sap_system_version_note=sap_system_version_note,
         notes=notes_in,
     )
 
@@ -626,6 +636,9 @@ async def abap_form_request_validation_response(request: Request, db: Session):
         dev_types,
         req_plain,
         min_description_chars=0 if is_draft else None,
+        sap_system_version=sap_system_version,
+        sap_system_version_note=sap_system_version_note,
+        require_sap_system_version=not is_draft,
     )
     error = CORE_FIELDS_INCOMPLETE_ERROR if miss else "validation"
     ref_initial = _ref_initial_from_raw((form_data.get("reference_code_json") or "").strip())
@@ -773,6 +786,8 @@ async def abap_analysis_create(
     transaction_code: str = Form(""),
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
+    sap_system_version: str = Form(""),
+    sap_system_version_note: str = Form(""),
     requirement_text: str = Form(""),
     reference_code_json: str = Form(""),
     attachments: List[UploadFile] = File(default=[]),
@@ -785,6 +800,8 @@ async def abap_analysis_create(
     save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
+    from ..sap_system_version import apply_sap_system_version_to_row
+
     user = _require_user(request, db)
     title_raw = title or ""
     title_clean = (title_raw.strip())[:TITLE_MAX_LEN]
@@ -806,6 +823,8 @@ async def abap_analysis_create(
             transaction_code=transaction_code,
             sap_modules=sap_modules,
             dev_types=dev_types,
+            sap_system_version=sap_system_version,
+            sap_system_version_note=sap_system_version_note,
             notes=notes_in,
         )
 
@@ -834,6 +853,9 @@ async def abap_analysis_create(
         dev_types,
         req_for_validate,
         min_description_chars=min_desc,
+        sap_system_version=sap_system_version,
+        sap_system_version_note=sap_system_version_note,
+        require_sap_system_version=not is_draft_save,
     )
     if miss:
         return _bad(CORE_FIELDS_INCOMPLETE_ERROR, missing_field_labels=miss)
@@ -897,6 +919,14 @@ async def abap_analysis_create(
         is_analyzed=False,
         is_draft=is_draft_save,
     )
+    ver_err = apply_sap_system_version_to_row(
+        row,
+        sap_system_version,
+        sap_system_version_note,
+        required=not is_draft_save,
+    )
+    if ver_err:
+        return _bad(ver_err)
     _set_attachments(row, att_entries)
     db.add(row)
     try:
@@ -953,6 +983,8 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
         transaction_code=getattr(row, "transaction_code", None),
         sap_modules=getattr(row, "sap_modules", None),
         dev_types=getattr(row, "dev_types", None),
+        sap_system_version=getattr(row, "sap_system_version", None),
+        sap_system_version_note=getattr(row, "sap_system_version_note", None),
         requirement_text=row.requirement_text or "",
         requirement_text_format=getattr(row, "requirement_text_format", None) or "plain",
         reference_code_payload=row.reference_code_payload,
@@ -1005,6 +1037,8 @@ async def abap_analysis_edit_save(
     transaction_code: str = Form(""),
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
+    sap_system_version: str = Form(""),
+    sap_system_version_note: str = Form(""),
     requirement_text: str = Form(""),
     reference_code_json: str = Form(""),
     attachments: List[UploadFile] = File(default=[]),
@@ -1027,6 +1061,8 @@ async def abap_analysis_edit_save(
     save_action: str = Form("submit"),
     db: Session = Depends(get_db),
 ):
+    from ..sap_system_version import apply_sap_system_version_to_row
+
     user = _require_user(request, db)
     row = _get_request_for_user(db, user, req_id)
     if not row or not row.is_draft:
@@ -1055,6 +1091,8 @@ async def abap_analysis_edit_save(
             transaction_code=transaction_code,
             sap_modules=sap_modules,
             dev_types=dev_types,
+            sap_system_version=sap_system_version,
+            sap_system_version_note=sap_system_version_note,
             notes=notes_in,
         )
 
@@ -1083,6 +1121,9 @@ async def abap_analysis_edit_save(
         dev_types,
         req_for_validate,
         min_description_chars=min_desc,
+        sap_system_version=sap_system_version,
+        sap_system_version_note=sap_system_version_note,
+        require_sap_system_version=not is_draft_save,
     )
     if miss:
         return _bad(CORE_FIELDS_INCOMPLETE_ERROR, missing_field_labels=miss)
@@ -1105,6 +1146,15 @@ async def abap_analysis_edit_save(
             "invalid_chars": "transaction_code_chars",
         }[terr]
         return _bad(err_key)
+
+    ver_err = apply_sap_system_version_to_row(
+        row,
+        sap_system_version,
+        sap_system_version_note,
+        required=not is_draft_save,
+    )
+    if ver_err:
+        return _bad(ver_err)
 
     kept: list[dict] = []
     for i, att in enumerate(existing_att):

@@ -159,8 +159,14 @@ def _rfp_missing_core_field_labels(
     dev_types: list,
     description: str,
     min_description_chars: int | None = None,
+    *,
+    sap_system_version: str = "",
+    sap_system_version_note: str = "",
+    require_sap_system_version: bool = True,
 ) -> list[str]:
-    """임시저장·제출 공통 필수(요청 제목, 프로그램 ID, 모듈·유형, 요구사항 분량)."""
+    """임시저장·제출 공통 필수(요청 제목, 프로그램 ID, 모듈·유형, SAP 버전, 요구사항 분량)."""
+    from ..sap_system_version import sap_system_version_missing_labels
+
     min_chars = (
         min_description_chars
         if min_description_chars is not None
@@ -175,6 +181,13 @@ def _rfp_missing_core_field_labels(
         miss.append("SAP 모듈(1개 이상)")
     if not dev_types:
         miss.append("개발 유형(1개 이상)")
+    miss.extend(
+        sap_system_version_missing_labels(
+            sap_system_version,
+            sap_system_version_note,
+            required=require_sap_system_version,
+        )
+    )
     if len((description or "").strip()) < min_chars:
         miss.append(f"요구사항 자유 기술(공백 제외 {min_chars}자 이상)")
     return miss
@@ -212,6 +225,8 @@ async def rfp_form_request_validation_response(request: Request, db: Session):
     desc_fmt = (form_data.get("description_format") or "html").strip().lower()
     sap_modules = list(form_data.getlist("sap_modules"))
     dev_types = list(form_data.getlist("dev_types"))
+    sap_system_version = form_data.get("sap_system_version") or ""
+    sap_system_version_note = form_data.get("sap_system_version_note") or ""
     save_action = form_data.get("save_action") or "submit"
     is_draft = (save_action or "").strip().lower() == "draft"
     notes_in = [form_data.get(f"note_{i}") or "" for i in range(5)]
@@ -230,6 +245,8 @@ async def rfp_form_request_validation_response(request: Request, db: Session):
         "description_format": desc_fmt,
         "sap_modules": sap_modules,
         "dev_types": dev_types,
+        "sap_system_version": sap_system_version,
+        "sap_system_version_note": sap_system_version_note,
         "notes": notes_in,
     }
 
@@ -241,6 +258,9 @@ async def rfp_form_request_validation_response(request: Request, db: Session):
         dev_types,
         desc_plain,
         min_description_chars=0 if is_draft else None,
+        sap_system_version=sap_system_version,
+        sap_system_version_note=sap_system_version_note,
+        require_sap_system_version=not is_draft,
     )
     error = CORE_FIELDS_INCOMPLETE_ERROR if miss else "validation"
     missing_field_labels = miss
@@ -635,6 +655,8 @@ async def submit_rfp(
     title: str = Form(""),
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
+    sap_system_version: str = Form(""),
+    sap_system_version_note: str = Form(""),
     description: str = Form(""),
     description_format: str = Form("html"),
     attachments: List[UploadFile] = File(default=[]),
@@ -647,6 +669,8 @@ async def submit_rfp(
     reference_code_json: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    from ..sap_system_version import apply_sap_system_version_to_row
+
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -669,6 +693,8 @@ async def submit_rfp(
             "description_format": desc_fmt,
             "sap_modules": sap_modules,
             "dev_types": dev_types,
+            "sap_system_version": sap_system_version,
+            "sap_system_version_note": sap_system_version_note,
             "notes": notes_in,
         }
 
@@ -692,6 +718,9 @@ async def submit_rfp(
         dev_types,
         desc_plain,
         min_description_chars=0 if is_draft else None,
+        sap_system_version=sap_system_version,
+        sap_system_version_note=sap_system_version_note,
+        require_sap_system_version=not is_draft,
     )
     if miss:
         return templates.TemplateResponse(
@@ -799,6 +828,23 @@ async def submit_rfp(
         workflow_origin="direct",
         reference_code_payload=norm_ref,
     )
+    ver_err = apply_sap_system_version_to_row(
+        rfp,
+        sap_system_version,
+        sap_system_version_note,
+        required=not is_draft,
+    )
+    if ver_err:
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip, db,
+                error=ver_err,
+                form=_form_dict(),
+            ),
+            status_code=400,
+        )
     _set_rfp_attachments(rfp, att_entries)
     db.add(rfp)
     try:
@@ -1920,6 +1966,8 @@ def rfp_duplicate_request(rfp_id: int, request: Request, db: Session = Depends(g
         title=title or "복사된 요청",
         sap_modules=rfp.sap_modules,
         dev_types=rfp.dev_types,
+        sap_system_version=getattr(rfp, "sap_system_version", None),
+        sap_system_version_note=getattr(rfp, "sap_system_version_note", None),
         description=rfp.description or "",
         description_format=getattr(rfp, "description_format", None) or "plain",
         reference_code_payload=rfp.reference_code_payload,
@@ -2045,6 +2093,8 @@ async def rfp_edit_submit(
     title: str = Form(""),
     sap_modules: List[str] = Form(default=[]),
     dev_types: List[str] = Form(default=[]),
+    sap_system_version: str = Form(""),
+    sap_system_version_note: str = Form(""),
     description: str = Form(""),
     description_format: str = Form("html"),
     attachments: List[UploadFile] = File(default=[]),
@@ -2067,6 +2117,8 @@ async def rfp_edit_submit(
     reference_code_json: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    from ..sap_system_version import apply_sap_system_version_to_row
+
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -2097,6 +2149,8 @@ async def rfp_edit_submit(
             "description_format": desc_fmt,
             "sap_modules": sap_modules,
             "dev_types": dev_types,
+            "sap_system_version": sap_system_version,
+            "sap_system_version_note": sap_system_version_note,
             "notes": notes_in,
         }
 
@@ -2121,6 +2175,9 @@ async def rfp_edit_submit(
         dev_types,
         desc_plain,
         min_description_chars=0 if is_draft else None,
+        sap_system_version=sap_system_version,
+        sap_system_version_note=sap_system_version_note,
+        require_sap_system_version=not is_draft,
     )
     if miss:
         return templates.TemplateResponse(
@@ -2262,6 +2319,26 @@ async def rfp_edit_submit(
     rfp.title = title.strip()
     rfp.sap_modules = ",".join(sap_modules) if sap_modules else ""
     rfp.dev_types = ",".join(dev_types) if dev_types else ""
+    ver_err = apply_sap_system_version_to_row(
+        rfp,
+        sap_system_version,
+        sap_system_version_note,
+        required=not is_draft,
+    )
+    if ver_err:
+        return templates.TemplateResponse(
+            request,
+            "rfp_form.html",
+            _rfp_form_ctx(
+                request, user, modules, devtypes, writing_tip, db,
+                error=ver_err,
+                form=_form_dict(),
+                rfp=rfp,
+                edit_mode=True,
+                attachment_entries=_rfp_attachment_entries(rfp),
+            ),
+            status_code=400,
+        )
     rfp.reference_code_payload = norm_ref
     if is_draft:
         rfp.status = "draft"

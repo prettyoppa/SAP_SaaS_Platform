@@ -288,6 +288,25 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMaxSelect('module-chip', 'module-count', 3);
   setupMaxSelect('devtype-chip', 'devtype-count', 3);
 
+  (function initSapSystemVersionField() {
+    const wrap = document.getElementById('sap-version-other-wrap');
+    const note = document.getElementById('sap_system_version_note');
+    const radios = document.querySelectorAll('.sap-version-radio');
+    if (!wrap || !radios.length) return;
+    const sync = () => {
+      const picked = document.querySelector('.sap-version-radio:checked');
+      const isOther = picked && picked.value === 'other';
+      wrap.classList.toggle('d-none', !isOther);
+      if (note) {
+        note.required = !!isOther;
+        if (!isOther) note.setAttribute('aria-disabled', 'true');
+        else note.removeAttribute('aria-disabled');
+      }
+    };
+    radios.forEach((r) => r.addEventListener('change', () => { sync(); updateReview(); }));
+    sync();
+  })();
+
   if (window.initSapPidTcodePair) {
     window.initSapPidTcodePair({
       programEl: document.getElementById('program_id'),

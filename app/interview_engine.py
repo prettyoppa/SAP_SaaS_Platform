@@ -79,10 +79,13 @@ def _workflow_origin_context_note(rfp_data: dict) -> str:
 def _format_rfp_context(rfp_data: dict) -> str:
     modules = [_SAP_MODULE_LABELS.get(m, m) for m in rfp_data.get("sap_modules", [])]
     dev_types = [_DEV_TYPE_LABELS.get(d, d) for d in rfp_data.get("dev_types", [])]
+    from .sap_system_version import agent_prompt_lines
+
     base = (
         f"- 요청 제목: {rfp_data.get('title', '(없음)')}\n"
         f"- SAP 모듈: {', '.join(modules) if modules else '(미선택)'}\n"
         f"- 개발 유형: {', '.join(dev_types) if dev_types else '(미선택)'}\n"
+        f"{agent_prompt_lines(rfp_data)}"
         f"- 요구사항 설명:\n{rfp_data.get('description', '(없음)')}"
     )
     return base + _workflow_origin_context_note(rfp_data)

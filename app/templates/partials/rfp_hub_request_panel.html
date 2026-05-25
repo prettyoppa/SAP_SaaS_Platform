@@ -14,6 +14,16 @@
       <dd class="col-sm-9">{% if rfp.sap_modules %}{% for m in rfp.sap_modules.split(',') %}{% if m %}<span class="badge-module me-1">{{ m }}</span>{% endif %}{% endfor %}{% else %}—{% endif %}</dd>
       <dt class="col-sm-3 text-muted" data-i18n="reqPanel.devTypes">개발 유형</dt>
       <dd class="col-sm-9">{% if rfp.dev_types %}{% for d in rfp.dev_types.split(',') %}{% if d %}<span class="badge-devtype me-1">{{ d.replace('_',' ') }}</span>{% endif %}{% endfor %}{% else %}—{% endif %}</dd>
+      <dt class="col-sm-3 text-muted">
+        <span class="nav-ko">SAP 시스템</span>
+        <span class="nav-en" style="display:none">SAP system</span>
+      </dt>
+      <dd class="col-sm-9">
+        {% if rfp.sap_system_version == 's4hana' %}S/4HANA
+        {% elif rfp.sap_system_version == 'ecc740' %}ECC 7.40
+        {% elif rfp.sap_system_version == 'other' %}<span class="nav-ko">기타</span><span class="nav-en" style="display:none">Other</span>{% if rfp.sap_system_version_note %} — {{ rfp.sap_system_version_note }}{% endif %}
+        {% else %}—{% endif %}
+      </dd>
       <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
       <dd class="col-sm-9">{{ rfp.created_at|local_dt_span }}</dd>
     </dl>

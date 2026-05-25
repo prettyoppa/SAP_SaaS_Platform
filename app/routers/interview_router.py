@@ -108,6 +108,9 @@ def _rfp_to_dict(rfp: models.RFP) -> dict:
         "dev_types": [x.strip() for x in rfp.dev_types.split(",") if x.strip()]
         if rfp.dev_types
         else [],
+        "sap_system_version": (getattr(rfp, "sap_system_version", None) or "").strip() or None,
+        "sap_system_version_note": (getattr(rfp, "sap_system_version_note", None) or "").strip()
+        or None,
         "description": rfp.description or "",
         "reference_code_for_agents": format_reference_code_for_llm(payload),
         "workflow_origin": wo or "direct",

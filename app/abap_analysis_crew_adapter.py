@@ -37,6 +37,9 @@ def abap_analysis_request_to_crew_rfp_dict(db: Session, row: models.AbapAnalysis
         "transaction_code": (getattr(row, "transaction_code", None) or "").strip() or None,
         "sap_modules": mods,
         "dev_types": dts,
+        "sap_system_version": (getattr(row, "sap_system_version", None) or "").strip() or None,
+        "sap_system_version_note": (getattr(row, "sap_system_version_note", None) or "").strip()
+        or None,
         "description": desc,
         "reference_code_for_agents": format_reference_code_for_llm(payload),
         "workflow_origin": "abap_analysis",

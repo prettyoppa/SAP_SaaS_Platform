@@ -47,7 +47,7 @@ def _admin_ops_recipients(db: Session) -> list[models.User]:
 
 def _admin_alert_email(admin: models.User) -> tuple[bool, str]:
     """관리자 업무 알림 — 등록 이메일로 발송(ops 수신 동의 불필요)."""
-    if not getattr(admin, "is_admin", False) or not getattr(admin, "is_active", True):
+    if not getattr(admin, "is_admin", False) or getattr(admin, "is_active", True) is False:
         return False, ""
     addr = (admin.email or "").strip()
     return bool(addr), addr
@@ -55,7 +55,7 @@ def _admin_alert_email(admin: models.User) -> tuple[bool, str]:
 
 def _admin_alert_sms(admin: models.User) -> tuple[bool, str | None]:
     """관리자 SMS — 휴대폰 인증만 있으면 발송(ops SMS 동의 불필요)."""
-    if not getattr(admin, "is_admin", False) or not getattr(admin, "is_active", True):
+    if not getattr(admin, "is_admin", False) or getattr(admin, "is_active", True) is False:
         return False, None
     if not getattr(admin, "phone_verified", False):
         return False, None
@@ -200,20 +200,26 @@ def notify_member_wallet_topup_reviewed(
 
 
 def notify_admins_new_registration(db: Session, user: models.User) -> None:
-    """회원가입 완료 시 관리자에게 알림."""
-    name = (user.full_name or "").strip() or user.email
+    """회원가입 완료 시 관리자에게 알림(이메일·SMS, 가입회원 이름·이메일 포함)."""
+    name = (user.full_name or "").strip() or "(이름 미입력)"
+    email_addr = (user.email or "").strip()
     kind = _member_account_type_label(user)
     subject = "[SAP Dev Hub] 신규 회원 가입"
     email_body = (
-        f"신규 회원이 가입했습니다.\n\n"
-        f"이름: {name}\n"
-        f"이메일: {user.email}\n"
+        "신규 회원이 가입했습니다.\n\n"
+        f"가입회원 이름: {name}\n"
+        f"이메일 주소: {email_addr}\n"
         f"구분: {kind}\n"
     )
     if user.company:
         email_body += f"소속: {user.company}\n"
     email_body += "\n관리자 회원 목록에서 확인할 수 있습니다."
-    sms_body = f"[SAP Dev Hub 가입]\n{name} ({kind})"
+    sms_body = (
+        f"[SAP Dev Hub 가입]\n"
+        f"이름: {name}\n"
+        f"이메일: {email_addr}\n"
+        f"({kind})"
+    )
     _notify_admins(
         db,
         subject=subject,

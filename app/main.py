@@ -205,6 +205,10 @@ def _run_migrations():
         ("rfps", "as_built_zip_json", "TEXT", "TEXT"),
         ("integration_requests", "as_built_zip_json", "TEXT", "TEXT"),
         ("abap_analysis_requests", "as_built_zip_json", "TEXT", "TEXT"),
+        ("rfps", "sap_system_version", "VARCHAR(32)", "VARCHAR(32)"),
+        ("rfps", "sap_system_version_note", "VARCHAR(120)", "VARCHAR(120)"),
+        ("abap_analysis_requests", "sap_system_version", "VARCHAR(32)", "VARCHAR(32)"),
+        ("abap_analysis_requests", "sap_system_version_note", "VARCHAR(120)", "VARCHAR(120)"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
