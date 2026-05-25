@@ -138,27 +138,25 @@ def delivery_workspace_page(
     else:
         suggested_source = (request.session.get(sess_key) or "").strip()
 
-    return templates.TemplateResponse(
-        "delivery_workspace.html",
-        {
-            "request": request,
-            "user": user,
-            "request_kind": norm,
-            "entity": row,
-            "request_id": int(row.id),
-            "return_url": _hub_return_url(norm, row, user, return_to),
-            "workspace_base": _workspace_path(norm, int(row.id)),
-            "return_to": return_to,
-            "slots": slots,
-            "slot_index": slot_idx,
-            "slot_source": _slot_source(pkg, slot_idx),
-            "program_id": (pkg.get("program_id") or "").strip(),
-            "ws_err": (ws_err or "").strip() or None,
-            "ws_ok": (ws_ok or "").strip() or None,
-            "suggested_source": suggested_source,
-            "sap_version": (getattr(row, "sap_system_version", None) or "").strip(),
-        },
-    )
+    ctx = {
+        "request": request,
+        "user": user,
+        "request_kind": norm,
+        "entity": row,
+        "request_id": int(row.id),
+        "return_url": _hub_return_url(norm, row, user, return_to),
+        "workspace_base": _workspace_path(norm, int(row.id)),
+        "return_to": return_to,
+        "slots": slots,
+        "slot_index": slot_idx,
+        "slot_source": _slot_source(pkg, slot_idx),
+        "program_id": (pkg.get("program_id") or "").strip(),
+        "ws_err": (ws_err or "").strip() or None,
+        "ws_ok": (ws_ok or "").strip() or None,
+        "suggested_source": suggested_source,
+        "sap_version": (getattr(row, "sap_system_version", None) or "").strip(),
+    }
+    return templates.TemplateResponse(request, "delivery_workspace.html", ctx)
 
 
 @router.post("/delivery/{kind}/{request_id}/workspace/slots/{slot_index}/save")
