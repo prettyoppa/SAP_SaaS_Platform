@@ -163,3 +163,20 @@ def slots_for_ui(pkg: dict[str, Any]) -> list[dict[str, str]]:
             }
         )
     return out
+
+
+def slots_detail_for_ui(pkg: dict[str, Any]) -> list[dict[str, Any]]:
+    """작업실 UI: 슬롯별 소스 포함(클라이언트 탭 전환용)."""
+    out: list[dict[str, Any]] = []
+    for i, sl in enumerate(pkg.get("slots") or []):
+        if not isinstance(sl, dict):
+            continue
+        out.append(
+            {
+                "index": i,
+                "filename": (sl.get("filename") or f"slot_{i + 1}.abap").strip(),
+                "role": (sl.get("role") or "other").strip(),
+                "source": (sl.get("source") or "").strip(),
+            }
+        )
+    return out

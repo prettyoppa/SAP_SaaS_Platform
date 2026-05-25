@@ -20,7 +20,7 @@ from ..delivery_workspace import (
     load_request_row,
     normalize_request_kind,
     package_has_slots,
-    slots_for_ui,
+    slots_detail_for_ui,
 )
 from ..delivery_workspace_access import user_can_use_delivery_workspace
 from ..delivery_workspace_ai import STAGE_DELIVERY_WORKSPACE_FIX, suggest_slot_fix
@@ -127,8 +127,8 @@ def delivery_workspace_page(
             slot_idx = max(0, int(raw_idx))
     except (TypeError, ValueError):
         slot_idx = 0
-    slots = slots_for_ui(pkg)
-    if slots and slot_idx >= len(slots):
+    slot_details = slots_detail_for_ui(pkg)
+    if slot_details and slot_idx >= len(slot_details):
         slot_idx = 0
 
     sess_key = f"dw_suggested_{norm}_{int(row.id)}"
@@ -147,9 +147,8 @@ def delivery_workspace_page(
         "return_url": _hub_return_url(norm, row, user, return_to),
         "workspace_base": _workspace_path(norm, int(row.id)),
         "return_to": return_to,
-        "slots": slots,
+        "slot_details": slot_details,
         "slot_index": slot_idx,
-        "slot_source": _slot_source(pkg, slot_idx),
         "program_id": (pkg.get("program_id") or "").strip(),
         "ws_err": (ws_err or "").strip() or None,
         "ws_ok": (ws_ok or "").strip() or None,

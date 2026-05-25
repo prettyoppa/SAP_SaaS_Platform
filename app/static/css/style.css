@@ -3143,6 +3143,59 @@ html[data-theme="light"] .kb-ai-source-tabs .nav-link.active {
   border-bottom-color: var(--primary) !important;
 }
 
+/* ── 납품 구현 보완 작업실: 슬롯 탭 (다크에서 active 가독성) ───── */
+.delivery-workspace-tabs {
+  border-bottom: 1px solid var(--border);
+  gap: 0.15rem;
+}
+.delivery-workspace-tabs .nav-link {
+  color: var(--label) !important;
+  opacity: 1 !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.55rem 0.75rem;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.delivery-workspace-tabs .nav-link:hover {
+  color: var(--text) !important;
+  border-bottom-color: var(--border) !important;
+  background: var(--surface2) !important;
+}
+.delivery-workspace-tabs .nav-link.active {
+  color: var(--primary-light) !important;
+  border-bottom-color: var(--primary) !important;
+  font-weight: 600;
+  background: var(--surface2) !important;
+}
+html[data-theme="dark"] .delivery-workspace-tabs .nav-link {
+  color: #cbd5e1 !important;
+}
+html[data-theme="dark"] .delivery-workspace-tabs .nav-link:hover {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] .delivery-workspace-tabs .nav-link.active {
+  color: #e0e7ff !important;
+  border-bottom-color: var(--primary-light) !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+}
+html[data-theme="light"] .delivery-workspace-tabs .nav-link.active {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+  background: var(--surface) !important;
+}
+.delivery-workspace-page .card-header {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border) !important;
+}
+
 /* 스피너 링 중앙 아이콘 (전역 처리 중·생성 진행 모달·인터뷰 로딩 등) */
 .busy-spinner-ring {
   position: relative;

@@ -4,7 +4,8 @@
 <span class="nav-en" style="display:none">Delivery implementation workspace</span>
 {% endblock %}
 {% block content %}
-<div class="container col-lg-10 py-4">
+<div class="container col-lg-10 py-4 delivery-workspace-page" id="delivery-workspace"
+     data-initial-slot="{{ slot_index }}">
   <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <div>
       <h2 class="h4 mb-1">
@@ -16,7 +17,7 @@
         <span class="nav-en" style="display:none">Request #{{ request_id }} · Only the working copy is edited; the member-facing official delivery ZIP is unchanged.</span>
       </p>
     </div>
-    <a href="{{ return_url }}" class="btn btn-outline-secondary btn-sm">
+    <a href="{{ return_url }}" class="btn btn-outline-secondary btn-sm" data-no-busy="true">
       <span class="nav-ko">허브로 돌아가기</span>
       <span class="nav-en" style="display:none">Back to hub</span>
     </a>
@@ -64,40 +65,44 @@
     <span class="badge bg-secondary align-self-center">program: {{ program_id }}</span>
     {% endif %}
     {% if sap_version %}
-    <span class="badge bg-light text-dark border align-self-center">SAP: {{ sap_version }}</span>
+    <span class="badge bg-secondary align-self-center">SAP: {{ sap_version }}</span>
     {% endif %}
   </div>
 
-  <ul class="nav nav-tabs mb-3" role="tablist">
-    {% for sl in slots %}
+  {% if slot_details and slot_details|length %}
+  <ul class="nav nav-tabs delivery-workspace-tabs mb-3 flex-nowrap overflow-auto" role="tablist">
+    {% for sl in slot_details %}
     <li class="nav-item" role="presentation">
-      <a class="nav-link {% if loop.index0 == slot_index %}active{% endif %}"
-         href="{{ workspace_base }}?slot={{ loop.index0 }}{% if return_to %}&return_to={{ return_to|urlencode }}{% endif %}">{{ sl.filename }}</a>
+      <button type="button" class="nav-link {% if loop.index0 == slot_index %}active{% endif %}"
+              role="tab" data-dw-tab="{{ sl.index }}"
+              aria-selected="{% if loop.index0 == slot_index %}true{% else %}false{% endif %}">
+        {{ sl.filename }}
+      </button>
     </li>
     {% endfor %}
   </ul>
 
-  {% set active = slots[slot_index] if slots and slot_index < slots|length else none %}
-  {% if active %}
-  <div class="card border mb-3">
-    <div class="card-header small fw-semibold">{{ active.filename }} · {{ active.role }}</div>
+  {% for sl in slot_details %}
+  <div class="card border mb-3 dw-slot-panel {% if loop.index0 != slot_index %}d-none{% endif %}"
+       data-dw-panel="{{ sl.index }}" role="tabpanel">
+    <div class="card-header small fw-semibold">{{ sl.filename }} · {{ sl.role }}</div>
     <div class="card-body">
-      <form method="post" action="{{ workspace_base }}/slots/{{ slot_index }}/save" class="mb-4">
+      <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/save" class="mb-4 dw-slot-form">
         <input type="hidden" name="return_to" value="{{ return_url }}">
         <label class="form-label small fw-semibold">
           <span class="nav-ko">작업본 슬롯 소스</span>
           <span class="nav-en" style="display:none">Working slot source</span>
         </label>
-        <textarea name="source" class="form-control font-monospace small" rows="14">{{ slot_source }}</textarea>
+        <textarea name="source" class="form-control font-monospace small" rows="14">{{ sl.source }}</textarea>
         <button type="submit" class="btn btn-outline-primary btn-sm mt-2">
           <span class="nav-ko">소스 저장</span>
           <span class="nav-en" style="display:none">Save source</span>
         </button>
       </form>
 
-      <form method="post" action="{{ workspace_base }}/suggest-fix" class="mb-4 border-top pt-3">
+      <form method="post" action="{{ workspace_base }}/suggest-fix" class="mb-4 border-top pt-3 dw-slot-form">
         <input type="hidden" name="return_to" value="{{ return_url }}">
-        <input type="hidden" name="slot_index" value="{{ slot_index }}">
+        <input type="hidden" name="slot_index" value="{{ sl.index }}">
         <label class="form-label small fw-semibold">
           <span class="nav-ko">SE38 오류·징후 (AI 수정 제안)</span>
           <span class="nav-en" style="display:none">SE38 error / symptoms (AI fix)</span>
@@ -114,8 +119,8 @@
         </button>
       </form>
 
-      {% if suggested_source %}
-      <form method="post" action="{{ workspace_base }}/slots/{{ slot_index }}/apply" class="border-top pt-3">
+      {% if suggested_source and loop.index0 == slot_index %}
+      <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/apply" class="border-top pt-3 dw-slot-form">
         <input type="hidden" name="return_to" value="{{ return_url }}">
         <label class="form-label small fw-semibold">
           <span class="nav-ko">AI 제안 (검토 후 반영)</span>
@@ -131,6 +136,41 @@
       {% endif %}
     </div>
   </div>
+  {% endfor %}
   {% endif %}
 </div>
+<script>
+(function () {
+  var root = document.getElementById('delivery-workspace');
+  if (!root) return;
+  var tabs = root.querySelectorAll('[data-dw-tab]');
+  var panels = root.querySelectorAll('[data-dw-panel]');
+  function showSlot(idx) {
+    var s = String(idx);
+    tabs.forEach(function (t) {
+      var on = t.getAttribute('data-dw-tab') === s;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.forEach(function (p) {
+      p.classList.toggle('d-none', p.getAttribute('data-dw-panel') !== s);
+    });
+    try {
+      var q = window.location.search || '';
+      var params = new URLSearchParams(q);
+      params.set('slot', s);
+      var next = window.location.pathname + '?' + params.toString();
+      window.history.replaceState(null, '', next);
+    } catch (e) { /* ignore */ }
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function (e) {
+      e.preventDefault();
+      showSlot(t.getAttribute('data-dw-tab'));
+    });
+  });
+  var initial = root.getAttribute('data-initial-slot');
+  if (initial != null && initial !== '') showSlot(initial);
+})();
+</script>
 {% endblock %}
