@@ -24,8 +24,8 @@
     <span class="nav-ko">AI 크레딧 잔액이 부족합니다. 충전 후 다시 시도하세요.</span>
     <span class="nav-en" style="display:none">Insufficient AI credits. Please top up and retry.</span>
     {% elif ws_err == 'missing_error' %}
-    <span class="nav-ko">SE38 오류 메시지를 입력하세요.</span>
-    <span class="nav-en" style="display:none">Enter the SE38 error message.</span>
+    <span class="nav-ko">SE38 오류 내용을 입력하세요.</span>
+    <span class="nav-en" style="display:none">Enter the SE38 error details.</span>
     {% elif ws_err == 'missing_source' %}
     <span class="nav-ko">슬롯 소스가 비어 있습니다.</span>
     <span class="nav-en" style="display:none">Slot source is empty.</span>
@@ -99,10 +99,10 @@
         <input type="hidden" name="return_to" value="{{ return_url }}">
         <input type="hidden" name="slot_index" value="{{ sl.index }}">
         <label class="form-label small fw-semibold">
-          <span class="nav-ko">SE38 오류·징후 (AI 수정 제안)</span>
-          <span class="nav-en" style="display:none">SE38 error / symptoms (AI fix)</span>
+          <span class="nav-ko">SE38 syntax error, activation error, dump short text 등</span>
+          <span class="nav-en" style="display:none">SE38 syntax error, activation error, dump short text, etc.</span>
         </label>
-        <textarea name="se38_error" class="form-control small mb-2" rows="4" placeholder="syntax error, activation error, dump short text…"></textarea>
+        <textarea name="se38_error" class="form-control small mb-2" rows="4"></textarea>
         <button type="submit" class="btn btn-warning btn-sm">
           <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
           <span class="nav-ko">AI 수정 제안</span>
