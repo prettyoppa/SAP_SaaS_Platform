@@ -241,6 +241,18 @@ templates.env.filters["home_hero_fields"] = resolve_home_hero_fields
 templates.env.filters["sap_version_label_ko"] = display_label_ko
 templates.env.filters["sap_version_label_en"] = display_label_en
 
+from .delivery_workspace_diff import diff_panel_html as _diff_panel_html
+from .delivery_workspace_validation import line_number_gutter as _abap_line_gutter
+
+templates.env.filters["abap_line_gutter"] = _abap_line_gutter
+
+
+def _abap_diff_panel_filter(original: str, suggested: str) -> Markup:
+    return Markup(_diff_panel_html(original or "", suggested or ""))
+
+
+templates.env.filters["abap_diff_panel"] = _abap_diff_panel_filter
+
 def layout_template_from_embed_query(request) -> str:
     """?embed=1|true|yes 이면 iframe 등 임베드용 레이아웃(네비·푸터 없음)."""
     raw = ""

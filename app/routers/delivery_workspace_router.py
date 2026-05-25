@@ -6,7 +6,7 @@ from typing import Any
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from .. import auth
@@ -25,6 +25,15 @@ from ..delivery_workspace import (
 from ..delivery_workspace_access import user_can_use_delivery_workspace
 from ..delivery_workspace_display import workspace_page_header
 from ..delivery_workspace_ai import STAGE_DELIVERY_WORKSPACE_FIX, suggest_slot_fix
+from ..delivery_workspace_context import build_peer_sources_context
+from ..delivery_workspace_diff import diff_panel_html
+from ..delivery_workspace_validation import (
+    cross_slot_fix_hints,
+    main_slot_filenames,
+    slot_is_include_like,
+    suggestion_defers_fix_elsewhere,
+    validate_suggested_against_original,
+)
 from ..rfp_download_names import content_disposition_attachment
 from ..templates_config import templates
 
@@ -109,6 +118,7 @@ def delivery_workspace_page(
     return_to: str | None = None,
     ws_err: str | None = None,
     ws_ok: str | None = None,
+    ws_warn: str | None = None,
     db: Session = Depends(get_db),
     user=Depends(auth.get_current_user),
 ):
@@ -133,11 +143,24 @@ def delivery_workspace_page(
         slot_idx = 0
 
     sess_key = f"dw_suggested_{norm}_{int(row.id)}"
+    err_sess_key = f"dw_se38_error_{norm}_{int(row.id)}"
     ws_ok_val = (ws_ok or "").strip()
     if ws_ok_val == "suggested":
         suggested_source = (request.session.pop(sess_key, None) or "").strip()
     else:
         suggested_source = (request.session.get(sess_key) or "").strip()
+
+    last_se38 = (request.session.get(err_sess_key) or "").strip()
+    slots_raw = pkg.get("slots") or []
+    cross_hints: tuple[str, ...] = ()
+    if last_se38 and slot_details:
+        cross_hints = cross_slot_fix_hints(last_se38, slots_raw, active_index=slot_idx)
+    elsewhere_sess_key = f"dw_elsewhere_{norm}_{int(row.id)}"
+    peer_count_sess = int(request.session.get(f"dw_peer_count_{norm}_{int(row.id)}") or 0)
+    elsewhere = request.session.get(elsewhere_sess_key) or {}
+    if not isinstance(elsewhere, dict):
+        elsewhere = {}
+    main_names = list(main_slot_filenames(slots_raw))
 
     ctx = {
         "request": request,
@@ -153,11 +176,35 @@ def delivery_workspace_page(
         "program_id": (pkg.get("program_id") or "").strip(),
         "ws_err": (ws_err or "").strip() or None,
         "ws_ok": (ws_ok or "").strip() or None,
+        "ws_warn": (ws_warn or "").strip() or None,
         "suggested_source": suggested_source,
+        "cross_slot_hints": list(cross_hints),
+        "main_slot_filenames": main_names,
+        "fix_elsewhere_target": (elsewhere.get("target") or "").strip() or None,
+        "fix_elsewhere_reason": (elsewhere.get("reason") or "").strip() or None,
+        "suggest_peer_slot_count": peer_count_sess,
         "sap_version": (getattr(row, "sap_system_version", None) or "").strip(),
         **workspace_page_header(row, norm),
     }
     return templates.TemplateResponse(request, "delivery_workspace.html", ctx)
+
+
+@router.post("/delivery/{kind}/{request_id}/workspace/diff-preview")
+def delivery_workspace_diff_preview(
+    kind: str,
+    request_id: int,
+    original_source: str = Form(""),
+    suggested_source: str = Form(""),
+    db: Session = Depends(get_db),
+    user=Depends(auth.get_current_user),
+):
+    norm = normalize_request_kind(kind)
+    if not norm:
+        raise HTTPException(status_code=404, detail="not_found")
+    row = load_request_row(db, request_kind=norm, request_id=request_id)
+    _require_access(db, user, row, norm)
+    html = diff_panel_html(original_source or "", suggested_source or "")
+    return JSONResponse({"html": html})
 
 
 @router.post("/delivery/{kind}/{request_id}/workspace/slots/{slot_index}/save")
@@ -231,16 +278,23 @@ def delivery_workspace_suggest_fix(
             status_code=303,
         )
     sl = slots[idx]
+    slot_role = (sl.get("role") or "other").strip()
+    current_src = _slot_source(pkg, idx)
+    _, peer_count = build_peer_sources_context(slots, active_index=idx)
     suggested, err = suggest_slot_fix(
         billing_user_id=billing_uid,
         request_kind=norm,
         request_id=int(row.id),
         slot_filename=(sl.get("filename") or f"slot_{idx + 1}.abap").strip(),
-        slot_role=(sl.get("role") or "other").strip(),
-        current_source=_slot_source(pkg, idx),
+        slot_role=slot_role,
+        current_source=current_src,
         se38_error=se38_error,
         sap_version_hint=(getattr(row, "sap_system_version", None) or "").strip(),
         program_id=(pkg.get("program_id") or "").strip(),
+        package_slots=slots,
+        active_slot_index=idx,
+        main_slot_filenames=list(main_slot_filenames(slots)),
+        active_slot_is_include_like=slot_is_include_like(slot_role),
     )
     if err:
         return RedirectResponse(
@@ -251,10 +305,26 @@ def delivery_workspace_suggest_fix(
         )
     db.commit()
     sess_key = f"dw_suggested_{norm}_{int(row.id)}"
+    err_sess_key = f"dw_se38_error_{norm}_{int(row.id)}"
+    elsewhere_sess_key = f"dw_elsewhere_{norm}_{int(row.id)}"
     request.session[sess_key] = suggested[:200_000]
+    request.session[err_sess_key] = (se38_error or "")[:8_000]
+    request.session[f"dw_peer_count_{norm}_{int(row.id)}"] = int(peer_count)
+    deferred, fix_target, fix_reason = suggestion_defers_fix_elsewhere(
+        suggested, current_src
+    )
+    if deferred:
+        request.session[elsewhere_sess_key] = {
+            "target": (fix_target or "").strip()[:500],
+            "reason": (fix_reason or "").strip()[:2000],
+        }
+        ws_ok_val = "suggested_elsewhere"
+    else:
+        request.session.pop(elsewhere_sess_key, None)
+        ws_ok_val = "suggested"
     return RedirectResponse(
         url=_workspace_redirect(
-            norm, int(row.id), return_to=return_to, slot=idx, ws_ok="suggested"
+            norm, int(row.id), return_to=return_to, slot=idx, ws_ok=ws_ok_val
         ),
         status_code=303,
     )
@@ -262,10 +332,12 @@ def delivery_workspace_suggest_fix(
 
 @router.post("/delivery/{kind}/{request_id}/workspace/slots/{slot_index}/apply")
 def delivery_workspace_apply_suggestion(
+    request: Request,
     kind: str,
     request_id: int,
     slot_index: int,
     suggested_source: str = Form(""),
+    force_apply: str | None = Form(None),
     return_to: str | None = Form(None),
     db: Session = Depends(get_db),
     user=Depends(auth.get_current_user),
@@ -282,6 +354,48 @@ def delivery_workspace_apply_suggestion(
             ),
             status_code=303,
         )
+    pkg = get_working_package(db, row, norm)
+    if not pkg:
+        return RedirectResponse(
+            url=_workspace_redirect(
+                norm, int(row.id), return_to=return_to, slot=int(slot_index), ws_err="no_package"
+            ),
+            status_code=303,
+        )
+    idx = int(slot_index)
+    slots = pkg.get("slots") or []
+    slot_role = "other"
+    if 0 <= idx < len(slots) and isinstance(slots[idx], dict):
+        slot_role = (slots[idx].get("role") or "other").strip()
+    original = _slot_source(pkg, idx)
+    validation = validate_suggested_against_original(
+        original, suggested_source, slot_role=slot_role
+    )
+    forced = (force_apply or "").strip().lower() in ("1", "true", "yes", "on")
+    deferred, _, _ = suggestion_defers_fix_elsewhere(suggested_source, original)
+    if deferred and not forced:
+        return RedirectResponse(
+            url=_workspace_redirect(
+                norm,
+                int(row.id),
+                return_to=return_to,
+                slot=idx,
+                ws_warn="fix_elsewhere",
+            ),
+            status_code=303,
+        )
+    if not validation.ok and not forced:
+        warn_code = validation.warn_codes[0] if validation.warn_codes else "source_shorter"
+        return RedirectResponse(
+            url=_workspace_redirect(
+                norm,
+                int(row.id),
+                return_to=return_to,
+                slot=idx,
+                ws_warn=warn_code,
+            ),
+            status_code=303,
+        )
     try:
         apply_slot_source(db, row, norm, int(slot_index), suggested_source)
         db.commit()
@@ -293,6 +407,9 @@ def delivery_workspace_apply_suggestion(
             ),
             status_code=303,
         )
+    sess_key = f"dw_suggested_{norm}_{int(row.id)}"
+    request.session.pop(sess_key, None)
+    request.session.pop(f"dw_elsewhere_{norm}_{int(row.id)}", None)
     return RedirectResponse(
         url=_workspace_redirect(
             norm, int(row.id), return_to=return_to, slot=int(slot_index), ws_ok="applied"

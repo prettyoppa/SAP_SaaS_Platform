@@ -35,17 +35,41 @@
     {% endif %}
   </div>
   {% endif %}
+  {% if ws_warn %}
+  <div class="alert alert-warning small" role="alert">
+    {% if ws_warn == 'structure_gap' %}
+    <span class="nav-ko">AI 제안이 원본 구조(REPORT 등)와 크게 다릅니다. SE38에서 다시 확인한 뒤, 필요하면 아래 「그래도 반영」을 사용하세요.</span>
+    <span class="nav-en" style="display:none">The AI suggestion differs greatly from the original structure (e.g. REPORT). Review in SE38; use “Apply anyway” if you accept the risk.</span>
+    {% elif ws_warn == 'fix_elsewhere' %}
+    <span class="nav-ko">AI가 다른 파일(메인 등)에서 수정하라고 표시했습니다. 이 INCLUDE에 억지로 반영하지 마세요. 메인·해당 탭에서 다시 제안받으세요.</span>
+    <span class="nav-en" style="display:none">AI marked the fix for another file (e.g. main). Do not apply here; open that tab and request a new suggestion.</span>
+    {% elif ws_warn == 'suspicious_short' %}
+    <span class="nav-ko">AI 제안 줄 수가 원본에 비해 지나치게 적습니다. 잘림·누락이 없는지 행 번호로 확인하세요. 문제 없으면 「그래도 반영」을 누르세요.</span>
+    <span class="nav-en" style="display:none">The suggestion has far fewer lines than the original. Check line numbers for truncation; use “Apply anyway” if it is correct.</span>
+    {% else %}
+    <span class="nav-ko">AI 제안 길이가 원본 대비 급감했습니다 (잘림 가능). 행 번호로 검토 후, 확신이 있으면 「그래도 반영」을 누르세요.</span>
+    <span class="nav-en" style="display:none">The suggestion is much shorter than the original (possible truncation). Review with line numbers; use “Apply anyway” if you are sure.</span>
+    {% endif %}
+  </div>
+  {% endif %}
   {% if ws_ok %}
   <div class="alert alert-success small">
     {% if ws_ok == 'saved' %}
     <span class="nav-ko">슬롯 소스를 저장했습니다.</span>
     <span class="nav-en" style="display:none">Slot source saved.</span>
+    {% elif ws_ok == 'suggested_elsewhere' %}
+    <span class="nav-ko">AI가 이 탭이 아닌 다른 파일에서 수정할 것을 권고했습니다. 아래 안내를 확인하세요.</span>
+    <span class="nav-en" style="display:none">AI recommends fixing another file, not this tab. See the notice below.</span>
     {% elif ws_ok == 'suggested' %}
     <span class="nav-ko">AI 수정 제안을 생성했습니다. 아래에서 검토 후 반영하세요.</span>
     <span class="nav-en" style="display:none">AI fix suggestion generated. Review and apply below.</span>
     {% elif ws_ok == 'applied' %}
     <span class="nav-ko">작업본 슬롯에 반영했습니다.</span>
     <span class="nav-en" style="display:none">Applied to the working copy slot.</span>
+    {% endif %}
+    {% if suggest_peer_slot_count and (ws_ok == 'suggested' or ws_ok == 'suggested_elsewhere') %}
+    <span class="nav-ko d-block mt-1">참고: 이번 제안에 다른 ABAP 탭 {{ suggest_peer_slot_count }}개 소스를 함께 분석했습니다.</span>
+    <span class="nav-en" style="display:none">Note: This run included {{ suggest_peer_slot_count }} other ABAP tab(s) for read-only analysis.</span>
     {% endif %}
   </div>
   {% endif %}
@@ -88,7 +112,9 @@
           <span class="nav-ko">작업본 슬롯 소스</span>
           <span class="nav-en" style="display:none">Working slot source</span>
         </label>
-        <textarea name="source" class="form-control font-monospace small" rows="14">{{ sl.source }}</textarea>
+        {% with field_name='source', source_text=sl.source, rows=14 %}
+        {% include 'partials/delivery_workspace_source_editor.html' %}
+        {% endwith %}
         <button type="submit" class="btn btn-outline-primary btn-sm mt-2">
           <span class="nav-ko">소스 저장</span>
           <span class="nav-en" style="display:none">Save source</span>
@@ -102,27 +128,73 @@
           <span class="nav-ko">SE38 syntax error, activation error, dump short text 등</span>
           <span class="nav-en" style="display:none">SE38 syntax error, activation error, dump short text, etc.</span>
         </label>
+        <p class="small text-muted mb-2">
+          <span class="nav-ko">AI 제안은 <strong>한 번의 호출</strong>에 메인·다른 ABAP 탭 소스를 <strong>읽기만</strong> 하고, <strong>수정 출력·반영은 현재 탭만</strong> 합니다. INCLUDE 탭에서 오류만 넣었을 때 메인이 원인이면 AI가 (B)로 다른 파일 수정을 권고할 수 있습니다.</span>
+          <span class="nav-en" style="display:none">Each suggestion <strong>reads</strong> main and other ABAP tabs in one call, but <strong>only the active tab</strong> can be edited and applied. On an include tab, AI may recommend fixing main instead.</span>
+        </p>
+        {% if sl.role|lower not in ['main_report', 'main', 'report'] %}
+        <div class="alert alert-warning small py-2 mb-2" role="note">
+          <span class="nav-ko"><strong>INCLUDE·서브 탭:</strong> 오류가 여기서 보여도 수정 위치가 메인{% if main_slot_filenames %} ({{ main_slot_filenames|join(', ') }}){% endif %}일 수 있습니다. AI가 <em>다른 파일에서 수정</em>이라고 하면 해당 탭으로 이동해 다시 제안받으세요.</span>
+          <span class="nav-en" style="display:none"><strong>Include/sub tab:</strong> The fix may be in main{% if main_slot_filenames %} ({{ main_slot_filenames|join(', ') }}){% endif %}. If AI says fix elsewhere, switch tabs and request again.</span>
+        </div>
+        {% endif %}
         <textarea name="se38_error" class="form-control small mb-2" rows="4"></textarea>
-        <button type="submit" class="btn btn-warning btn-sm">
+        <button type="submit" class="btn btn-warning btn-sm"
+                {% if sl.role|lower not in ['main_report', 'main', 'report'] %}data-app-confirm-i18n="deliveryWorkspace.suggestIncludeConfirm"{% endif %}>
           <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
           <span class="nav-ko">AI 수정 제안</span>
           <span class="nav-en" style="display:none">Suggest AI fix</span>
         </button>
       </form>
 
+      {% if cross_slot_hints and loop.index0 == slot_index %}
+      <div class="alert alert-info small py-2 mb-3" role="status">
+        <span class="nav-ko">SE38 메시지에 다른 슬롯 파일명이 보입니다: {{ cross_slot_hints|join(', ') }}. 오류 위치와 수정 위치가 다를 수 있으니 해당 탭·메인을 확인하세요.</span>
+        <span class="nav-en" style="display:none">The SE38 text names other slots: {{ cross_slot_hints|join(', ') }}. The error location and the fix may differ—check those tabs and main.</span>
+      </div>
+      {% endif %}
       {% if suggested_source and loop.index0 == slot_index %}
-      <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/apply" class="border-top pt-3 dw-slot-form">
+      {% if fix_elsewhere_target or ws_ok == 'suggested_elsewhere' %}
+      <div class="alert alert-warning small py-2 mb-3" role="alert">
+        <span class="nav-ko">AI 판단: 수정은 <strong>{{ fix_elsewhere_target or '다른 슬롯(메인 등)' }}</strong>에서 하는 것이 맞습니다.{% if fix_elsewhere_reason %} ({{ fix_elsewhere_reason }}){% endif %} 이 탭에 반영하지 말고 해당 파일 탭에서 SE38 오류를 다시 넣고 제안받으세요.</span>
+        <span class="nav-en" style="display:none">AI says the fix belongs in <strong>{{ fix_elsewhere_target or 'another slot (e.g. main)' }}</strong>.{% if fix_elsewhere_reason %} ({{ fix_elsewhere_reason }}){% endif %} Do not apply here—open that tab and request a new suggestion.</span>
+      </div>
+      {% endif %}
+      <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/apply" class="border-top pt-3 dw-slot-form" id="dw-apply-form">
         <input type="hidden" name="return_to" value="{{ return_url }}">
         <label class="form-label small fw-semibold">
           <span class="nav-ko">AI 제안 (검토 후 반영)</span>
           <span class="nav-en" style="display:none">AI suggestion (review then apply)</span>
         </label>
-        <textarea name="suggested_source" class="form-control font-monospace small" rows="14">{{ suggested_source }}</textarea>
-        <button type="submit" class="btn btn-success btn-sm mt-2"
-                data-app-confirm-i18n="deliveryWorkspace.applyConfirm">
-          <span class="nav-ko">작업본에 반영</span>
-          <span class="nav-en" style="display:none">Apply to working copy</span>
-        </button>
+        {% with original_source=sl.source, suggested_source=suggested_source, diff_preview_url=workspace_base ~ '/diff-preview' %}
+        {% include 'partials/delivery_workspace_diff_panel.html' %}
+        {% endwith %}
+        {% with field_name='suggested_source', source_text=suggested_source, rows=14 %}
+        {% include 'partials/delivery_workspace_source_editor.html' %}
+        {% endwith %}
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          {% if not fix_elsewhere_target and ws_ok != 'suggested_elsewhere' %}
+          <button type="submit" class="btn btn-success btn-sm"
+                  data-app-confirm-i18n="deliveryWorkspace.applyConfirm">
+            <span class="nav-ko">작업본에 반영</span>
+            <span class="nav-en" style="display:none">Apply to working copy</span>
+          </button>
+          {% else %}
+          <button type="submit" class="btn btn-outline-secondary btn-sm" name="force_apply" value="1"
+                  data-app-confirm-i18n="deliveryWorkspace.applyDespiteElsewhere">
+            <span class="nav-ko">그래도 이 탭에 반영 (비권장)</span>
+            <span class="nav-en" style="display:none">Apply to this tab anyway (not recommended)</span>
+          </button>
+          {% endif %}
+          {% if ws_warn and ws_warn != 'fix_elsewhere' %}
+          <button type="submit" class="btn btn-outline-warning btn-sm" name="force_apply" value="1"
+                  form="dw-apply-form"
+                  data-app-confirm-i18n="deliveryWorkspace.applyForceConfirm">
+            <span class="nav-ko">그래도 반영</span>
+            <span class="nav-en" style="display:none">Apply anyway</span>
+          </button>
+          {% endif %}
+        </div>
       </form>
       {% endif %}
     </div>
@@ -130,6 +202,7 @@
   {% endfor %}
   {% endif %}
 </div>
+<script src="/static/js/delivery_workspace.js"></script>
 <script>
 (function () {
   var root = document.getElementById('delivery-workspace');

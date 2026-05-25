@@ -1,0 +1,5 @@
+{# 행 번호는 표시 전용 — textarea 값에는 포함되지 않음 #}
+<div class="dw-source-editor mb-2" data-dw-source-editor>
+  <pre class="dw-line-nums font-monospace small" aria-hidden="true">{{ source_text|abap_line_gutter }}</pre>
+  <textarea name="{{ field_name }}" class="form-control font-monospace small dw-source-input" rows="{{ rows|default(14) }}"{% if readonly %} readonly{% endif %}>{{ source_text }}</textarea>
+</div>

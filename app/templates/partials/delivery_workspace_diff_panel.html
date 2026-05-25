@@ -1,0 +1,20 @@
+{# 작업본(sl.source) vs AI 제안 — 반영 전 diff (표시 전용) #}
+<div class="dw-diff-panel mb-3" data-dw-diff-panel data-dw-diff-url="{{ diff_preview_url }}">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+    <span class="form-label small fw-semibold mb-0">
+      <span class="nav-ko">변경 diff (반영 전)</span>
+      <span class="nav-en" style="display:none">Change diff (before apply)</span>
+    </span>
+    <span class="dw-diff-legend small text-muted">
+      <span class="dw-diff-legend-item dw-diff-legend-item--del">−</span>
+      <span class="nav-ko">삭제</span><span class="nav-en" style="display:none">removed</span>
+      <span class="dw-diff-legend-sep">·</span>
+      <span class="dw-diff-legend-item dw-diff-legend-item--add">+</span>
+      <span class="nav-ko">추가</span><span class="nav-en" style="display:none">added</span>
+    </span>
+  </div>
+  <textarea class="d-none" data-dw-diff-original aria-hidden="true">{{ original_source }}</textarea>
+  <div class="dw-diff-view font-monospace small" role="region" aria-live="polite">
+    {{ original_source|abap_diff_panel(suggested_source) }}
+  </div>
+</div>
