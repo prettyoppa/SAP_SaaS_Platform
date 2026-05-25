@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from typing import Literal
 
@@ -54,13 +55,40 @@ def _admin_alert_email(admin: models.User) -> tuple[bool, str]:
 
 
 def _admin_alert_sms(admin: models.User) -> tuple[bool, str | None]:
-    """관리자 SMS — 휴대폰 인증만 있으면 발송(ops SMS 동의 불필요)."""
+    """
+    관리자 SMS 수신 번호.
+    1) 업무 SMS 동의 + 인증 휴대폰 (회원과 동일 채널)
+    2) 인증 휴대폰만 (관리자 계정, 동의 없이도 운영 알림)
+    """
     if not getattr(admin, "is_admin", False) or getattr(admin, "is_active", True) is False:
         return False, None
-    if not getattr(admin, "phone_verified", False):
-        return False, None
-    phone = phone_e164_for_sms(getattr(admin, "phone_number", None))
-    return bool(phone), phone
+    sms_ok, phone = _member_ops_sms_target(admin)
+    if sms_ok and phone:
+        return True, phone
+    if getattr(admin, "phone_verified", False):
+        phone = phone_e164_for_sms(getattr(admin, "phone_number", None))
+        return bool(phone), phone
+    return False, None
+
+
+def _admin_ops_sms_env_phones() -> list[str]:
+    """ADMIN_OPS_ALERT_SMS — 콤마/세미콜론 구분 E.164(+82…) 운영 알림 수신처."""
+    raw = (os.environ.get("ADMIN_OPS_ALERT_SMS") or os.environ.get("ADMIN_ALERT_SMS_E164") or "").strip()
+    if not raw:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for part in raw.replace(";", ",").split(","):
+        chunk = part.strip()
+        if not chunk:
+            continue
+        phone = phone_e164_for_sms(chunk) or (
+            chunk if chunk.startswith("+") and len(chunk) >= 10 else None
+        )
+        if phone and phone not in seen:
+            seen.add(phone)
+            out.append(phone)
+    return out
 
 
 def _member_wallet_email(member: models.User) -> tuple[bool, str]:
@@ -87,10 +115,8 @@ def _send_admin_email(admin: models.User, subject: str, body: str) -> None:
     send_plain_notification_email(addr, subject, body)
 
 
-def _send_admin_sms(admin: models.User, body: str, *, sms_type: str) -> None:
-    sms_ok, phone = _admin_alert_sms(admin)
-    if sms_ok and phone:
-        send_offer_inquiry_sms(phone, body, sms_type=sms_type)
+def _send_admin_sms_to_phone(phone: str, body: str, *, sms_type: str) -> None:
+    send_offer_inquiry_sms(phone, body, sms_type=sms_type)
 
 
 def _notify_admins(
@@ -101,15 +127,32 @@ def _notify_admins(
     sms_body: str,
     sms_type: str,
 ) -> None:
+    sms_sent: set[str] = set()
     for admin in _admin_ops_recipients(db):
         try:
             _send_admin_email(admin, subject, email_body)
         except Exception:
             logger.exception("admin notify email failed admin_id=%s", admin.id)
         try:
-            _send_admin_sms(admin, sms_body, sms_type=sms_type)
+            sms_ok, phone = _admin_alert_sms(admin)
+            if sms_ok and phone and phone not in sms_sent:
+                _send_admin_sms_to_phone(phone, sms_body, sms_type=sms_type)
+                sms_sent.add(phone)
         except Exception:
             logger.exception("admin notify sms failed admin_id=%s", admin.id)
+    for phone in _admin_ops_sms_env_phones():
+        if phone in sms_sent:
+            continue
+        try:
+            _send_admin_sms_to_phone(phone, sms_body, sms_type=sms_type)
+            sms_sent.add(phone)
+        except Exception:
+            logger.exception("admin notify sms failed env_phone=%s", phone[-4:])
+    if not sms_sent:
+        logger.warning(
+            "admin notify sms skipped type=%s (no admin phone_verified/ops_sms and no ADMIN_OPS_ALERT_SMS)",
+            sms_type,
+        )
 
 
 def _member_account_type_label(user: models.User) -> str:

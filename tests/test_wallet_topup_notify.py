@@ -27,6 +27,7 @@ class WalletTopupNotifyTests(unittest.TestCase):
             is_active=True,
             ops_email_opt_in=True,
             ops_sms_opt_in=False,
+            phone_verified=False,
         )
         db.query.return_value.filter.return_value.all.return_value = [admin]
         member = models.User(id=1, email="m@test.com", full_name="홍길동", hashed_password="x")
@@ -49,6 +50,40 @@ class WalletTopupNotifyTests(unittest.TestCase):
         self.assertIn("홍길동", body)
         self.assertIn("30,000", body)
         mock_sms.assert_not_called()
+
+    @patch("app.wallet_topup_notifications.send_offer_inquiry_sms")
+    @patch("app.wallet_topup_notifications.send_plain_notification_email")
+    def test_notify_admins_on_topup_submitted_sms_when_phone_verified(self, mock_email, mock_sms):
+        db = MagicMock()
+        admin = models.User(
+            id=9,
+            email="admin@test.com",
+            full_name="Admin User",
+            hashed_password="x",
+            is_admin=True,
+            is_active=True,
+            phone_number="+821011112222",
+            phone_verified=True,
+        )
+        db.query.return_value.filter.return_value.all.return_value = [admin]
+        member = models.User(id=1, email="m@test.com", full_name="홍길동", hashed_password="x")
+        claim = models.PaymentClaim(
+            id=42,
+            user_id=1,
+            status="pending",
+            billing_country="KR",
+            currency="KRW",
+            amount_minor=30000,
+            plan_account_kind="member",
+            plan_code="ai_wallet_topup",
+            billing_period="topup",
+            depositor_name="홍길동",
+        )
+        notify_admins_wallet_topup_submitted(db, claim, member)
+        mock_email.assert_called_once()
+        mock_sms.assert_called_once()
+        self.assertEqual(mock_sms.call_args[0][0], "+821011112222")
+        self.assertEqual(mock_sms.call_args[1].get("sms_type"), "wallet_topup_admin")
 
     @patch("app.wallet_topup_notifications.send_offer_inquiry_sms")
     @patch("app.wallet_topup_notifications.send_plain_notification_email")
