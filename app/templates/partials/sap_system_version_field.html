@@ -18,15 +18,15 @@
     </label>
   </div>
   <p class="small text-muted mb-2">
-    <span class="nav-ko">SAP GUI <strong>시스템 → 상태</strong>(<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F12</kbd>)에서 확인한 <strong>SAP 버전</strong>·<strong>제품 버전</strong>을 그대로 입력하세요. (예: S/4HANA 2023 FPS02, ECC 6.0 EHP8 NW 7.40)</span>
-    <span class="nav-en" style="display:none">Enter the <strong>SAP release</strong> and <strong>product version</strong> from <strong>System → Status</strong> in SAP GUI (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F12</kbd>).</span>
+    <span class="nav-ko"><strong>대략적인 제품·릴리스</strong>만 적으면 됩니다. FPS·EHP 등 세부 패치는 선택 사항입니다.</span>
+    <span class="nav-en" style="display:none">A <strong>rough product and release</strong> is enough. FPS, EHP, and patch details are optional.</span>
   </p>
   <input type="text" name="sap_system_version" id="sap_system_version" class="form-control font-monospace"
          maxlength="120" autocomplete="off" spellcheck="false"
-         placeholder="예: S/4HANA 2023 / ECC 6.0 EHP8 NW 7.40"
+         placeholder="예: S/4HANA, ECC740, ECC750"
          value="{{ _sap_ver }}"/>
   <div class="form-text small text-muted mt-1">
-    <span class="nav-ko">영문은 자동으로 대문자로 바뀝니다. 확인 방법이 어려우면 <strong>임시 저장</strong> 후 화면 오른쪽 아래 <strong>AI에게 문의</strong>로 물어보세요.</span>
-    <span class="nav-en" style="display:none">Lowercase letters become uppercase automatically. After <strong>Save draft</strong>, use <strong>AI inquiry</strong> (bottom-right) to ask how to check your version.</span>
+    <span class="nav-ko">영문 소문자는 자동으로 대문자로 바뀝니다. SAP GUI <strong>시스템 → 상태</strong>(<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F12</kbd>)에서 확인할 수 있습니다. 어려우면 <strong>임시 저장</strong> 후 <strong>AI에게 문의</strong>로 물어보세요.</span>
+    <span class="nav-en" style="display:none">Lowercase letters become uppercase. Check <strong>System → Status</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F12</kbd>) in SAP GUI, or ask via <strong>AI inquiry</strong> after <strong>Save draft</strong>.</span>
   </div>
 </div>

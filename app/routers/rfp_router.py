@@ -827,7 +827,7 @@ async def submit_rfp(
         raise
     db.refresh(rfp)
     if is_draft:
-        return RedirectResponse(url=f"/rfp/{rfp.id}/edit", status_code=302)
+        return RedirectResponse(url=f"/rfp/{rfp.id}/edit?draft_saved=1", status_code=302)
     return RedirectResponse(url=f"/rfp/{rfp.id}/success", status_code=302)
 
 
@@ -2009,6 +2009,7 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
     )
     followup_turns = pair_followup_turn_messages(follow_msgs)
     chat_err = (request.query_params.get("chat_err") or "").strip() or None
+    draft_saved = (request.query_params.get("draft_saved") or "").strip() == "1"
     snap_ed = ai_inquiry_snapshot(db, user, "rfp", rfp_w.id)
     ai_inquiry = {
         "mode": "live",
@@ -2035,6 +2036,7 @@ def rfp_edit_form(rfp_id: int, request: Request, db: Session = Depends(get_db)):
             "devtypes": devtypes,
             "writing_tip": writing_tip,
             "edit_mode": True,
+            "draft_saved": draft_saved,
             "attachment_entries": _rfp_attachment_entries(rfp_w),
             "ref_code_initial": _ref_code_initial_from_rfp(rfp_w),
             "ai_inquiry": ai_inquiry,
@@ -2322,7 +2324,7 @@ async def rfp_edit_submit(
         )
     db.commit()
     if is_draft:
-        return RedirectResponse(url=f"/rfp/{rfp_id}/edit", status_code=302)
+        return RedirectResponse(url=f"/rfp/{rfp_id}/edit?draft_saved=1", status_code=302)
     return RedirectResponse(url=f"/rfp/{rfp_id}/success", status_code=302)
 
 

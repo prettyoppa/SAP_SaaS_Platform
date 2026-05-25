@@ -90,6 +90,7 @@ const TRANSLATIONS = {
     /* RFP Form */
     "rfp.back": "Back to Dashboard", "rfp.title": "New Development Request",
     "rfp.titleNew": "New request", "rfp.titleEdit": "Edit development request",
+    "rfp.draftSavedFlash": "Draft saved. Request ID <strong>{id}</strong> — continue here or find it later in your list.",
     "rfp.sub": "Tell us what you need. Our AI will generate a free Development Proposal for you.",
     "rfp.prog1": "Modules & Type", "rfp.prog2": "Description", "rfp.prog3": "Attachment",
     "rfp.prog4": "ABAP code", "rfp.prog5": "Review",
@@ -564,6 +565,7 @@ const TRANSLATIONS = {
     /* RFP Form */
     "rfp.back": "대시보드로 돌아가기", "rfp.title": "새 개발 요청",
     "rfp.titleNew": "신규 요청", "rfp.titleEdit": "개발 요청 수정",
+    "rfp.draftSavedFlash": "임시저장되었습니다. 요청 ID <strong>{id}</strong> — 이어서 작성하거나 나중에 목록에서 이 ID로 찾을 수 있습니다.",
     "rfp.sub": "요구사항을 입력하면 무료 개발 제안서(Proposal)를 자동 생성해 드립니다.",
     "rfp.prog1": "모듈 & 유형", "rfp.prog2": "요구사항", "rfp.prog3": "파일첨부",
     "rfp.prog4": "참고 코드", "rfp.prog5": "최종확인",

@@ -22,7 +22,28 @@
         <div class="rfp-header mb-4">
           {% include 'partials/nav_prev_screen.html' %}
           <h2 class="rfp-title">{% if edit_mode %}<span data-i18n="rfp.titleEdit">개발 요청 수정</span>{% else %}<span data-i18n="rfp.titleNew">신규 요청</span>{% endif %}</h2>
+          {% if edit_mode and rfp %}
+          <p class="small text-muted mb-0 mt-2">
+            <span class="nav-ko">요청 ID</span><span class="nav-en" style="display:none">Request ID</span>
+            <span class="badge bg-dark-subtle text-dark border font-monospace ms-1">{{ rfp.id|request_no('RFP') }}</span>
+            <span class="mx-1" aria-hidden="true">·</span>
+            <span class="nav-ko">생성</span><span class="nav-en" style="display:none">Created</span>
+            {{ rfp.created_at|local_dt_span }}
+            {% if (rfp.status or '') == 'draft' %}
+            <span class="mx-1" aria-hidden="true">·</span>
+            <span class="badge bg-secondary" data-i18n="badge.draft">임시저장</span>
+            {% endif %}
+          </p>
+          {% endif %}
         </div>
+
+        {% if draft_saved and edit_mode and rfp %}
+        <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-circle-check me-2"></i>
+          <span class="nav-ko">임시저장되었습니다. 요청 ID <strong class="font-monospace">{{ rfp.id|request_no('RFP') }}</strong> — 이어서 작성하거나 나중에 목록에서 이 ID로 찾을 수 있습니다.</span>
+          <span class="nav-en" style="display:none">Draft saved. Request ID <strong class="font-monospace">{{ rfp.id|request_no('RFP') }}</strong> — continue here or find it later in your list.</span>
+        </div>
+        {% endif %}
 
         {% include 'partials/core_fields_incomplete_alert.html' %}
         {% if error == 'invalid_file' %}
