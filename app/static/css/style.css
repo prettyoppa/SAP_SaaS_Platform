@@ -3332,6 +3332,38 @@ html[data-theme="light"] .delivery-workspace-tabs .nav-link.active {
   box-shadow: none;
 }
 
+.dw-source-editor--readonly {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.dw-source-editor--readonly .dw-line-nums {
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+  line-height: 1.65;
+  max-height: 28rem;
+  overflow: hidden;
+}
+.dw-source-editor--readonly .dw-source-view {
+  flex: 1;
+  margin: 0;
+  max-height: 28rem;
+  padding: 1.25rem;
+  line-height: 1.65;
+  border: none;
+  border-radius: 0;
+  background: var(--surface2);
+  color: var(--code-text);
+}
+.dw-source-editor--readonly .dw-source-view code {
+  color: inherit;
+  font-family: ui-monospace, Consolas, "Segoe UI Mono", monospace;
+}
+html[data-theme="light"] .dw-source-editor--readonly .dw-source-view {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
 .dw-diff-panel .dw-diff-legend-sep {
   margin: 0 0.35rem;
   opacity: 0.5;

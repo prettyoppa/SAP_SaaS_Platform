@@ -41,7 +41,9 @@
           {{ sl.title_ko }}
         </div>
         {% endif %}
-        <pre class="codelib-source-pre delivered-slot-source-pre rounded-0 mb-0"><code>{{ sl.source or '' }}</code></pre>
+        {% with source_text=sl.source or '' %}
+        {% include 'partials/abap_line_numbered_source_readonly.html' %}
+        {% endwith %}
       </div>
       {% endfor %}
     </div>
@@ -55,7 +57,9 @@
       <span class="ms-auto">{{ sl.title_ko }}</span>
     </div>
     {% endif %}
-    <pre class="codelib-source-pre delivered-slot-source-pre mb-0" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)"><code>{{ sl.source or '' }}</code></pre>
+    {% with source_text=sl.source or '' %}
+    {% include 'partials/abap_line_numbered_source_readonly.html' %}
+    {% endwith %}
     {% endif %}
   </div>
 </div>

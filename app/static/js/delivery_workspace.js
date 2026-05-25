@@ -1,26 +1,4 @@
 (function () {
-  function syncEditor(editor) {
-    var nums = editor.querySelector(".dw-line-nums");
-    var ta = editor.querySelector(".dw-source-input");
-    if (!nums || !ta) return;
-    function refreshNums() {
-      var lines = (ta.value || "").split("\n");
-      var n = Math.max(1, lines.length);
-      var width = String(n).length;
-      var buf = [];
-      for (var i = 1; i <= n; i++) {
-        buf.push(String(i).padStart(width, " "));
-      }
-      nums.textContent = buf.join("\n");
-    }
-    function syncScroll() {
-      nums.scrollTop = ta.scrollTop;
-    }
-    ta.addEventListener("input", refreshNums);
-    ta.addEventListener("scroll", syncScroll);
-    refreshNums();
-  }
-
   function debounce(fn, ms) {
     var t;
     return function () {
@@ -72,7 +50,9 @@
   function init() {
     var root = document.getElementById("delivery-workspace");
     if (!root) return;
-    root.querySelectorAll("[data-dw-source-editor]").forEach(syncEditor);
+    if (typeof window.initAbapLineEditors === "function") {
+      window.initAbapLineEditors(root);
+    }
     root.querySelectorAll("[data-dw-diff-panel]").forEach(bindDiffPanel);
   }
 

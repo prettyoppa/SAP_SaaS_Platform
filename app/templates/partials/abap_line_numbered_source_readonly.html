@@ -1,0 +1,5 @@
+{# ABAP 소스 + 표시용 행 번호 (읽기 전용). source_text 필수 #}
+<div class="dw-source-editor dw-source-editor--readonly" data-dw-line-editor>
+  <pre class="dw-line-nums font-monospace small" aria-hidden="true">{{ source_text|abap_line_gutter }}</pre>
+  <pre class="codelib-source-pre delivered-slot-source-pre dw-source-view rounded-0 mb-0"><code>{{ source_text }}</code></pre>
+</div>
