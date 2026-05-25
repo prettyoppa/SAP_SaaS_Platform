@@ -24,15 +24,22 @@ from ..delivery_workspace import (
 )
 from ..delivery_workspace_access import user_can_use_delivery_workspace
 from ..delivery_workspace_ai import STAGE_DELIVERY_WORKSPACE_FIX, suggest_slot_fix
-from ..form_errors import safe_back_url
 from ..rfp_download_names import content_disposition_attachment
 from ..templates_config import templates
 
 router = APIRouter(tags=["delivery-workspace"])
 
 
+def _safe_return_to_path(raw: str | None) -> str | None:
+    """오픈 리다이렉트 방지: 동일 사이트 상대 경로만."""
+    s = (raw or "").strip()
+    if not s.startswith("/") or s.startswith("//") or ".." in s or "\n" in s or "\r" in s:
+        return None
+    return s
+
+
 def _hub_return_url(kind: str, row: Any, user, return_to: str | None) -> str:
-    back = safe_back_url(return_to)
+    back = _safe_return_to_path(return_to)
     if back:
         return back
     owner = int(getattr(row, "user_id", 0) or 0)
