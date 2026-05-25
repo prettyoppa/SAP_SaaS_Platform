@@ -1,0 +1,20 @@
+{# entity, workspace_header_* #}
+<div class="proposal-header mb-3">
+  <div class="d-flex align-items-center gap-3">
+    <div class="proposal-icon" style="{{ workspace_header_icon_style }}">
+      <i class="fa-solid {{ workspace_header_icon }}" aria-hidden="true"></i>
+    </div>
+    <div>
+      <h2 class="mb-1">{{ workspace_header_title }}</h2>
+      <div class="small text-muted">
+        {{ entity.id|request_no(workspace_request_no_prefix) }} · {{ entity.created_at|local_dt_span }} ·
+        <span class="nav-ko">{{ workspace_kind_tag_ko }}</span>
+        <span class="nav-en" style="display:none">{{ workspace_kind_tag_en }}</span>
+      </div>
+      <p class="text-muted small mb-0 mt-2">
+        <span class="nav-ko">작업본만 수정됩니다. 회원에게 보이는 공식 납품 ZIP은 변경되지 않습니다.</span>
+        <span class="nav-en" style="display:none">Only the working copy is edited; the member-facing official delivery ZIP is unchanged.</span>
+      </p>
+    </div>
+  </div>
+</div>

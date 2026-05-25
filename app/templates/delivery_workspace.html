@@ -7,16 +7,11 @@
 <div class="container col-lg-10 py-4 delivery-workspace-page" id="delivery-workspace"
      data-initial-slot="{{ slot_index }}">
   {% include 'partials/nav_prev_screen.html' %}
-  <div class="mb-4">
-    <h2 class="h4 mb-1">
-      <span class="nav-ko">SE38 납품 작업실</span>
-      <span class="nav-en" style="display:none">SE38 Delivery Studio</span>
-    </h2>
-    <p class="text-muted small mb-0">
-      <span class="nav-ko">요청 #{{ request_id }} · 작업본만 수정됩니다. 회원에게 보이는 공식 납품 ZIP은 변경되지 않습니다.</span>
-      <span class="nav-en" style="display:none">Request #{{ request_id }} · Only the working copy is edited; the member-facing official delivery ZIP is unchanged.</span>
-    </p>
-  </div>
+  <p class="small text-muted mb-2">
+    <span class="nav-ko">SE38 납품 작업실</span>
+    <span class="nav-en" style="display:none">SE38 Delivery Studio</span>
+  </p>
+  {% include 'partials/delivery_workspace_request_header.html' %}
 
   {% if ws_err %}
   <div class="alert alert-danger small">

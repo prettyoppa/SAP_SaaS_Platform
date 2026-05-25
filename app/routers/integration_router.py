@@ -2320,17 +2320,6 @@ def _collect_integration_unified_hub_ctx(
         owner_user_id=int(ir.user_id),
         paid_entity=ir,
     )
-    from ..delivery_workspace_access import apply_hub_delivery_workspace_ctx
-
-    apply_hub_delivery_workspace_ctx(
-        ctx,
-        db=db,
-        user=user,
-        request_kind="integration",
-        request_id=int(ir.id),
-        owner_user_id=int(ir.user_id),
-        entity=ir,
-    )
     return ctx
 
 

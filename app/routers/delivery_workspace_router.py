@@ -23,6 +23,7 @@ from ..delivery_workspace import (
     slots_detail_for_ui,
 )
 from ..delivery_workspace_access import user_can_use_delivery_workspace
+from ..delivery_workspace_display import workspace_page_header
 from ..delivery_workspace_ai import STAGE_DELIVERY_WORKSPACE_FIX, suggest_slot_fix
 from ..rfp_download_names import content_disposition_attachment
 from ..templates_config import templates
@@ -154,6 +155,7 @@ def delivery_workspace_page(
         "ws_ok": (ws_ok or "").strip() or None,
         "suggested_source": suggested_source,
         "sap_version": (getattr(row, "sap_system_version", None) or "").strip(),
+        **workspace_page_header(row, norm),
     }
     return templates.TemplateResponse(request, "delivery_workspace.html", ctx)
 

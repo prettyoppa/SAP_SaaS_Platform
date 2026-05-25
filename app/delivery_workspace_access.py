@@ -41,10 +41,15 @@ def user_can_use_delivery_workspace(
     entity: Any | None = None,
 ) -> bool:
     """
-    ABAP 구현 보완 작업실 — 일반 요청자(비컨설턴트) 비노출.
+    SE38 납품 작업실 — 신규 개발·분석·개선만(연동 제외).
+    일반 요청자(비컨설턴트) 비노출.
     규칙 X: 컨설턴트이면서 본인 요청 owner이고 납품 ready → 매칭 없이 허용.
     그 외: 관리자 또는 해당 요청 매칭 컨설턴트.
     """
+    from .delivery_workspace_display import workspace_enabled_for_kind
+
+    if not workspace_enabled_for_kind(request_kind):
+        return False
     if not user:
         return False
     row = entity

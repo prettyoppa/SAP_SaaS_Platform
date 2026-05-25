@@ -17,6 +17,7 @@ from app.delivery_workspace import (
 )
 from app.delivered_code_package import delivered_package_has_body, normalize_delivered_package
 from app.delivery_workspace_access import user_can_use_delivery_workspace
+from app.delivery_workspace_display import workspace_enabled_for_kind, workspace_page_header
 from app.delivery_workspace_ai import extract_suggested_abap
 
 
@@ -58,6 +59,21 @@ class DeliveryWorkspaceTests(unittest.TestCase):
     def test_extract_suggested_abap_fence(self):
         raw = "설명\n```abap\nREPORT zfix.\n```\n"
         self.assertEqual(extract_suggested_abap(raw), "REPORT zfix.")
+
+    def test_workspace_not_enabled_for_integration(self):
+        self.assertTrue(workspace_enabled_for_kind("rfp"))
+        self.assertTrue(workspace_enabled_for_kind("analysis"))
+        self.assertFalse(workspace_enabled_for_kind("integration"))
+
+    def test_workspace_page_header_uses_title(self):
+        class _Row:
+            id = 14
+            title = "SAP 표준 소스 다운로드"
+            created_at = None
+
+        h = workspace_page_header(_Row(), "rfp")
+        self.assertEqual(h["workspace_header_title"], "SAP 표준 소스 다운로드")
+        self.assertEqual(h["workspace_request_no_prefix"], "RFP")
 
     def test_normalize_request_kind_aliases(self):
         self.assertEqual(normalize_request_kind("rfp"), KIND_RFP)
