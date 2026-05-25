@@ -3143,7 +3143,51 @@ html[data-theme="light"] .kb-ai-source-tabs .nav-link.active {
   border-bottom-color: var(--primary) !important;
 }
 
-/* ── 납품 구현 보완 작업실: 슬롯 탭 (다크에서 active 가독성) ───── */
+/* ── SE38 납품 작업실: 카드·폼 (다크에서 라벨·본문 대비) ─────────── */
+.delivery-workspace-page .card {
+  background: var(--surface);
+  border-color: var(--border) !important;
+  color: var(--text);
+}
+.delivery-workspace-page .card-body {
+  background: var(--surface);
+  color: var(--text);
+}
+.delivery-workspace-page .form-label,
+.delivery-workspace-page .form-label.small,
+.delivery-workspace-page label.small.fw-semibold {
+  color: var(--text) !important;
+}
+html[data-theme="dark"] .delivery-workspace-page .form-label,
+html[data-theme="dark"] .delivery-workspace-page .form-label.small,
+html[data-theme="dark"] .delivery-workspace-page label.small.fw-semibold {
+  color: #e2e8f0 !important;
+}
+html[data-theme="light"] .delivery-workspace-page .form-label,
+html[data-theme="light"] .delivery-workspace-page .form-label.small,
+html[data-theme="light"] .delivery-workspace-page label.small.fw-semibold {
+  color: #1e293b !important;
+}
+.delivery-workspace-page .form-control {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border);
+}
+.delivery-workspace-page .form-control::placeholder {
+  color: var(--muted);
+  opacity: 0.85;
+}
+html[data-theme="dark"] .delivery-workspace-page .form-control {
+  background: var(--surface2);
+  color: #f1f5f9;
+  border-color: var(--border);
+}
+html[data-theme="dark"] .delivery-workspace-page .text-muted,
+html[data-theme="dark"] .delivery-workspace-page .small.text-muted {
+  color: #94a3b8 !important;
+}
+
+/* ── SE38 납품 작업실: 슬롯 탭 (다크에서 active 가독성) ───── */
 .delivery-workspace-tabs {
   border-bottom: 1px solid var(--border);
   gap: 0.15rem;
