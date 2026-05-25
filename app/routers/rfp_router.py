@@ -1336,6 +1336,17 @@ def _collect_rfp_unified_hub_ctx(
         owner_user_id=int(rfp.user_id),
         paid_entity=rfp,
     )
+    from ..delivery_workspace_access import apply_hub_delivery_workspace_ctx
+
+    apply_hub_delivery_workspace_ctx(
+        ctx,
+        db=db,
+        user=user,
+        request_kind="rfp",
+        request_id=int(rfp.id),
+        owner_user_id=int(rfp.user_id),
+        entity=rfp,
+    )
     return ctx
 
 

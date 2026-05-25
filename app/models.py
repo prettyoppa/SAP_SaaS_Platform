@@ -131,6 +131,8 @@ class RFP(Base):
     delivered_code_text = Column(Text, nullable=True)
     # JSON: program_id, slots[], implementation_guide_md, se38_implementation_guide_md, test_scenarios_md
     delivered_code_payload = Column(Text, nullable=True)
+    # 컨설턴트 작업실 전용 JSON 복사본(공식 납품 payload와 분리)
+    delivered_code_working_payload = Column(Text, nullable=True)
     delivered_code_generated_at = Column(DateTime, nullable=True)
     delivered_code_error = Column(Text, nullable=True)
     delivered_job_log = Column(Text, nullable=True)
@@ -257,6 +259,7 @@ class IntegrationRequest(Base):
     delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
     delivered_code_text = Column(Text, nullable=True)
     delivered_code_payload = Column(Text, nullable=True)  # JSON: 파일 슬롯 + 가이드·테스트 (연동 납품)
+    delivered_code_working_payload = Column(Text, nullable=True)
     delivered_code_generated_at = Column(DateTime, nullable=True)
     delivered_code_error = Column(Text, nullable=True)
     delivered_job_log = Column(Text, nullable=True)
@@ -394,6 +397,7 @@ class AbapAnalysisRequest(Base):
     delivered_code_status = Column(String, default="none", nullable=False)
     delivered_code_text = Column(Text, nullable=True)
     delivered_code_payload = Column(Text, nullable=True)
+    delivered_code_working_payload = Column(Text, nullable=True)
     delivered_code_generated_at = Column(DateTime, nullable=True)
     delivered_code_error = Column(Text, nullable=True)
     delivered_job_log = Column(Text, nullable=True)

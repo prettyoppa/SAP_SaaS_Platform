@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}
+<span class="nav-ko">납품 구현 보완 작업실</span>
+<span class="nav-en" style="display:none">Delivery implementation workspace</span>
+{% endblock %}
+{% block content %}
+<div class="container col-lg-10 py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <h2 class="h4 mb-1">
+        <span class="nav-ko">납품 구현 보완 작업실</span>
+        <span class="nav-en" style="display:none">Delivery implementation workspace</span>
+      </h2>
+      <p class="text-muted small mb-0">
+        <span class="nav-ko">요청 #{{ request_id }} · 작업본만 수정됩니다. 회원에게 보이는 공식 납품 ZIP은 변경되지 않습니다.</span>
+        <span class="nav-en" style="display:none">Request #{{ request_id }} · Only the working copy is edited; the member-facing official delivery ZIP is unchanged.</span>
+      </p>
+    </div>
+    <a href="{{ return_url }}" class="btn btn-outline-secondary btn-sm">
+      <span class="nav-ko">허브로 돌아가기</span>
+      <span class="nav-en" style="display:none">Back to hub</span>
+    </a>
+  </div>
+
+  {% if ws_err %}
+  <div class="alert alert-danger small">
+    {% if ws_err == 'wallet_insufficient' %}
+    <span class="nav-ko">AI 크레딧 잔액이 부족합니다. 충전 후 다시 시도하세요.</span>
+    <span class="nav-en" style="display:none">Insufficient AI credits. Please top up and retry.</span>
+    {% elif ws_err == 'missing_error' %}
+    <span class="nav-ko">SE38 오류 메시지를 입력하세요.</span>
+    <span class="nav-en" style="display:none">Enter the SE38 error message.</span>
+    {% elif ws_err == 'missing_source' %}
+    <span class="nav-ko">슬롯 소스가 비어 있습니다.</span>
+    <span class="nav-en" style="display:none">Slot source is empty.</span>
+    {% else %}
+    <span class="nav-ko">작업을 완료하지 못했습니다 ({{ ws_err }}).</span>
+    <span class="nav-en" style="display:none">Could not complete the action ({{ ws_err }}).</span>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if ws_ok %}
+  <div class="alert alert-success small">
+    {% if ws_ok == 'saved' %}
+    <span class="nav-ko">슬롯 소스를 저장했습니다.</span>
+    <span class="nav-en" style="display:none">Slot source saved.</span>
+    {% elif ws_ok == 'suggested' %}
+    <span class="nav-ko">AI 수정 제안을 생성했습니다. 아래에서 검토 후 반영하세요.</span>
+    <span class="nav-en" style="display:none">AI fix suggestion generated. Review and apply below.</span>
+    {% elif ws_ok == 'applied' %}
+    <span class="nav-ko">작업본 슬롯에 반영했습니다.</span>
+    <span class="nav-en" style="display:none">Applied to the working copy slot.</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{{ workspace_base }}/build-zip" class="btn btn-primary btn-sm" download data-no-busy="true">
+      <i class="fa-solid fa-file-zipper me-1"></i>
+      <span class="nav-ko">ZIP 파일 생성 (작업본)</span>
+      <span class="nav-en" style="display:none">Build ZIP (working copy)</span>
+    </a>
+    {% if program_id %}
+    <span class="badge bg-secondary align-self-center">program: {{ program_id }}</span>
+    {% endif %}
+    {% if sap_version %}
+    <span class="badge bg-light text-dark border align-self-center">SAP: {{ sap_version }}</span>
+    {% endif %}
+  </div>
+
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    {% for sl in slots %}
+    <li class="nav-item" role="presentation">
+      <a class="nav-link {% if loop.index0 == slot_index %}active{% endif %}"
+         href="{{ workspace_base }}?slot={{ loop.index0 }}{% if return_to %}&return_to={{ return_to|urlencode }}{% endif %}">{{ sl.filename }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% set active = slots[slot_index] if slots and slot_index < slots|length else none %}
+  {% if active %}
+  <div class="card border mb-3">
+    <div class="card-header small fw-semibold">{{ active.filename }} · {{ active.role }}</div>
+    <div class="card-body">
+      <form method="post" action="{{ workspace_base }}/slots/{{ slot_index }}/save" class="mb-4">
+        <input type="hidden" name="return_to" value="{{ return_url }}">
+        <label class="form-label small fw-semibold">
+          <span class="nav-ko">작업본 슬롯 소스</span>
+          <span class="nav-en" style="display:none">Working slot source</span>
+        </label>
+        <textarea name="source" class="form-control font-monospace small" rows="14">{{ slot_source }}</textarea>
+        <button type="submit" class="btn btn-outline-primary btn-sm mt-2">
+          <span class="nav-ko">소스 저장</span>
+          <span class="nav-en" style="display:none">Save source</span>
+        </button>
+      </form>
+
+      <form method="post" action="{{ workspace_base }}/suggest-fix" class="mb-4 border-top pt-3">
+        <input type="hidden" name="return_to" value="{{ return_url }}">
+        <input type="hidden" name="slot_index" value="{{ slot_index }}">
+        <label class="form-label small fw-semibold">
+          <span class="nav-ko">SE38 오류·징후 (AI 수정 제안)</span>
+          <span class="nav-en" style="display:none">SE38 error / symptoms (AI fix)</span>
+        </label>
+        <textarea name="se38_error" class="form-control small" rows="4" placeholder="syntax error, activation error, dump short text…"></textarea>
+        <p class="text-muted small mt-1 mb-2">
+          <span class="nav-ko">실행 계정(컨설턴트)의 AI 크레딧이 차감됩니다. 요청자 한도와 무관합니다.</span>
+          <span class="nav-en" style="display:none">AI credits are debited from the consultant running this action, not the requester quota.</span>
+        </p>
+        <button type="submit" class="btn btn-warning btn-sm">
+          <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
+          <span class="nav-ko">AI 수정 제안</span>
+          <span class="nav-en" style="display:none">Suggest AI fix</span>
+        </button>
+      </form>
+
+      {% if suggested_source %}
+      <form method="post" action="{{ workspace_base }}/slots/{{ slot_index }}/apply" class="border-top pt-3">
+        <input type="hidden" name="return_to" value="{{ return_url }}">
+        <label class="form-label small fw-semibold">
+          <span class="nav-ko">AI 제안 (검토 후 반영)</span>
+          <span class="nav-en" style="display:none">AI suggestion (review then apply)</span>
+        </label>
+        <textarea name="suggested_source" class="form-control font-monospace small" rows="14">{{ suggested_source }}</textarea>
+        <button type="submit" class="btn btn-success btn-sm mt-2"
+                data-app-confirm-i18n="deliveryWorkspace.applyConfirm">
+          <span class="nav-ko">작업본에 반영</span>
+          <span class="nav-en" style="display:none">Apply to working copy</span>
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

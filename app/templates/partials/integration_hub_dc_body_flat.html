@@ -27,6 +27,7 @@
   {% if delivered_package and delivered_package.slots %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
     <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · 파일별 산출</h5>
+    {% include 'partials/hub_delivery_workspace_link.html' %}
     {% if code_asset_unlocked|default(false) %}
     <a href="/integration/{{ ir.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">

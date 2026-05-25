@@ -20,6 +20,7 @@
   {% if delivered_package and delivered_package.slots %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
     <h5 class="mb-0 me-auto small text-uppercase text-muted">납품 ABAP · 슬롯별 소스</h5>
+    {% include 'partials/hub_delivery_workspace_link.html' %}
     {% if code_asset_unlocked|default(false) %}
     <a href="/abap-analysis/{{ row.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">

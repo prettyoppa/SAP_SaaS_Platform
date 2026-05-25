@@ -43,6 +43,7 @@ from .routers import (
     billing_router,
     ai_wallet_router,
     as_built_router,
+    delivery_workspace_router,
 )
 from .templates_config import templates
 
@@ -209,6 +210,9 @@ def _run_migrations():
         ("rfps", "sap_system_version_note", "VARCHAR(120)", "VARCHAR(120)"),
         ("abap_analysis_requests", "sap_system_version", "VARCHAR(32)", "VARCHAR(32)"),
         ("abap_analysis_requests", "sap_system_version_note", "VARCHAR(120)", "VARCHAR(120)"),
+        ("rfps", "delivered_code_working_payload", "TEXT", "TEXT"),
+        ("integration_requests", "delivered_code_working_payload", "TEXT", "TEXT"),
+        ("abap_analysis_requests", "delivered_code_working_payload", "TEXT", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, sqlite_def, pg_def in migrations:
@@ -901,6 +905,7 @@ app.include_router(proposal_decisions_router.router)
 app.include_router(billing_router.router)
 app.include_router(ai_wallet_router.router)
 app.include_router(as_built_router.router)
+app.include_router(delivery_workspace_router.router)
 
 
 @app.get("/", response_class=HTMLResponse)

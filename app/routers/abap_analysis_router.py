@@ -1598,6 +1598,17 @@ def _prepare_abap_analysis_detail_ctx(
         owner_user_id=int(row.user_id),
         paid_entity=row,
     )
+    from ..delivery_workspace_access import apply_hub_delivery_workspace_ctx
+
+    apply_hub_delivery_workspace_ctx(
+        detail_ctx,
+        db=db,
+        user=user,
+        request_kind="analysis",
+        request_id=int(row.id),
+        owner_user_id=int(row.user_id),
+        entity=row,
+    )
     return detail_ctx
 
 

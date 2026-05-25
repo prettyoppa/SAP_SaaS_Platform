@@ -25,6 +25,7 @@ STAGE_LABEL_KO: dict[str, str] = {
     "codelib": "코드 라이브러리",
     "integration_deliverable": "연동 산출물",
     "kb_gallery": "지식갤러리",
+    "delivery_workspace_fix": "납품 작업실 수정",
     "other": "기타",
 }
 
@@ -37,6 +38,7 @@ STAGE_LABEL_EN: dict[str, str] = {
     "codelib": "Code library",
     "integration_deliverable": "Integration deliverable",
     "kb_gallery": "Knowledge gallery",
+    "delivery_workspace_fix": "Delivery workspace fix",
     "other": "Other",
 }
 
@@ -49,6 +51,7 @@ FALLBACK_COST_USD_MICRO: dict[str, int] = {
     "codelib": 40_000,
     "integration_deliverable": 100_000,
     "kb_gallery": 55_000,
+    "delivery_workspace_fix": 35_000,
     "other": 35_000,
 }
 
