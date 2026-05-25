@@ -112,10 +112,8 @@
                     <span class="nav-en" style="display:none">SAP system</span>
                   </dt>
                   <dd class="col-sm-9">
-                    {% if row.sap_system_version == 's4hana' %}S/4HANA
-                    {% elif row.sap_system_version == 'ecc740' %}ECC 7.40
-                    {% elif row.sap_system_version == 'other' %}<span class="nav-ko">기타</span><span class="nav-en" style="display:none">Other</span>{% if row.sap_system_version_note %} — {{ row.sap_system_version_note }}{% endif %}
-                    {% else %}—{% endif %}
+                    <span class="nav-ko">{{ row.sap_system_version|sap_version_label_ko(row.sap_system_version_note) }}</span>
+                    <span class="nav-en" style="display:none">{{ row.sap_system_version|sap_version_label_en(row.sap_system_version_note) }}</span>
                   </dd>
                   <dt class="col-sm-3 text-muted" data-i18n="reqPanel.submittedAt">제출 일시</dt>
                   <dd class="col-sm-9">{{ row.created_at|local_dt_span }}</dd>
@@ -427,11 +425,8 @@
         {% if chat_enabled %}
         <p class="small text-muted mb-4">
           <i class="fa-solid fa-comments me-1 text-primary-light"></i>
-          <span data-i18n="detail.chatHintAnalysis">이 분석에 대해 궁금한 점은 화면 <strong>오른쪽 아래</strong> <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.</span>
-          {% if abap_ai_inquiry_unlimited is defined and abap_ai_inquiry_unlimited %}
-          <span class="nav-ko">(무제한)</span>
-          <span class="nav-en" style="display:none">(Unlimited)</span>
-          {% elif abap_followup_cap is not none %}
+          <span data-i18n="detail.chatHint">작성 중 궁금한 점은 화면 <strong>오른쪽 아래</strong> <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.</span>
+          {% if abap_followup_cap is not none %}
           <span class="nav-ko">(회당 최대 {{ max_followup_user_turns }}회)</span>
           <span class="nav-en" style="display:none">(Up to {{ max_followup_user_turns }} messages per request)</span>
           {% endif %}

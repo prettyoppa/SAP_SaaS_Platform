@@ -15,6 +15,7 @@ from .agent_display import agent_label_ko
 from .home_hero_defaults import resolve_home_hero_fields
 from .youtube_embed import youtube_embed_info, youtube_video_id
 from .rfp_phase_gates import integration_phase_gates, rfp_phase_gates, abap_analysis_phase_gates
+from .sap_system_version import display_label_en, display_label_ko
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
@@ -237,7 +238,8 @@ templates.env.filters["youtube_video_id"] = youtube_video_id
 templates.env.filters["youtube_embed"] = youtube_embed_info
 
 templates.env.filters["home_hero_fields"] = resolve_home_hero_fields
-
+templates.env.filters["sap_version_label_ko"] = display_label_ko
+templates.env.filters["sap_version_label_en"] = display_label_en
 
 def layout_template_from_embed_query(request) -> str:
     """?embed=1|true|yes 이면 iframe 등 임베드용 레이아웃(네비·푸터 없음)."""

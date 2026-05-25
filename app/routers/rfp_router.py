@@ -152,48 +152,7 @@ def _hub_delivered_fields(rfp: models.RFP) -> dict[str, Any]:
     }
 
 
-def _rfp_missing_core_field_labels(
-    title: str,
-    program_id: str,
-    sap_modules: list,
-    dev_types: list,
-    description: str,
-    min_description_chars: int | None = None,
-    *,
-    sap_system_version: str = "",
-    sap_system_version_note: str = "",
-    require_sap_system_version: bool = True,
-) -> list[str]:
-    """임시저장·제출 공통 필수(요청 제목, 프로그램 ID, 모듈·유형, SAP 버전, 요구사항 분량)."""
-    from ..sap_system_version import sap_system_version_missing_labels
-
-    min_chars = (
-        min_description_chars
-        if min_description_chars is not None
-        else MIN_RFP_DESCRIPTION_CHARS
-    )
-    miss: list[str] = []
-    if not (title or "").strip():
-        miss.append("요청 제목")
-    if not (program_id or "").strip():
-        miss.append("프로그램 ID")
-    if not sap_modules:
-        miss.append("SAP 모듈(1개 이상)")
-    if not dev_types:
-        miss.append("개발 유형(1개 이상)")
-    miss.extend(
-        sap_system_version_missing_labels(
-            sap_system_version,
-            sap_system_version_note,
-            required=require_sap_system_version,
-        )
-    )
-    if len((description or "").strip()) < min_chars:
-        miss.append(f"요구사항 자유 기술(공백 제외 {min_chars}자 이상)")
-    return miss
-
-
-from ..form_core_validation import CORE_FIELDS_INCOMPLETE_ERROR
+from ..form_core_validation import CORE_FIELDS_INCOMPLETE_ERROR, rfp_missing_core_field_labels as _rfp_missing_core_field_labels
 
 
 class RfpSuggestFieldIn(BaseModel):
@@ -257,7 +216,7 @@ async def rfp_form_request_validation_response(request: Request, db: Session):
         sap_modules,
         dev_types,
         desc_plain,
-        min_description_chars=0 if is_draft else None,
+        draft_minimal=is_draft,
         sap_system_version=sap_system_version,
         sap_system_version_note=sap_system_version_note,
         require_sap_system_version=not is_draft,
@@ -717,7 +676,7 @@ async def submit_rfp(
         sap_modules,
         dev_types,
         desc_plain,
-        min_description_chars=0 if is_draft else None,
+        draft_minimal=is_draft,
         sap_system_version=sap_system_version,
         sap_system_version_note=sap_system_version_note,
         require_sap_system_version=not is_draft,
@@ -2174,7 +2133,7 @@ async def rfp_edit_submit(
         sap_modules,
         dev_types,
         desc_plain,
-        min_description_chars=0 if is_draft else None,
+        draft_minimal=is_draft,
         sap_system_version=sap_system_version,
         sap_system_version_note=sap_system_version_note,
         require_sap_system_version=not is_draft,

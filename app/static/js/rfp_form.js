@@ -289,22 +289,22 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMaxSelect('devtype-chip', 'devtype-count', 3);
 
   (function initSapSystemVersionField() {
-    const wrap = document.getElementById('sap-version-other-wrap');
-    const note = document.getElementById('sap_system_version_note');
-    const radios = document.querySelectorAll('.sap-version-radio');
-    if (!wrap || !radios.length) return;
-    const sync = () => {
-      const picked = document.querySelector('.sap-version-radio:checked');
-      const isOther = picked && picked.value === 'other';
-      wrap.classList.toggle('d-none', !isOther);
-      if (note) {
-        note.required = !!isOther;
-        if (!isOther) note.setAttribute('aria-disabled', 'true');
-        else note.removeAttribute('aria-disabled');
+    const inp = document.getElementById('sap_system_version');
+    if (!inp) return;
+    const upperLatin = () => {
+      const v = inp.value;
+      const n = v.replace(/[a-z]/g, (ch) => ch.toUpperCase());
+      if (n !== v) {
+        const start = inp.selectionStart;
+        const end = inp.selectionEnd;
+        inp.value = n;
+        if (start != null && end != null) inp.setSelectionRange(start, end);
       }
     };
-    radios.forEach((r) => r.addEventListener('change', () => { sync(); updateReview(); }));
-    sync();
+    inp.addEventListener('input', () => {
+      upperLatin();
+      if (typeof updateReview === 'function') updateReview();
+    });
   })();
 
   if (window.initSapPidTcodePair) {

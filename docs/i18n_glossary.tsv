@@ -134,9 +134,10 @@ detail.analysisOkBadge	분석 완료	Complete
 detail.analysisPending	분석 오류/미완료	Analysis incomplete / error
 detail.analysisTag	분석·개선	Analysis · improvement
 detail.attachments	첨부	Attachments
-detail.chatHintAnalysis	이 분석에 대해 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	Questions about this analysis: use the <strong>Ask AI</strong> button at the bottom right.
-detail.chatHintInt	이 연동 요청에 대해 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	Questions about this integration request: use the <strong>Ask AI</strong> button at the bottom right.
-detail.chatHintRfp	요청·인터뷰·제안서 내용에 대해 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	Questions about your request, guided interview, or proposal: use the <strong>Ask AI</strong> button at the bottom right.
+detail.chatHint	작성 중 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	While you're drafting, use the <strong>Ask AI</strong> button at the bottom right for any questions.
+detail.chatHintAnalysis	작성 중 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	While you're drafting, use the <strong>Ask AI</strong> button at the bottom right for any questions.
+detail.chatHintInt	작성 중 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	While you're drafting, use the <strong>Ask AI</strong> button at the bottom right for any questions.
+detail.chatHintRfp	작성 중 궁금한 점은 화면 오른쪽 아래 <strong>AI 에게 문의</strong> 버튼으로 물어보실 수 있습니다.	While you're drafting, use the <strong>Ask AI</strong> button at the bottom right for any questions.
 detail.continueInLinkedRfp	이후 인터뷰·제안서·신규 개발 단계는 연결된 RFP 허브에서 이어집니다. 위 버튼으로 이동하세요.	Interview, proposal, and later new-development steps continue in the linked RFP hub. Use the buttons above to open it.
 detail.continueWriting	계속 작성	Continue editing
 detail.deleteConfirmAbap	이 분석 요청을 삭제할까요? 첨부 파일과 분석 결과가 함께 삭제되며 되돌릴 수 없습니다.	Delete this analysis request? Attachments and results cannot be recovered.

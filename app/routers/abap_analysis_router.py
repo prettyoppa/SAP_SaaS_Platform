@@ -137,13 +137,16 @@ from ..rfp_reference_code import (
 from ..templates_config import layout_template_from_embed_query, templates
 from ..writing_guides_service import get_writing_guides_by_lang_bundle
 from .interview_router import _markdown_to_html
-from ..form_core_validation import CORE_FIELDS_INCOMPLETE_ERROR, description_plain_for_validate
+from ..form_core_validation import (
+    CORE_FIELDS_INCOMPLETE_ERROR,
+    description_plain_for_validate,
+    rfp_missing_core_field_labels as _rfp_missing_core_field_labels,
+)
 from .rfp_router import (
     MAX_RFP_ATTACHMENTS,
     _build_attachment_entries_from_uploads,
     _remove_stored_file,
     duplicate_attachment_entries,
-    _rfp_missing_core_field_labels,
 )
 
 router = APIRouter(prefix="/abap-analysis", tags=["abap_analysis"])
@@ -635,7 +638,7 @@ async def abap_form_request_validation_response(request: Request, db: Session):
         sap_modules,
         dev_types,
         req_plain,
-        min_description_chars=0 if is_draft else None,
+        draft_minimal=is_draft,
         sap_system_version=sap_system_version,
         sap_system_version_note=sap_system_version_note,
         require_sap_system_version=not is_draft,
@@ -845,14 +848,13 @@ async def abap_analysis_create(
     if len(sap_modules) > 3 or len(dev_types) > 3:
         return _bad("max_selection")
 
-    min_desc = 0 if is_draft_save else MIN_REQUIREMENT_LEN
     miss = _rfp_missing_core_field_labels(
         title_raw,
         program_id,
         sap_modules,
         dev_types,
         req_for_validate,
-        min_description_chars=min_desc,
+        draft_minimal=is_draft_save,
         sap_system_version=sap_system_version,
         sap_system_version_note=sap_system_version_note,
         require_sap_system_version=not is_draft_save,
@@ -1113,14 +1115,13 @@ async def abap_analysis_edit_save(
     if len(sap_modules) > 3 or len(dev_types) > 3:
         return _bad("max_selection")
 
-    min_desc = 0 if is_draft_save else MIN_REQUIREMENT_LEN
     miss = _rfp_missing_core_field_labels(
         title_raw,
         program_id,
         sap_modules,
         dev_types,
         req_for_validate,
-        min_description_chars=min_desc,
+        draft_minimal=is_draft_save,
         sap_system_version=sap_system_version,
         sap_system_version_note=sap_system_version_note,
         require_sap_system_version=not is_draft_save,

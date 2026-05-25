@@ -349,28 +349,44 @@ def codelib_upload(
     user: models.User = Depends(require_code_library_access),
 ):
     modules, devtypes = _get_modules_devtypes(db)
+    save_as_draft = (is_draft == "1")
 
-    if not sap_modules or not dev_types:
-        return templates.TemplateResponse(request, "codelib_upload.html", {
-            "request": request, "user": user,
-            "modules": modules, "devtypes": devtypes,
-            "error": "SAP 모듈과 개발 유형을 하나 이상 선택해 주세요.",
-            "edit_code": None,
-            "edit_sections": None,
-            "selected_modules": [],
-            "selected_devtypes": [],
-        })
+    if save_as_draft:
+        from ..form_core_validation import draft_save_title_only_missing
 
-    if len(source_code.strip()) < 50:
-        return templates.TemplateResponse(request, "codelib_upload.html", {
-            "request": request, "user": user,
-            "modules": modules, "devtypes": devtypes,
-            "error": "ABAP 소스 코드가 너무 짧습니다.",
-            "edit_code": None,
-            "edit_sections": None,
-            "selected_modules": [],
-            "selected_devtypes": [],
-        })
+        miss = draft_save_title_only_missing(title, field_label="프로그램 설명")
+        if miss:
+            return templates.TemplateResponse(request, "codelib_upload.html", {
+                "request": request, "user": user,
+                "modules": modules, "devtypes": devtypes,
+                "error": f"{miss[0]}을(를) 입력해 주세요.",
+                "edit_code": None,
+                "edit_sections": None,
+                "selected_modules": list(sap_modules),
+                "selected_devtypes": list(dev_types),
+            })
+    else:
+        if not sap_modules or not dev_types:
+            return templates.TemplateResponse(request, "codelib_upload.html", {
+                "request": request, "user": user,
+                "modules": modules, "devtypes": devtypes,
+                "error": "SAP 모듈과 개발 유형을 하나 이상 선택해 주세요.",
+                "edit_code": None,
+                "edit_sections": None,
+                "selected_modules": [],
+                "selected_devtypes": [],
+            })
+
+        if len(source_code.strip()) < 50:
+            return templates.TemplateResponse(request, "codelib_upload.html", {
+                "request": request, "user": user,
+                "modules": modules, "devtypes": devtypes,
+                "error": "ABAP 소스 코드가 너무 짧습니다.",
+                "edit_code": None,
+                "edit_sections": None,
+                "selected_modules": [],
+                "selected_devtypes": [],
+            })
 
     pid_norm, perr = sap_fields.validate_program_id(program_id, required=False)
     if perr:
@@ -398,8 +414,6 @@ def codelib_upload(
             "selected_modules": [],
             "selected_devtypes": [],
         })
-
-    save_as_draft = (is_draft == "1")
 
     analysis = {}
     analyzed = False
@@ -664,28 +678,44 @@ def codelib_edit_save(
         return RedirectResponse(url=f"/codelib/{code_id}", status_code=302)
 
     modules, devtypes = _get_modules_devtypes(db)
+    save_as_draft = (is_draft == "1")
 
-    if not sap_modules or not dev_types:
-        return templates.TemplateResponse(request, "codelib_upload.html", {
-            "request": request, "user": user,
-            "modules": modules, "devtypes": devtypes,
-            "error": "SAP 모듈과 개발 유형을 하나 이상 선택해 주세요.",
-            "edit_code": code,
-            "edit_sections": _parse_upload_sections_for_edit(source_code),
-            "selected_modules": list(sap_modules),
-            "selected_devtypes": list(dev_types),
-        })
+    if save_as_draft:
+        from ..form_core_validation import draft_save_title_only_missing
 
-    if len(source_code.strip()) < 50:
-        return templates.TemplateResponse(request, "codelib_upload.html", {
-            "request": request, "user": user,
-            "modules": modules, "devtypes": devtypes,
-            "error": "ABAP 소스 코드가 너무 짧습니다.",
-            "edit_code": code,
-            "edit_sections": _parse_upload_sections_for_edit(source_code),
-            "selected_modules": list(sap_modules),
-            "selected_devtypes": list(dev_types),
-        })
+        miss = draft_save_title_only_missing(title, field_label="프로그램 설명")
+        if miss:
+            return templates.TemplateResponse(request, "codelib_upload.html", {
+                "request": request, "user": user,
+                "modules": modules, "devtypes": devtypes,
+                "error": f"{miss[0]}을(를) 입력해 주세요.",
+                "edit_code": code,
+                "edit_sections": _parse_upload_sections_for_edit(source_code),
+                "selected_modules": list(sap_modules),
+                "selected_devtypes": list(dev_types),
+            })
+    else:
+        if not sap_modules or not dev_types:
+            return templates.TemplateResponse(request, "codelib_upload.html", {
+                "request": request, "user": user,
+                "modules": modules, "devtypes": devtypes,
+                "error": "SAP 모듈과 개발 유형을 하나 이상 선택해 주세요.",
+                "edit_code": code,
+                "edit_sections": _parse_upload_sections_for_edit(source_code),
+                "selected_modules": list(sap_modules),
+                "selected_devtypes": list(dev_types),
+            })
+
+        if len(source_code.strip()) < 50:
+            return templates.TemplateResponse(request, "codelib_upload.html", {
+                "request": request, "user": user,
+                "modules": modules, "devtypes": devtypes,
+                "error": "ABAP 소스 코드가 너무 짧습니다.",
+                "edit_code": code,
+                "edit_sections": _parse_upload_sections_for_edit(source_code),
+                "selected_modules": list(sap_modules),
+                "selected_devtypes": list(dev_types),
+            })
 
     pid_norm, perr = sap_fields.validate_program_id(program_id, required=False)
     if perr:
@@ -714,7 +744,6 @@ def codelib_edit_save(
             "selected_devtypes": list(dev_types),
         })
 
-    save_as_draft = (is_draft == "1")
 
     code.program_id = pid_norm
     code.transaction_code = tc_norm

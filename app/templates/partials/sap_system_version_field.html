@@ -1,50 +1,32 @@
 {# 개발 유형 다음 — SAP 대상 시스템 (신규개발·분석개선 공용) #}
 {% set _sap_ver = '' %}
-{% set _sap_note = '' %}
 {% if form is defined and form %}
   {% set _sap_ver = form.get('sap_system_version') or '' %}
-  {% set _sap_note = form.get('sap_system_version_note') or '' %}
 {% elif resource is defined and resource %}
-  {% set _sap_ver = resource.sap_system_version or '' %}
-  {% set _sap_note = resource.sap_system_version_note or '' %}
+  {% if resource.sap_system_version in ['custom', 'other'] and resource.sap_system_version_note %}
+    {% set _sap_ver = resource.sap_system_version_note %}
+  {% elif resource.sap_system_version %}
+    {% set _sap_ver = resource.sap_system_version|sap_version_label_ko('') %}
+  {% endif %}
 {% endif %}
 <div class="mb-4" id="sap-system-version-block">
-  <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
-    <label class="form-label fw-semibold mb-0">
+  <div class="mb-2">
+    <label class="form-label fw-semibold mb-0" for="sap_system_version">
       <span class="nav-ko">SAP 시스템 버전</span>
       <span class="nav-en" style="display:none">SAP system version</span>
-      <span class="text-danger">*</span>
+      <span class="text-danger sap-version-required-star">*</span>
     </label>
   </div>
   <p class="small text-muted mb-2">
-    <span class="nav-ko">납품 ABAP·FS는 선택한 SAP 환경에 맞춰 작성됩니다.</span>
-    <span class="nav-en" style="display:none">Delivered ABAP and FS follow the SAP environment you select.</span>
+    <span class="nav-ko">SAP GUI <strong>시스템 → 상태</strong>(<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F12</kbd>)에서 확인한 <strong>SAP 버전</strong>·<strong>제품 버전</strong>을 그대로 입력하세요. (예: S/4HANA 2023 FPS02, ECC 6.0 EHP8 NW 7.40)</span>
+    <span class="nav-en" style="display:none">Enter the <strong>SAP release</strong> and <strong>product version</strong> from <strong>System → Status</strong> in SAP GUI (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F12</kbd>).</span>
   </p>
-  <div class="d-flex flex-column gap-2" role="radiogroup" aria-required="true">
-    <label class="form-check">
-      <input class="form-check-input sap-version-radio" type="radio" name="sap_system_version" value="s4hana"
-             {% if _sap_ver == 's4hana' %}checked{% endif %}/>
-      <span class="form-check-label"><span class="nav-ko">S/4HANA</span><span class="nav-en" style="display:none">S/4HANA</span></span>
-    </label>
-    <label class="form-check">
-      <input class="form-check-input sap-version-radio" type="radio" name="sap_system_version" value="ecc740"
-             {% if _sap_ver == 'ecc740' %}checked{% endif %}/>
-      <span class="form-check-label"><span class="nav-ko">ECC 7.40</span><span class="nav-en" style="display:none">ECC 7.40</span></span>
-    </label>
-    <label class="form-check">
-      <input class="form-check-input sap-version-radio" type="radio" name="sap_system_version" value="other"
-             {% if _sap_ver == 'other' %}checked{% endif %}/>
-      <span class="form-check-label"><span class="nav-ko">기타</span><span class="nav-en" style="display:none">Other</span></span>
-    </label>
-  </div>
-  <div class="mt-2 {% if _sap_ver != 'other' %}d-none{% endif %}" id="sap-version-other-wrap">
-    <label class="form-label small mb-1" for="sap_system_version_note">
-      <span class="nav-ko">기타 SAP 버전 설명</span>
-      <span class="nav-en" style="display:none">Other SAP version (describe)</span>
-      <span class="text-danger">*</span>
-    </label>
-    <input type="text" name="sap_system_version_note" id="sap_system_version_note" class="form-control form-control-sm"
-           maxlength="120" placeholder="예: NetWeaver 7.31, ECC 6.0 EHP8"
-           value="{{ _sap_note }}"/>
+  <input type="text" name="sap_system_version" id="sap_system_version" class="form-control font-monospace"
+         maxlength="120" autocomplete="off" spellcheck="false"
+         placeholder="예: S/4HANA 2023 / ECC 6.0 EHP8 NW 7.40"
+         value="{{ _sap_ver }}"/>
+  <div class="form-text small text-muted mt-1">
+    <span class="nav-ko">영문은 자동으로 대문자로 바뀝니다. 확인 방법이 어려우면 <strong>임시 저장</strong> 후 화면 오른쪽 아래 <strong>AI에게 문의</strong>로 물어보세요.</span>
+    <span class="nav-en" style="display:none">Lowercase letters become uppercase automatically. After <strong>Save draft</strong>, use <strong>AI inquiry</strong> (bottom-right) to ask how to check your version.</span>
   </div>
 </div>

@@ -301,7 +301,7 @@ async def integration_form_request_validation_response(request: Request, db: Ses
         title,
         impl_clean,
         desc_plain,
-        min_description_chars=0 if is_draft else MIN_RFP_DESCRIPTION_CHARS,
+        draft_minimal=is_draft,
     )
     error = CORE_FIELDS_INCOMPLETE_ERROR if miss else "validation"
 
@@ -1541,9 +1541,8 @@ async def integration_new_submit(
     allowed_impl = integration_impl_allowed_codes(db)
     impl_clean = [x for x in impl_types if x in allowed_impl]
     desc_plain = description_plain_for_validate(description, desc_fmt)
-    min_desc = 0 if is_draft_save else MIN_RFP_DESCRIPTION_CHARS
     miss = integration_missing_core_field_labels(
-        title, impl_clean, desc_plain, min_description_chars=min_desc
+        title, impl_clean, desc_plain, draft_minimal=is_draft_save
     )
     if miss:
         return _integration_form_response(
@@ -1819,9 +1818,8 @@ async def integration_edit_submit(
     allowed_impl = integration_impl_allowed_codes(db)
     impl_clean = [x for x in impl_types if x in allowed_impl]
     desc_plain = description_plain_for_validate(description, desc_fmt)
-    min_desc = 0 if is_draft_save else MIN_RFP_DESCRIPTION_CHARS
     miss = integration_missing_core_field_labels(
-        title, impl_clean, desc_plain, min_description_chars=min_desc
+        title, impl_clean, desc_plain, draft_minimal=is_draft_save
     )
     if miss:
         return _integration_form_response(
