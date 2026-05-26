@@ -349,6 +349,17 @@ def mark_funded(
     db.add(settlement)
 
 
+def mark_unfunded(db: Session, settlement: models.ProjectSettlement) -> bool:
+    """PortOne 취소 등으로 입금 완료를 되돌림. payable·지급완료면 False."""
+    if (settlement.status or "") in (STATUS_PAYABLE, STATUS_PAYOUT_COMPLETED):
+        return False
+    settlement.funded_at = None
+    settlement.portone_payment_id = None
+    apply_status(settlement)
+    db.add(settlement)
+    return True
+
+
 def mark_payout_completed(
     db: Session,
     admin: models.User,

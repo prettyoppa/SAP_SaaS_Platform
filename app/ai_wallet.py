@@ -124,8 +124,12 @@ def build_wallet_topup_history_rows(
     current_wallet_krw: int | None = None,
     limit: int = 50,
 ) -> list[dict]:
+    """계좌이체 입금 신청(PaymentClaim) + PortOne 카드 충전(PaymentTransaction)을 시간순으로 합쳐 표시."""
+    from datetime import datetime
+
     from .ai_usage_recorder import aggregate_usage_for_user
     from . import models
+    from .payment_purpose import PURPOSE_AI_WALLET_TOPUP
 
     claims = (
         db.query(models.PaymentClaim)
@@ -136,24 +140,71 @@ def build_wallet_topup_history_rows(
         .order_by(models.PaymentClaim.created_at.asc())
         .all()
     )
+    txns = (
+        db.query(models.PaymentTransaction)
+        .filter(
+            models.PaymentTransaction.user_id == int(user_id),
+            models.PaymentTransaction.purpose == PURPOSE_AI_WALLET_TOPUP,
+            models.PaymentTransaction.status == "paid",
+        )
+        .order_by(models.PaymentTransaction.paid_at.asc(), models.PaymentTransaction.id.asc())
+        .all()
+    )
+
+    events: list[tuple[datetime, str, object]] = []
+    for c in claims:
+        events.append((c.created_at, "bank_claim", c))
+    for t in txns:
+        ts = t.paid_at or t.updated_at or t.created_at
+        if ts is None:
+            continue
+        events.append((ts, "portone_card", t))
+    events.sort(key=lambda x: (x[0], x[1], getattr(x[2], "id", 0)))
+
     cum_topup = 0
     built: list[dict] = []
-    for claim in claims:
-        cum_topup += topup_contribution_krw(claim)
-        agg = aggregate_usage_for_user(db, int(user_id), until=claim.created_at)
-        cum_usage = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
-        built.append(
-            {
-                "claim": claim,
-                "applied_at": claim.created_at,
-                "amount_minor": int(claim.amount_minor),
-                "confirmed_at": claim.confirmed_at if (claim.status or "") == "confirmed" else None,
-                "confirmed_amount_minor": display_confirmed_amount_minor(claim),
-                "cum_topup_krw": cum_topup,
-                "cum_usage_krw": cum_usage,
-                "balance_krw": cum_topup - cum_usage,
-            }
-        )
+    for ts, kind, obj in events:
+        if kind == "bank_claim":
+            claim = obj  # type: ignore[assignment]
+            cum_topup += topup_contribution_krw(claim)
+            until_ts = claim.created_at
+            agg = aggregate_usage_for_user(db, int(user_id), until=until_ts)
+            cum_usage = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
+            built.append(
+                {
+                    "source": "bank_claim",
+                    "claim": claim,
+                    "txn": None,
+                    "applied_at": claim.created_at,
+                    "amount_minor": int(claim.amount_minor),
+                    "confirmed_at": claim.confirmed_at if (claim.status or "") == "confirmed" else None,
+                    "confirmed_amount_minor": display_confirmed_amount_minor(claim),
+                    "cum_topup_krw": cum_topup,
+                    "cum_usage_krw": cum_usage,
+                    "balance_krw": cum_topup - cum_usage,
+                }
+            )
+        else:
+            txn = obj  # type: ignore[assignment]
+            amt = int(txn.amount_minor or 0)
+            cum_topup += amt
+            agg = aggregate_usage_for_user(db, int(user_id), until=ts)
+            cum_usage = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
+            paid_at = txn.paid_at or ts
+            built.append(
+                {
+                    "source": "portone_card",
+                    "claim": None,
+                    "txn": txn,
+                    "applied_at": paid_at,
+                    "amount_minor": amt,
+                    "confirmed_at": paid_at,
+                    "confirmed_amount_minor": amt,
+                    "cum_topup_krw": cum_topup,
+                    "cum_usage_krw": cum_usage,
+                    "balance_krw": cum_topup - cum_usage,
+                }
+            )
     built.reverse()
     if built and current_wallet_krw is not None:
         built[0]["balance_krw"] = int(current_wallet_krw)

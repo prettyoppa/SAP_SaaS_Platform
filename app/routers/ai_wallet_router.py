@@ -29,7 +29,7 @@ from ..bank_transfer_settings import BANK_TRANSFER_SETTING_KEYS
 from ..database import get_db
 from ..payment_claim_messages import ERR_AMOUNT_MISMATCH
 from ..payment_purpose import PURPOSE_AI_WALLET_TOPUP
-from ..payment_providers.portone_service import create_pending_transaction
+from ..payment_providers.portone_service import create_pending_transaction, sync_user_portone_transactions
 from ..payment_providers.portone_settings import portone_checkout_ready
 from ..payment_claim_service import (
     cancel_payment_claim,
@@ -107,6 +107,16 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url=f"/login?next={quote(_AI_CREDITS_PATH)}", status_code=302)
+    try:
+        sync_user_portone_transactions(
+            db,
+            int(user.id),
+            purpose=PURPOSE_AI_WALLET_TOPUP,
+            limit=10,
+        )
+        db.refresh(user)
+    except Exception:
+        pass
     settings = _load_bank_settings(db)
     err = (request.query_params.get("err") or "").strip()
     ok_param = (request.query_params.get("ok") or "").strip()

@@ -122,14 +122,15 @@
       </h3>
       {% if topup_history_rows|length == 0 %}
       <p class="text-muted small mb-0">
-        <span class="nav-ko">아직 충전 신청 이력이 없습니다.</span>
-        <span class="nav-en" style="display:none">No top-up requests yet.</span>
+        <span class="nav-ko">아직 충전·결제 이력이 없습니다.</span>
+        <span class="nav-en" style="display:none">No top-up or card payment history yet.</span>
       </p>
       {% else %}
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0 account-ai-credits-table">
           <thead>
             <tr>
+              <th><span class="nav-ko">충전 수단</span><span class="nav-en" style="display:none">Method</span></th>
               <th><span class="nav-ko">신청 일시</span><span class="nav-en" style="display:none">Applied</span></th>
               <th class="text-end"><span class="nav-ko">신청 금액</span><span class="nav-en" style="display:none">Requested</span></th>
               <th><span class="nav-ko">확인 일시</span><span class="nav-en" style="display:none">Verified</span></th>
@@ -142,6 +143,13 @@
           <tbody>
             {% for row in topup_history_rows %}
             <tr>
+              <td class="small">
+                {% if row.source == 'portone_card' %}
+                <span class="badge bg-primary bg-opacity-25 text-dark"><span class="nav-ko">카드·간편결제</span><span class="nav-en" style="display:none">Card / wallet</span></span>
+                {% else %}
+                <span class="badge bg-secondary bg-opacity-25"><span class="nav-ko">계좌이체</span><span class="nav-en" style="display:none">Bank transfer</span></span>
+                {% endif %}
+              </td>
               <td class="small text-muted">{{ row.applied_at|local_dt_span }}</td>
               <td class="text-end font-monospace small">₩{{ "{:,}".format(row.amount_minor) }}</td>
               <td class="small text-muted">{% if row.confirmed_at %}{{ row.confirmed_at|local_dt_span }}{% else %}—{% endif %}</td>
