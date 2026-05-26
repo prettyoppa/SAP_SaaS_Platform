@@ -254,6 +254,7 @@ def propose_amount(
     *,
     gross_amount_krw: int,
     use_platform_payment: bool,
+    payment_method: str | None = "",
 ) -> str | None:
     if not user_can_view_settlement(db, user, settlement):
         return "forbidden"
