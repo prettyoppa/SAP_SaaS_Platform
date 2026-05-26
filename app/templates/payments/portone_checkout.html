@@ -40,6 +40,16 @@
   var fallbackReturn = {{ return_url|tojson }};
   var customerEmail = {{ (user.email or '')|tojson }};
   var customerName = {{ (user.full_name or '')|tojson }};
+  var customerPhoneRaw = {{ (user.phone_number or '')|tojson }};
+
+  function normalizePhone(raw) {
+    var d = String(raw || '').replace(/[^\d]/g, '');
+    if (!d) return '';
+    if (d.indexOf('82') === 0 && d.length >= 11) {
+      d = '0' + d.slice(2);
+    }
+    return d;
+  }
 
   function showErr(msg) {
     var el = document.getElementById('portone-checkout-err');
@@ -56,6 +66,17 @@
     var btn = document.getElementById('portone-pay-btn');
     if (btn) btn.disabled = true;
     try {
+      var customerPhone = normalizePhone(customerPhoneRaw);
+      if (!customerEmail) {
+        showErr('구매자 이메일이 없어 결제를 시작할 수 없습니다. 고객 지원에 문의해 주세요.');
+        if (btn) btn.disabled = false;
+        return;
+      }
+      if (!customerPhone) {
+        showErr('구매자 휴대폰 번호가 없어 결제를 시작할 수 없습니다. 계정 정보에서 휴대폰 번호를 등록해 주세요.');
+        if (btn) btn.disabled = false;
+        return;
+      }
       var resp = await PortOne.requestPayment({
         storeId: storeId,
         channelKey: channelKey,
@@ -67,6 +88,7 @@
         customer: {
           fullName: customerName || undefined,
           email: customerEmail || undefined,
+          phoneNumber: customerPhone || undefined,
         },
         redirectUrl: returnUrl,
       });
