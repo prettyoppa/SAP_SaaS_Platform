@@ -121,12 +121,13 @@
   </p>
   {% endif %}
 
-  <form method="post" action="{{ base }}/propose" class="mb-2" id="settle-propose-{{ sk }}-{{ st.id }}">
+  <form method="post" action="{{ base }}/propose" class="mb-2" id="settle-propose-{{ sk }}-{{ st.id }}" data-no-enter-submit="1">
     <div class="row g-2 align-items-end">
       <div class="col-md-4">
         <label class="form-label small mb-0" data-i18n="settlement.amountKrw">금액 (원)</label>
-        <input type="number" name="gross_amount_krw" class="form-control form-control-sm font-monospace" min="0" step="1000"
-               value="{{ st.gross_amount_krw or '' }}" placeholder="0"/>
+        <input type="text" name="gross_amount_krw" class="form-control form-control-sm font-monospace js-currency-krw"
+               inputmode="numeric" autocomplete="off"
+               value="{% if st.gross_amount_krw %}{{ "{:,}".format(st.gross_amount_krw) }}{% endif %}" placeholder="0"/>
       </div>
       <div class="col-md-5">
         <div class="form-check mt-4">

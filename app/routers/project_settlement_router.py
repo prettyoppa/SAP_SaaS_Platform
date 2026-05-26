@@ -109,7 +109,7 @@ def settlement_propose(
     kind: str,
     request_id: int,
     request: Request,
-    gross_amount_krw: int = Form(0),
+    gross_amount_krw: str = Form("0"),
     use_platform_payment: str | None = Form(None),
     payment_method: str = Form(""),
     db: Session = Depends(get_db),
@@ -119,11 +119,16 @@ def settlement_propose(
     row = get_or_create_settlement(db, request_kind=norm, request_id=int(request_id))
     if not row or not user:
         return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
+    raw_amt = (gross_amount_krw or "").strip().replace(",", "")
+    try:
+        amt = int(raw_amt) if raw_amt else 0
+    except ValueError:
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="invalid_amount"), status_code=303)
     err = propose_amount(
         db,
         user,
         row,
-        gross_amount_krw=int(gross_amount_krw),
+        gross_amount_krw=amt,
         use_platform_payment=(use_platform_payment or "").strip().lower() in ("1", "true", "on", "yes"),
         payment_method=(payment_method or "").strip(),
     )

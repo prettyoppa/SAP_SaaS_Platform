@@ -62,13 +62,13 @@
         <div class="nav-en" style="display:none">{{ (settings.get('bank_transfer_notice_md_en') or settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
       </div>
       {% endif %}
-      <form method="post" action="/account/ai-credits/claim" class="account-ai-credits-claim-form" id="ai-credits-claim-form" novalidate>
+      <form method="post" action="/account/ai-credits/claim" class="account-ai-credits-claim-form" id="ai-credits-claim-form" data-no-enter-submit="1" novalidate>
         <div class="row g-2 align-items-start account-ai-credits-claim-row">
           <div class="col-md-4 col-sm-4">
             <label class="form-label small mb-1" for="topup-amount">
               <span class="nav-ko">충전 금액 (원)</span><span class="nav-en" style="display:none">Amount (KRW)</span>
             </label>
-            <input type="text" id="topup-amount" name="amount_minor" class="form-control form-control-sm font-monospace"
+            <input type="text" id="topup-amount" name="amount_minor" class="form-control form-control-sm font-monospace js-currency-krw"
                    inputmode="numeric" autocomplete="off"
                    data-min="{{ min_topup_krw }}">
             <div id="topup-amount-error" class="invalid-feedback d-none" role="alert"></div>
@@ -97,12 +97,12 @@
         <span class="nav-ko"><strong>카드·간편결제</strong> (PortOne) — 입금 확인 없이 결제 완료 시 즉시 충전됩니다.</span>
         <span class="nav-en" style="display:none"><strong>Card / wallet</strong> (PortOne) — credits apply immediately after payment.</span>
       </p>
-      <form method="post" action="/account/ai-credits/pay-portone" class="row g-2 align-items-end" id="ai-credits-portone-form">
+      <form method="post" action="/account/ai-credits/pay-portone" class="row g-2 align-items-end" id="ai-credits-portone-form" data-no-enter-submit="1">
         <div class="col-md-4">
           <label class="form-label small mb-1" for="portone-topup-amount">
             <span class="nav-ko">충전 금액 (원)</span><span class="nav-en" style="display:none">Amount (KRW)</span>
           </label>
-          <input type="text" id="portone-topup-amount" name="amount_minor" class="form-control form-control-sm font-monospace"
+          <input type="text" id="portone-topup-amount" name="amount_minor" class="form-control form-control-sm font-monospace js-currency-krw"
                  inputmode="numeric" data-min="{{ min_topup_krw }}"/>
         </div>
         <div class="col-md-4">

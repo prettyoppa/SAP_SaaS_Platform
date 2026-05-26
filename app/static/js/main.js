@@ -28,6 +28,75 @@ function hoistDraftFloatLaunchers(chatRoot) {
 
 window.hoistDraftFloatLaunchers = hoistDraftFloatLaunchers;
 
+/* ── Enter 제출 방지 + 통화(₩) 입력 포맷 ──────────────────────────────────────── */
+
+function _digitsOnly(s) {
+  return String(s || '').replace(/[^\d]/g, '');
+}
+
+function _formatKrw(s) {
+  const d = _digitsOnly(s);
+  if (!d) return '';
+  try {
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Number(d));
+  } catch (_) {
+    return d.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+}
+
+function _applyKrwFormat(el) {
+  if (!(el instanceof HTMLInputElement)) return;
+  const before = el.value;
+  const formatted = _formatKrw(before);
+  if (formatted === before) return;
+  // 간단한 caret 유지: 끝에서 입력하는 케이스 우선
+  const atEnd = el.selectionStart === before.length && el.selectionEnd === before.length;
+  el.value = formatted;
+  if (atEnd) {
+    try {
+      el.setSelectionRange(formatted.length, formatted.length);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
+function initCurrencyAndEnterGuards(root) {
+  const scope = root instanceof HTMLElement ? root : document;
+
+  // KRW 천단위 자동 포맷
+  scope.querySelectorAll('input.js-currency-krw').forEach((el) => {
+    if (!(el instanceof HTMLInputElement)) return;
+    if (el.dataset.currencyInit === '1') return;
+    el.dataset.currencyInit = '1';
+    _applyKrwFormat(el);
+    el.addEventListener('input', () => _applyKrwFormat(el));
+    el.addEventListener('blur', () => _applyKrwFormat(el));
+  });
+
+  // Enter 키로 폼 자동 제출 방지 (data-no-enter-submit 폼 안에서만)
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key !== 'Enter') return;
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      if (t instanceof HTMLTextAreaElement) return;
+      if (t instanceof HTMLButtonElement) return;
+      if (t instanceof HTMLInputElement) {
+        const ty = (t.type || '').toLowerCase();
+        if (ty === 'submit' || ty === 'button' || ty === 'image') return;
+      }
+      const form = t.closest('form');
+      if (!form) return;
+      if (form.getAttribute('data-no-enter-submit') !== '1') return;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    true
+  );
+}
+
 /* ── 전역 “처리 중” 오버레이 ─────────────────────────────────────────────────── */
 
 function _busyOverlay() {
@@ -137,6 +206,10 @@ function showGlobalBusy(meta) {
   }
   el.removeAttribute('hidden');
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  initCurrencyAndEnterGuards(document);
+});
 
 function hideGlobalBusy() {
   const el = _busyOverlay();

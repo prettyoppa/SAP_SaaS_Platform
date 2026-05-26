@@ -38,6 +38,8 @@
   var returnUrl = {{ redirect_url|tojson }};
   var completeUrl = {{ complete_url|tojson }};
   var fallbackReturn = {{ return_url|tojson }};
+  var customerEmail = {{ (user.email or '')|tojson }};
+  var customerName = {{ (user.full_name or '')|tojson }};
 
   function showErr(msg) {
     var el = document.getElementById('portone-checkout-err');
@@ -62,6 +64,10 @@
         totalAmount: totalAmount,
         currency: 'CURRENCY_KRW',
         payMethod: 'CARD',
+        customer: {
+          fullName: customerName || undefined,
+          email: customerEmail || undefined,
+        },
         redirectUrl: returnUrl,
       });
       if (resp && resp.code) {
