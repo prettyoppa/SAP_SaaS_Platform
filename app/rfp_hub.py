@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-_RFP_HUB_PHASES = frozenset({"request", "interview", "proposal", "fs", "devcode", "asbuilt"})
+_RFP_HUB_PHASES = frozenset(
+    {"request", "interview", "proposal", "fs", "devcode", "asbuilt", "settlement"}
+)
 
 
 def normalize_rfp_hub_phase(raw: str | None) -> str:

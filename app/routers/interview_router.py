@@ -14,8 +14,7 @@ from ..rfp_reference_code import format_reference_code_for_llm
 from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
 from ..code_asset_access import user_may_copy_download_request_assets
 from ..rfp_phase_gates import rfp_for_owner_or_admin
-from ..stripe_service import stripe_keys_configured
-from ..paid_tier import paid_engagement_is_active, rfp_eligible_for_stripe_checkout
+from ..paid_tier import paid_engagement_is_active
 from ..proposal_export import (
     ProposalPdfGenerationFailed,
     ProposalPdfUnavailable,
@@ -932,7 +931,6 @@ def proposal_status(rfp_id: int, request: Request, db: Session = Depends(get_db)
 def proposal_page(
     rfp_id: int,
     request: Request,
-    checkout: str | None = None,
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -943,12 +941,7 @@ def proposal_page(
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
 
-    from urllib.parse import urlencode
-
-    q = {"phase": "proposal"}
-    if (checkout or "").strip():
-        q["checkout"] = (checkout or "").strip()
-    return RedirectResponse(url=f"/rfp/{rfp_id}?{urlencode(q)}", status_code=302)
+    return RedirectResponse(url=f"/rfp/{rfp_id}?phase=proposal", status_code=302)
 
 
 @router.post("/rfp/{rfp_id}/interview/edit-answer")

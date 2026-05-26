@@ -130,6 +130,7 @@ from ..integration_followup_chat import (
 from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
 from ..as_built_deliverable import as_built_hub_template_ctx, as_built_llm_digest
 from ..integration_hub import integration_hub_url, normalize_integration_hub_phase
+from ..project_settlement import settlement_hub_ctx
 from ..integration_generation import maybe_fail_stale_integration_deliverable
 from ..integration_interview_service import serve_integration_interview_workspace
 from ..routers.interview_router import _markdown_to_html, _messages_to_list
@@ -2265,6 +2266,13 @@ def _collect_integration_unified_hub_ctx(
                 if readonly_console
                 else f"/integration/{ir.id}?phase=asbuilt#int-phase-asbuilt"
             ),
+        ),
+        **settlement_hub_ctx(
+            db,
+            user,
+            request_kind="integration",
+            request_id=int(ir.id),
+            phase_anchor="int-phase-settlement",
         ),
         "followup_turns": followup_turns,
         "chat_limit_reached": chat_limit_reached,

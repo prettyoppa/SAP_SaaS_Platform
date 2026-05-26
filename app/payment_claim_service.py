@@ -13,8 +13,10 @@ from .ai_wallet import (
     WALLET_TOPUP_PLAN_CODE,
     apply_wallet_credit,
     apply_wallet_debit,
+    is_project_settlement_plan_code,
     is_wallet_topup_plan_code,
 )
+from .project_settlement import PROJECT_SETTLEMENT_PLAN_CODE, mark_funded
 from .payment_claim_messages import (
     ERR_AMOUNT_MISMATCH,
     ERR_AMOUNT_TOO_LOW,
@@ -131,6 +133,49 @@ def create_wallet_topup_claim(
     return row, None
 
 
+def create_project_settlement_bank_claim(
+    db: Session,
+    user: models.User,
+    settlement: models.ProjectSettlement,
+    *,
+    depositor_name: str,
+    transfer_date: datetime | None,
+    member_note: str = "",
+) -> tuple[models.PaymentClaim | None, str | None]:
+    if int(user.id) != int(settlement.owner_user_id):
+        return None, "forbidden"
+    if not settlement.gross_amount_krw or settlement.gross_amount_krw <= 0:
+        return None, "invalid_amount"
+    from .project_settlement import STATUS_AWAITING_PAYMENT
+
+    if settlement.status != STATUS_AWAITING_PAYMENT:
+        return None, "not_awaiting_payment"
+    if user_pending_claim(db, user.id):
+        return None, ERR_PENDING_CLAIM_EXISTS
+    dep = (depositor_name or "").strip()[:200]
+    if not dep:
+        return None, ERR_DEPOSITOR_REQUIRED
+    row = models.PaymentClaim(
+        user_id=int(user.id),
+        status=CLAIM_STATUS_PENDING,
+        billing_country="KR",
+        currency="KRW",
+        amount_minor=int(settlement.gross_amount_krw),
+        plan_account_kind=account_kind_for_user(user),
+        plan_code=PROJECT_SETTLEMENT_PLAN_CODE,
+        billing_period="project",
+        depositor_name=dep,
+        transfer_date=transfer_date,
+        member_note=(member_note or "").strip()[:2000] or None,
+        project_settlement_id=int(settlement.id),
+    )
+    user.billing_country = "KR"
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row, None
+
+
 def create_payment_claim(
     db: Session,
     user: models.User,
@@ -195,6 +240,8 @@ def cancel_payment_claim(db: Session, user: models.User, claim_id: int) -> str |
         return ERR_CLAIM_NOT_PENDING
     if is_wallet_topup_plan_code(row.plan_code) and bool(row.wallet_credited_on_submit):
         apply_wallet_debit(user, int(row.amount_minor))
+    if is_project_settlement_plan_code(row.plan_code):
+        pass
     row.status = CLAIM_STATUS_CANCELLED
     row.updated_at = datetime.utcnow()
     db.commit()
@@ -220,7 +267,20 @@ def confirm_payment_claim(
         return "회원을 찾을 수 없습니다."
     now = datetime.utcnow()
     end = now + timedelta(days=max(1, int(period_days)))
-    if is_wallet_topup_plan_code(row.plan_code):
+    if is_project_settlement_plan_code(row.plan_code) and row.project_settlement_id:
+        settlement = (
+            db.query(models.ProjectSettlement)
+            .filter(models.ProjectSettlement.id == int(row.project_settlement_id))
+            .first()
+        )
+        if not settlement:
+            return "연결된 납품 대금 건을 찾을 수 없습니다."
+        confirmed = int(confirmed_amount_minor) if confirmed_amount_minor is not None else int(row.amount_minor)
+        if confirmed != int(settlement.gross_amount_krw or 0):
+            return "확인 금액이 합의 납품 대금과 일치해야 합니다."
+        row.confirmed_amount_minor = confirmed
+        mark_funded(db, settlement)
+    elif is_wallet_topup_plan_code(row.plan_code):
         submitted = int(row.amount_minor)
         if confirmed_amount_minor is None:
             confirmed = submitted

@@ -420,6 +420,9 @@
           </div>
         </details>
         {% endif %}
+
+        {% set settlement_phase_anchor = 'abap-phase-settlement' %}
+        {% include 'partials/hub_project_settlement_phase.html' %}
         {% endif %}
 
         {% if chat_enabled %}

@@ -40,6 +40,9 @@
                          style="width:6.5rem" value="{{ c.amount_minor }}" inputmode="numeric"
                          title="확인 금액(원). 미입금 0, 일부 입금 시 실제 금액">
                   <button type="submit" class="btn btn-sm btn-success">확인</button>
+                  {% elif c.plan_code == 'project_settlement' %}
+                  <input type="hidden" name="confirmed_amount_minor" value="{{ c.amount_minor }}"/>
+                  <button type="submit" class="btn btn-sm btn-success">입금 확인·대금 반영</button>
                   {% else %}
                   <button type="submit" class="btn btn-sm btn-success">확인·활성화</button>
                   {% endif %}

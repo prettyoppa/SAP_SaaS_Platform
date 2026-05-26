@@ -1,0 +1,224 @@
+{# 납품·대금 — 매칭된 요청자·컨설턴트만 (settlement_hub_ctx) #}
+{% set st = settlement %}
+{% set base = settlement_base_path %}
+{% set sk = settlement_request_kind %}
+{% set err = request.query_params.get('settlement_err') or '' %}
+{% set ok = request.query_params.get('settlement_ok') or '' %}
+
+{% if ok == 'bank_submitted' %}
+<div class="alert alert-success py-2 small mb-3">
+  <span class="nav-ko">입금 신청이 접수되었습니다. 관리자 확인 후 반영됩니다.</span>
+  <span class="nav-en" style="display:none">Your transfer claim was submitted. It will apply after admin confirmation.</span>
+</div>
+{% elif ok == 'card' %}
+<div class="alert alert-success py-2 small mb-3">
+  <span class="nav-ko">카드 결제가 확인되었습니다.</span>
+  <span class="nav-en" style="display:none">Card payment confirmed.</span>
+</div>
+{% elif ok == 'profile_saved' %}
+<div class="alert alert-success py-2 small mb-3">
+  <span class="nav-ko">수취 계좌 정보를 저장했습니다.</span>
+  <span class="nav-en" style="display:none">Payout account details saved.</span>
+</div>
+{% endif %}
+{% if err %}
+<div class="alert alert-warning py-2 small mb-3">
+  {% if err == 'forbidden' %}
+  <span class="nav-ko">이 작업을 수행할 권한이 없습니다.</span>
+  <span class="nav-en" style="display:none">You do not have permission for this action.</span>
+  {% elif err == 'invalid_amount' %}
+  <span class="nav-ko">금액을 올바르게 입력해 주세요.</span>
+  <span class="nav-en" style="display:none">Enter a valid amount.</span>
+  {% elif err == 'not_ready' %}
+  <span class="nav-ko">아직 이 단계를 진행할 수 없습니다.</span>
+  <span class="nav-en" style="display:none">This step is not available yet.</span>
+  {% elif err == 'not_awaiting_payment' %}
+  <span class="nav-ko">현재 입금 신청을 받을 수 있는 상태가 아닙니다.</span>
+  <span class="nav-en" style="display:none">A bank transfer claim cannot be submitted in the current state.</span>
+  {% elif err == 'pending_claim_exists' %}
+  <span class="nav-ko">처리 대기 중인 입금 신청이 있습니다. 먼저 완료하거나 취소해 주세요.</span>
+  <span class="nav-en" style="display:none">You already have a pending transfer claim. Complete or cancel it first.</span>
+  {% elif err == 'stripe_unconfigured' %}
+  <span class="nav-ko">카드 결제가 아직 설정되지 않았습니다. 계좌이체를 이용해 주세요.</span>
+  <span class="nav-en" style="display:none">Card payments are not configured. Please use bank transfer.</span>
+  {% elif err == 'card_cancelled' %}
+  <span class="nav-ko">결제를 취소했습니다.</span>
+  <span class="nav-en" style="display:none">Payment was cancelled.</span>
+  {% elif err == 'card_verify_failed' %}
+  <span class="nav-ko">결제 확인에 실패했습니다. 고객 지원에 문의해 주세요.</span>
+  <span class="nav-en" style="display:none">Payment verification failed. Please contact support.</span>
+  {% else %}
+  <span class="nav-ko">요청을 처리하지 못했습니다.</span>
+  <span class="nav-en" style="display:none">Could not complete the request.</span>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="alert alert-light border small mb-3 hub-settlement-intro">
+  <ul class="mb-0 ps-3">
+    <li class="mb-2">
+      <span class="nav-ko">본 납품 대금은 실제 납품을 위한 필수 조건이 아닙니다. 납품물을 주문한 당사자와 제공하는 당사자 간의 합의가 우선합니다.</span>
+      <span class="nav-en" style="display:none">Delivery payment on this site is not required to complete delivery. Agreement between the ordering party and the delivering party takes priority.</span>
+    </li>
+    <li class="mb-2">
+      <span class="nav-ko">납품 대금 지급을 이 사이트에서 진행하기로 한 경우, 아래 「플랫폼 대금 지급」을 선택해 금액을 합의한 뒤, 정해진 절차에 따라 안전한 대금 지급과 인도를 지원합니다.</span>
+      <span class="nav-en" style="display:none">If you choose to pay through this site, enable 「Platform payment」 below, agree on the amount, and follow the steps for secure payment and handover.</span>
+    </li>
+    <li>
+      <span class="nav-ko">대금 합의·지급 정보는 당사자와 관리자에게만 공개되며, 그 외에는 공개되지 않습니다.</span>
+      <span class="nav-en" style="display:none">Payment terms and payout details are visible only to the parties and administrators—not to the public.</span>
+    </li>
+  </ul>
+</div>
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <span class="badge bg-secondary" data-i18n="settlement.statusLabel">상태</span>
+  <strong>
+    <span class="nav-ko">{{ settlement_status_label_ko|default(settlement_status) }}</span>
+    <span class="nav-en" style="display:none">{{ settlement_status_label_en|default(settlement_status) }}</span>
+  </strong>
+</div>
+
+<div class="rfp-section p-3 mb-3">
+  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.agreementTitle">대금 합의 (선택)</h6>
+  <p class="small text-muted mb-3">
+    <span class="nav-ko">금액·지급 방식은 당사자 간 자유롭게 정할 수 있습니다. 이 사이트에서 입금·지급 절차를 쓰지 않으면 금액 입력 없이 납품 확인만 진행할 수 있습니다.</span>
+    <span class="nav-en" style="display:none">Amount and payment method are up to the parties. Without platform payment, you can confirm delivery without entering an amount here.</span>
+  </p>
+
+  {% if st.gross_amount_krw %}
+  <p class="mb-2 font-monospace">
+    <span data-i18n="settlement.grossLabel">합의 금액</span>:
+    <strong>{{ "{:,}".format(st.gross_amount_krw) }} KRW</strong>
+    {% if st.use_platform_payment %}
+    <span class="badge bg-primary ms-1" data-i18n="settlement.viaPlatform">플랫폼 지급</span>
+    {% else %}
+    <span class="badge bg-secondary ms-1" data-i18n="settlement.offPlatform">당사자 간 직접 합의</span>
+    {% endif %}
+  </p>
+  {% if st.use_platform_payment and settlement_gross_display %}
+  <p class="small text-muted mb-2">
+    <span data-i18n="settlement.feeLine">플랫폼 수수료 {{ settlement_fee_percent }}%</span>
+    · <span data-i18n="settlement.feeAmount">수수료</span> {{ "{:,}".format(settlement_platform_fee_krw) }} KRW
+    · <span data-i18n="settlement.payoutAmount">컨설턴트 지급 예정</span> {{ "{:,}".format(settlement_consultant_payout_krw) }} KRW
+  </p>
+  {% endif %}
+  <p class="small text-muted mb-3">
+    {% if st.requester_amount_agreed_at %}<span class="nav-ko">요청자 금액 동의</span><span class="nav-en" style="display:none">Requester agreed</span> ✓{% else %}<span class="nav-ko">요청자 금액 동의 대기</span><span class="nav-en" style="display:none">Awaiting requester</span>{% endif %}
+    ·
+    {% if st.consultant_amount_agreed_at %}<span class="nav-ko">컨설턴트 금액 동의</span><span class="nav-en" style="display:none">Consultant agreed</span> ✓{% else %}<span class="nav-ko">컨설턴트 금액 동의 대기</span><span class="nav-en" style="display:none">Awaiting consultant</span>{% endif %}
+  </p>
+  {% endif %}
+
+  <form method="post" action="{{ base }}/propose" class="row g-2 align-items-end mb-2">
+    <div class="col-md-4">
+      <label class="form-label small mb-0" data-i18n="settlement.amountKrw">금액 (원, 선택)</label>
+      <input type="number" name="gross_amount_krw" class="form-control form-control-sm font-monospace" min="0" step="1000"
+             value="{{ st.gross_amount_krw or '' }}" placeholder="0"/>
+    </div>
+    <div class="col-md-5">
+      <div class="form-check mt-4">
+        <input class="form-check-input" type="checkbox" name="use_platform_payment" value="1" id="settle-platform-{{ sk }}-{{ st.id }}"
+               {% if st.use_platform_payment %}checked{% endif %}/>
+        <label class="form-check-label small" for="settle-platform-{{ sk }}-{{ st.id }}" data-i18n="settlement.usePlatform">
+          이 사이트에서 대금 입금·지급 절차 이용
+        </label>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <button type="submit" class="btn btn-sm btn-outline-primary w-100" data-i18n="settlement.proposeBtn">제안·동의</button>
+    </div>
+  </form>
+  {% if st.gross_amount_krw and st.use_platform_payment and ((settlement_is_owner and st.consultant_amount_agreed_at and not st.requester_amount_agreed_at) or (settlement_is_consultant and st.requester_amount_agreed_at and not st.consultant_amount_agreed_at)) %}
+  <form method="post" action="{{ base }}/accept-amount" class="mt-2 mb-0">
+    <button type="submit" class="btn btn-sm btn-primary" data-i18n="settlement.acceptAmount">상대방 제안 금액에 동의</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="rfp-section p-3 mb-3">
+  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.deliveryTitle">납품 확인</h6>
+  <p class="small text-muted mb-2" data-i18n="settlement.deliveryHint">플랫폼 지급 시 관리자 지급은 입금 완료 후 양측 납품 확인이 모두 있어야 합니다.</p>
+  <p class="small mb-3">
+    {% if st.requester_delivery_confirmed_at %}
+    <span class="badge bg-success" data-i18n="settlement.requesterConfirmed">요청자 확인</span>
+    {% else %}
+    <span class="badge bg-secondary" data-i18n="settlement.requesterPending">요청자 미확인</span>
+    {% endif %}
+    {% if st.consultant_delivery_confirmed_at %}
+    <span class="badge bg-success ms-1" data-i18n="settlement.consultantConfirmed">컨설턴트 확인</span>
+    {% else %}
+    <span class="badge bg-secondary ms-1" data-i18n="settlement.consultantPending">컨설턴트 미확인</span>
+    {% endif %}
+  </p>
+  {% if (settlement_is_owner and not st.requester_delivery_confirmed_at) or (settlement_is_consultant and not st.consultant_delivery_confirmed_at) %}
+  <form method="post" action="{{ base }}/confirm-delivery" data-app-confirm-i18n="settlement.confirmDelivery">
+    <button type="submit" class="btn btn-sm btn-outline-success" data-i18n="settlement.confirmDeliveryBtn">납품 확인</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if st.use_platform_payment and st.gross_amount_krw and settlement_status == 'awaiting_payment' and settlement_is_owner %}
+<div class="rfp-section p-3 mb-3">
+  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.paymentTitle">입금</h6>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <form method="post" action="{{ base }}/checkout-card" class="mb-0">
+      <button type="submit" class="btn btn-sm btn-primary" data-i18n="settlement.payCard">카드 결제</button>
+    </form>
+  </div>
+  <form method="post" action="{{ base }}/bank-claim" class="row g-2 small">
+    <div class="col-md-4">
+      <label class="form-label small mb-0" data-i18n="billing.depositor">입금자명</label>
+      <input type="text" name="depositor_name" class="form-control form-control-sm" required maxlength="200"/>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small mb-0" data-i18n="billing.transferDate">입금일</label>
+      <input type="date" name="transfer_date" class="form-control form-control-sm"/>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label small mb-0" data-i18n="billing.memberNote">메모 (선택)</label>
+      <input type="text" name="member_note" class="form-control form-control-sm" maxlength="500"/>
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-sm btn-outline-secondary" data-i18n="settlement.bankClaim">계좌이체 입금 신청</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% if settlement_is_consultant and settlement_status in ('awaiting_payment', 'funded', 'payable', 'payout_completed') %}
+<div class="rfp-section p-3 mb-0">
+  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.payoutProfileTitle">수취 계좌 (컨설턴트)</h6>
+  <p class="small text-muted mb-2" data-i18n="settlement.payoutProfileHint">관리자 지급 시 참고용입니다. 사이트에 저장되며 당사자·관리자만 볼 수 있습니다.</p>
+  <form method="post" action="{{ base }}/payout-profile" class="row g-2">
+    <div class="col-md-4">
+      <label class="form-label small mb-0" data-i18n="settlement.accountHolder">예금주</label>
+      <input type="text" name="account_holder_name" class="form-control form-control-sm" maxlength="200"
+             value="{{ settlement_profile.account_holder_name if settlement_profile else '' }}"/>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small mb-0" data-i18n="settlement.bankName">은행</label>
+      <input type="text" name="bank_name" class="form-control form-control-sm" maxlength="200"
+             value="{{ settlement_profile.bank_name if settlement_profile else '' }}"/>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small mb-0" data-i18n="settlement.accountNumber">계좌번호</label>
+      <input type="text" name="account_number" class="form-control form-control-sm" maxlength="64"
+             value="{{ settlement_profile.account_number if settlement_profile else '' }}"/>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small mb-0">SWIFT</label>
+      <input type="text" name="swift_bic" class="form-control form-control-sm" maxlength="32"
+             value="{{ settlement_profile.swift_bic if settlement_profile else '' }}"/>
+    </div>
+    <div class="col-md-9">
+      <label class="form-label small mb-0" data-i18n="settlement.wiseHint">해외 송금 메모 (선택)</label>
+      <input type="text" name="wise_recipient_hint" class="form-control form-control-sm" maxlength="256"
+             value="{{ settlement_profile.wise_recipient_hint if settlement_profile else '' }}"/>
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-sm btn-outline-primary" data-i18n="common.save">저장</button>
+    </div>
+  </form>
+</div>
+{% endif %}

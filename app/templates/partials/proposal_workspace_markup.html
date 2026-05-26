@@ -46,9 +46,6 @@
               </a>
             </div>
             {% endif %}
-            {% if billing_flash %}
-            <div class="alert alert-info small mb-3">{{ billing_flash }}</div>
-            {% endif %}
             {% set entity_owner_id = rfp.user_id %}
             {% set fs_phase_url = '/rfp/' ~ (rfp.id|string) ~ '?phase=fs' %}
             {% include 'partials/proposal_dev_engagement_cta.html' %}

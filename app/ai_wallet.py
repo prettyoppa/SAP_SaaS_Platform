@@ -65,15 +65,25 @@ def is_wallet_topup_plan_code(plan_code: str | None) -> bool:
     return (plan_code or "").strip() == WALLET_TOPUP_PLAN_CODE
 
 
+def is_project_settlement_plan_code(plan_code: str | None) -> bool:
+    from .project_settlement import PROJECT_SETTLEMENT_PLAN_CODE
+
+    return (plan_code or "").strip() == PROJECT_SETTLEMENT_PLAN_CODE
+
+
 def claim_plan_label_ko(plan_code: str) -> str:
     if (plan_code or "").strip() == WALLET_TOPUP_PLAN_CODE:
         return "AI 크레딧 충전"
+    if is_project_settlement_plan_code(plan_code):
+        return "납품 대금(프로젝트)"
     return plan_code or "—"
 
 
 def claim_plan_label_en(plan_code: str) -> str:
     if (plan_code or "").strip() == WALLET_TOPUP_PLAN_CODE:
         return "AI credit top-up"
+    if is_project_settlement_plan_code(plan_code):
+        return "Project delivery payment"
     return plan_code or "—"
 
 

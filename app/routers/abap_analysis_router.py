@@ -53,6 +53,7 @@ from ..menu_landing import (
     user_proposal_pending_offer_badges,
 )
 from ..as_built_deliverable import as_built_hub_template_ctx, as_built_llm_digest
+from ..project_settlement import settlement_hub_ctx
 from ..attachment_context import build_request_context_digest
 from ..requirement_body import (
     apply_body as _apply_requirement_body_shared,
@@ -1521,6 +1522,13 @@ def _prepare_abap_analysis_detail_ctx(
                 else f"/abap-analysis/{row.id}#abap-phase-asbuilt"
             ),
         ),
+        **settlement_hub_ctx(
+            db,
+            user,
+            request_kind="analysis",
+            request_id=int(row.id),
+            phase_anchor="abap-phase-settlement",
+        ),
     }
 
     follow_raw = sorted(
@@ -1567,6 +1575,16 @@ def _prepare_abap_analysis_detail_ctx(
         subscription_quota_flash = "이 요청에서 제안서 재생성 허용 횟수에 도달했습니다."
     elif qe == "proposal_regen_disabled":
         subscription_quota_flash = "현재 플랜에서 제안서 재생성을 사용할 수 없습니다."
+    _hub_phase = (request.query_params.get("phase") or "").strip().lower()
+    if _hub_phase not in (
+        "proposal",
+        "fs",
+        "devcode",
+        "asbuilt",
+        "settlement",
+        "analysis",
+    ):
+        _hub_phase = ""
     detail_ctx = {
         "request": request,
         "user": user,
@@ -1574,6 +1592,7 @@ def _prepare_abap_analysis_detail_ctx(
         "analysis": analysis,
         "attachment_entries": _attachment_entries(row),
         **req_ctx,
+        "hub_phase_open": _hub_phase,
         "owner": owner,
         "code_asset_unlocked": code_asset_unlocked,
         "followup_turns": followup_turns,

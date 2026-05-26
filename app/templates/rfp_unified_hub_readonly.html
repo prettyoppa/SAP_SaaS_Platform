@@ -116,6 +116,8 @@
     </details>
     {% endif %}
 
+    {% include 'partials/hub_project_settlement_phase.html' %}
+
     {% if can_view_deliverables|default(true) and gen_busy|default(false) %}
     {% with delivery_gen_status_url='/rfp/' ~ (rfp.id|string) ~ '/paid-generation-status', delivery_gen_request_title=rfp.title %}
     {% include 'partials/hub_delivery_generating_bundle.html' %}
@@ -142,7 +144,7 @@
   var ph = {{ hub_phase_open|tojson }};
   var hubSkipInterview = {{ hub_skip_interview|default(false)|tojson }};
   if (hubSkipInterview && ph === 'interview') ph = 'proposal';
-  var map = { request: 'rfp-phase-request', interview: 'rfp-phase-interview', proposal: 'rfp-phase-proposal', fs: 'rfp-phase-fs', devcode: 'rfp-phase-devcode', asbuilt: 'rfp-phase-asbuilt' };
+  var map = { request: 'rfp-phase-request', interview: 'rfp-phase-interview', proposal: 'rfp-phase-proposal', fs: 'rfp-phase-fs', devcode: 'rfp-phase-devcode', asbuilt: 'rfp-phase-asbuilt', settlement: 'rfp-phase-settlement' };
   var id = map[ph];
   if (!id) return;
   document.addEventListener('DOMContentLoaded', function () {

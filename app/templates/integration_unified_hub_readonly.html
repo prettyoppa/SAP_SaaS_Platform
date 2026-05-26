@@ -127,6 +127,8 @@
     </details>
     {% endif %}
 
+    {% include 'partials/hub_project_settlement_phase.html' %}
+
     {% if hub_int_ai_chat_enabled|default(false) %}
     <p class="small text-muted mb-0 mt-2">
       <i class="fa-solid fa-comments me-1 text-primary-light"></i>
@@ -145,7 +147,7 @@
 <script>
 (function () {
   var ph = {{ hub_phase_open|tojson }};
-  var map = { request: 'int-phase-request', interview: 'int-phase-interview', proposal: 'int-phase-proposal', fs: 'int-phase-fs', devcode: 'int-phase-devcode', asbuilt: 'int-phase-asbuilt' };
+  var map = { request: 'int-phase-request', interview: 'int-phase-interview', proposal: 'int-phase-proposal', fs: 'int-phase-fs', devcode: 'int-phase-devcode', asbuilt: 'int-phase-asbuilt', settlement: 'int-phase-settlement' };
   var id = map[ph];
   if (!id) return;
   document.addEventListener('DOMContentLoaded', function () {

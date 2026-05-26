@@ -58,7 +58,6 @@ from ..request_hub_access import (
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..paid_tier import (
     paid_engagement_is_active,
-    rfp_eligible_for_stripe_checkout,
     user_can_access_fs_hub,
     user_can_operate_delivery,
 )
@@ -82,6 +81,7 @@ from ..rfp_form_suggest import (
     suggest_title_from_description,
 )
 from ..rfp_reference_code import normalize_reference_code_payload, reference_code_program_groups_for_tabs
+from ..project_settlement import settlement_hub_ctx
 from ..rfp_hub import normalize_rfp_hub_phase, rfp_hub_url
 from ..requirement_body import (
     apply_body as apply_requirement_body,
@@ -102,7 +102,6 @@ from ..rfp_followup_chat import (
 )
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from ..rfp_phase_gates import rfp_for_hub_readonly_embed, rfp_for_owner_or_admin, rfp_owned_only
-from ..stripe_service import stripe_keys_configured
 from . import interview_router as _interview_views
 from ..database import get_db
 from ..templates_config import layout_template_from_embed_query, templates
@@ -289,20 +288,6 @@ async def rfp_form_request_validation_response(request: Request, db: Session):
         ctx,
         status_code=400,
     )
-
-
-def _billing_flash_message(checkout: str | None) -> str | None:
-    key = (checkout or "").strip().lower()
-    if not key:
-        return None
-    return {
-        "success": "결제가 완료되었습니다. 개발 의뢰가 활성화되었습니다.",
-        "cancelled": "결제 창을 닫았습니다. 필요할 때 다시 시도할 수 있습니다.",
-        "error": "결제 시작 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-        "unconfigured": "결제 시스템이 아직 설정되지 않았습니다.",
-        "missing_session": "결제 세션 정보가 없습니다.",
-        "verify_failed": "결제 확인에 실패했습니다. 고객 지원에 문의해 주세요.",
-    }.get(key)
 
 
 def _ref_code_initial_from_rfp(rfp: Any) -> Optional[dict]:
@@ -909,7 +894,6 @@ def _collect_rfp_unified_hub_ctx(
     *,
     phase: str | None,
     view: str | None,
-    checkout: str | None,
     db: Session,
     readonly_console: bool,
 ) -> RedirectResponse | dict[str, Any]:
@@ -1167,7 +1151,6 @@ def _collect_rfp_unified_hub_ctx(
         "proposal_pdf_filename": (
             proposal_download_filename("rfp", int(rfp.id), title=rfp.title) if proposal_html else ""
         ),
-        "billing_flash": _billing_flash_message(checkout),
         "paid_engagement_active": paid_engagement_is_active(rfp),
         "engagement_flash": engagement_flash,
         "entity_owner_id": int(rfp.user_id),
@@ -1177,13 +1160,6 @@ def _collect_rfp_unified_hub_ctx(
             rfp,
             activate_url=f"/rfp/{rfp.id}/activate-dev-engagement",
         ),
-        "rfp_eligible_for_checkout": rfp_eligible_for_stripe_checkout(
-            rfp,
-            has_proposal_supplements=has_delivery_proposal_supplements(
-                db, KIND_RFP, int(rfp.id)
-            ),
-        ),
-        "stripe_checkout_ready": stripe_keys_configured(),
         "fs_html": fs_html,
         "fs_stat": fs_stat,
         "dc_stat": dc_stat,
@@ -1257,6 +1233,13 @@ def _collect_rfp_unified_hub_ctx(
                 if readonly_console
                 else f"/rfp/{rfp.id}?phase=asbuilt#rfp-phase-asbuilt"
             ),
+        ),
+        **settlement_hub_ctx(
+            db,
+            user,
+            request_kind="rfp",
+            request_id=int(rfp.id),
+            phase_anchor="rfp-phase-settlement",
         ),
         "source_program_groups": groups,
         "reference_section_count": ref_section_count,
@@ -1357,7 +1340,6 @@ def rfp_unified_hub_console_readonly(
     background_tasks: BackgroundTasks,
     phase: str | None = None,
     view: str | None = None,
-    checkout: str | None = None,
     db: Session = Depends(get_db),
 ):
     out = _collect_rfp_unified_hub_ctx(
@@ -1366,7 +1348,6 @@ def rfp_unified_hub_console_readonly(
         background_tasks,
         phase=phase,
         view=view,
-        checkout=checkout,
         db=db,
         readonly_console=True,
     )
@@ -1383,7 +1364,6 @@ def rfp_unified_hub(
     background_tasks: BackgroundTasks,
     phase: str | None = None,
     view: str | None = None,
-    checkout: str | None = None,
     db: Session = Depends(get_db),
 ):
     """신규 개발 통합 상세 — 요청·인터뷰·제안서·FS·개발코드 (단계별 details)."""
@@ -1393,7 +1373,6 @@ def rfp_unified_hub(
         background_tasks,
         phase=phase,
         view=view,
-        checkout=checkout,
         db=db,
         readonly_console=False,
     )

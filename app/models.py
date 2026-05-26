@@ -826,6 +826,9 @@ class PaymentClaim(Base):
     subscription_period_start = Column(DateTime, nullable=True)
     subscription_period_end = Column(DateTime, nullable=True)
     wallet_credited_on_submit = Column(Boolean, nullable=False, default=False)
+    project_settlement_id = Column(
+        Integer, ForeignKey("project_settlements.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -889,6 +892,67 @@ class TrialEligibilityConsumed(Base):
     kind = Column(String(16), nullable=False, index=True)  # email | phone
     identity_hash = Column(String(64), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ProjectSettlement(Base):
+    """요청 건당 납품 대금 정산(AI 크레딧과 분리)."""
+
+    __tablename__ = "project_settlements"
+    __table_args__ = (
+        UniqueConstraint("request_kind", "request_id", name="uq_project_settlement_request"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_kind = Column(String(16), nullable=False, index=True)  # rfp | analysis | integration
+    request_id = Column(Integer, nullable=False, index=True)
+    request_offer_id = Column(Integer, ForeignKey("request_offers.id"), nullable=False, index=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    consultant_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    status = Column(String(32), nullable=False, default="open", index=True)
+    currency = Column(String(3), nullable=False, default="KRW")
+
+    gross_amount_krw = Column(Integer, nullable=True)
+    platform_fee_rate_bps = Column(Integer, nullable=False, default=1000)
+    platform_fee_krw = Column(Integer, nullable=True)
+    consultant_payout_krw = Column(Integer, nullable=True)
+
+    use_platform_payment = Column(Boolean, nullable=False, default=False)
+
+    requester_amount_agreed_at = Column(DateTime, nullable=True)
+    consultant_amount_agreed_at = Column(DateTime, nullable=True)
+    requester_delivery_confirmed_at = Column(DateTime, nullable=True)
+    consultant_delivery_confirmed_at = Column(DateTime, nullable=True)
+
+    funded_at = Column(DateTime, nullable=True)
+    payable_at = Column(DateTime, nullable=True)
+    payout_completed_at = Column(DateTime, nullable=True)
+
+    stripe_checkout_session_id = Column(String(256), nullable=True)
+    admin_payout_note = Column(Text, nullable=True)
+    admin_payout_ref = Column(String(256), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class ConsultantPayoutProfile(Base):
+    """컨설턴트 수취 계좌(지급 시 참고)."""
+
+    __tablename__ = "consultant_payout_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_default = Column(Boolean, nullable=False, default=True)
+    account_holder_name = Column(String(200), nullable=False, default="")
+    bank_name = Column(String(200), nullable=False, default="")
+    account_number = Column(String(64), nullable=False, default="")
+    country_code = Column(String(2), nullable=False, default="KR")
+    swift_bic = Column(String(32), nullable=True)
+    payout_currency = Column(String(3), nullable=False, default="KRW")
+    wise_recipient_hint = Column(String(256), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
 class UiI18nEnOverride(Base):
