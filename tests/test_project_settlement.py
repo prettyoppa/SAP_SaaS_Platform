@@ -91,6 +91,28 @@ def test_delivery_confirm_alone_not_payable_without_funded():
     assert recompute_status(r) == STATUS_OPEN
 
 
+def test_settlement_terms_match_ignores_fee_recompute():
+    from app.project_settlement import PAYMENT_METHOD_PORTONE, _settlement_terms_match
+
+    r = _row(
+        gross_amount_krw=10_000_000,
+        use_platform_payment=True,
+        payment_method=PAYMENT_METHOD_PORTONE,
+    )
+    assert _settlement_terms_match(
+        r,
+        gross_amount_krw=10_000_000,
+        use_platform_payment=True,
+        payment_method=PAYMENT_METHOD_PORTONE,
+    )
+    assert not _settlement_terms_match(
+        r,
+        gross_amount_krw=9_000_000,
+        use_platform_payment=True,
+        payment_method=PAYMENT_METHOD_PORTONE,
+    )
+
+
 def test_payout_completed():
     r = _row(payout_completed_at=datetime.utcnow())
     assert recompute_status(r) == STATUS_PAYOUT_COMPLETED

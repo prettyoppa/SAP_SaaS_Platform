@@ -34,6 +34,24 @@ def normalize_payment_method(raw: str | None) -> str:
         return p
     return ""
 
+
+def _settlement_terms_match(
+    settlement: models.ProjectSettlement,
+    *,
+    gross_amount_krw: int,
+    use_platform_payment: bool,
+    payment_method: str,
+) -> bool:
+    gross = max(0, int(gross_amount_krw))
+    if int(settlement.gross_amount_krw or 0) != gross:
+        return False
+    if bool(settlement.use_platform_payment) != bool(use_platform_payment):
+        return False
+    if use_platform_payment:
+        if normalize_payment_method(settlement.payment_method) != normalize_payment_method(payment_method):
+            return False
+    return True
+
 STATUS_OPEN = "open"
 STATUS_AWAITING_PAYMENT = "awaiting_payment"
 STATUS_FUNDED = "funded"
@@ -275,6 +293,12 @@ def propose_amount(
                 return "portone_unconfigured"
     else:
         pm = ""
+    terms_changed = not _settlement_terms_match(
+        settlement,
+        gross_amount_krw=gross,
+        use_platform_payment=use_platform_payment,
+        payment_method=pm,
+    )
     bps = get_platform_fee_bps(db)
     fee, payout = fee_amounts_krw(gross, bps) if gross else (0, 0)
     settlement.gross_amount_krw = gross if gross else None
@@ -283,8 +307,9 @@ def propose_amount(
     settlement.consultant_payout_krw = payout if gross else None
     settlement.use_platform_payment = bool(use_platform_payment)
     settlement.payment_method = pm if use_platform_payment else None
-    settlement.requester_amount_agreed_at = None
-    settlement.consultant_amount_agreed_at = None
+    if terms_changed:
+        settlement.requester_amount_agreed_at = None
+        settlement.consultant_amount_agreed_at = None
     if uid == int(settlement.owner_user_id):
         settlement.requester_amount_agreed_at = datetime.utcnow()
     else:

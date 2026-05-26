@@ -60,7 +60,7 @@
 </div>
 {% endif %}
 
-<div class="alert alert-light border small mb-3 hub-settlement-intro">
+<div class="rfp-section p-3 mb-3 hub-settlement-intro">
   <ul class="mb-0 ps-3">
     <li class="mb-2">
       <span class="nav-ko">본 납품 대금은 실제 납품을 위한 필수 조건이 아닙니다. 납품물을 주문한 당사자와 제공하는 당사자 간의 합의가 우선합니다.</span>
@@ -121,6 +121,8 @@
   </p>
   {% endif %}
 
+  {% set awaiting_counterparty_accept = st.gross_amount_krw and st.use_platform_payment and ((settlement_is_owner and st.consultant_amount_agreed_at and not st.requester_amount_agreed_at) or (settlement_is_consultant and st.requester_amount_agreed_at and not st.consultant_amount_agreed_at)) %}
+
   <form method="post" action="{{ base }}/propose" class="mb-2" id="settle-propose-{{ sk }}-{{ st.id }}" data-no-enter-submit="1">
     <div class="row g-2 align-items-end">
       <div class="col-md-4">
@@ -139,7 +141,14 @@
         </div>
       </div>
       <div class="col-md-3">
+        {% if awaiting_counterparty_accept %}
+        <div class="d-grid gap-1">
+          <button type="submit" formaction="{{ base }}/accept-amount" class="btn btn-sm btn-primary" data-i18n="settlement.acceptAmount">상대방 제안에 동의</button>
+          <button type="submit" class="btn btn-sm btn-outline-primary" data-i18n="settlement.proposeBtn">조건 변경·제안</button>
+        </div>
+        {% else %}
         <button type="submit" class="btn btn-sm btn-outline-primary w-100" data-i18n="settlement.proposeBtn">제안·동의</button>
+        {% endif %}
       </div>
     </div>
     <div class="settle-payment-method-row mt-2 {% if not st.use_platform_payment %}d-none{% endif %}">
@@ -173,28 +182,29 @@
     sync();
   })();
   </script>
-  {% if st.gross_amount_krw and st.use_platform_payment and ((settlement_is_owner and st.consultant_amount_agreed_at and not st.requester_amount_agreed_at) or (settlement_is_consultant and st.requester_amount_agreed_at and not st.consultant_amount_agreed_at)) %}
-  <form method="post" action="{{ base }}/accept-amount" class="mt-2 mb-0">
-    <button type="submit" class="btn btn-sm btn-primary" data-i18n="settlement.acceptAmount">상대방 제안 금액에 동의</button>
-  </form>
+  {% if awaiting_counterparty_accept %}
+  <p class="small text-muted mb-0 mt-2">
+    <span class="nav-ko">상대방이 제안한 금액·결제 수단과 같다면 「상대방 제안에 동의」를 눌러 주세요. 바꾸려면 금액 등을 수정한 뒤 「조건 변경·제안」을 사용하세요.</span>
+    <span class="nav-en" style="display:none">If you agree with the proposed amount and payment method, click 「Agree to counterparty proposal」. To change terms, edit the fields and click 「Propose new terms」.</span>
+  </p>
   {% endif %}
 </div>
 
 <div class="rfp-section p-3 mb-3">
   <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.deliveryTitle">납품 확인</h6>
   <p class="small text-muted mb-2" data-i18n="settlement.deliveryHint">플랫폼 지급 시 관리자 지급은 입금 완료 후 양측 납품 확인이 모두 있어야 합니다.</p>
-  <p class="small mb-3">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     {% if st.requester_delivery_confirmed_at %}
     <span class="badge bg-success" data-i18n="settlement.requesterConfirmed">요청자 확인</span>
     {% else %}
     <span class="badge bg-secondary" data-i18n="settlement.requesterPending">요청자 미확인</span>
     {% endif %}
     {% if st.consultant_delivery_confirmed_at %}
-    <span class="badge bg-success ms-1" data-i18n="settlement.consultantConfirmed">컨설턴트 확인</span>
+    <span class="badge bg-success" data-i18n="settlement.consultantConfirmed">컨설턴트 확인</span>
     {% else %}
-    <span class="badge bg-secondary ms-1" data-i18n="settlement.consultantPending">컨설턴트 미확인</span>
+    <span class="badge bg-secondary" data-i18n="settlement.consultantPending">컨설턴트 미확인</span>
     {% endif %}
-  </p>
+  </div>
   {% if (settlement_is_owner and not st.requester_delivery_confirmed_at) or (settlement_is_consultant and not st.consultant_delivery_confirmed_at) %}
   <form method="post" action="{{ base }}/confirm-delivery" data-app-confirm-i18n="settlement.confirmDelivery">
     <button type="submit" class="btn btn-sm btn-outline-success" data-i18n="settlement.confirmDeliveryBtn">납품 확인</button>
