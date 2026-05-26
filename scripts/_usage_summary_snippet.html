@@ -1,0 +1,19 @@
+      <div class="row g-2 mb-3 account-ai-credits-usage-summary">
+        <div class="col-md-6">
+          <div class="account-ai-credits-stat p-2 rounded">
+            <div class="small text-muted"><span class="nav-ko">누적 추정 사용</span><span class="nav-en" style="display:none">Estimated usage (total)</span></div>
+            <div class="font-monospace fw-semibold">₩{{ "{:,}".format(ai_usage_total_krw_int) }}</div>
+            <div class="small text-muted">{{ ai_usage_total_usd }} · {{ ai_usage_event_count }}<span class="nav-ko">회 호출</span><span class="nav-en" style="display:none"> calls</span></div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="account-ai-credits-stat p-2 rounded">
+            <div class="small text-muted"><span class="nav-ko">환산 기준</span><span class="nav-en" style="display:none">FX rate</span></div>
+            <div class="font-monospace fw-semibold">1 USD = ₩{{ "{:,.0f}".format(usd_krw_rate) }}</div>
+            <div class="small text-muted">
+              <span class="nav-ko">토큰·모델 단가 → USD → 원화</span>
+              <span class="nav-en" style="display:none">Tokens &amp; model rates → USD → KRW</span>
+            </div>
+          </div>
+        </div>
+      </div>

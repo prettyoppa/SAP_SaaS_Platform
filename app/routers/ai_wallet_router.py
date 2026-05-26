@@ -28,6 +28,9 @@ from ..ai_wallet import (
 from ..bank_transfer_settings import BANK_TRANSFER_SETTING_KEYS
 from ..database import get_db
 from ..payment_claim_messages import ERR_AMOUNT_MISMATCH
+from ..payment_purpose import PURPOSE_AI_WALLET_TOPUP
+from ..payment_providers.portone_service import create_pending_transaction
+from ..payment_providers.portone_settings import portone_checkout_ready
 from ..payment_claim_service import (
     cancel_payment_claim,
     create_wallet_topup_claim,
@@ -106,7 +109,8 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url=f"/login?next={quote(_AI_CREDITS_PATH)}", status_code=302)
     settings = _load_bank_settings(db)
     err = (request.query_params.get("err") or "").strip()
-    ok = request.query_params.get("ok") == "1"
+    ok_param = (request.query_params.get("ok") or "").strip()
+    ok = ok_param in ("1", "portone")
     ctx = _usage_context(db, user)
     return templates.TemplateResponse(
         request,
@@ -126,9 +130,43 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
             "pending_claim": user_pending_claim(db, user.id),
             "billing_err": err,
             "billing_ok": ok,
+            "portone_ready": portone_checkout_ready(),
             **ctx,
         },
     )
+
+
+@router.post("/account/ai-credits/pay-portone")
+def account_ai_credits_pay_portone(
+    request: Request,
+    db: Session = Depends(get_db),
+    amount_minor: str = Form(""),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url=f"/login?next={quote(_AI_CREDITS_PATH)}", status_code=302)
+    if not portone_checkout_ready():
+        return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=portone_unconfigured", status_code=303)
+    try:
+        amt = int((amount_minor or "").replace(",", "").strip())
+    except ValueError:
+        return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=invalid_amount", status_code=303)
+    if amt < min_topup_krw(db):
+        return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=amount_too_low", status_code=303)
+    return_url = f"{_AI_CREDITS_PATH}?ok=portone#topup-form"
+    txn = create_pending_transaction(
+        db,
+        user,
+        purpose=PURPOSE_AI_WALLET_TOPUP,
+        purpose_ref_id=int(user.id),
+        amount_krw=amt,
+        return_url=return_url,
+        cancel_url=f"{_AI_CREDITS_PATH}?err=portone_cancelled#topup-form",
+    )
+    if not txn:
+        return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=portone_error", status_code=303)
+    db.commit()
+    return RedirectResponse(url=f"/payments/portone/checkout/{int(txn.id)}", status_code=303)
 
 
 @router.post("/account/ai-credits/claim")

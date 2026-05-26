@@ -88,10 +88,32 @@
             <input type="date" id="topup-date" name="transfer_date" class="form-control form-control-sm">
           </div>
         </div>
-        <button type="button" class="btn btn-primary btn-sm mt-2" id="topup-confirm-btn">
-          <span class="nav-ko">충전 확인</span><span class="nav-en" style="display:none">Confirm top-up</span>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="topup-confirm-btn">
+          <span class="nav-ko">계좌이체 입금 신청</span><span class="nav-en" style="display:none">Submit bank transfer</span>
         </button>
       </form>
+      <hr class="my-3"/>
+      <p class="small text-muted mb-2">
+        <span class="nav-ko"><strong>카드·간편결제</strong> (PortOne) — 입금 확인 없이 결제 완료 시 즉시 충전됩니다.</span>
+        <span class="nav-en" style="display:none"><strong>Card / wallet</strong> (PortOne) — credits apply immediately after payment.</span>
+      </p>
+      <form method="post" action="/account/ai-credits/pay-portone" class="row g-2 align-items-end" id="ai-credits-portone-form">
+        <div class="col-md-4">
+          <label class="form-label small mb-1" for="portone-topup-amount">
+            <span class="nav-ko">충전 금액 (원)</span><span class="nav-en" style="display:none">Amount (KRW)</span>
+          </label>
+          <input type="text" id="portone-topup-amount" name="amount_minor" class="form-control form-control-sm font-monospace"
+                 inputmode="numeric" data-min="{{ min_topup_krw }}"/>
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary btn-sm" {% if not portone_ready|default(false) %}disabled{% endif %}>
+            <span class="nav-ko">카드·간편결제</span><span class="nav-en" style="display:none">Pay with card</span>
+          </button>
+        </div>
+      </form>
+      {% if not portone_ready|default(false) %}
+      <p class="small text-muted mb-0 mt-1" data-i18n="billing.portoneUnavailable">PortOne 미설정 — 관리자에게 문의하세요.</p>
+      {% endif %}
       {% endif %}
     </section>
     <section class="rfp-section account-ai-credits-panel account-ai-credits-history">

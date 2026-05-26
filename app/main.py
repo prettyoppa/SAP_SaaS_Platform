@@ -36,6 +36,7 @@ from .routers import auth_router, rfp_router, interview_router, codelib_router, 
 from .routers import admin_router, review_router, integration_router, integration_interview_router
 from .routers import site_content_router, seo_router, legal_content_router
 from .routers import (
+    portone_router,
     project_settlement_router,
     paid_admin_router,
     proposal_supplements_router,
@@ -184,6 +185,8 @@ def _run_migrations():
         ("payment_claims", "wallet_credited_on_submit", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("payment_claims", "confirmed_amount_minor", "INTEGER", "INTEGER"),
         ("payment_claims", "project_settlement_id", "INTEGER", "INTEGER"),
+        ("project_settlements", "payment_method", "VARCHAR(20)", "VARCHAR(20)"),
+        ("project_settlements", "portone_payment_id", "VARCHAR(128)", "VARCHAR(128)"),
         ("subscription_plans", "price_monthly_krw", "INTEGER", "INTEGER"),
         ("subscription_plans", "price_monthly_usd_cents", "INTEGER", "INTEGER"),
         ("notices", "title_en", "TEXT", "TEXT"),
@@ -899,6 +902,7 @@ app.include_router(site_content_router.router)
 app.include_router(legal_content_router.router)
 app.include_router(integration_interview_router.router)
 app.include_router(integration_router.router)
+app.include_router(portone_router.router)
 app.include_router(project_settlement_router.router)
 app.include_router(paid_admin_router.router)
 app.include_router(proposal_supplements_router.router)

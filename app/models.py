@@ -918,6 +918,8 @@ class ProjectSettlement(Base):
     consultant_payout_krw = Column(Integer, nullable=True)
 
     use_platform_payment = Column(Boolean, nullable=False, default=False)
+    # bank_transfer | card — use_platform_payment 일 때만
+    payment_method = Column(String(20), nullable=True)
 
     requester_amount_agreed_at = Column(DateTime, nullable=True)
     consultant_amount_agreed_at = Column(DateTime, nullable=True)
@@ -929,9 +931,31 @@ class ProjectSettlement(Base):
     payout_completed_at = Column(DateTime, nullable=True)
 
     stripe_checkout_session_id = Column(String(256), nullable=True)
+    portone_payment_id = Column(String(128), nullable=True, index=True)
     admin_payout_note = Column(Text, nullable=True)
     admin_payout_ref = Column(String(256), nullable=True)
 
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class PaymentTransaction(Base):
+    """PG 결제 원장 (PortOne 등) — AI 충전·납품 대금."""
+
+    __tablename__ = "payment_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    purpose = Column(String(32), nullable=False, index=True)
+    purpose_ref_id = Column(Integer, nullable=False, index=True)
+    payment_id = Column(String(128), nullable=False, unique=True, index=True)
+    amount_minor = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False, default="KRW")
+    provider = Column(String(20), nullable=False, default="portone")
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    return_url = Column(String(1024), nullable=False, default="")
+    cancel_url = Column(String(1024), nullable=True)
+    paid_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

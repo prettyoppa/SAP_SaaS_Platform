@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}결제 — PortOne{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 32rem;">
+  <div class="rfp-section p-4">
+    <h1 class="h5 mb-2">
+      <span class="nav-ko">{{ order_name }}</span>
+      <span class="nav-en" style="display:none">Payment</span>
+    </h1>
+    <p class="font-monospace fs-5 mb-3">₩{{ "{:,}".format(txn.amount_minor) }}</p>
+    <p class="small text-muted mb-3">
+      <span class="nav-ko">PortOne 결제창이 열립니다. 테스트 모드에서는 포트원 콘솔의 테스트 채널을 사용하세요.</span>
+      <span class="nav-en" style="display:none">The PortOne payment window will open. Use test channels from the PortOne console in test mode.</span>
+    </p>
+    <div id="portone-checkout-err" class="alert alert-warning small d-none mb-3"></div>
+    <button type="button" class="btn btn-primary w-100 mb-2" id="portone-pay-btn">
+      <span class="nav-ko">결제하기</span>
+      <span class="nav-en" style="display:none">Pay now</span>
+    </button>
+    <a href="{{ cancel_url }}" class="btn btn-outline-secondary w-100 btn-sm">
+      <span class="nav-ko">취소</span>
+      <span class="nav-en" style="display:none">Cancel</span>
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.portone.io/v2/browser-sdk.js"></script>
+<script>
+(function () {
+  var storeId = {{ store_id|tojson }};
+  var channelKey = {{ channel_key|tojson }};
+  var paymentId = {{ txn.payment_id|tojson }};
+  var orderName = {{ order_name|tojson }};
+  var totalAmount = {{ txn.amount_minor }};
+  var returnUrl = {{ redirect_url|tojson }};
+  var completeUrl = {{ complete_url|tojson }};
+  var fallbackReturn = {{ return_url|tojson }};
+
+  function showErr(msg) {
+    var el = document.getElementById('portone-checkout-err');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('d-none');
+  }
+
+  async function runPay() {
+    if (!window.PortOne) {
+      showErr('PortOne SDK load failed.');
+      return;
+    }
+    var btn = document.getElementById('portone-pay-btn');
+    if (btn) btn.disabled = true;
+    try {
+      var resp = await PortOne.requestPayment({
+        storeId: storeId,
+        channelKey: channelKey,
+        paymentId: paymentId,
+        orderName: orderName,
+        totalAmount: totalAmount,
+        currency: 'CURRENCY_KRW',
+        payMethod: 'CARD',
+        redirectUrl: returnUrl,
+      });
+      if (resp && resp.code) {
+        showErr(resp.message || resp.code);
+        if (btn) btn.disabled = false;
+        return;
+      }
+      var r = await fetch(completeUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ paymentId: paymentId }),
+      });
+      var j = await r.json();
+      if (j && j.ok && j.return_url) {
+        window.location.href = j.return_url;
+        return;
+      }
+      if (j && j.return_url) {
+        window.location.href = j.return_url;
+        return;
+      }
+      showErr((j && j.error) ? j.error : 'Payment sync failed');
+      if (btn) btn.disabled = false;
+    } catch (e) {
+      showErr(String(e && e.message ? e.message : e));
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  document.getElementById('portone-pay-btn').addEventListener('click', runPay);
+})();
+</script>
+{% endblock %}

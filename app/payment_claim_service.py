@@ -150,6 +150,10 @@ def create_project_settlement_bank_claim(
 
     if settlement.status != STATUS_AWAITING_PAYMENT:
         return None, "not_awaiting_payment"
+    from .project_settlement import PAYMENT_METHOD_BANK, normalize_payment_method
+
+    if normalize_payment_method(getattr(settlement, "payment_method", None)) != PAYMENT_METHOD_BANK:
+        return None, "wrong_payment_method"
     if user_pending_claim(db, user.id):
         return None, ERR_PENDING_CLAIM_EXISTS
     dep = (depositor_name or "").strip()[:200]

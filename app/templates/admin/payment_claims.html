@@ -28,7 +28,13 @@
                 <a href="/admin/users/{{ c.user_id }}/subscription">{{ c.user.full_name if c.user else c.user_id }}</a>
                 <div class="small text-muted font-monospace">{{ c.user.email if c.user else '' }}</div>
               </td>
-              <td><code>{{ c.plan_account_kind }}/{{ c.plan_code }}</code><br><span class="small text-muted">{{ c.billing_country }}</span></td>
+              <td>
+                <code>{{ c.plan_account_kind }}/{{ c.plan_code }}</code>
+                {% if c.plan_code == 'project_settlement' and c.project_settlement_id %}
+                <br><span class="small text-muted">정산 #{{ c.project_settlement_id }}</span>
+                {% endif %}
+                <br><span class="small text-muted">{{ c.billing_country }}</span>
+              </td>
               <td class="font-monospace small">{{ c.currency }} {{ "{:,}".format(c.amount_minor) }}</td>
               <td class="small">{{ c.depositor_name }}{% if c.transfer_date %}<br><span class="text-muted">{{ c.transfer_date.strftime('%Y-%m-%d') if c.transfer_date else '' }}</span>{% endif %}</td>
               <td class="text-end text-nowrap">

@@ -36,6 +36,15 @@
   {% elif billing_err == 'amount_too_low' %}
   <span class="nav-ko">최소 충전 금액보다 작습니다.</span>
   <span class="nav-en" style="display:none">Amount is below the minimum top-up.</span>
+  {% elif billing_err == 'portone_unconfigured' %}
+  <span class="nav-ko">카드·간편결제(PortOne)가 설정되지 않았습니다.</span>
+  <span class="nav-en" style="display:none">Card payments (PortOne) are not configured.</span>
+  {% elif billing_err == 'portone_cancelled' %}
+  <span class="nav-ko">결제를 취소했습니다.</span>
+  <span class="nav-en" style="display:none">Payment was cancelled.</span>
+  {% elif billing_err == 'portone_error' or billing_err == 'portone_verify_failed' %}
+  <span class="nav-ko">결제 확인에 실패했습니다. 고객 지원에 문의해 주세요.</span>
+  <span class="nav-en" style="display:none">Payment verification failed. Please contact support.</span>
   {% else %}
   {{ billing_err }}
   {% endif %}

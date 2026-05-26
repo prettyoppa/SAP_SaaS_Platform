@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from . import models
+from .bank_transfer_settings import BANK_TRANSFER_SETTING_KEYS
 from .project_settlement_settings import (
     fee_amounts_krw,
     format_fee_percent,
@@ -17,6 +18,21 @@ from .request_hub_access import request_has_matched_offer
 from .request_offer_lifecycle import OFFER_STATUS_MATCHED
 
 PROJECT_SETTLEMENT_PLAN_CODE = "project_settlement"
+
+PAYMENT_METHOD_BANK = "bank_transfer"
+PAYMENT_METHOD_PORTONE = "portone"
+# 레거시 UI 값
+PAYMENT_METHOD_CARD = "card"
+_VALID_PAYMENT_METHODS = frozenset({PAYMENT_METHOD_BANK, PAYMENT_METHOD_PORTONE})
+
+
+def normalize_payment_method(raw: str | None) -> str:
+    p = (raw or "").strip().lower()
+    if p == PAYMENT_METHOD_CARD:
+        return PAYMENT_METHOD_PORTONE
+    if p in _VALID_PAYMENT_METHODS:
+        return p
+    return ""
 
 STATUS_OPEN = "open"
 STATUS_AWAITING_PAYMENT = "awaiting_payment"
@@ -94,7 +110,8 @@ def recompute_status(settlement: models.ProjectSettlement) -> str:
     agreed = bool(
         settlement.requester_amount_agreed_at and settlement.consultant_amount_agreed_at
     )
-    if settlement.use_platform_payment and amount_ok and agreed:
+    pm = normalize_payment_method(settlement.payment_method)
+    if settlement.use_platform_payment and amount_ok and agreed and pm in _VALID_PAYMENT_METHODS:
         return STATUS_AWAITING_PAYMENT
     return STATUS_OPEN
 
@@ -172,6 +189,28 @@ def settlement_hub_ctx(
     fee_bps = int(row.platform_fee_rate_bps or get_platform_fee_bps(db))
     gross = int(row.gross_amount_krw or 0)
     pf, cp = fee_amounts_krw(gross, fee_bps) if gross else (0, 0)
+    bank_settings: dict[str, str] = {}
+    if can_view:
+        raw = {
+            s.key: s.value
+            for s in db.query(models.SiteSettings)
+            .filter(models.SiteSettings.key.in_(BANK_TRANSFER_SETTING_KEYS))
+            .all()
+        }
+        bank_settings = {k: (raw.get(k) or "").strip() for k in BANK_TRANSFER_SETTING_KEYS}
+    pending_bank_claim = None
+    if can_view and row.id:
+        pending_bank_claim = (
+            db.query(models.PaymentClaim)
+            .filter(
+                models.PaymentClaim.project_settlement_id == int(row.id),
+                models.PaymentClaim.status == "pending",
+            )
+            .order_by(models.PaymentClaim.id.desc())
+            .first()
+        )
+    from .payment_providers.portone_settings import portone_checkout_ready
+
     profile = None
     if is_consultant and user:
         profile = (
@@ -201,6 +240,10 @@ def settlement_hub_ctx(
         "settlement_profile": profile,
         "settlement_base_path": f"/settlement/{kind}/{int(request_id)}",
         "settlement_request_kind": kind,
+        "settlement_bank_settings": bank_settings,
+        "settlement_pending_bank_claim": pending_bank_claim,
+        "settlement_portone_ready": portone_checkout_ready(),
+        "settlement_payment_method": normalize_payment_method(row.payment_method),
     }
 
 
@@ -220,6 +263,17 @@ def propose_amount(
     gross = max(0, int(gross_amount_krw))
     if use_platform_payment and gross <= 0:
         return "invalid_amount"
+    pm = normalize_payment_method(payment_method)
+    if use_platform_payment:
+        if pm not in _VALID_PAYMENT_METHODS:
+            return "invalid_payment_method"
+        if pm == PAYMENT_METHOD_PORTONE:
+            from .payment_providers.portone_settings import portone_checkout_ready
+
+            if not portone_checkout_ready():
+                return "portone_unconfigured"
+    else:
+        pm = ""
     bps = get_platform_fee_bps(db)
     fee, payout = fee_amounts_krw(gross, bps) if gross else (0, 0)
     settlement.gross_amount_krw = gross if gross else None
@@ -227,6 +281,7 @@ def propose_amount(
     settlement.platform_fee_krw = fee if gross else None
     settlement.consultant_payout_krw = payout if gross else None
     settlement.use_platform_payment = bool(use_platform_payment)
+    settlement.payment_method = pm if use_platform_payment else None
     settlement.requester_amount_agreed_at = None
     settlement.consultant_amount_agreed_at = None
     if uid == int(settlement.owner_user_id):
@@ -250,7 +305,11 @@ def accept_amount(
         settlement.consultant_amount_agreed_at = datetime.utcnow()
     else:
         return "forbidden"
-    if not settlement.gross_amount_krw or not settlement.use_platform_payment:
+    if (
+        not settlement.gross_amount_krw
+        or not settlement.use_platform_payment
+        or normalize_payment_method(settlement.payment_method) not in _VALID_PAYMENT_METHODS
+    ):
         return "not_ready"
     apply_status(settlement)
     db.add(settlement)
@@ -279,10 +338,13 @@ def mark_funded(
     settlement: models.ProjectSettlement,
     *,
     stripe_session_id: str | None = None,
+    portone_payment_id: str | None = None,
 ) -> None:
     settlement.funded_at = datetime.utcnow()
     if stripe_session_id:
         settlement.stripe_checkout_session_id = stripe_session_id
+    if portone_payment_id:
+        settlement.portone_payment_id = (portone_payment_id or "")[:128]
     apply_status(settlement)
     db.add(settlement)
 

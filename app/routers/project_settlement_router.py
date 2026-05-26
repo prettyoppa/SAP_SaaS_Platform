@@ -13,12 +13,19 @@ from sqlalchemy.orm import Session
 from .. import auth, models
 from ..database import get_db
 from ..payment_claim_service import create_project_settlement_bank_claim
+from ..payment_claim_service import cancel_payment_claim
+from ..payment_purpose import PURPOSE_PROJECT_SETTLEMENT
+from ..payment_providers.portone_service import create_pending_transaction
+from ..payment_providers.portone_settings import portone_checkout_ready
 from ..project_settlement import (
+    PAYMENT_METHOD_BANK,
+    PAYMENT_METHOD_PORTONE,
     STATUS_AWAITING_PAYMENT,
     accept_amount,
     confirm_delivery,
     get_or_create_settlement,
     mark_payout_completed,
+    normalize_payment_method,
     normalize_request_kind,
     propose_amount,
     status_label_en,
@@ -29,13 +36,6 @@ from ..project_settlement_settings import (
     format_fee_percent,
     get_platform_fee_bps,
     set_platform_fee_bps,
-)
-from ..stripe_service import (
-    construct_webhook_event,
-    create_settlement_checkout_session,
-    retrieve_checkout_session,
-    stripe_keys_configured,
-    try_activate_settlement_from_checkout,
 )
 from ..templates_config import templates
 
@@ -73,20 +73,23 @@ def settlement_redirect_to_hub(
     request: Request,
     settlement_ok: str | None = None,
     settlement_err: str | None = None,
-    session_id: str | None = None,
+    paymentId: str | None = None,
     db: Session = Depends(get_db),
 ):
     norm = normalize_request_kind(kind)
     if not norm:
         raise HTTPException404()
     user = auth.get_current_user(request, db)
-    if session_id and user and stripe_keys_configured():
+    pid = (paymentId or "").strip()
+    if pid and user:
+        from ..payment_providers.portone_service import sync_payment
+
         try:
-            sess = retrieve_checkout_session(session_id.strip())
-            try_activate_settlement_from_checkout(db, sess)
+            sync_payment(db, pid)
+            settlement_ok = settlement_ok or "portone"
         except Exception:
-            _log.exception("settlement card confirm failed")
-            settlement_err = settlement_err or "card_verify_failed"
+            _log.exception("settlement portone return sync failed")
+            settlement_err = settlement_err or "portone_verify_failed"
     q: dict[str, str] = {}
     if settlement_ok:
         q["settlement_ok"] = settlement_ok
@@ -108,6 +111,7 @@ def settlement_propose(
     request: Request,
     gross_amount_krw: int = Form(0),
     use_platform_payment: str | None = Form(None),
+    payment_method: str = Form(""),
     db: Session = Depends(get_db),
     user=Depends(auth.get_current_user),
 ):
@@ -121,6 +125,7 @@ def settlement_propose(
         row,
         gross_amount_krw=int(gross_amount_krw),
         use_platform_payment=(use_platform_payment or "").strip().lower() in ("1", "true", "on", "yes"),
+        payment_method=(payment_method or "").strip(),
     )
     db.commit()
     return RedirectResponse(
@@ -161,8 +166,8 @@ def settlement_confirm_delivery(
     return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err=err or ""), status_code=303)
 
 
-@router.post("/settlement/{kind}/{request_id}/checkout-card")
-def settlement_checkout_card(
+@router.get("/settlement/{kind}/{request_id}/pay-portone")
+def settlement_pay_portone(
     request: Request,
     kind: str,
     request_id: int,
@@ -175,28 +180,24 @@ def settlement_checkout_card(
         return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
     if row.status != STATUS_AWAITING_PAYMENT or not row.gross_amount_krw:
         return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="not_ready"), status_code=303)
-    if not stripe_keys_configured():
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="stripe_unconfigured"), status_code=303)
-    try:
-        session = create_settlement_checkout_session(
-            settlement_id=int(row.id),
-            request_kind=norm,
-            request_id=int(request_id),
-            amount_krw=int(row.gross_amount_krw),
-            customer_email=user.email or "",
-            base_url=_base_url(request),
-        )
-    except Exception:
-        _log.exception("settlement stripe checkout")
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="stripe_error"), status_code=303)
-    url = getattr(session, "url", None)
-    if not url:
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="stripe_error"), status_code=303)
-    sid = getattr(session, "id", None)
-    if sid:
-        row.stripe_checkout_session_id = str(sid)
-        db.commit()
-    return RedirectResponse(url=url, status_code=303)
+    if normalize_payment_method(row.payment_method) != PAYMENT_METHOD_PORTONE:
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="wrong_payment_method"), status_code=303)
+    if not portone_checkout_ready():
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="portone_unconfigured"), status_code=303)
+    return_url = _redirect_hub(norm, int(request_id), settlement_ok="portone")
+    txn = create_pending_transaction(
+        db,
+        user,
+        purpose=PURPOSE_PROJECT_SETTLEMENT,
+        purpose_ref_id=int(row.id),
+        amount_krw=int(row.gross_amount_krw),
+        return_url=return_url,
+        cancel_url=_redirect_hub(norm, int(request_id), settlement_err="portone_cancelled"),
+    )
+    if not txn:
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="portone_error"), status_code=303)
+    db.commit()
+    return RedirectResponse(url=f"/payments/portone/checkout/{int(txn.id)}", status_code=303)
 
 
 @router.post("/settlement/{kind}/{request_id}/bank-claim")
@@ -213,6 +214,8 @@ def settlement_bank_claim(
     row = get_or_create_settlement(db, request_kind=norm, request_id=int(request_id))
     if not row or not user:
         return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
+    if normalize_payment_method(row.payment_method) != PAYMENT_METHOD_BANK:
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="wrong_payment_method"), status_code=303)
     td = None
     if (transfer_date or "").strip():
         try:
@@ -227,6 +230,23 @@ def settlement_bank_claim(
     if err:
         return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err=err), status_code=303)
     return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_ok="bank_submitted"), status_code=303)
+
+
+@router.post("/settlement/{kind}/{request_id}/bank-claim/{claim_id}/cancel")
+def settlement_bank_claim_cancel(
+    kind: str,
+    request_id: int,
+    claim_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(auth.get_current_user),
+):
+    norm = normalize_request_kind(kind) or ""
+    row = get_or_create_settlement(db, request_kind=norm, request_id=int(request_id))
+    if not row or not user or int(user.id) != int(row.owner_user_id):
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
+    err = cancel_payment_claim(db, user, int(claim_id))
+    db.commit()
+    return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err=err or ""), status_code=303)
 
 
 @router.post("/settlement/{kind}/{request_id}/payout-profile")
@@ -342,19 +362,3 @@ def admin_project_settlement_fee_save(
     return RedirectResponse(url="/admin/project-settlements?saved=1", status_code=303)
 
 
-@router.post("/payments/stripe/webhook")
-async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
-    payload = await request.body()
-    sig = request.headers.get("stripe-signature")
-    try:
-        event = construct_webhook_event(payload, sig)
-    except Exception:
-        _log.warning("stripe webhook signature failed")
-        return PlainTextResponse("invalid signature", status_code=400)
-    if event.type != "checkout.session.completed":
-        return PlainTextResponse("ok", status_code=200)
-    try:
-        try_activate_settlement_from_checkout(db, event.data.object)
-    except Exception:
-        _log.exception("stripe webhook settlement activate failed")
-    return PlainTextResponse("ok", status_code=200)

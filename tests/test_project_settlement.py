@@ -22,6 +22,7 @@ def _row(**kw):
     r.consultant_delivery_confirmed_at = kw.get("consultant_delivery_confirmed_at", None)
     r.gross_amount_krw = kw.get("gross_amount_krw", None)
     r.use_platform_payment = kw.get("use_platform_payment", False)
+    r.payment_method = kw.get("payment_method", None)
     r.requester_amount_agreed_at = kw.get("requester_amount_agreed_at", None)
     r.consultant_amount_agreed_at = kw.get("consultant_amount_agreed_at", None)
     return r
@@ -32,13 +33,34 @@ def test_open_without_agreement():
 
 
 def test_awaiting_payment_when_agreed_on_platform():
+    from app.project_settlement import PAYMENT_METHOD_BANK, PAYMENT_METHOD_PORTONE
+
+    for pm in (PAYMENT_METHOD_BANK, PAYMENT_METHOD_PORTONE, "card"):
+        r = _row(
+            gross_amount_krw=1_000_000,
+            use_platform_payment=True,
+            payment_method=pm,
+            requester_amount_agreed_at=datetime.utcnow(),
+            consultant_amount_agreed_at=datetime.utcnow(),
+        )
+        assert recompute_status(r) == STATUS_AWAITING_PAYMENT
+
+
+def test_normalize_payment_method_legacy_card():
+    from app.project_settlement import PAYMENT_METHOD_PORTONE, normalize_payment_method
+
+    assert normalize_payment_method("card") == PAYMENT_METHOD_PORTONE
+    assert normalize_payment_method("portone") == PAYMENT_METHOD_PORTONE
+
+
+def test_platform_payment_without_method_stays_open():
     r = _row(
         gross_amount_krw=1_000_000,
         use_platform_payment=True,
         requester_amount_agreed_at=datetime.utcnow(),
         consultant_amount_agreed_at=datetime.utcnow(),
     )
-    assert recompute_status(r) == STATUS_AWAITING_PAYMENT
+    assert recompute_status(r) == STATUS_OPEN
 
 
 def test_funded_without_delivery_confirm():
