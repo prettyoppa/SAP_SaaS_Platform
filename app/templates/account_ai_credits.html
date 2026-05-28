@@ -56,6 +56,44 @@
         </form>
       </div>
       {% else %}
+      {% if payment_usd %}
+      {% if settings.get('bank_transfer_notice_usd_md_ko') or settings.get('bank_transfer_notice_usd_md_en') %}
+      <div class="account-ai-credits-bank-inline markdown-body small mb-2">
+        <div class="nav-ko">{{ (settings.get('bank_transfer_notice_usd_md_ko') or '')|md_html }}</div>
+        <div class="nav-en" style="display:none">{{ (settings.get('bank_transfer_notice_usd_md_en') or settings.get('bank_transfer_notice_usd_md_ko') or '')|md_html }}</div>
+      </div>
+      {% endif %}
+      <p class="small text-muted mb-2">
+        <span class="nav-ko"><strong>PayPal</strong> (PortOne) — 결제 완료 시 USD 금액을 환율로 환산해 AI 크레딧(원화 잔액)에 반영합니다.</span>
+        <span class="nav-en" style="display:none"><strong>PayPal</strong> (PortOne) — your payment is converted at the platform rate and credited to your AI balance (shown in KRW).</span>
+      </p>
+      <form method="post" action="/account/ai-credits/pay-portone" class="row g-2 align-items-end" id="ai-credits-portone-form" data-no-enter-submit="1">
+        <div class="col-md-4">
+          <label class="form-label small mb-1" for="portone-topup-amount">
+            <span class="nav-ko">충전 금액 (USD)</span><span class="nav-en" style="display:none">Amount (USD)</span>
+          </label>
+          <input type="text" id="portone-topup-amount" name="amount_minor" class="form-control form-control-sm font-monospace js-currency-usd"
+                 inputmode="decimal" autocomplete="off"
+                 data-min-cents="{{ min_topup_usd_cents }}" placeholder="30.00"/>
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary btn-sm" {% if not portone_ready|default(false) %}disabled{% endif %}>
+            <span class="nav-ko">PayPal로 결제</span><span class="nav-en" style="display:none">Pay with PayPal</span>
+          </button>
+        </div>
+      </form>
+      {% if not portone_ready|default(false) %}
+      <p class="small text-muted mb-0 mt-1">
+        {% if not portone_paypal_configured|default(false) %}
+        <span class="nav-ko">PayPal 채널(`PORTONE_CHANNEL_KEY_PAYPAL`)이 설정되지 않았습니다.</span>
+        <span class="nav-en" style="display:none">PayPal channel (`PORTONE_CHANNEL_KEY_PAYPAL`) is not configured.</span>
+        {% else %}
+        <span class="nav-ko">PortOne이 설정되지 않았습니다.</span>
+        <span class="nav-en" style="display:none">PortOne is not configured.</span>
+        {% endif %}
+      </p>
+      {% endif %}
+      {% else %}
       {% if settings.get('bank_transfer_notice_md_ko') or settings.get('bank_transfer_notice_md_en') %}
       <div class="account-ai-credits-bank-inline markdown-body small mb-2">
         <div class="nav-ko">{{ (settings.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
@@ -113,6 +151,7 @@
       </form>
       {% if not portone_ready|default(false) %}
       <p class="small text-muted mb-0 mt-1" data-i18n="billing.portoneUnavailable">PortOne 미설정 — 관리자에게 문의하세요.</p>
+      {% endif %}
       {% endif %}
       {% endif %}
     </section>

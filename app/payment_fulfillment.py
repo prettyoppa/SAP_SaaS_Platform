@@ -32,13 +32,20 @@ def fulfill_paid_transaction(db: Session, txn: models.PaymentTransaction) -> str
 
 
 def _fulfill_wallet_topup(db: Session, txn: models.PaymentTransaction) -> str | None:
+    from .ai_wallet import usd_krw_rate_from_db
+
     user = db.query(models.User).filter(models.User.id == int(txn.user_id)).first()
     if not user:
         return "user_not_found"
     amt = int(txn.amount_minor or 0)
     if amt <= 0:
         return "invalid_amount"
-    apply_wallet_credit(user, amt)
+    if (txn.currency or "KRW").strip().upper() == "USD":
+        rate = float(usd_krw_rate_from_db(db) or 1350.0)
+        credit_krw = max(1, int(round((amt / 100.0) * rate)))
+    else:
+        credit_krw = amt
+    apply_wallet_credit(user, credit_krw)
     txn.status = TXN_STATUS_PAID
     db.add(user)
     db.add(txn)
@@ -86,13 +93,20 @@ def reverse_paid_transaction(db: Session, txn: models.PaymentTransaction) -> str
 
 
 def _reverse_wallet_topup(db: Session, txn: models.PaymentTransaction) -> str | None:
+    from .ai_wallet import usd_krw_rate_from_db
+
     user = db.query(models.User).filter(models.User.id == int(txn.user_id)).first()
     if not user:
         return "user_not_found"
     amt = int(txn.amount_minor or 0)
     if amt <= 0:
         return "invalid_amount"
-    apply_wallet_debit(user, amt)
+    if (txn.currency or "KRW").strip().upper() == "USD":
+        rate = float(usd_krw_rate_from_db(db) or 1350.0)
+        debit_krw = max(1, int(round((amt / 100.0) * rate)))
+    else:
+        debit_krw = amt
+    apply_wallet_debit(user, debit_krw)
     txn.status = TXN_STATUS_CANCELLED
     db.add(user)
     db.add(txn)

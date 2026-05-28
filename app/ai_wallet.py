@@ -8,6 +8,27 @@ MIN_TOPUP_KRW = DEFAULT_MIN_TOPUP_KRW  # backward-compatible alias
 MIN_TOPUP_SETTING_KEY = "ai_wallet_min_topup_krw"
 
 
+def min_topup_usd_cents(db) -> int:
+    """USD 결제 최소 금액(센트) — ai_wallet_min_topup_krw ÷ 환율."""
+    rate = usd_krw_rate_from_db(db)
+    krw = min_topup_krw(db)
+    return max(100, int(round((krw / rate) * 100)))
+
+
+def parse_usd_input_to_cents(raw: str) -> int | None:
+    """폼 입력(달러, 소수 2자리) → USD cents."""
+    s = (raw or "").replace(",", "").replace("$", "").strip()
+    if not s:
+        return None
+    try:
+        dollars = float(s)
+    except ValueError:
+        return None
+    if dollars <= 0:
+        return None
+    return max(1, int(round(dollars * 100)))
+
+
 def min_topup_krw(db) -> int:
     from . import models
 

@@ -23,14 +23,17 @@ from ..ai_wallet import (
     build_wallet_topup_history_rows,
     krw_from_usage_usd_micro,
     min_topup_krw,
+    min_topup_usd_cents,
+    parse_usd_input_to_cents,
     wallet_balance_krw,
 )
+from ..billing_currency import user_prefers_usd_payments
 from ..bank_transfer_settings import BANK_TRANSFER_SETTING_KEYS
 from ..database import get_db
 from ..payment_claim_messages import ERR_AMOUNT_MISMATCH
 from ..payment_purpose import PURPOSE_AI_WALLET_TOPUP
 from ..payment_providers.portone_service import create_pending_transaction, sync_user_portone_transactions
-from ..payment_providers.portone_settings import portone_checkout_ready
+from ..payment_providers.portone_settings import portone_checkout_ready, portone_paypal_channel_key
 from ..payment_claim_service import (
     cancel_payment_claim,
     create_wallet_topup_claim,
@@ -125,14 +128,18 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
     ok_param = (request.query_params.get("ok") or "").strip()
     ok = ok_param in ("1", "portone")
     ctx = _usage_context(db, user)
+    payment_usd = user_prefers_usd_payments(user)
+    paypal_channel = bool(portone_paypal_channel_key())
     return templates.TemplateResponse(
         request,
         "account_ai_credits.html",
         {
             "user": user,
             "settings": settings,
+            "payment_usd": payment_usd,
             "wallet_balance_krw": wallet_balance_krw(user),
             "min_topup_krw": min_topup_krw(db),
+            "min_topup_usd_cents": min_topup_usd_cents(db),
             "topup_history_rows": build_wallet_topup_history_rows(
                 db,
                 user.id,
@@ -143,7 +150,8 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
             "pending_claim": user_pending_claim(db, user.id),
             "billing_err": err,
             "billing_ok": ok,
-            "portone_ready": portone_checkout_ready(),
+            "portone_ready": portone_checkout_ready() and (not payment_usd or paypal_channel),
+            "portone_paypal_configured": paypal_channel,
             **ctx,
         },
     )
@@ -160,22 +168,43 @@ def account_ai_credits_pay_portone(
         return RedirectResponse(url=f"/login?next={quote(_AI_CREDITS_PATH)}", status_code=302)
     if not portone_checkout_ready():
         return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=portone_unconfigured", status_code=303)
-    try:
-        amt = int((amount_minor or "").replace(",", "").strip())
-    except ValueError:
-        return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=invalid_amount", status_code=303)
-    if amt < min_topup_krw(db):
-        return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=amount_too_low", status_code=303)
+    payment_usd = user_prefers_usd_payments(user)
+    if payment_usd and not portone_paypal_channel_key():
+        return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=paypal_unconfigured", status_code=303)
     return_url = f"{_AI_CREDITS_PATH}?ok=portone#topup-form"
-    txn = create_pending_transaction(
-        db,
-        user,
-        purpose=PURPOSE_AI_WALLET_TOPUP,
-        purpose_ref_id=int(user.id),
-        amount_krw=amt,
-        return_url=return_url,
-        cancel_url=f"{_AI_CREDITS_PATH}?err=portone_cancelled#topup-form",
-    )
+    if payment_usd:
+        usd_cents = parse_usd_input_to_cents(amount_minor)
+        if usd_cents is None:
+            return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=invalid_amount", status_code=303)
+        if usd_cents < min_topup_usd_cents(db):
+            return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=amount_too_low", status_code=303)
+        txn = create_pending_transaction(
+            db,
+            user,
+            purpose=PURPOSE_AI_WALLET_TOPUP,
+            purpose_ref_id=int(user.id),
+            amount_krw=usd_cents,
+            return_url=return_url,
+            cancel_url=f"{_AI_CREDITS_PATH}?err=portone_cancelled#topup-form",
+            currency="USD",
+        )
+    else:
+        try:
+            amt = int((amount_minor or "").replace(",", "").strip())
+        except ValueError:
+            return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=invalid_amount", status_code=303)
+        if amt < min_topup_krw(db):
+            return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=amount_too_low", status_code=303)
+        txn = create_pending_transaction(
+            db,
+            user,
+            purpose=PURPOSE_AI_WALLET_TOPUP,
+            purpose_ref_id=int(user.id),
+            amount_krw=amt,
+            return_url=return_url,
+            cancel_url=f"{_AI_CREDITS_PATH}?err=portone_cancelled#topup-form",
+            currency="KRW",
+        )
     if not txn:
         return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=portone_error", status_code=303)
     db.commit()

@@ -46,10 +46,16 @@ def create_pending_transaction(
     amount_krw: int,
     return_url: str,
     cancel_url: str = "",
+    currency: str = "KRW",
 ) -> models.PaymentTransaction | None:
     if not portone_checkout_ready():
         return None
-    amt = int(amount_krw)
+    cur = (currency or "KRW").strip().upper()
+    if cur == "USD":
+        amt = int(amount_krw)  # USD cents when currency=USD
+    else:
+        cur = "KRW"
+        amt = int(amount_krw)
     if amt <= 0:
         return None
     pid = new_payment_id(purpose=purpose, purpose_ref_id=purpose_ref_id)
@@ -59,7 +65,7 @@ def create_pending_transaction(
         purpose_ref_id=int(purpose_ref_id),
         payment_id=pid[:128],
         amount_minor=amt,
-        currency="KRW",
+        currency=cur,
         provider="portone",
         status=TXN_STATUS_PENDING,
         return_url=(return_url or "")[:1024],
@@ -90,7 +96,7 @@ def _payment_is_cancelled(actual: Any) -> bool:
         return cls == "CancelledPayment" or ("Cancelled" in cls and "Paid" not in cls)
 
 
-def _paid_amount_krw(actual: Any) -> int | None:
+def _paid_amount_minor(actual: Any) -> int | None:
     try:
         amt = getattr(actual, "amount", None)
         if amt is None:
@@ -101,6 +107,13 @@ def _paid_amount_krw(actual: Any) -> int | None:
     except (TypeError, ValueError):
         pass
     return None
+
+
+def _payment_amounts_match(txn: models.PaymentTransaction, paid_minor: int) -> bool:
+    expected = int(txn.amount_minor or 0)
+    if (txn.currency or "KRW").strip().upper() == "USD":
+        return paid_minor == expected
+    return paid_minor == expected
 
 
 def sync_payment(db: Session, payment_id: str) -> models.PaymentTransaction | None:
@@ -142,11 +155,12 @@ def sync_payment(db: Session, payment_id: str) -> models.PaymentTransaction | No
     if (txn.status or "") == TXN_STATUS_PAID:
         return txn
 
-    paid_amt = _paid_amount_krw(actual)
-    if paid_amt is not None and paid_amt != int(txn.amount_minor or 0):
+    paid_amt = _paid_amount_minor(actual)
+    if paid_amt is not None and not _payment_amounts_match(txn, paid_amt):
         _log.warning(
-            "portone amount mismatch payment_id=%s expected=%s got=%s",
+            "portone amount mismatch payment_id=%s currency=%s expected=%s got=%s",
             pid,
+            txn.currency,
             txn.amount_minor,
             paid_amt,
         )

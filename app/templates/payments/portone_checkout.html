@@ -15,17 +15,17 @@
     {% endif %}
     <p class="small text-muted mb-3">
       {% if checkout_mode == 'paypal' %}
-      <span class="nav-ko">PayPal 테스트 채널로 결제를 진행합니다. (임시 모드: ?pay=paypal)</span>
-      <span class="nav-en" style="display:none">This checkout uses the PayPal test channel. (Temporary mode: ?pay=paypal)</span>
+      <span class="nav-ko">회원 결제 통화(USD)에 따라 PayPal로 결제합니다.</span>
+      <span class="nav-en" style="display:none">PayPal checkout for your account payment currency (USD).</span>
       {% else %}
       <span class="nav-ko">PortOne 결제창이 열립니다. 테스트 모드에서는 포트원 콘솔의 테스트 채널을 사용하세요.</span>
       <span class="nav-en" style="display:none">The PortOne payment window will open. Use test channels from the PortOne console in test mode.</span>
       {% endif %}
     </p>
-    {% if paypal_requested and not paypal_enabled %}
+    {% if paypal_unavailable_for_usd and not paypal_enabled %}
     <div class="alert alert-warning small mb-3">
-      <span class="nav-ko">`PORTONE_CHANNEL_KEY_PAYPAL`이 없어 PayPal 테스트 채널을 사용할 수 없습니다.</span>
-      <span class="nav-en" style="display:none">PayPal test channel is unavailable because `PORTONE_CHANNEL_KEY_PAYPAL` is missing.</span>
+      <span class="nav-ko">결제 통화가 USD이지만 `PORTONE_CHANNEL_KEY_PAYPAL`이 없어 PayPal 결제를 할 수 없습니다.</span>
+      <span class="nav-en" style="display:none">Your payment currency is USD but PayPal is unavailable (`PORTONE_CHANNEL_KEY_PAYPAL` missing).</span>
     </div>
     {% endif %}
     <div id="portone-checkout-err" class="alert alert-warning small d-none mb-3"></div>

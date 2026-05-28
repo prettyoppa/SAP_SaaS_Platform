@@ -39,6 +39,9 @@
   {% elif billing_err == 'portone_unconfigured' %}
   <span class="nav-ko">카드·간편결제(PortOne)가 설정되지 않았습니다.</span>
   <span class="nav-en" style="display:none">Card payments (PortOne) are not configured.</span>
+  {% elif billing_err == 'paypal_unconfigured' %}
+  <span class="nav-ko">PayPal 결제 채널이 설정되지 않았습니다. 관리자에게 문의하세요.</span>
+  <span class="nav-en" style="display:none">PayPal is not configured. Please contact support.</span>
   {% elif billing_err == 'portone_cancelled' %}
   <span class="nav-ko">결제를 취소했습니다.</span>
   <span class="nav-en" style="display:none">Payment was cancelled.</span>

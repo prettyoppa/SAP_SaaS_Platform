@@ -44,6 +44,35 @@ function _formatKrw(s) {
   }
 }
 
+function _sanitizeUsdInput(s) {
+  let t = String(s || '').replace(/[^\d.]/g, '');
+  const parts = t.split('.');
+  if (parts.length > 2) {
+    t = parts[0] + '.' + parts.slice(1).join('');
+  }
+  if (t.includes('.')) {
+    const p = t.split('.');
+    t = p[0] + '.' + (p[1] || '').slice(0, 2);
+  }
+  return t;
+}
+
+function _applyUsdFormat(el) {
+  if (!(el instanceof HTMLInputElement)) return;
+  const before = el.value;
+  const formatted = _sanitizeUsdInput(before);
+  if (formatted === before) return;
+  const atEnd = el.selectionStart === before.length && el.selectionEnd === before.length;
+  el.value = formatted;
+  if (atEnd) {
+    try {
+      el.setSelectionRange(formatted.length, formatted.length);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
 function _applyKrwFormat(el) {
   if (!(el instanceof HTMLInputElement)) return;
   const before = el.value;
@@ -72,6 +101,15 @@ function initCurrencyAndEnterGuards(root) {
     _applyKrwFormat(el);
     el.addEventListener('input', () => _applyKrwFormat(el));
     el.addEventListener('blur', () => _applyKrwFormat(el));
+  });
+
+  scope.querySelectorAll('input.js-currency-usd').forEach((el) => {
+    if (!(el instanceof HTMLInputElement)) return;
+    if (el.dataset.currencyInit === '1') return;
+    el.dataset.currencyInit = '1';
+    _applyUsdFormat(el);
+    el.addEventListener('input', () => _applyUsdFormat(el));
+    el.addEventListener('blur', () => _applyUsdFormat(el));
   });
 
   // Enter 키로 폼 자동 제출 방지 (data-no-enter-submit 폼 안에서만)
