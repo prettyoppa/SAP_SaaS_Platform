@@ -8,15 +8,36 @@
       <span class="nav-ko">{{ order_name }}</span>
       <span class="nav-en" style="display:none">Payment</span>
     </h1>
+    {% if checkout_currency == 'CURRENCY_USD' %}
+    <p class="font-monospace fs-5 mb-3">${{ '%.2f'|format((checkout_amount|int) / 100.0) }}</p>
+    {% else %}
     <p class="font-monospace fs-5 mb-3">₩{{ "{:,}".format(txn.amount_minor) }}</p>
+    {% endif %}
     <p class="small text-muted mb-3">
+      {% if checkout_mode == 'paypal' %}
+      <span class="nav-ko">PayPal 테스트 채널로 결제를 진행합니다. (임시 모드: ?pay=paypal)</span>
+      <span class="nav-en" style="display:none">This checkout uses the PayPal test channel. (Temporary mode: ?pay=paypal)</span>
+      {% else %}
       <span class="nav-ko">PortOne 결제창이 열립니다. 테스트 모드에서는 포트원 콘솔의 테스트 채널을 사용하세요.</span>
       <span class="nav-en" style="display:none">The PortOne payment window will open. Use test channels from the PortOne console in test mode.</span>
+      {% endif %}
     </p>
+    {% if paypal_requested and not paypal_enabled %}
+    <div class="alert alert-warning small mb-3">
+      <span class="nav-ko">`PORTONE_CHANNEL_KEY_PAYPAL`이 없어 PayPal 테스트 채널을 사용할 수 없습니다.</span>
+      <span class="nav-en" style="display:none">PayPal test channel is unavailable because `PORTONE_CHANNEL_KEY_PAYPAL` is missing.</span>
+    </div>
+    {% endif %}
     <div id="portone-checkout-err" class="alert alert-warning small d-none mb-3"></div>
+    <div id="portone-paypal-ui" class="mb-2"></div>
     <button type="button" class="btn btn-primary w-100 mb-2" id="portone-pay-btn">
+      {% if checkout_mode == 'paypal' %}
+      <span class="nav-ko">PayPal로 결제하기</span>
+      <span class="nav-en" style="display:none">Pay with PayPal</span>
+      {% else %}
       <span class="nav-ko">결제하기</span>
       <span class="nav-en" style="display:none">Pay now</span>
+      {% endif %}
     </button>
     <a href="{{ cancel_url }}" class="btn btn-outline-secondary w-100 btn-sm">
       <span class="nav-ko">취소</span>
@@ -34,7 +55,9 @@
   var channelKey = {{ channel_key|tojson }};
   var paymentId = {{ txn.payment_id|tojson }};
   var orderName = {{ order_name|tojson }};
-  var totalAmount = {{ txn.amount_minor }};
+  var totalAmount = {{ checkout_amount|int }};
+  var checkoutMode = {{ checkout_mode|tojson }};
+  var checkoutCurrency = {{ checkout_currency|tojson }};
   var returnUrl = {{ redirect_url|tojson }};
   var completeUrl = {{ complete_url|tojson }};
   var fallbackReturn = {{ return_url|tojson }};
@@ -77,13 +100,67 @@
         if (btn) btn.disabled = false;
         return;
       }
+      if (checkoutMode === 'paypal') {
+        if (typeof PortOne.loadPaymentUI !== 'function') {
+          showErr('PayPal SDK function is unavailable.');
+          if (btn) btn.disabled = false;
+          return;
+        }
+        await PortOne.loadPaymentUI({
+          requestData: {
+            storeId: storeId,
+            channelKey: channelKey,
+            paymentId: paymentId,
+            orderName: orderName,
+            totalAmount: totalAmount,
+            currency: checkoutCurrency,
+            payMethod: 'PAYPAL_SPB',
+            customer: {
+              fullName: customerName || undefined,
+              email: customerEmail || undefined,
+              phoneNumber: customerPhone || undefined,
+            },
+            redirectUrl: returnUrl,
+          },
+          selector: '#portone-paypal-ui',
+          onPaymentSuccess: async function () {
+            try {
+              var rr = await fetch(completeUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ paymentId: paymentId }),
+              });
+              var jj = await rr.json();
+              if (jj && jj.ok && jj.return_url) {
+                window.location.href = jj.return_url;
+                return;
+              }
+              if (jj && jj.return_url) {
+                window.location.href = jj.return_url;
+                return;
+              }
+              showErr((jj && jj.error) ? jj.error : 'Payment sync failed');
+              if (btn) btn.disabled = false;
+            } catch (syncErr) {
+              showErr(String(syncErr && syncErr.message ? syncErr.message : syncErr));
+              if (btn) btn.disabled = false;
+            }
+          },
+          onPaymentFail: function (fail) {
+            showErr(String((fail && fail.message) || (fail && fail.code) || 'paypal_failed'));
+            if (btn) btn.disabled = false;
+          },
+        });
+        return;
+      }
       var resp = await PortOne.requestPayment({
         storeId: storeId,
         channelKey: channelKey,
         paymentId: paymentId,
         orderName: orderName,
         totalAmount: totalAmount,
-        currency: 'CURRENCY_KRW',
+        currency: checkoutCurrency,
         payMethod: 'CARD',
         customer: {
           fullName: customerName || undefined,

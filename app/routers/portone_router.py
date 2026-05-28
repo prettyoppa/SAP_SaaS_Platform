@@ -21,6 +21,7 @@ from ..payment_providers.portone_service import (
 from ..payment_providers.portone_settings import (
     portone_channel_key,
     portone_checkout_ready,
+    portone_paypal_channel_key,
     portone_store_id,
     portone_webhook_ready,
 )
@@ -54,6 +55,27 @@ def portone_checkout_page(
 
     base = str(request.base_url).rstrip("/")
     redirect_url = f"{base}/payments/portone/return?paymentId={quote(txn.payment_id)}"
+    pay_q = (request.query_params.get("pay") or "").strip().lower()
+    paypal_requested = pay_q == "paypal"
+    paypal_channel_key = portone_paypal_channel_key()
+    use_paypal = paypal_requested and bool(paypal_channel_key)
+    channel_key = paypal_channel_key if use_paypal else portone_channel_key()
+    currency_code = "CURRENCY_KRW"
+    checkout_amount = int(txn.amount_minor or 0)
+    checkout_mode = "card"
+    if use_paypal:
+        checkout_mode = "paypal"
+        currency_code = "CURRENCY_USD"
+        try:
+            from ..ai_wallet import usd_krw_rate_from_db
+
+            rate = float(usd_krw_rate_from_db(db) or 1350.0)
+            if rate <= 0:
+                rate = 1350.0
+            checkout_amount = max(1, int(round((int(txn.amount_minor or 0) / rate) * 100)))
+        except Exception:
+            _log.exception("paypal test amount conversion failed, fallback to 1 USD")
+            checkout_amount = 100
     return templates.TemplateResponse(
         request,
         "payments/portone_checkout.html",
@@ -62,12 +84,17 @@ def portone_checkout_page(
             "user": user,
             "txn": txn,
             "store_id": portone_store_id(),
-            "channel_key": portone_channel_key(),
+            "channel_key": channel_key,
             "order_name": order_name_for_transaction(txn),
             "complete_url": "/payments/portone/complete",
             "redirect_url": redirect_url,
             "return_url": txn.return_url or "/",
             "cancel_url": txn.cancel_url or txn.return_url or "/",
+            "checkout_mode": checkout_mode,
+            "checkout_currency": currency_code,
+            "checkout_amount": checkout_amount,
+            "paypal_enabled": bool(paypal_channel_key),
+            "paypal_requested": paypal_requested,
         },
     )
 

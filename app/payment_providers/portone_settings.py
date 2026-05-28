@@ -7,6 +7,7 @@ import os
 PORTONE_API_SECRET_ENV = "PORTONE_API_SECRET"
 PORTONE_STORE_ID_ENV = "PORTONE_STORE_ID"
 PORTONE_CHANNEL_KEY_ENV = "PORTONE_CHANNEL_KEY"
+PORTONE_CHANNEL_KEY_PAYPAL_ENV = "PORTONE_CHANNEL_KEY_PAYPAL"
 PORTONE_WEBHOOK_SECRET_ENV = "PORTONE_WEBHOOK_SECRET"
 
 
@@ -20,6 +21,10 @@ def portone_store_id() -> str:
 
 def portone_channel_key() -> str:
     return (os.environ.get(PORTONE_CHANNEL_KEY_ENV) or "").strip()
+
+
+def portone_paypal_channel_key() -> str:
+    return (os.environ.get(PORTONE_CHANNEL_KEY_PAYPAL_ENV) or "").strip()
 
 
 def portone_webhook_secret() -> str:
