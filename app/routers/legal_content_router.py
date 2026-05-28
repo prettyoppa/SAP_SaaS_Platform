@@ -54,7 +54,7 @@ def _document_page(
             "page_title_ko": page_title_ko,
             "page_title_en": page_title_en,
             "body_html_ko": _markdown_to_html(md_ko),
-            "body_html_en": _markdown_to_html(md_en.strip() or md_ko),
+            "body_html_en": _markdown_to_html(md_en),
             "pdf_url": pdf_url_for(kind),
         },
     )

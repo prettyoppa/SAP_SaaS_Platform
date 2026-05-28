@@ -15,7 +15,8 @@
             <span data-i18n="analysis.pageTitle">SAP ABAP 분석·개선</span>
           </h2>
           <div class="service-analysis-intro markdown-body-lite text-muted mb-0 small">
-            {{ service_analysis_intro_html | safe }}
+            <div class="nav-ko">{{ service_analysis_intro_html_ko | safe }}</div>
+            <div class="nav-en" style="display:none">{{ service_analysis_intro_html_en | safe }}</div>
           </div>
         </div>
         <div class="col-auto">

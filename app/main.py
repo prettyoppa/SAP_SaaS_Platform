@@ -868,8 +868,11 @@ async def i18n_en_overrides_middleware(request: Request, call_next):
 
 @app.middleware("http")
 async def language_hint_middleware(request: Request, call_next):
-    """초기 언어 힌트: 로그인 회원 선호언어 > 국가 코드 > Accept-Language."""
+    """초기 언어 힌트: 로그인 회원 선호언어 > 국가(비-KR→en) > Accept-Language 1순위."""
+    from .i18n_hint import initial_lang_from_request
+
     preferred = ""
+    request.state.is_logged_in = False
     token = request.cookies.get("access_token")
     if token:
         db = SessionLocal()
@@ -877,18 +880,13 @@ async def language_hint_middleware(request: Request, call_next):
             u = auth.get_user_from_token(token, db)
             if u and (getattr(u, "preferred_lang", "") or "").strip().lower() in ("ko", "en"):
                 preferred = (u.preferred_lang or "").strip().lower()
+                request.state.is_logged_in = True
         finally:
             db.close()
     if not preferred:
-        country = (request.headers.get("CF-IPCountry") or "").strip().upper()
-        accept = (request.headers.get("Accept-Language") or "").strip().lower()
-        if country == "KR":
-            preferred = "ko"
-        elif accept.startswith("ko") or ",ko" in accept:
-            preferred = "ko"
-        else:
-            preferred = "en"
+        preferred = initial_lang_from_request(request)
     request.state.initial_lang = preferred
+    request.state.lang_guest_hint = not request.state.is_logged_in
     return await call_next(request)
 
 
@@ -972,6 +970,9 @@ def index(request: Request):
                 home_tile_stage_links_ctx = None
         raw_settings = _db.query(models.SiteSettings).all()
         settings = {s.key: s.value for s in raw_settings}
+        from .site_settings_locale import enrich_site_settings
+
+        settings = enrich_site_settings(_db, settings, scope="home")
         notices = (
             _db.query(models.Notice)
             .filter(models.Notice.is_active == True)
@@ -1063,6 +1064,9 @@ def subscription_plans_legacy_page(request: Request):
     try:
         user = auth.get_current_user(request, _db)
         raw_settings = {s.key: s.value for s in _db.query(models.SiteSettings).all()}
+        from .site_settings_locale import enrich_site_settings
+
+        raw_settings = enrich_site_settings(_db, raw_settings, scope="billing")
         active_plans = (
             _db.query(models.SubscriptionPlan)
             .filter(models.SubscriptionPlan.is_active.is_(True))

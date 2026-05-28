@@ -527,6 +527,15 @@ def _form_template_response(
         db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     )
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
+    from ..site_settings_locale import resolve_ko_en
+
+    tip_ko, tip_en = resolve_ko_en(
+        db,
+        {"rfp_writing_tip": writing_tip or ""},
+        "rfp_writing_tip",
+        "rfp_writing_tip_en",
+        purpose="RFP writing tips box",
+    )
 
     ai_inquiry = None
     if edit_row:
@@ -581,7 +590,8 @@ def _form_template_response(
             "attachment_entries": attachment_entries or [],
             "modules": modules,
             "devtypes": devtypes,
-            "writing_tip": writing_tip,
+            "writing_tip": tip_ko,
+            "writing_tip_en": tip_en,
             "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
             "ai_inquiry": ai_inquiry,
             "draft_saved": draft_saved,
@@ -691,8 +701,17 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
 
     raw_settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    intro_md = (raw_settings.get("service_analysis_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO
-    service_analysis_intro_html = _markdown_to_html(intro_md)
+    from ..site_settings_locale import enrich_site_settings
+
+    raw_settings["service_analysis_intro_md_ko"] = (
+        (raw_settings.get("service_analysis_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO
+    )
+    raw_settings = enrich_site_settings(db, raw_settings, scope="service")
+    service_analysis_intro_html_ko = _markdown_to_html(raw_settings["service_analysis_intro_md_ko"])
+    service_analysis_intro_html_en = _markdown_to_html(
+        (raw_settings.get("service_analysis_intro_md_en") or "").strip()
+        or raw_settings["service_analysis_intro_md_ko"]
+    )
 
     qp = request.query_params
     bucket_raw = (qp.get("bucket") or "").strip() or None
@@ -748,7 +767,8 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
         {
             "request": request,
             "user": user,
-            "service_analysis_intro_html": service_analysis_intro_html,
+            "service_analysis_intro_html_ko": service_analysis_intro_html_ko,
+            "service_analysis_intro_html_en": service_analysis_intro_html_en,
             "bucket_meta": bucket_meta,
             "menu_landing_counts": menu_counts,
             "menu_total_rows": menu_total_rows,

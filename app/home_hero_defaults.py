@@ -38,13 +38,19 @@ def hero_title_to_markup(raw: str) -> Markup:
 
 
 def resolve_home_hero_fields(settings: dict) -> dict[str, Markup | str]:
-    """SiteSettings dict → 히어로 왼쪽 표시용 필드."""
-    title_raw = (settings.get("home_hero_title") or "").strip() or DEFAULT_HOME_HERO_TITLE
-    subcopy_raw = (settings.get("home_hero_subcopy") or "").strip() or DEFAULT_HOME_HERO_SUBCOPY
-    desc_raw = (settings.get("home_hero_desc") or "").strip() or DEFAULT_HOME_HERO_DESC
+    """SiteSettings dict → 히어로 왼쪽 표시용 필드 (KO/EN). EN은 enrich_site_settings로 채워질 수 있음."""
+    title_ko = (settings.get("home_hero_title") or "").strip() or DEFAULT_HOME_HERO_TITLE
+    title_en = (settings.get("home_hero_title_en") or "").strip() or title_ko
+    subcopy_ko = (settings.get("home_hero_subcopy") or "").strip() or DEFAULT_HOME_HERO_SUBCOPY
+    subcopy_en = (settings.get("home_hero_subcopy_en") or "").strip() or subcopy_ko
+    desc_ko = (settings.get("home_hero_desc") or "").strip() or DEFAULT_HOME_HERO_DESC
+    desc_en = (settings.get("home_hero_desc_en") or "").strip() or desc_ko
 
     return {
-        "title_markup": hero_title_to_markup(title_raw),
-        "subcopy": escape(subcopy_raw),
-        "desc": escape(desc_raw),
+        "title_markup_ko": hero_title_to_markup(title_ko),
+        "title_markup_en": hero_title_to_markup(title_en),
+        "subcopy_ko": escape(subcopy_ko),
+        "subcopy_en": escape(subcopy_en),
+        "desc_ko": escape(desc_ko),
+        "desc_en": escape(desc_en),
     }

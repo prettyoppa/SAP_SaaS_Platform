@@ -494,12 +494,22 @@ def _rfp_form_ctx(
     attachment_entries: list | None = None,
     missing_field_labels: list[str] | None = None,
 ):
+    from ..site_settings_locale import resolve_ko_en
+
+    tip_ko, tip_en = resolve_ko_en(
+        db,
+        {"rfp_writing_tip": writing_tip or ""},
+        "rfp_writing_tip",
+        "rfp_writing_tip_en",
+        purpose="RFP writing tips box",
+    )
     ctx = {
         "request": request,
         "user": user,
         "modules": modules,
         "devtypes": devtypes,
-        "writing_tip": writing_tip,
+        "writing_tip": tip_ko,
+        "writing_tip_en": tip_en,
         "writing_guides_by_lang": get_writing_guides_by_lang_bundle(db),
         "error": error,
         "form": form,
@@ -533,6 +543,15 @@ def rfp_form(request: Request, db: Session = Depends(get_db)):
     modules, devtypes = _get_modules_devtypes(db)
     writing_tip_setting = db.query(models.SiteSettings).filter(models.SiteSettings.key == "rfp_writing_tip").first()
     writing_tip = writing_tip_setting.value if writing_tip_setting else ""
+    from ..site_settings_locale import resolve_ko_en
+
+    tip_ko, tip_en = resolve_ko_en(
+        db,
+        {"rfp_writing_tip": writing_tip or ""},
+        "rfp_writing_tip",
+        "rfp_writing_tip_en",
+        purpose="RFP writing tips box",
+    )
     return templates.TemplateResponse(
         request,
         "rfp_form.html",
@@ -541,7 +560,8 @@ def rfp_form(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "modules": modules,
             "devtypes": devtypes,
-            "writing_tip": writing_tip,
+            "writing_tip": tip_ko,
+            "writing_tip_en": tip_en,
             "attachment_entries": [],
             "ref_code_initial": None,
             "edit_mode": False,

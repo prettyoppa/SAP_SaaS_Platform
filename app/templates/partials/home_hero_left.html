@@ -1,13 +1,16 @@
-{# 히어로 왼쪽: 제목(최대 3줄·<br>) · 서브카피 · 부제(설명) #}
+{# 히어로 왼쪽: 제목(최대 3줄·<br>) · 서브카피 · 부제(설명) — KO/EN #}
 {% set hero_copy = settings | home_hero_fields %}
 <div class="home-hero-marketing">
-  {% if hero_copy.title_markup %}
-  <h1 class="hero-title">{{ hero_copy.title_markup }}</h1>
+  {% if hero_copy.title_markup_ko %}
+  <h1 class="hero-title nav-ko">{{ hero_copy.title_markup_ko }}</h1>
+  <h1 class="hero-title nav-en" style="display:none">{{ hero_copy.title_markup_en }}</h1>
   {% endif %}
-  {% if hero_copy.subcopy %}
-  <p class="hero-subcopy">{{ hero_copy.subcopy }}</p>
+  {% if hero_copy.subcopy_ko %}
+  <p class="hero-subcopy nav-ko">{{ hero_copy.subcopy_ko }}</p>
+  <p class="hero-subcopy nav-en" style="display:none">{{ hero_copy.subcopy_en }}</p>
   {% endif %}
-  {% if hero_copy.desc %}
-  <p class="hero-desc">{{ hero_copy.desc }}</p>
+  {% if hero_copy.desc_ko %}
+  <p class="hero-desc nav-ko">{{ hero_copy.desc_ko }}</p>
+  <p class="hero-desc nav-en" style="display:none">{{ hero_copy.desc_en }}</p>
   {% endif %}
 </div>

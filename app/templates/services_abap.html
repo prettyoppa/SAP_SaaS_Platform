@@ -12,7 +12,8 @@
             <span data-i18n="svcAbap.pageTitle">SAP ABAP 개발</span>
           </h2>
           <div class="service-abap-intro markdown-body-lite text-muted mb-0 small">
-            {{ service_abap_intro_html | safe }}
+            <div class="nav-ko">{{ service_abap_intro_html_ko | safe }}</div>
+            <div class="nav-en" style="display:none">{{ service_abap_intro_html_en | safe }}</div>
           </div>
         </div>
         <div class="col-auto">

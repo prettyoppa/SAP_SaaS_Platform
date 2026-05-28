@@ -1292,8 +1292,16 @@ def request_console_offer_submit(
 def services_abap_page(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
     raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    intro_md = (raw.get("service_abap_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ABAP_INTRO_MD_KO
-    intro_html = _markdown_to_html(intro_md)
+    from ..site_settings_locale import enrich_site_settings
+
+    raw["service_abap_intro_md_ko"] = (
+        (raw.get("service_abap_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ABAP_INTRO_MD_KO
+    )
+    raw = enrich_site_settings(db, raw, scope="service")
+    intro_html_ko = _markdown_to_html(raw["service_abap_intro_md_ko"])
+    intro_html_en = _markdown_to_html(
+        (raw.get("service_abap_intro_md_en") or "").strip() or raw["service_abap_intro_md_ko"]
+    )
 
     qp = request.query_params
     bucket_raw = (qp.get("bucket") or "").strip() or None
@@ -1362,7 +1370,8 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
         {
             "request": request,
             "user": user,
-            "service_abap_intro_html": intro_html,
+            "service_abap_intro_html_ko": intro_html_ko,
+            "service_abap_intro_html_en": intro_html_en,
             "rfp_landing_counts": rfp_landing_counts,
             "rfp_total_rows": rfp_total_rows,
             "svc_abap_filtered_rfps": rfps_filtered if user else [],
@@ -1386,8 +1395,18 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
 
     raw_settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    intro_md = (raw_settings.get("service_integration_intro_md_ko") or "").strip() or DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO
-    service_integration_intro_html = _markdown_to_html(intro_md)
+    from ..site_settings_locale import enrich_site_settings
+
+    raw_settings["service_integration_intro_md_ko"] = (
+        (raw_settings.get("service_integration_intro_md_ko") or "").strip()
+        or DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO
+    )
+    raw_settings = enrich_site_settings(db, raw_settings, scope="service")
+    service_integration_intro_html_ko = _markdown_to_html(raw_settings["service_integration_intro_md_ko"])
+    service_integration_intro_html_en = _markdown_to_html(
+        (raw_settings.get("service_integration_intro_md_en") or "").strip()
+        or raw_settings["service_integration_intro_md_ko"]
+    )
 
     qp = request.query_params
     bucket_raw = (qp.get("bucket") or "").strip() or None
@@ -1450,7 +1469,8 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
         {
             "request": request,
             "user": user,
-            "service_integration_intro_html": service_integration_intro_html,
+            "service_integration_intro_html_ko": service_integration_intro_html_ko,
+            "service_integration_intro_html_en": service_integration_intro_html_en,
             "bucket_meta": bucket_meta,
             "menu_landing_counts": menu_counts,
             "menu_total_rows": menu_total_rows,

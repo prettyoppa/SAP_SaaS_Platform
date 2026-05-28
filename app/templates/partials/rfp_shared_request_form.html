@@ -136,9 +136,11 @@
     <div class="rfp-tips">
       <div class="rfp-tip-header">
         <i class="fa-solid fa-lightbulb text-warning me-2"></i>
-        <span>더 좋은 제안서를 위한 작성 팁</span>
+        <span class="nav-ko">더 좋은 제안서를 위한 작성 팁</span>
+        <span class="nav-en" style="display:none">Tips for a stronger proposal</span>
       </div>
-      <div class="rfp-tip-content text-muted small">{{ writing_tip }}</div>
+      <div class="rfp-tip-content text-muted small nav-ko">{{ writing_tip }}</div>
+      <div class="rfp-tip-content text-muted small nav-en" style="display:none">{{ writing_tip_en or writing_tip }}</div>
     </div>
     {% endif %}
   </div>

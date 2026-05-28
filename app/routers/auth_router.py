@@ -158,13 +158,9 @@ def _normalize_billing_currency(raw: str | None) -> str:
 
 
 def _initial_lang_from_request(request: Request) -> str:
-    country = (request.headers.get("CF-IPCountry") or "").strip().upper()
-    accept = (request.headers.get("Accept-Language") or "").strip().lower()
-    if country == "KR":
-        return "ko"
-    if accept.startswith("ko") or ",ko" in accept:
-        return "ko"
-    return "en"
+    from ..i18n_hint import initial_lang_from_request
+
+    return initial_lang_from_request(request)
 
 
 def _password_reset_token_hash(raw: str) -> str:

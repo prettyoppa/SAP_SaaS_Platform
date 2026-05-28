@@ -1072,15 +1072,31 @@ function mergeI18nEnOverrides() {
 }
 window.mergeI18nEnOverrides = mergeI18nEnOverrides;
 
-let currentLang = localStorage.getItem('lang') || '';
-if (currentLang !== 'ko' && currentLang !== 'en') {
-  const hinted = (document.documentElement.getAttribute('data-initial-lang') || '').toLowerCase();
-  currentLang = (hinted === 'en' || hinted === 'ko') ? hinted : 'ko';
+const hinted = (document.documentElement.getAttribute('data-initial-lang') || '').toLowerCase();
+const guestHint = document.documentElement.getAttribute('data-lang-guest-hint') === '1';
+const userChoseLang = localStorage.getItem('lang_user_choice') === '1';
+const storedLang = localStorage.getItem('lang') || '';
+let currentLang = '';
+if (guestHint) {
+  if (userChoseLang && (storedLang === 'ko' || storedLang === 'en')) {
+    currentLang = storedLang;
+  } else if (hinted === 'en' || hinted === 'ko') {
+    currentLang = hinted;
+  } else {
+    currentLang = 'en';
+  }
+} else if (hinted === 'en' || hinted === 'ko') {
+  currentLang = hinted;
+} else if (storedLang === 'ko' || storedLang === 'en') {
+  currentLang = storedLang;
+} else {
+  currentLang = 'en';
 }
 
 function setLang(lang) {
   currentLang = lang;
   localStorage.setItem('lang', lang);
+  localStorage.setItem('lang_user_choice', '1');
   mergeI18nEnOverrides();
 
   // .nav-ko/.nav-en, .brand-ko/.brand-en 직접 토글

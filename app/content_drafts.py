@@ -150,14 +150,33 @@ def sync_content_drafts_from_files(db: Session, *, force: bool = False) -> bool:
 
 def get_document_markdown(db: Session, kind: DocKind, *, lang: str = "ko") -> str:
     spec = _DOC_SPECS[kind]
-    setting_key = spec["setting_en"] if lang == "en" else spec["setting_ko"]
-    row = db.query(models.SiteSettings).filter(models.SiteSettings.key == setting_key).first()
-    if row and (row.value or "").strip():
-        return row.value.strip()
-    path = markdown_file_path(kind, lang)
-    if path:
-        return _read_text(path)
-    return ""
+    setting_ko = spec["setting_ko"]
+    setting_en = spec["setting_en"]
+    row_ko = db.query(models.SiteSettings).filter(models.SiteSettings.key == setting_ko).first()
+    md_ko = (row_ko.value or "").strip() if row_ko else ""
+    if not md_ko:
+        path_ko = markdown_file_path(kind, "ko")
+        if path_ko:
+            md_ko = _read_text(path_ko).strip()
+    if lang == "ko":
+        return md_ko
+    row_en = db.query(models.SiteSettings).filter(models.SiteSettings.key == setting_en).first()
+    md_en = (row_en.value or "").strip() if row_en else ""
+    if not md_en:
+        path_en = markdown_file_path(kind, "en")
+        if path_en:
+            md_en = _read_text(path_en).strip()
+    if md_en:
+        return md_en
+    if not md_ko:
+        return ""
+    from .site_settings_locale import effective_en
+
+    purpose = {"terms": "Terms of service", "privacy": "Privacy policy", "user_guide": "User guide"}.get(
+        kind, kind
+    )
+    settings = {setting_ko: md_ko, setting_en: ""}
+    return effective_en(db, settings, setting_ko, setting_en, purpose=purpose)
 
 
 def get_user_guide_markdown(db: Session, *, lang: str = "ko") -> str:

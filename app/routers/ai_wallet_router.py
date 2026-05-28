@@ -46,7 +46,10 @@ _AI_CREDITS_PATH = "/account/ai-credits"
 def _load_bank_settings(db: Session) -> dict[str, str]:
     keys = set(BANK_TRANSFER_SETTING_KEYS)
     raw = {s.key: s.value for s in db.query(models.SiteSettings).filter(models.SiteSettings.key.in_(keys)).all()}
-    return {k: (raw.get(k) or "").strip() for k in BANK_TRANSFER_SETTING_KEYS}
+    base = {k: (raw.get(k) or "").strip() for k in BANK_TRANSFER_SETTING_KEYS}
+    from ..site_settings_locale import enrich_site_settings
+
+    return enrich_site_settings(db, base, scope="billing")
 
 
 def _parse_transfer_date(raw: str) -> datetime | None:
