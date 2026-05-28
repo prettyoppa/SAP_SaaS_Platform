@@ -16,7 +16,7 @@ def min_topup_usd_cents(db) -> int:
 
 
 def parse_usd_input_to_cents(raw: str) -> int | None:
-    """폼 입력(달러, 소수 2자리) → USD cents."""
+    """폼 입력(달러, 소수 2자리, 천단위 콤마 허용) → USD cents."""
     s = (raw or "").replace(",", "").replace("$", "").strip()
     if not s:
         return None

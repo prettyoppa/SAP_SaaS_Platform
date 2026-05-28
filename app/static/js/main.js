@@ -44,23 +44,37 @@ function _formatKrw(s) {
   }
 }
 
-function _sanitizeUsdInput(s) {
-  let t = String(s || '').replace(/[^\d.]/g, '');
-  const parts = t.split('.');
-  if (parts.length > 2) {
-    t = parts[0] + '.' + parts.slice(1).join('');
+function _formatUsd(s, { padDecimals = false } = {}) {
+  const raw = String(s || '').replace(/,/g, '').replace(/[^\d.]/g, '');
+  if (!raw) return '';
+  const dotIdx = raw.indexOf('.');
+  let intStr = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw;
+  let decStr = dotIdx >= 0 ? raw.slice(dotIdx + 1).replace(/\./g, '') : '';
+  intStr = intStr.replace(/^0+(?=\d)/, '');
+  if (!intStr && (dotIdx >= 0 || decStr)) intStr = '0';
+  if (!intStr) return '';
+  decStr = decStr.slice(0, 2);
+  let intNum = parseInt(intStr, 10);
+  if (!Number.isFinite(intNum)) intNum = 0;
+  let intFmt;
+  try {
+    intFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(intNum);
+  } catch (_) {
+    intFmt = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
-  if (t.includes('.')) {
-    const p = t.split('.');
-    t = p[0] + '.' + (p[1] || '').slice(0, 2);
+  if (padDecimals) {
+    return intFmt + '.' + (decStr + '00').slice(0, 2);
   }
-  return t;
+  if (dotIdx >= 0) {
+    return decStr.length ? intFmt + '.' + decStr : intFmt + '.';
+  }
+  return intFmt;
 }
 
-function _applyUsdFormat(el) {
+function _applyUsdFormat(el, opts) {
   if (!(el instanceof HTMLInputElement)) return;
   const before = el.value;
-  const formatted = _sanitizeUsdInput(before);
+  const formatted = _formatUsd(before, opts || {});
   if (formatted === before) return;
   const atEnd = el.selectionStart === before.length && el.selectionEnd === before.length;
   el.value = formatted;
@@ -107,9 +121,9 @@ function initCurrencyAndEnterGuards(root) {
     if (!(el instanceof HTMLInputElement)) return;
     if (el.dataset.currencyInit === '1') return;
     el.dataset.currencyInit = '1';
-    _applyUsdFormat(el);
-    el.addEventListener('input', () => _applyUsdFormat(el));
-    el.addEventListener('blur', () => _applyUsdFormat(el));
+    _applyUsdFormat(el, { padDecimals: false });
+    el.addEventListener('input', () => _applyUsdFormat(el, { padDecimals: false }));
+    el.addEventListener('blur', () => _applyUsdFormat(el, { padDecimals: true }));
   });
 
   // Enter 키로 폼 자동 제출 방지 (data-no-enter-submit 폼 안에서만)
