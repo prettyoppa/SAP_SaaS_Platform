@@ -29,16 +29,18 @@
     </div>
     {% endif %}
     <div id="portone-checkout-err" class="alert alert-warning small d-none mb-3"></div>
-    <div id="portone-paypal-ui" class="mb-2"></div>
+    {% if checkout_mode == 'paypal' %}
+    <div class="portone-ui-container mb-3" aria-live="polite"></div>
+    <p class="small text-muted mb-3 d-none" id="portone-paypal-loading">
+      <span class="nav-ko">PayPal 결제 버튼을 불러오는 중…</span>
+      <span class="nav-en" style="display:none">Loading PayPal checkout…</span>
+    </p>
+    {% else %}
     <button type="button" class="btn btn-primary w-100 mb-2" id="portone-pay-btn">
-      {% if checkout_mode == 'paypal' %}
-      <span class="nav-ko">PayPal로 결제하기</span>
-      <span class="nav-en" style="display:none">Pay with PayPal</span>
-      {% else %}
       <span class="nav-ko">결제하기</span>
       <span class="nav-en" style="display:none">Pay now</span>
-      {% endif %}
     </button>
+    {% endif %}
     <a href="{{ cancel_url }}" class="btn btn-outline-secondary w-100 btn-sm">
       <span class="nav-ko">취소</span>
       <span class="nav-en" style="display:none">Cancel</span>
@@ -81,6 +83,82 @@
     el.classList.remove('d-none');
   }
 
+  async function syncAfterPay() {
+    var r = await fetch(completeUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ paymentId: paymentId }),
+    });
+    var j = await r.json();
+    if (j && j.ok && j.return_url) {
+      window.location.href = j.return_url;
+      return true;
+    }
+    if (j && j.return_url) {
+      window.location.href = j.return_url;
+      return true;
+    }
+    showErr((j && j.error) ? j.error : 'Payment sync failed');
+    return false;
+  }
+
+  function paypalRequestData(customerPhone) {
+    return {
+      uiType: 'PAYPAL_SPB',
+      storeId: storeId,
+      channelKey: channelKey,
+      paymentId: paymentId,
+      orderName: orderName,
+      totalAmount: totalAmount,
+      currency: checkoutCurrency,
+      customer: {
+        fullName: customerName || undefined,
+        email: customerEmail,
+        phoneNumber: customerPhone,
+      },
+      redirectUrl: returnUrl,
+    };
+  }
+
+  async function initPayPalCheckout() {
+    if (!window.PortOne || typeof PortOne.loadPaymentUI !== 'function') {
+      showErr('PortOne SDK load failed.');
+      return;
+    }
+    var loading = document.getElementById('portone-paypal-loading');
+    if (loading) loading.classList.remove('d-none');
+    var customerPhone = normalizePhone(customerPhoneRaw);
+    if (!customerEmail) {
+      showErr('구매자 이메일이 없어 결제를 시작할 수 없습니다. 고객 지원에 문의해 주세요.');
+      if (loading) loading.classList.add('d-none');
+      return;
+    }
+    if (!customerPhone) {
+      showErr('구매자 휴대폰 번호가 없어 결제를 시작할 수 없습니다. 계정 정보에서 휴대폰 번호를 등록해 주세요.');
+      if (loading) loading.classList.add('d-none');
+      return;
+    }
+    try {
+      await PortOne.loadPaymentUI(paypalRequestData(customerPhone), {
+        onPaymentSuccess: async function () {
+          try {
+            await syncAfterPay();
+          } catch (syncErr) {
+            showErr(String(syncErr && syncErr.message ? syncErr.message : syncErr));
+          }
+        },
+        onPaymentFail: function (fail) {
+          showErr(String((fail && fail.message) || (fail && fail.code) || 'paypal_failed'));
+        },
+      });
+      if (loading) loading.classList.add('d-none');
+    } catch (e) {
+      if (loading) loading.classList.add('d-none');
+      showErr(String(e && e.message ? e.message : e));
+    }
+  }
+
   async function runPay() {
     if (!window.PortOne) {
       showErr('PortOne SDK load failed.');
@@ -98,61 +176,6 @@
       if (!customerPhone) {
         showErr('구매자 휴대폰 번호가 없어 결제를 시작할 수 없습니다. 계정 정보에서 휴대폰 번호를 등록해 주세요.');
         if (btn) btn.disabled = false;
-        return;
-      }
-      if (checkoutMode === 'paypal') {
-        if (typeof PortOne.loadPaymentUI !== 'function') {
-          showErr('PayPal SDK function is unavailable.');
-          if (btn) btn.disabled = false;
-          return;
-        }
-        await PortOne.loadPaymentUI({
-          requestData: {
-            uiType: 'PAYPAL_SPB',
-            storeId: storeId,
-            channelKey: channelKey,
-            paymentId: paymentId,
-            orderName: orderName,
-            totalAmount: totalAmount,
-            currency: checkoutCurrency,
-            payMethod: 'PAYPAL_SPB',
-            customer: {
-              fullName: customerName || undefined,
-              email: customerEmail || undefined,
-              phoneNumber: customerPhone || undefined,
-            },
-            redirectUrl: returnUrl,
-          },
-          selector: '#portone-paypal-ui',
-          onPaymentSuccess: async function () {
-            try {
-              var rr = await fetch(completeUrl, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ paymentId: paymentId }),
-              });
-              var jj = await rr.json();
-              if (jj && jj.ok && jj.return_url) {
-                window.location.href = jj.return_url;
-                return;
-              }
-              if (jj && jj.return_url) {
-                window.location.href = jj.return_url;
-                return;
-              }
-              showErr((jj && jj.error) ? jj.error : 'Payment sync failed');
-              if (btn) btn.disabled = false;
-            } catch (syncErr) {
-              showErr(String(syncErr && syncErr.message ? syncErr.message : syncErr));
-              if (btn) btn.disabled = false;
-            }
-          },
-          onPaymentFail: function (fail) {
-            showErr(String((fail && fail.message) || (fail && fail.code) || 'paypal_failed'));
-            if (btn) btn.disabled = false;
-          },
-        });
         return;
       }
       var resp = await PortOne.requestPayment({
@@ -175,30 +198,20 @@
         if (btn) btn.disabled = false;
         return;
       }
-      var r = await fetch(completeUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ paymentId: paymentId }),
-      });
-      var j = await r.json();
-      if (j && j.ok && j.return_url) {
-        window.location.href = j.return_url;
-        return;
-      }
-      if (j && j.return_url) {
-        window.location.href = j.return_url;
-        return;
-      }
-      showErr((j && j.error) ? j.error : 'Payment sync failed');
-      if (btn) btn.disabled = false;
+      var ok = await syncAfterPay();
+      if (!ok && btn) btn.disabled = false;
     } catch (e) {
       showErr(String(e && e.message ? e.message : e));
       if (btn) btn.disabled = false;
     }
   }
 
-  document.getElementById('portone-pay-btn').addEventListener('click', runPay);
+  if (checkoutMode === 'paypal') {
+    initPayPalCheckout();
+  } else {
+    var payBtn = document.getElementById('portone-pay-btn');
+    if (payBtn) payBtn.addEventListener('click', runPay);
+  }
 })();
 </script>
 {% endblock %}
