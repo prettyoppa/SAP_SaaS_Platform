@@ -1061,9 +1061,12 @@ def admin_devtype_delete(dt_id: int, request: Request, db: Session = Depends(get
 # ── 사이트 설정 관리 ────────────────────────────────────
 
 SITE_SETTING_KEYS = [
-    ("home_hero_title", "홈페이지 제목 (최대 3줄, <br>로 줄바꿈)"),
-    ("home_hero_subcopy", "홈페이지 서브카피"),
-    ("home_hero_desc", "홈페이지 부제(설명)"),
+    ("home_hero_title", "홈페이지 제목 (최대 3줄, <br>로 줄바꿈, KO)"),
+    ("home_hero_title_en", "홈페이지 제목 (EN)"),
+    ("home_hero_subcopy", "홈페이지 서브카피 (KO)"),
+    ("home_hero_subcopy_en", "홈페이지 서브카피 (EN)"),
+    ("home_hero_desc", "홈페이지 부제(설명, KO)"),
+    ("home_hero_desc_en", "홈페이지 부제(설명, EN)"),
     ("home_guide_video_url", "홈 사용 안내 동영상 URL (YouTube / Shorts)"),
     ("home_guide_text_md", "홈 사용 안내 텍스트 (Markdown, 타이핑 데모, KO)"),
     ("home_guide_text_md_en", "홈 사용 안내 텍스트 (Markdown, EN)"),
@@ -1165,7 +1168,7 @@ async def admin_settings_save(request: Request, db: Session = Depends(get_db)):
 
     for key, _ in SITE_SETTING_KEYS:
         val = (form.get(key) or "").strip()
-        if key == "home_hero_title":
+        if key in ("home_hero_title", "home_hero_title_en"):
             val = normalize_hero_title_storage(val)
         existing = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
         if existing:

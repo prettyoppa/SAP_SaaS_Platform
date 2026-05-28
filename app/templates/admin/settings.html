@@ -46,25 +46,20 @@
         <div class="col-12">
           <div class="admin-content-card">
             <h6 class="mb-3 text-warning"><i class="fa-solid fa-house me-2"></i>홈 화면</h6>
+            <p class="small text-muted mb-2">
+              <span class="nav-ko">상단 <strong>한국어/EN</strong> 전환으로 제목·서브카피·부제의 KO/EN 본문을 각각 편집합니다.</span>
+              <span class="nav-en" style="display:none">Use the header <strong>KO/EN</strong> toggle to edit Korean and English copy separately.</span>
+            </p>
             <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label small">홈페이지 제목</label>
-                <textarea name="home_hero_title" class="form-control" rows="4"
-                          placeholder="SAP 개발,&lt;br&gt;&#10;Catchy가 함께 하겠습니다.">{{ settings.get('home_hero_title', '') }}</textarea>
-                <div class="form-text">최대 3줄(줄바꿈 2회). <code>&lt;br&gt;</code> 또는 Enter로 구분합니다. 비우면 기본 제목이 사용됩니다.</div>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small">홈페이지 서브카피</label>
-                <input type="text" name="home_hero_subcopy" class="form-control"
-                       value="{{ settings.get('home_hero_subcopy', '') }}"
-                       placeholder="with 8 Power Agents"/>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small">홈페이지 부제(설명)</label>
-                <input type="text" name="home_hero_desc" class="form-control"
-                       value="{{ settings.get('home_hero_desc', '') }}"
-                       placeholder="AI 에이전트가 요구사항을 분석하여…"/>
-              </div>
+              {% with ko_value=settings.get('home_hero_title', ''), en_value=settings.get('home_hero_title_en', ''), label_ko='홈페이지 제목', label_en='Homepage title', ko_name='home_hero_title', en_name='home_hero_title_en', input_type='textarea', rows=4, placeholder_ko='SAP 개발,<br>\nCatchy가 함께 하겠습니다.', placeholder_en='SAP development,<br>\nCatchy is with you.', hint_ko='최대 3줄(줄바꿈 2회). <code>&lt;br&gt;</code> 또는 Enter로 구분. 비우면 기본 제목.', hint_en='Up to 3 lines. Use <code>&lt;br&gt;</code> or Enter. Empty uses the default title.' %}
+              {% include 'admin/partials/home_hero_bilingual_field.html' %}
+              {% endwith %}
+              {% with ko_value=settings.get('home_hero_subcopy', ''), en_value=settings.get('home_hero_subcopy_en', ''), label_ko='홈페이지 서브카피', label_en='Homepage subcopy', ko_name='home_hero_subcopy', en_name='home_hero_subcopy_en', input_type='input', col_class='col-md-6', placeholder_ko='with 8 Power Agents', placeholder_en='with 8 Power Agents' %}
+              {% include 'admin/partials/home_hero_bilingual_field.html' %}
+              {% endwith %}
+              {% with ko_value=settings.get('home_hero_desc', ''), en_value=settings.get('home_hero_desc_en', ''), label_ko='홈페이지 부제(설명)', label_en='Homepage description', ko_name='home_hero_desc', en_name='home_hero_desc_en', input_type='input', col_class='col-md-6', placeholder_ko='AI 에이전트가 요구사항을 분석하여…', placeholder_en='AI agents analyze your requirements…' %}
+              {% include 'admin/partials/home_hero_bilingual_field.html' %}
+              {% endwith %}
               {% include 'admin/partials/home_guide_text_md_field.html' %}
               <div class="col-12">
                 <label class="form-label small">사용 안내 동영상 URL (YouTube / Shorts)</label>
@@ -138,7 +133,12 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/home_guide_text_admin.js?v=3"></script>
+<script src="/static/js/home_guide_text_admin.js?v=4"></script>
+<script>
+document.querySelector('form[action="/admin/settings"]')?.addEventListener('submit', function () {
+  if (typeof window.homeGuideTextAdminSyncAll === 'function') window.homeGuideTextAdminSyncAll();
+});
+</script>
 <script>
 (function () {
   var btn = document.getElementById('btn-reload-content-drafts');

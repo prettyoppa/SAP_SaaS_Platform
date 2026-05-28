@@ -137,11 +137,11 @@
         <div class="row g-2 small">
           <div class="col-md-6"><label class="form-label">사용 안내 제목 KO</label><input class="form-control form-control-sm" id="adm-ht-gtko" value="{{ settings.get('home_tile_guide_title_ko', '') }}"/></div>
           <div class="col-md-6"><label class="form-label">사용 안내 제목 EN</label><input class="form-control form-control-sm" id="adm-ht-gten" value="{{ settings.get('home_tile_guide_title_en', '') }}"/></div>
-          <div class="col-12" data-home-guide-text-md-root id="adm-home-guide-text-root">
+          <div class="col-12" data-bilingual-admin-root id="adm-home-guide-text-root">
             <label class="form-label"><span class="nav-ko">사용 안내 텍스트</span><span class="nav-en" style="display:none">Getting-started text</span></label>
-            <textarea class="d-none" id="adm-ht-md-ko" rows="1" data-home-guide-text-ko aria-hidden="true" tabindex="-1">{{ settings.get('home_guide_text_md', '') }}</textarea>
-            <textarea class="d-none" id="adm-ht-md-en" rows="1" data-home-guide-text-en aria-hidden="true" tabindex="-1">{{ settings.get('home_guide_text_md_en', '') }}</textarea>
-            <textarea class="form-control form-control-sm" id="adm-ht-text" rows="5" data-home-guide-text-editor placeholder="SAP 개발을 AI와 함께…">{{ settings.get('home_guide_text_md', '') }}</textarea>
+            <textarea class="d-none" id="adm-ht-md-ko" rows="1" data-bilingual-ko aria-hidden="true" tabindex="-1">{{ settings.get('home_guide_text_md', '') }}</textarea>
+            <textarea class="d-none" id="adm-ht-md-en" rows="1" data-bilingual-en aria-hidden="true" tabindex="-1">{{ settings.get('home_guide_text_md_en', '') }}</textarea>
+            <textarea class="form-control form-control-sm" id="adm-ht-text" rows="5" data-bilingual-editor placeholder="SAP 개발을 AI와 함께…">{{ settings.get('home_guide_text_md', '') }}</textarea>
             <div class="form-text"><span class="home-guide-text-lang-hint-ko nav-ko">KO/EN 토글로 편집·저장. 텍스트 우선.</span><span class="home-guide-text-lang-hint-en nav-en" style="display:none">Edit per KO/EN toggle. Text overrides video.</span></div>
           </div>
           <div class="col-12"><label class="form-label">사용 안내 동영상 URL (YouTube / Shorts)</label><input class="form-control form-control-sm" id="adm-ht-video" type="url" placeholder="https://www.youtube.com/shorts/..." value="{{ settings.get('home_guide_video_url', '') }}"/><div class="form-text">텍스트가 비어 있을 때만 임베드. 둘 다 비우면 ABAP 타이핑 데모.</div></div>
@@ -165,7 +165,7 @@
         </div>
       </div>
     </div>
-    <script src="/static/js/home_guide_text_admin.js?v=3"></script>
+    <script src="/static/js/home_guide_text_admin.js?v=4"></script>
     <script>
     (function(){
       var btn = document.getElementById('adm-ht-save');

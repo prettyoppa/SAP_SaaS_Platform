@@ -1,5 +1,5 @@
 /**
- * 홈 사용 안내 평문 — 단일 textarea, 사이트 KO/EN 토글과 연동.
+ * Admin bilingual fields — single visible control, KO/EN in hidden inputs; syncs with site lang toggle.
  */
 (function () {
   'use strict';
@@ -9,12 +9,12 @@
   }
 
   function initRoot(root) {
-    if (!root || root.dataset.homeGuideTextBound === '1') return;
-    root.dataset.homeGuideTextBound = '1';
+    if (!root || root.dataset.bilingualAdminBound === '1') return;
+    root.dataset.bilingualAdminBound = '1';
 
-    var editor = root.querySelector('[data-home-guide-text-editor]');
-    var hidKo = root.querySelector('[data-home-guide-text-ko]');
-    var hidEn = root.querySelector('[data-home-guide-text-en]');
+    var editor = root.querySelector('[data-bilingual-editor]');
+    var hidKo = root.querySelector('[data-bilingual-ko]');
+    var hidEn = root.querySelector('[data-bilingual-en]');
     if (!editor || !hidKo || !hidEn) return;
 
     var store = {
@@ -55,12 +55,12 @@
       form.addEventListener('submit', syncHidden);
     }
 
-    root.homeGuideTextSync = syncHidden;
+    root.bilingualAdminSync = syncHidden;
     return syncHidden;
   }
 
   function boot() {
-    document.querySelectorAll('[data-home-guide-text-md-root]').forEach(initRoot);
+    document.querySelectorAll('[data-bilingual-admin-root]').forEach(initRoot);
   }
 
   if (document.readyState === 'loading') {
@@ -70,8 +70,8 @@
   }
 
   window.homeGuideTextAdminSyncAll = function () {
-    document.querySelectorAll('[data-home-guide-text-md-root]').forEach(function (root) {
-      if (typeof root.homeGuideTextSync === 'function') root.homeGuideTextSync();
+    document.querySelectorAll('[data-bilingual-admin-root]').forEach(function (root) {
+      if (typeof root.bilingualAdminSync === 'function') root.bilingualAdminSync();
     });
   };
 })();
