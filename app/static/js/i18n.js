@@ -1085,6 +1085,8 @@ if (guestHint) {
   } else {
     currentLang = 'en';
   }
+} else if (userChoseLang && (storedLang === 'ko' || storedLang === 'en')) {
+  currentLang = storedLang;
 } else if (hinted === 'en' || hinted === 'ko') {
   currentLang = hinted;
 } else if (storedLang === 'ko' || storedLang === 'en') {

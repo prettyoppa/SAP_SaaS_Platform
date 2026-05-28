@@ -13,6 +13,7 @@ from ..database import get_db
 from ..payment_fulfillment import TXN_STATUS_PAID
 from ..payment_providers.portone_service import (
     create_pending_transaction,
+    order_name_en_for_transaction,
     order_name_for_transaction,
     sync_payment,
     verify_webhook,
@@ -71,6 +72,7 @@ def portone_checkout_page(
             "store_id": portone_store_id(),
             "channel_key": checkout.channel_key,
             "order_name": order_name_for_transaction(txn),
+            "order_name_en": order_name_en_for_transaction(txn),
             "complete_url": "/payments/portone/complete",
             "redirect_url": redirect_url,
             "return_url": txn.return_url or "/",

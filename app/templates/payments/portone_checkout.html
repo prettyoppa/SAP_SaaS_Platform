@@ -1,12 +1,20 @@
 {% extends "base.html" %}
-{% block title %}결제 — PortOne{% endblock %}
+{% block title %}<span class="nav-ko">결제</span><span class="nav-en" style="display:none">Payment</span> — PortOne{% endblock %}
 
 {% block content %}
 <div class="container py-5" style="max-width: 32rem;">
   <div class="rfp-section p-4">
     <h1 class="h5 mb-2">
-      <span class="nav-ko">{{ order_name }}</span>
+      {% if txn.purpose == 'ai_wallet_topup' %}
+      <span class="nav-ko">AI 크레딧 충전</span>
+      <span class="nav-en" style="display:none">Top up AI credits</span>
+      {% elif txn.purpose == 'project_settlement' %}
+      <span class="nav-ko">납품 대금 #{{ txn.purpose_ref_id }}</span>
+      <span class="nav-en" style="display:none">Project settlement #{{ txn.purpose_ref_id }}</span>
+      {% else %}
+      <span class="nav-ko">결제</span>
       <span class="nav-en" style="display:none">Payment</span>
+      {% endif %}
     </h1>
     {% if checkout_currency == 'CURRENCY_USD' %}
     <p class="font-monospace fs-5 mb-3">${{ '%.2f'|format((checkout_amount|int) / 100.0) }}</p>
@@ -57,6 +65,7 @@
   var channelKey = {{ channel_key|tojson }};
   var paymentId = {{ txn.payment_id|tojson }};
   var orderName = {{ order_name|tojson }};
+  var orderNameEn = {{ order_name_en|tojson }};
   var totalAmount = {{ checkout_amount|int }};
   var checkoutMode = {{ checkout_mode|tojson }};
   var checkoutCurrency = {{ checkout_currency|tojson }};
@@ -76,9 +85,45 @@
     return d;
   }
 
-  function showErr(msg) {
+  var ERR = {
+    sdk: {
+      ko: 'PortOne SDK를 불러오지 못했습니다.',
+      en: 'PortOne SDK load failed.',
+    },
+    email: {
+      ko: '구매자 이메일이 없어 결제를 시작할 수 없습니다. 고객 지원에 문의해 주세요.',
+      en: 'Buyer email is required. Please contact support.',
+    },
+    phone: {
+      ko: '구매자 휴대폰 번호가 없어 결제를 시작할 수 없습니다. 계정 정보에서 휴대폰 번호를 등록해 주세요.',
+      en: 'Buyer phone number is required. Add it in your account profile.',
+    },
+    sync: {
+      ko: '결제 동기화에 실패했습니다.',
+      en: 'Payment sync failed.',
+    },
+    paypal: {
+      ko: 'PayPal 결제에 실패했습니다.',
+      en: 'PayPal payment failed.',
+    },
+  };
+
+  function pageLang() {
+    return (document.documentElement.getAttribute('data-lang') || 'ko').toLowerCase();
+  }
+
+  function paypalOrderName() {
+    return pageLang() === 'en' ? (orderNameEn || orderName) : orderName;
+  }
+
+  function showErr(keyOrMsg) {
     var el = document.getElementById('portone-checkout-err');
     if (!el) return;
+    var lang = pageLang();
+    var msg = keyOrMsg;
+    if (ERR[keyOrMsg]) {
+      msg = ERR[keyOrMsg][lang] || ERR[keyOrMsg].en || ERR[keyOrMsg].ko;
+    }
     el.textContent = msg;
     el.classList.remove('d-none');
   }
@@ -99,7 +144,7 @@
       window.location.href = j.return_url;
       return true;
     }
-    showErr((j && j.error) ? j.error : 'Payment sync failed');
+    showErr((j && j.error) ? j.error : 'sync');
     return false;
   }
 
@@ -109,7 +154,7 @@
       storeId: storeId,
       channelKey: channelKey,
       paymentId: paymentId,
-      orderName: orderName,
+      orderName: paypalOrderName(),
       totalAmount: totalAmount,
       currency: checkoutCurrency,
       customer: {
@@ -123,19 +168,19 @@
 
   async function initPayPalCheckout() {
     if (!window.PortOne || typeof PortOne.loadPaymentUI !== 'function') {
-      showErr('PortOne SDK load failed.');
+      showErr('sdk');
       return;
     }
     var loading = document.getElementById('portone-paypal-loading');
     if (loading) loading.classList.remove('d-none');
     var customerPhone = normalizePhone(customerPhoneRaw);
     if (!customerEmail) {
-      showErr('구매자 이메일이 없어 결제를 시작할 수 없습니다. 고객 지원에 문의해 주세요.');
+      showErr('email');
       if (loading) loading.classList.add('d-none');
       return;
     }
     if (!customerPhone) {
-      showErr('구매자 휴대폰 번호가 없어 결제를 시작할 수 없습니다. 계정 정보에서 휴대폰 번호를 등록해 주세요.');
+      showErr('phone');
       if (loading) loading.classList.add('d-none');
       return;
     }
@@ -149,7 +194,7 @@
           }
         },
         onPaymentFail: function (fail) {
-          showErr(String((fail && fail.message) || (fail && fail.code) || 'paypal_failed'));
+          showErr(String((fail && fail.message) || (fail && fail.code) || ERR.paypal[pageLang()] || ERR.paypal.en));
         },
       });
       if (loading) loading.classList.add('d-none');
@@ -161,7 +206,7 @@
 
   async function runPay() {
     if (!window.PortOne) {
-      showErr('PortOne SDK load failed.');
+      showErr('sdk');
       return;
     }
     var btn = document.getElementById('portone-pay-btn');
@@ -169,12 +214,12 @@
     try {
       var customerPhone = normalizePhone(customerPhoneRaw);
       if (!customerEmail) {
-        showErr('구매자 이메일이 없어 결제를 시작할 수 없습니다. 고객 지원에 문의해 주세요.');
+        showErr('email');
         if (btn) btn.disabled = false;
         return;
       }
       if (!customerPhone) {
-        showErr('구매자 휴대폰 번호가 없어 결제를 시작할 수 없습니다. 계정 정보에서 휴대폰 번호를 등록해 주세요.');
+        showErr('phone');
         if (btn) btn.disabled = false;
         return;
       }
@@ -182,7 +227,7 @@
         storeId: storeId,
         channelKey: channelKey,
         paymentId: paymentId,
-        orderName: orderName,
+        orderName: paypalOrderName(),
         totalAmount: totalAmount,
         currency: checkoutCurrency,
         payMethod: 'CARD',

@@ -268,3 +268,11 @@ def order_name_for_transaction(txn: models.PaymentTransaction) -> str:
     if txn.purpose == PURPOSE_AI_WALLET_TOPUP:
         return "AI 크레딧 충전"
     return "결제"
+
+
+def order_name_en_for_transaction(txn: models.PaymentTransaction) -> str:
+    if txn.purpose == PURPOSE_PROJECT_SETTLEMENT:
+        return f"Project settlement #{txn.purpose_ref_id}"
+    if txn.purpose == PURPOSE_AI_WALLET_TOPUP:
+        return "Top up AI credits"
+    return "Payment"
