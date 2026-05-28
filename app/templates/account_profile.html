@@ -129,6 +129,24 @@
           </dd>
 
           <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+            <span class="nav-ko">기본 언어</span><span class="nav-en" style="display:none">Default language</span>
+          </dt>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+            {% if (user.preferred_lang or 'ko') == 'en' %}
+            <span class="nav-ko">English</span><span class="nav-en" style="display:none">English</span>
+            {% else %}
+            <span class="nav-ko">한국어</span><span class="nav-en" style="display:none">Korean</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+            <span class="nav-ko">결제 기본 통화</span><span class="nav-en" style="display:none">Payment currency</span>
+          </dt>
+          <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+            {{ user.billing_currency or 'KRW' }}
+          </dd>
+
+          <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
             <span class="nav-ko">휴대폰</span><span class="nav-en" style="display:none">Phone</span>
           </dt>
           <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
