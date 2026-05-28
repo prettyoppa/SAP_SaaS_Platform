@@ -147,6 +147,26 @@ def _form_bool(raw: str | None) -> bool:
     return (raw or "").strip().lower() in ("1", "true", "on", "yes", "y")
 
 
+def _normalize_lang(raw: str | None) -> str:
+    v = (raw or "").strip().lower()
+    return v if v in ("ko", "en") else "ko"
+
+
+def _normalize_billing_currency(raw: str | None) -> str:
+    v = (raw or "").strip().upper()
+    return v if v in ("KRW", "USD") else "KRW"
+
+
+def _initial_lang_from_request(request: Request) -> str:
+    country = (request.headers.get("CF-IPCountry") or "").strip().upper()
+    accept = (request.headers.get("Accept-Language") or "").strip().lower()
+    if country == "KR":
+        return "ko"
+    if accept.startswith("ko") or ",ko" in accept:
+        return "ko"
+    return "en"
+
+
 def _password_reset_token_hash(raw: str) -> str:
     return hashlib.sha256((raw or "").encode("utf-8")).hexdigest()
 
@@ -874,6 +894,8 @@ async def register(
     marketing_sms_opt_in: str = Form(""),
     account_type: str = Form("member"),
     consultant_profile_file: UploadFile | None = File(None),
+    preferred_lang: str = Form(""),
+    billing_currency: str = Form(""),
     db: Session = Depends(get_db),
 ):
     account_type_norm = (account_type or "member").strip().lower()
@@ -1177,6 +1199,8 @@ async def register(
         consultant_application_pending=(account_type_norm == "consultant"),
         consultant_profile_file_path=consultant_profile_path,
         consultant_profile_file_name=consultant_profile_name,
+        preferred_lang=_normalize_lang(preferred_lang or _initial_lang_from_request(request)),
+        billing_currency=_normalize_billing_currency(billing_currency),
     )
     db.add(new_user)
     if phone_e164:
@@ -1437,6 +1461,8 @@ async def account_profile_edit_post(
     account_type: str = Form("member"),
     consultant_profile_file: UploadFile | None = File(None),
     remove_consultant_profile_file: str = Form(""),
+    preferred_lang: str = Form(""),
+    billing_currency: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -1657,6 +1683,10 @@ async def account_profile_edit_post(
     user.consent_updated_at = datetime.utcnow()
     user.consultant_profile_file_path = new_profile_path
     user.consultant_profile_file_name = new_profile_name
+    user.preferred_lang = _normalize_lang(preferred_lang or getattr(user, "preferred_lang", "ko"))
+    user.billing_currency = _normalize_billing_currency(
+        billing_currency or getattr(user, "billing_currency", "KRW")
+    )
     db.add(user)
     db.commit()
     if should_send_consultant_apply_email:
@@ -2107,3 +2137,18 @@ def logout(request: Request):
     _delete_auth_cookie(response, request)
     _delete_viewer_tz_cookie(response, request)
     return response
+
+
+@router.post("/account/preferred-lang")
+def account_set_preferred_lang(
+    request: Request,
+    lang: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+    user.preferred_lang = _normalize_lang(lang)
+    db.add(user)
+    db.commit()
+    return JSONResponse({"ok": True, "preferred_lang": user.preferred_lang})

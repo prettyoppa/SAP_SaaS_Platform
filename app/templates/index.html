@@ -1,5 +1,25 @@
 {% extends "base.html" %}
 {% block title %}SAP 개발 파트너{% endblock %}
+{% block head_meta %}
+<meta name="description" content="AI 기반 SAP 개발 자동화 플랫폼. 신규 개발, ABAP 분석·개선, 연동 개발을 빠르게 진행하세요." />
+<link rel="canonical" href="{{ request.url|e }}" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="SAP 개발 파트너" />
+<meta property="og:description" content="AI 기반 SAP 개발 자동화 플랫폼. 신규 개발, ABAP 분석·개선, 연동 개발을 빠르게 진행하세요." />
+<meta property="og:url" content="{{ request.url|e }}" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="SAP 개발 파트너" />
+<meta name="twitter:description" content="AI 기반 SAP 개발 자동화 플랫폼. 신규 개발, ABAP 분석·개선, 연동 개발." />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "SAP Development Partner",
+  "url": "{{ request.base_url|string }}",
+  "inLanguage": ["ko", "en"]
+}
+</script>
+{% endblock %}
 
 {% block content %}
 

@@ -232,6 +232,9 @@ const TRANSLATIONS = {
     "codelib.emptyTitle": "No code yet",
     "codelib.emptyDesc": "Register ABAP from your projects—analysis feeds interview questions.",
     "codelib.emptyCta": "Register your first program",
+    "codelib.confirmDelete": "Delete this code item? This action cannot be undone.",
+    "codelib.uploadNeedSource": "Please enter ABAP source in at least one section.",
+    "codelib.uploadAnalyzing": "Analyzing your code... (takes about 10-30 seconds)",
     "dash.dateFrom": "From",
     "dash.dateTo": "To",
     "dash.sort": "Sort",
@@ -759,6 +762,9 @@ const TRANSLATIONS = {
     "codelib.emptyTitle": "등록된 코드가 없습니다",
     "codelib.emptyDesc": "실제 프로젝트에서 개발한 ABAP 소스를 등록하면 분석 결과가 인터뷰 질문 생성에 활용됩니다.",
     "codelib.emptyCta": "첫 번째 코드 등록",
+    "codelib.confirmDelete": "이 코드를 삭제할까요? 되돌릴 수 없습니다.",
+    "codelib.uploadNeedSource": "최소 한 개 섹션에 ABAP 소스를 입력해 주세요.",
+    "codelib.uploadAnalyzing": "코드를 분석하는 중... (10~30초 소요)",
     "dash.dateFrom": "시작일",
     "dash.dateTo": "종료일",
     "dash.sort": "정렬",
@@ -1066,7 +1072,11 @@ function mergeI18nEnOverrides() {
 }
 window.mergeI18nEnOverrides = mergeI18nEnOverrides;
 
-let currentLang = localStorage.getItem('lang') || 'ko';
+let currentLang = localStorage.getItem('lang') || '';
+if (currentLang !== 'ko' && currentLang !== 'en') {
+  const hinted = (document.documentElement.getAttribute('data-initial-lang') || '').toLowerCase();
+  currentLang = (hinted === 'en' || hinted === 'ko') ? hinted : 'ko';
+}
 
 function setLang(lang) {
   currentLang = lang;
@@ -1088,6 +1098,12 @@ function setLang(lang) {
   if (btn) btn.classList.add('active');
   document.documentElement.setAttribute('data-lang', lang);
   document.dispatchEvent(new CustomEvent('app:langchange', { detail: { lang: lang } }));
+  // 로그인 회원의 언어 선호 저장(실패해도 UI 동작은 유지)
+  try {
+    const fd = new FormData();
+    fd.append('lang', lang);
+    fetch('/account/preferred-lang', { method: 'POST', body: fd }).catch(() => {});
+  } catch (_) {}
 }
 
 function t(key) {

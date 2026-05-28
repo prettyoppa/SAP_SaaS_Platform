@@ -1,5 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title_ko }}{% endblock %}
+{% block head_meta %}
+<meta name="description" content="{{ page_title_ko|e }}" />
+<link rel="canonical" href="{{ request.url|e }}" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="{{ page_title_ko|e }}" />
+<meta property="og:description" content="{{ page_title_ko|e }}" />
+<meta property="og:url" content="{{ request.url|e }}" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="{{ page_title_ko|e }}" />
+<meta name="twitter:description" content="{{ page_title_en|e }}" />
+{% endblock %}
 
 {% block content %}
 <div class="site-content-page py-4 py-md-5">

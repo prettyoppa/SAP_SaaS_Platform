@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-lang="ko" data-user-timezone="{{ (request.cookies.get('viewer_tz') or '')|e }}">
+<html lang="{{ request.state.initial_lang|default('ko') }}" data-lang="{{ request.state.initial_lang|default('ko') }}" data-initial-lang="{{ request.state.initial_lang|default('ko') }}" data-user-timezone="{{ (request.cookies.get('viewer_tz') or '')|e }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>

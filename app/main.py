@@ -181,6 +181,8 @@ def _run_migrations():
         ("users", "subscription_plan_expires_at", "DATETIME", "TIMESTAMP"),
         ("users", "experience_trial_ends_at", "DATETIME", "TIMESTAMP"),
         ("users", "billing_country", "VARCHAR(2)", "VARCHAR(2)"),
+        ("users", "preferred_lang", "VARCHAR(2) DEFAULT 'ko'", "VARCHAR(2) DEFAULT 'ko'"),
+        ("users", "billing_currency", "VARCHAR(3) DEFAULT 'KRW'", "VARCHAR(3) DEFAULT 'KRW'"),
         ("users", "ai_wallet_balance_krw", "INTEGER DEFAULT 0", "INTEGER DEFAULT 0"),
         ("payment_claims", "wallet_credited_on_submit", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("payment_claims", "confirmed_amount_minor", "INTEGER", "INTEGER"),
@@ -861,6 +863,32 @@ async def i18n_en_overrides_middleware(request: Request, call_next):
     except Exception:
         _log.exception("i18n_en_overrides_middleware failed")
         request.state.i18n_en_overrides = {}
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def language_hint_middleware(request: Request, call_next):
+    """초기 언어 힌트: 로그인 회원 선호언어 > 국가 코드 > Accept-Language."""
+    preferred = ""
+    token = request.cookies.get("access_token")
+    if token:
+        db = SessionLocal()
+        try:
+            u = auth.get_user_from_token(token, db)
+            if u and (getattr(u, "preferred_lang", "") or "").strip().lower() in ("ko", "en"):
+                preferred = (u.preferred_lang or "").strip().lower()
+        finally:
+            db.close()
+    if not preferred:
+        country = (request.headers.get("CF-IPCountry") or "").strip().upper()
+        accept = (request.headers.get("Accept-Language") or "").strip().lower()
+        if country == "KR":
+            preferred = "ko"
+        elif accept.startswith("ko") or ",ko" in accept:
+            preferred = "ko"
+        else:
+            preferred = "en"
+    request.state.initial_lang = preferred
     return await call_next(request)
 
 

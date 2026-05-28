@@ -1,5 +1,30 @@
 {% extends "base.html" %}
 {% block title %}{{ meta_title }} · FAQ{% endblock %}
+{% block head_meta %}
+<meta name="description" content="{{ meta_title|e }} FAQ 상세 페이지입니다." />
+<link rel="canonical" href="{{ request.url|e }}" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="{{ meta_title|e }} · FAQ" />
+<meta property="og:description" content="{{ meta_title|e }} FAQ 상세 페이지입니다." />
+<meta property="og:url" content="{{ request.url|e }}" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="{{ meta_title|e }} · FAQ" />
+<meta name="twitter:description" content="{{ meta_title|e }} FAQ 상세" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [{
+    "@type": "Question",
+    "name": "{{ meta_title|e }}",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "{{ (faq.answer or '')|striptags|replace('\n', ' ')|e }}"
+    }
+  }]
+}
+</script>
+{% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">
   <div class="container site-content-container">

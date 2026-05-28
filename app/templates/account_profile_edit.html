@@ -101,6 +101,38 @@
             </dd>
 
             <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+              <span class="nav-ko">기본 언어</span><span class="nav-en" style="display:none">Default language</span>
+            </dt>
+            <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="preferred_lang" id="pf-pref-lang-ko" value="ko" {% if (user.preferred_lang or 'ko') != 'en' %}checked{% endif %}>
+                  <label class="form-check-label" for="pf-pref-lang-ko">한국어</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="preferred_lang" id="pf-pref-lang-en" value="en" {% if (user.preferred_lang or 'ko') == 'en' %}checked{% endif %}>
+                  <label class="form-check-label" for="pf-pref-lang-en">English</label>
+                </div>
+              </div>
+            </dd>
+
+            <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
+              <span class="nav-ko">결제 기본 통화</span><span class="nav-en" style="display:none">Billing currency</span>
+            </dt>
+            <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="billing_currency" id="pf-billing-currency-krw" value="KRW" {% if (user.billing_currency or 'KRW') != 'USD' %}checked{% endif %}>
+                  <label class="form-check-label" for="pf-billing-currency-krw">KRW</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="billing_currency" id="pf-billing-currency-usd" value="USD" {% if (user.billing_currency or 'KRW') == 'USD' %}checked{% endif %}>
+                  <label class="form-check-label" for="pf-billing-currency-usd">USD</label>
+                </div>
+              </div>
+            </dd>
+
+            <dt class="col-sm-4 py-2 border-bottom account-profile-dt">
               <span class="nav-ko">가입 유형</span><span class="nav-en" style="display:none">Account type</span>
             </dt>
             <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
@@ -270,6 +302,10 @@
 <script src="/static/js/file_preview.js?v=1"></script>
 <script>
 (function () {
+  function uiMsg(ko, en) {
+    const lang = (document.documentElement.getAttribute('data-lang') || 'ko').toLowerCase();
+    return lang === 'en' ? en : ko;
+  }
   const emailVerified = {{ 'true' if user.email_verified else 'false' }};
   const phoneVerified = {{ 'true' if user.phone_verified else 'false' }};
   const smsConsentEligible = {{ 'true' if sms_consent_eligible else 'false' }};
@@ -405,13 +441,19 @@
       const f = fileInput && fileInput.files ? fileInput.files[0] : null;
       if (!hasExisting && !f) {
         e.preventDefault();
-        alert('컨설턴트 신청을 위해 상세 프로필 파일을 첨부해 주세요.');
+        alert(uiMsg(
+          '컨설턴트 신청을 위해 상세 프로필 파일을 첨부해 주세요.',
+          'Attach a detailed profile file to apply as a consultant.',
+        ));
         if (dz) dz.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       if (!emailVerified || !opsEmail || !opsEmail.checked) {
         e.preventDefault();
-        alert('컨설턴트는 이메일 인증 및 업무 알림(이메일) 동의가 필요합니다.');
+        alert(uiMsg(
+          '컨설턴트는 이메일 인증 및 업무 알림(이메일) 동의가 필요합니다.',
+          'Consultants require email verification and consent to work email notifications.',
+        ));
         return;
       }
     });

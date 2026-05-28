@@ -263,7 +263,7 @@
         {% if edit_code %}
         <div class="mt-4 pt-3 border-top" style="border-color:var(--border)!important;">
           <form method="post" action="/codelib/{{ edit_code.id }}/delete"
-                data-app-confirm="이 코드를 삭제할까요? 되돌릴 수 없습니다.">
+                data-app-confirm-i18n="codelib.confirmDelete">
             <button type="submit" class="btn btn-outline-danger">
               <i class="fa-solid fa-trash me-2"></i>이 항목 삭제
             </button>
@@ -282,6 +282,16 @@
 <script src="/static/js/sap_field_input.js?v=20260419a"></script>
 <script>
 const AGENT_F_ANALYST = {{ "f_analyst"|agent_label|tojson }};
+function uiMsg(key, koFallback, enFallback) {
+  try {
+    if (typeof window.t === 'function') {
+      const v = window.t(key);
+      if (v != null && String(v).trim()) return String(v);
+    }
+  } catch (_) {}
+  const lang = (document.documentElement.getAttribute('data-lang') || 'ko').toLowerCase();
+  return lang === 'en' ? enFallback : koFallback;
+}
 if (window.initSapPidTcodePair) {
   initSapPidTcodePair({
     programEl: document.getElementById('program_id'),
@@ -431,7 +441,11 @@ if (!container) {
 
       if (combined.trim().length < 50) {
         e.preventDefault();
-        alert('최소 한 개 섹션에 ABAP 소스를 입력해 주세요.');
+        alert(uiMsg(
+          'codelib.uploadNeedSource',
+          '최소 한 개 섹션에 ABAP 소스를 입력해 주세요.',
+          'Please enter ABAP source in at least one section.',
+        ));
         return;
       }
 
@@ -441,7 +455,13 @@ if (!container) {
       var submitBtn = document.getElementById('submit-btn');
       if (!isDraft && submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + AGENT_F_ANALYST + '가 코드를 분석하는 중... (10~30초 소요)';
+        submitBtn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2"></span>' +
+          uiMsg(
+            'codelib.uploadAnalyzing',
+            AGENT_F_ANALYST + '가 코드를 분석하는 중... (10~30초 소요)',
+            AGENT_F_ANALYST + ' is analyzing your code... (takes about 10-30 seconds)',
+          );
       }
     });
   }

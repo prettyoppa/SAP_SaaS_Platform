@@ -138,6 +138,38 @@
               </div>
             </div>
 
+            <div class="mb-3">
+              <label class="form-label d-block mb-2">
+                <span class="nav-ko">기본 언어</span><span class="nav-en">Default language</span>
+              </label>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="preferred_lang" id="regLangKo" value="ko" checked>
+                  <label class="form-check-label" for="regLangKo">한국어</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="preferred_lang" id="regLangEn" value="en">
+                  <label class="form-check-label" for="regLangEn">English</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label d-block mb-2">
+                <span class="nav-ko">결제 기본 통화</span><span class="nav-en">Billing currency</span>
+              </label>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="billing_currency" id="regCurKrw" value="KRW" checked>
+                  <label class="form-check-label" for="regCurKrw">KRW</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="billing_currency" id="regCurUsd" value="USD">
+                  <label class="form-check-label" for="regCurUsd">USD</label>
+                </div>
+              </div>
+            </div>
+
             {% if email_verification %}
             <!-- 이메일 + 인증메일 -->
             <div class="mb-3">
@@ -367,6 +399,10 @@
 {% block extra_js %}
 <script src="/static/js/file_preview.js?v=1"></script>
 <script>
+function uiMsg(ko, en) {
+  const lang = (document.documentElement.getAttribute('data-lang') || 'ko').toLowerCase();
+  return lang === 'en' ? en : ko;
+}
 // 비밀번호 강도 체크
 document.getElementById('password').addEventListener('input', function() {
   const v = this.value;
@@ -536,6 +572,18 @@ const phoneOptionalLabel = document.getElementById('phoneOptionalLabel');
 const phoneConsultantLabel = document.getElementById('phoneConsultantLabel');
 const phoneInput = document.getElementById('phoneInput');
 const regSmsConsentRows = document.getElementById('regSmsConsentRows');
+const regLangKo = document.getElementById('regLangKo');
+const regLangEn = document.getElementById('regLangEn');
+const regCurKrw = document.getElementById('regCurKrw');
+const regCurUsd = document.getElementById('regCurUsd');
+const initialLang = (document.documentElement.getAttribute('data-initial-lang') || 'ko').toLowerCase();
+if (initialLang === 'en') {
+  if (regLangEn) regLangEn.checked = true;
+  if (regCurUsd) regCurUsd.checked = true;
+} else {
+  if (regLangKo) regLangKo.checked = true;
+  if (regCurKrw) regCurKrw.checked = true;
+}
 function isRegConsultant() {
   return !!(accountTypeConsultant && accountTypeConsultant.checked);
 }
@@ -834,7 +882,10 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
     const d = verificationCodeInput.value.replace(/\D/g, '');
     if (d.length !== 6) {
       e.preventDefault();
-      alert('인증 코드 6자리를 입력해 주세요. 먼저 「인증메일 보내기」를 눌러 코드를 받으세요.');
+      alert(uiMsg(
+        '인증 코드 6자리를 입력해 주세요. 먼저 「인증메일 보내기」를 눌러 코드를 받으세요.',
+        'Enter the 6-digit verification code. Click "Send verification email" first.',
+      ));
       verificationCodeInput.focus();
       return;
     }
@@ -850,52 +901,76 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
   if (regIsConsultant) {
     if (!phoneInput || !(phoneInput.value || '').trim()) {
       e.preventDefault();
-      alert('컨설턴트 가입을 위해서는 휴대폰 번호 입력 및 인증이 필요합니다.');
+      alert(uiMsg(
+        '컨설턴트 가입을 위해서는 휴대폰 번호 입력 및 인증이 필요합니다.',
+        'Consultant sign-up requires phone number input and verification.',
+      ));
       if (phoneInput) phoneInput.focus();
       return;
     }
     if (!isE164(phoneInput.value)) {
       e.preventDefault();
-      alert('휴대폰 번호는 국제번호 형식(+국가번호 포함)으로 입력해 주세요.');
+      alert(uiMsg(
+        '휴대폰 번호는 국제번호 형식(+국가번호 포함)으로 입력해 주세요.',
+        'Enter phone number in international format (+country code).',
+      ));
       phoneInput.focus();
       return;
     }
     const pdC = phoneCodeInput ? phoneCodeInput.value.replace(/\D/g, '') : '';
     if (pdC.length !== 6) {
       e.preventDefault();
-      alert('휴대폰 인증 코드 6자리를 입력해 주세요.');
+      alert(uiMsg(
+        '휴대폰 인증 코드 6자리를 입력해 주세요.',
+        'Enter the 6-digit phone verification code.',
+      ));
       if (phoneCodeInput) phoneCodeInput.focus();
       return;
     }
     if (!phoneCodeVerified) {
       e.preventDefault();
-      alert('휴대폰 인증을 완료해 주세요. 발송된 코드 입력 후 「코드 확인」을 눌러 주세요.');
+      alert(uiMsg(
+        '휴대폰 인증을 완료해 주세요. 발송된 코드 입력 후 「코드 확인」을 눌러 주세요.',
+        'Complete phone verification. Enter the code and click "Verify code".',
+      ));
       if (phoneCodeInput) phoneCodeInput.focus();
       return;
     }
     if (!opsEmailOptIn || !opsEmailOptIn.checked) {
       e.preventDefault();
-      alert('컨설턴트는 이메일 업무 알림 수신 동의가 필수입니다. 이메일 인증을 완료한 뒤 동의에 체크해 주세요.');
+      alert(uiMsg(
+        '컨설턴트는 이메일 업무 알림 수신 동의가 필수입니다. 이메일 인증을 완료한 뒤 동의에 체크해 주세요.',
+        'Consultants must agree to work email notifications after email verification.',
+      ));
       return;
     }
   } else if (phoneInput && (phoneInput.value || '').trim()) {
     if (!isE164(phoneInput.value)) {
       e.preventDefault();
-      alert('휴대폰 번호는 국제번호 형식(+국가번호 포함)으로 입력해 주세요.');
+      alert(uiMsg(
+        '휴대폰 번호는 국제번호 형식(+국가번호 포함)으로 입력해 주세요.',
+        'Enter phone number in international format (+country code).',
+      ));
       phoneInput.focus();
       return;
     }
     const pd = phoneCodeInput ? phoneCodeInput.value.replace(/\D/g, '') : '';
     if (pd.length !== 6) {
       e.preventDefault();
-      alert('휴대폰 인증 코드 6자리를 입력해 주세요.');
+      alert(uiMsg(
+        '휴대폰 인증 코드 6자리를 입력해 주세요.',
+        'Enter the 6-digit phone verification code.',
+      ));
       if (phoneCodeInput) phoneCodeInput.focus();
       return;
     }
   }
   if (consultantProfileInput && consultantProfileInput.files && consultantProfileInput.files.length > 1) {
     e.preventDefault();
-    alert('상세 프로필 첨부는 1건만 가능합니다.');
+    alert(uiMsg(
+      '상세 프로필 첨부는 1건만 가능합니다.',
+      'Only one consultant profile file can be attached.',
+    ));
     consultantProfileInput.focus();
     return;
   }
@@ -903,7 +978,10 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
     const f = consultantProfileInput && consultantProfileInput.files ? consultantProfileInput.files[0] : null;
     if (!f) {
       e.preventDefault();
-      alert('컨설턴트 회원가입을 위해서는 상세 프로필 첨부가 필요합니다. 준비가 어렵다면 일반회원으로 가입한 뒤 프로필 수정에서 변경할 수 있습니다.');
+      alert(uiMsg(
+        '컨설턴트 회원가입을 위해서는 상세 프로필 첨부가 필요합니다. 준비가 어렵다면 일반회원으로 가입한 뒤 프로필 수정에서 변경할 수 있습니다.',
+        'Consultant sign-up requires a detailed profile attachment. You can sign up as a member first and switch later in profile settings.',
+      ));
       if (consultantProfileDropzone) consultantProfileDropzone.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }

@@ -1,5 +1,24 @@
 {% extends "base.html" %}
 {% block title %}FAQ{% endblock %}
+{% block head_meta %}
+<meta name="description" content="SAP 개발 파트너 FAQ 목록입니다." />
+<link rel="canonical" href="{{ request.url|e }}" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="FAQ | SAP 개발 파트너" />
+<meta property="og:description" content="SAP 개발 파트너 FAQ 목록입니다." />
+<meta property="og:url" content="{{ request.url|e }}" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="FAQ | SAP 개발 파트너" />
+<meta name="twitter:description" content="SAP 개발 파트너 FAQ 목록" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "FAQ",
+  "url": "{{ request.url|e }}"
+}
+</script>
+{% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">
   <div class="container site-list-page">
