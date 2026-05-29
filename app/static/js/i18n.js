@@ -1072,10 +1072,27 @@ function mergeI18nEnOverrides() {
 }
 window.mergeI18nEnOverrides = mergeI18nEnOverrides;
 
+function readUiLangCookie() {
+  try {
+    var m = document.cookie.match(/(?:^|;\s*)ui_lang=(en|ko)(?:;|$)/);
+    return m ? m[1] : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function writeUiLangCookie(lang) {
+  try {
+    var secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = 'ui_lang=' + encodeURIComponent(lang) + '; Path=/; Max-Age=' + (86400 * 400) + '; SameSite=Lax' + secure;
+  } catch (e) { /* ignore */ }
+}
+
 const hinted = (document.documentElement.getAttribute('data-initial-lang') || '').toLowerCase();
 const guestHint = document.documentElement.getAttribute('data-lang-guest-hint') === '1';
 const userChoseLang = localStorage.getItem('lang_user_choice') === '1';
 const storedLang = localStorage.getItem('lang') || '';
+const cookieLang = readUiLangCookie();
 let currentLang = '';
 if (guestHint) {
   if (userChoseLang && (storedLang === 'ko' || storedLang === 'en')) {
@@ -1087,6 +1104,8 @@ if (guestHint) {
   }
 } else if (userChoseLang && (storedLang === 'ko' || storedLang === 'en')) {
   currentLang = storedLang;
+} else if (cookieLang === 'en' || cookieLang === 'ko') {
+  currentLang = cookieLang;
 } else if (hinted === 'en' || hinted === 'ko') {
   currentLang = hinted;
 } else if (storedLang === 'ko' || storedLang === 'en') {
@@ -1095,26 +1114,42 @@ if (guestHint) {
   currentLang = 'en';
 }
 
+function syncLangVisibility(lang) {
+  const isKo = (lang === 'ko');
+  document.documentElement.lang = isKo ? 'ko' : 'en';
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('data-effective-lang', lang);
+  /* CSS in base.html drives .nav-ko/.nav-en; strip inline display so toggles apply everywhere (e.g. profile panel). */
+  document.querySelectorAll('.nav-ko, .nav-en, .brand-ko, .brand-en, .i18n-ko, .i18n-en').forEach(el => {
+    el.style.removeProperty('display');
+  });
+}
+
 function setLang(lang) {
   currentLang = lang;
   localStorage.setItem('lang', lang);
   localStorage.setItem('lang_user_choice', '1');
+  writeUiLangCookie(lang);
   mergeI18nEnOverrides();
 
-  // .nav-ko/.nav-en, .brand-ko/.brand-en 직접 토글
   const isKo = (lang === 'ko');
-  document.documentElement.lang = isKo ? 'ko' : 'en';
-  document.querySelectorAll('.nav-ko, .brand-ko').forEach(el => el.style.display = isKo ? '' : 'none');
-  document.querySelectorAll('.nav-en, .brand-en').forEach(el => el.style.display = isKo ? 'none' : '');
-  document.querySelectorAll('.i18n-ko').forEach(el => { el.style.display = isKo ? '' : 'none'; });
-  document.querySelectorAll('.i18n-en').forEach(el => { el.style.display = isKo ? 'none' : ''; });
+  syncLangVisibility(lang);
 
   applyTranslations();
 
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('btn-' + lang);
   if (btn) btn.classList.add('active');
-  document.documentElement.setAttribute('data-lang', lang);
+  const themeBtn = document.getElementById('themeToggleBtn');
+  if (themeBtn) {
+    themeBtn.title = isKo
+      ? (themeBtn.getAttribute('data-title-ko') || themeBtn.title)
+      : (themeBtn.getAttribute('data-title-en') || themeBtn.title);
+    const aria = isKo
+      ? themeBtn.getAttribute('data-aria-ko')
+      : themeBtn.getAttribute('data-aria-en');
+    if (aria) themeBtn.setAttribute('aria-label', aria);
+  }
   document.dispatchEvent(new CustomEvent('app:langchange', { detail: { lang: lang } }));
   // 로그인 회원의 언어 선호 저장(실패해도 UI 동작은 유지)
   try {
@@ -1160,6 +1195,16 @@ function confirmI18n(key) {
 }
 window.confirmI18n = confirmI18n;
 
-document.addEventListener('DOMContentLoaded', () => {
+if (document.documentElement.getAttribute('data-effective-lang') !== currentLang) {
   setLang(currentLang);
-});
+} else {
+  syncLangVisibility(currentLang);
+  mergeI18nEnOverrides();
+  applyTranslations();
+  const btn = document.getElementById('btn-' + currentLang);
+  if (btn) {
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+}
+window.setLang = setLang;

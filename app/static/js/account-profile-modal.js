@@ -16,13 +16,8 @@
   var inflight = null;
 
   function applyLangInModal() {
-    var lang = document.documentElement.getAttribute("data-lang") || "en";
-    var isKo = lang === "ko";
-    bodyEl.querySelectorAll(".nav-ko").forEach(function (el) {
-      el.style.display = isKo ? "" : "none";
-    });
-    bodyEl.querySelectorAll(".nav-en").forEach(function (el) {
-      el.style.display = isKo ? "none" : "";
+    bodyEl.querySelectorAll(".nav-ko, .nav-en, .brand-ko, .brand-en, .i18n-ko, .i18n-en").forEach(function (el) {
+      el.style.removeProperty("display");
     });
   }
 
@@ -93,28 +88,22 @@
     }
   });
 
-  /* /account?… 저장 알림 후 전체 페이지 대신 모달로 열기 */
-  if (window.location.pathname === "/account") {
+  /* 저장 알림 쿼리 — 어느 페이지에서든 모달로 표시하고 URL 정리 */
+  (function openAfterAccountSave() {
     var params = new URLSearchParams(window.location.search);
-    if (
-      params.get("profile_saved") === "1" ||
-      params.get("password_saved") === "1" ||
-      params.get("email_changed") === "1" ||
-      params.get("phone_saved") === "1"
-    ) {
-      var back = "/";
-      try {
-        if (document.referrer) {
-          var ref = new URL(document.referrer);
-          if (ref.origin === window.location.origin && ref.pathname !== "/account") {
-            back = ref.pathname + ref.search + ref.hash;
-          }
-        }
-      } catch (_) {
-        /* ignore */
-      }
-      history.replaceState(null, "", back);
-      openModal(true);
-    }
-  }
+    var savedKey = null;
+    if (params.get("profile_saved") === "1") savedKey = "profile_saved";
+    else if (params.get("password_saved") === "1") savedKey = "password_saved";
+    else if (params.get("email_changed") === "1") savedKey = "email_changed";
+    else if (params.get("phone_saved") === "1") savedKey = "phone_saved";
+    if (!savedKey) return;
+    params.delete("profile_saved");
+    params.delete("password_saved");
+    params.delete("email_changed");
+    params.delete("phone_saved");
+    var qs = params.toString();
+    var cleanUrl = window.location.pathname + (qs ? "?" + qs : "") + window.location.hash;
+    history.replaceState(null, "", cleanUrl);
+    openModal(true);
+  })();
 })();

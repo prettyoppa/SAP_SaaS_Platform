@@ -154,9 +154,19 @@
           <span class="nav-ko">수신 동의</span><span class="nav-en" style="display:none">Consent</span>
         </dt>
         <dd class="col-sm-8 py-2 border-bottom mb-0 account-profile-dd">
-          <div><span class="nav-ko">업무 이메일</span><span class="nav-en" style="display:none">Ops email</span>: {{ "동의" if user.ops_email_opt_in else "미동의" }} / <span class="nav-ko">마케팅 이메일</span><span class="nav-en" style="display:none">Marketing email</span>: {{ "동의" if user.marketing_email_opt_in else "미동의" }}</div>
+          <div><span class="nav-ko">업무 이메일</span><span class="nav-en" style="display:none">Ops email</span>:
+            <span class="nav-ko">{{ "동의" if user.ops_email_opt_in else "미동의" }}</span><span class="nav-en" style="display:none">{{ "Yes" if user.ops_email_opt_in else "No" }}</span>
+            /
+            <span class="nav-ko">마케팅 이메일</span><span class="nav-en" style="display:none">Marketing email</span>:
+            <span class="nav-ko">{{ "동의" if user.marketing_email_opt_in else "미동의" }}</span><span class="nav-en" style="display:none">{{ "Yes" if user.marketing_email_opt_in else "No" }}</span>
+          </div>
           {% if sms_consent_eligible %}
-          <div><span class="nav-ko">업무 SMS</span><span class="nav-en" style="display:none">Ops SMS</span>: {{ "동의" if user.ops_sms_opt_in else "미동의" }} / <span class="nav-ko">마케팅 SMS</span><span class="nav-en" style="display:none">Marketing SMS</span>: {{ "동의" if user.marketing_sms_opt_in else "미동의" }}</div>
+          <div><span class="nav-ko">업무 SMS</span><span class="nav-en" style="display:none">Ops SMS</span>:
+            <span class="nav-ko">{{ "동의" if user.ops_sms_opt_in else "미동의" }}</span><span class="nav-en" style="display:none">{{ "Yes" if user.ops_sms_opt_in else "No" }}</span>
+            /
+            <span class="nav-ko">마케팅 SMS</span><span class="nav-en" style="display:none">Marketing SMS</span>:
+            <span class="nav-ko">{{ "동의" if user.marketing_sms_opt_in else "미동의" }}</span><span class="nav-en" style="display:none">{{ "Yes" if user.marketing_sms_opt_in else "No" }}</span>
+          </div>
           {% else %}
           <div class="text-muted small mt-1">
             <span class="nav-ko">SMS 수신 동의는 대한민국(+82) 휴대폰으로 인증된 경우에만 표시됩니다.</span>

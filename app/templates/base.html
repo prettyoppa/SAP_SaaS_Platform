@@ -26,22 +26,36 @@
     })();
   </script>
   <style id="lang-anti-flicker">
+    html[data-effective-lang="ko"] .nav-en,
+    html[data-effective-lang="ko"] .brand-en,
+    html[data-effective-lang="ko"] .i18n-en { display: none !important; }
     html[data-effective-lang="en"] .nav-ko,
     html[data-effective-lang="en"] .brand-ko,
     html[data-effective-lang="en"] .i18n-ko { display: none !important; }
     html[data-effective-lang="en"] .nav-en,
     html[data-effective-lang="en"] .brand-en,
-    html[data-effective-lang="en"] .i18n-en { display: unset !important; }
+    html[data-effective-lang="en"] .i18n-en { display: revert !important; }
+    html[data-effective-lang="en"] .nav-en.d-none,
+    html[data-effective-lang="en"] .i18n-en.d-none { display: none !important; }
+    html[data-effective-lang="en"] #btn-ko.lang-btn,
     html[data-effective-lang="en"] #btn-ko.lang-btn.active { color: var(--muted); background: transparent; }
     html[data-effective-lang="en"] #btn-en.lang-btn { color: var(--primary-light); background: rgba(99,102,241,.1); }
     html[data-theme="light"][data-effective-lang="en"] #btn-en.lang-btn { color: var(--primary); background: rgba(79,70,229,.08); }
+    html[data-effective-lang="ko"] #btn-en.lang-btn { color: var(--muted); background: transparent; }
+    html[data-effective-lang="ko"] #btn-ko.lang-btn { color: var(--primary-light); background: rgba(99,102,241,.1); }
+    html[data-theme="light"][data-effective-lang="ko"] #btn-ko.lang-btn { color: var(--primary); background: rgba(79,70,229,.08); }
   </style>
   <script>
     (function () {
+      function readUiLangCookie() {
+        var m = document.cookie.match(/(?:^|;\s*)ui_lang=(en|ko)(?:;|$)/);
+        return m ? m[1] : '';
+      }
       var hinted = (document.documentElement.getAttribute('data-initial-lang') || '').toLowerCase();
       var guestHint = document.documentElement.getAttribute('data-lang-guest-hint') === '1';
       var userChose = localStorage.getItem('lang_user_choice') === '1';
       var stored = localStorage.getItem('lang') || '';
+      var cookieLang = readUiLangCookie();
       var lang = 'en';
       if (guestHint) {
         if (userChose && (stored === 'ko' || stored === 'en')) lang = stored;
@@ -49,6 +63,8 @@
         else lang = 'en';
       } else if (userChose && (stored === 'ko' || stored === 'en')) {
         lang = stored;
+      } else if (cookieLang === 'en' || cookieLang === 'ko') {
+        lang = cookieLang;
       } else if (hinted === 'en' || hinted === 'ko') {
         lang = hinted;
       } else if (stored === 'ko' || stored === 'en') {
@@ -57,6 +73,9 @@
       document.documentElement.setAttribute('data-effective-lang', lang);
       document.documentElement.lang = lang;
       document.documentElement.setAttribute('data-lang', lang);
+      window.__resolveUiLang = function () {
+        return document.documentElement.getAttribute('data-effective-lang') || 'en';
+      };
     })();
   </script>
 </head>
@@ -90,7 +109,8 @@
     <a class="navbar-brand d-flex align-items-center" href="/">
       <img src="/static/img/catch_lab_sap_dev_hub_logo.png?v=20260428cat" alt="" class="navbar-brand-logo brand-logo-light-only me-2" height="29" decoding="async" />
       <img src="/static/img/catch_lab_sap_dev_hub_logo_dark.png?v=20260428cat" alt="" class="navbar-brand-logo brand-logo-dark-only me-2" height="29" decoding="async" />
-      <span data-i18n="brand.name">SAP 개발 파트너</span>
+      <span class="brand-ko">SAP 개발 파트너</span>
+      <span class="brand-en nav-en" style="display:none" data-i18n="brand.name">SAP Development Partner</span>
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
@@ -100,7 +120,7 @@
         {% set path = request.url.path %}
         <li class="nav-item">
           <a class="nav-link {% if path == '/' %}active{% endif %}" href="/">
-            <span data-i18n="nav.home">홈</span>
+            <span class="nav-ko">홈</span><span class="nav-en" style="display:none">Home</span>
           </a>
         </li>
         {% if user %}
@@ -109,13 +129,16 @@
         <li class="nav-item nav-item-request-console position-relative">
           <div class="nav-request-console-link-wrap position-relative">
             <a class="nav-link nav-link-request-console {% if path.startswith('/request-console') %}active{% endif %}" href="/request-console">
-              <span data-i18n="nav.menuRequestConsole">요청 콘솔</span>
+              <span class="nav-ko">요청 콘솔</span><span class="nav-en" style="display:none">Request Console</span>
             </a>
             {% if nav_console_pending %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
           </div>
           {% if not path.startswith('/request-console') %}
           <div class="nav-request-console-hint">
-            <span class="nav-request-console-bubble" data-i18n="nav.menuRequestConsoleHint">본인 외 회원 요청정보는 여기서 확인하세요.</span>
+            <span class="nav-request-console-bubble">
+              <span class="nav-ko">본인 외 회원 요청정보는 여기서 확인하세요.</span>
+              <span class="nav-en" style="display:none">Member requests you did not create are listed here.</span>
+            </span>
           </div>
           {% endif %}
         </li>
@@ -123,19 +146,19 @@
         {% set nav_offer = request.state.nav_proposal_offer_badges %}
         <li class="nav-item position-relative">
           <a class="nav-link {% if path.startswith('/services/abap') or path.startswith('/rfp') %}active{% endif %}" href="/services/abap">
-            <span data-i18n="nav.menuNewDevelopment">신규 개발</span>
+            <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">New Development</span>
           </a>
           {% if nav_offer.rfp %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
         <li class="nav-item position-relative">
           <a class="nav-link {% if path.startswith('/abap-analysis') %}active{% endif %}" href="/abap-analysis">
-            <span data-i18n="nav.menuAnalysisImprove">분석·개선</span>
+            <span class="nav-ko">분석·개선</span><span class="nav-en" style="display:none">Analyze · Improve</span>
           </a>
           {% if nav_offer.analysis %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
         <li class="nav-item position-relative">
           <a class="nav-link {% if '/integration' in path %}active{% endif %}" href="/integration">
-            <span data-i18n="nav.menuIntegration">연동 개발</span>
+            <span class="nav-ko">연동 개발</span><span class="nav-en" style="display:none">Integration</span>
           </a>
           {% if nav_offer.integration %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
@@ -143,7 +166,7 @@
         <li class="nav-item">
           <a class="nav-link nav-link-admin {% if '/admin' in path or '/codelib' in path %}active{% endif %}" href="/admin">
             <i class="fa-solid fa-gear me-1"></i>
-            <span data-i18n="nav.admin">Admin</span>
+            <span class="nav-ko">Admin</span><span class="nav-en" style="display:none">Admin</span>
           </a>
         </li>
         {% endif %}
@@ -151,7 +174,10 @@
       </ul>
       <div class="d-flex align-items-center gap-3">
         <!-- Theme Toggle (슬라이드: 왼쪽=다크, 오른쪽=라이트) -->
-        <button type="button" class="theme-switch" id="themeToggleBtn" role="switch" onclick="toggleTheme()" data-i18n-title="theme.toggle" data-i18n-aria-label="theme.toggleAria" title="테마 전환" aria-label="밝은 테마 / 어두운 테마 전환">
+        <button type="button" class="theme-switch" id="themeToggleBtn" role="switch" onclick="toggleTheme()"
+                data-title-ko="테마 전환" data-title-en="Toggle theme"
+                data-aria-ko="밝은 테마 / 어두운 테마 전환" data-aria-en="Switch light / dark theme"
+                title="테마 전환" aria-label="밝은 테마 / 어두운 테마 전환">
           <span class="theme-switch-track" aria-hidden="true">
             <span class="theme-switch-icon-wrap theme-switch-icon-wrap--left">
               <i class="fa-solid fa-moon"></i>
@@ -169,7 +195,7 @@
         <div class="lang-toggle">
           <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
           <span class="lang-sep">|</span>
-          <button class="lang-btn active" id="btn-ko" onclick="setLang('ko')">한국어</button>
+          <button class="lang-btn" id="btn-ko" onclick="setLang('ko')">한국어</button>
         </div>
         {% if user %}
         <div class="dropdown">
@@ -224,6 +250,17 @@
     </div>
   </div>
 </nav>
+<script>
+(function () {
+  var lang = (window.__resolveUiLang && window.__resolveUiLang()) || document.documentElement.getAttribute('data-effective-lang') || 'en';
+  var isEn = lang === 'en';
+  var themeBtn = document.getElementById('themeToggleBtn');
+  if (themeBtn) {
+    themeBtn.title = isEn ? (themeBtn.getAttribute('data-title-en') || 'Toggle theme') : (themeBtn.getAttribute('data-title-ko') || '테마 전환');
+    themeBtn.setAttribute('aria-label', isEn ? (themeBtn.getAttribute('data-aria-en') || themeBtn.title) : (themeBtn.getAttribute('data-aria-ko') || themeBtn.title));
+  }
+})();
+</script>
 {% endblock site_navbar %}
 
 <!-- Main Content -->
@@ -348,10 +385,10 @@
 
 <script src="/static/vendor/bootstrap-5.3.3/js/bootstrap.bundle.min.js?v=20260512"></script>
 <script>window.__I18nEnOverrides = {{ request.state.i18n_en_overrides | tojson }};</script>
-<script src="/static/js/i18n.js?v=20260529langflicker"></script>
+<script src="/static/js/i18n.js?v=20260529profilelang"></script>
 <script src="/static/js/abap_float_chat_resize.js?v=20260521"></script>
 <script src="/static/js/main.js?v=20260520aichatscroll"></script>
-{% if user %}<script src="/static/js/account-profile-modal.js?v=20260529profile-modal"></script>{% endif %}
+{% if user %}<script src="/static/js/account-profile-modal.js?v=20260529profilelang"></script>{% endif %}
 <script src="/static/js/abap_line_numbers.js?v=20260521"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}

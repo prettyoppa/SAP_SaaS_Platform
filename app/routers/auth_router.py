@@ -95,6 +95,26 @@ def _safe_login_redirect_next(raw: str | None) -> str | None:
         return None
     return p
 
+
+def _profile_saved_return_url(request: Request, flag: str = "profile_saved") -> str:
+    """저장 후 이전 페이지로 돌아가 모달에서 알림 표시(전체 /account 조회 페이지 방지)."""
+    from urllib.parse import parse_qs, urlencode
+
+    origin = f"{request.url.scheme}://{request.url.netloc}"
+    ref = (request.headers.get("referer") or "").strip()
+    path = "/"
+    if ref.startswith(origin):
+        path = ref[len(origin) :] or "/"
+        path = path.split("#", 1)[0] or "/"
+    safe_path = _safe_login_redirect_next(path.split("?", 1)[0]) or "/"
+    if safe_path == "/account":
+        safe_path = "/"
+    qs = path.split("?", 1)[1] if "?" in path else ""
+    params = parse_qs(qs, keep_blank_values=True)
+    params[flag] = ["1"]
+    new_qs = urlencode(params, doseq=True)
+    return safe_path + ("?" + new_qs if new_qs else "")
+
 def _send_verification_email_bg(to_addr: str, verify_url: str) -> None:
     """HTTP 응답을 막지 않기 위해 별도 스레드에서 발송. 실패 시 로그만 남김(재발송으로 복구)."""
     try:
@@ -193,6 +213,28 @@ def _public_base_url(request: Request) -> str:
     if env:
         return env
     return str(request.base_url).rstrip("/")
+
+
+_UI_LANG_COOKIE = "ui_lang"
+
+
+def _ui_lang_cookie_args(request: Request, lang: str | None) -> dict:
+    v = _normalize_lang(lang or "ko")
+    return {
+        "key": _UI_LANG_COOKIE,
+        "value": v,
+        "httponly": False,
+        "max_age": 86400 * 400,
+        "path": "/",
+        "samesite": "lax",
+        "secure": request.url.scheme == "https",
+    }
+
+
+def _sync_ui_lang_cookie(response, request: Request, user: models.User | None) -> None:
+    if user is None:
+        return
+    response.set_cookie(**_ui_lang_cookie_args(request, getattr(user, "preferred_lang", None)))
 
 
 def _access_token_cookie_args(request: Request, token: str) -> dict:
@@ -482,6 +524,7 @@ def login(
     response = RedirectResponse(url=redirect_url, status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
     _sync_viewer_tz_cookie(response, request, user)
+    _sync_ui_lang_cookie(response, request, user)
     return response
 
 
@@ -1226,6 +1269,7 @@ async def register(
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(**_access_token_cookie_args(request, token))
     _sync_viewer_tz_cookie(response, request, new_user)
+    _sync_ui_lang_cookie(response, request, new_user)
     return response
 
 
@@ -1699,8 +1743,9 @@ async def account_profile_edit_post(
     db.commit()
     if should_send_consultant_apply_email:
         _schedule_bg(send_consultant_application_received_email, user.email)
-    response = RedirectResponse(url="/account?profile_saved=1", status_code=302)
+    response = RedirectResponse(url=_profile_saved_return_url(request, "profile_saved"), status_code=302)
     _sync_viewer_tz_cookie(response, request, user)
+    _sync_ui_lang_cookie(response, request, user)
     return response
 
 
@@ -1752,7 +1797,7 @@ def account_password_post(
     user.hashed_password = auth.hash_password(np)
     db.add(user)
     db.commit()
-    return RedirectResponse(url="/account?password_saved=1", status_code=302)
+    return RedirectResponse(url=_profile_saved_return_url(request, "password_saved"), status_code=302)
 
 
 @router.get("/account/phone", response_class=HTMLResponse)
@@ -1909,7 +1954,7 @@ def account_phone_confirm_post(
 
     maybe_grant_experience_trial(db, user)
     db.commit()
-    return RedirectResponse(url="/account?phone_saved=1", status_code=302)
+    return RedirectResponse(url=_profile_saved_return_url(request, "phone_saved"), status_code=302)
 
 
 @router.get("/account/email", response_class=HTMLResponse)
@@ -2037,7 +2082,7 @@ def account_email_confirm(request: Request, token: str = "", db: Session = Depen
 
     _schedule_bg(send_email_changed_completed_notice, old_email, new_norm)
 
-    resp = RedirectResponse(url="/account?email_changed=1", status_code=302)
+    resp = RedirectResponse(url=_profile_saved_return_url(request, "email_changed"), status_code=302)
     resp.set_cookie(**_access_token_cookie_args(request, auth.create_access_token({"sub": new_norm})))
     _sync_viewer_tz_cookie(resp, request, user)
     return resp
@@ -2159,4 +2204,6 @@ def account_set_preferred_lang(
     user.preferred_lang = _normalize_lang(lang)
     db.add(user)
     db.commit()
-    return JSONResponse({"ok": True, "preferred_lang": user.preferred_lang})
+    resp = JSONResponse({"ok": True, "preferred_lang": user.preferred_lang})
+    resp.set_cookie(**_ui_lang_cookie_args(request, user.preferred_lang))
+    return resp
