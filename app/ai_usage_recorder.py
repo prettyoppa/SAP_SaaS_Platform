@@ -374,6 +374,7 @@ def member_usage_log_rows(
                 ),
                 "is_estimate": src != "api_usage",
                 "krw_int": krw_from_usage_usd_micro(micro, usd_krw_rate),
+                "usd": format_usd_from_micro(micro),
             }
         )
     return rows, token_sum, int(agg.get("event_count") or 0)

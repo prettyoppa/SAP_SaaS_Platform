@@ -1356,42 +1356,54 @@ def resend_verification(
     return RedirectResponse(url="/register/check-email?resent=1", status_code=302)
 
 
+def _account_profile_template_context(request: Request, db: Session, user: models.User) -> dict:
+    pending_ec = (
+        db.query(models.EmailChangePending)
+        .filter(models.EmailChangePending.user_id == user.id)
+        .first()
+    )
+    sp_ko, sp_en = user_subscription_plan_display_names(db, user)
+    return {
+        "user": user,
+        "profile_saved": request.query_params.get("profile_saved") == "1",
+        "password_saved": request.query_params.get("password_saved") == "1",
+        "email_changed_ok": request.query_params.get("email_changed") == "1",
+        "phone_saved": request.query_params.get("phone_saved") == "1",
+        "pending_email_change": pending_ec,
+        "mail_for_account_actions": email_verification_enabled(),
+        "sms_for_account_phone": sms_enabled(),
+        "sms_consent_eligible": _user_phone_allows_sms_consent(user),
+        "user_timezone_display_line": _user_timezone_display_line(user),
+        "deletion_grace_days": deletion_grace_days(),
+        "subscription_plan_display_ko": sp_ko,
+        "subscription_plan_display_en": sp_en,
+        **_consultant_profile_template_labels(user),
+    }
+
+
 @router.get("/account", response_class=HTMLResponse)
 def account_profile(request: Request, db: Session = Depends(get_db)):
     """로그인 회원의 가입 시 입력 정보 조회(비밀번호 등은 표시하지 않음)."""
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login?next=/account", status_code=302)
-    profile_saved = request.query_params.get("profile_saved") == "1"
-    password_saved = request.query_params.get("password_saved") == "1"
-    email_changed_ok = request.query_params.get("email_changed") == "1"
-    phone_saved = request.query_params.get("phone_saved") == "1"
-    pending_ec = (
-        db.query(models.EmailChangePending)
-        .filter(models.EmailChangePending.user_id == user.id)
-        .first()
-    )
-    clabels = _consultant_profile_template_labels(user)
-    sp_ko, sp_en = user_subscription_plan_display_names(db, user)
     return templates.TemplateResponse(
         request,
         "account_profile.html",
-        {
-            "user": user,
-            "profile_saved": profile_saved,
-            "password_saved": password_saved,
-            "email_changed_ok": email_changed_ok,
-            "phone_saved": phone_saved,
-            "pending_email_change": pending_ec,
-            "mail_for_account_actions": email_verification_enabled(),
-            "sms_for_account_phone": sms_enabled(),
-            "sms_consent_eligible": _user_phone_allows_sms_consent(user),
-            "user_timezone_display_line": _user_timezone_display_line(user),
-            "deletion_grace_days": deletion_grace_days(),
-            "subscription_plan_display_ko": sp_ko,
-            "subscription_plan_display_en": sp_en,
-            **clabels,
-        },
+        _account_profile_template_context(request, db, user),
+    )
+
+
+@router.get("/account/panel", response_class=HTMLResponse)
+def account_profile_panel(request: Request, db: Session = Depends(get_db)):
+    """회원 정보 본문 HTML — 네비 모달용(전체 페이지 이동 없음)."""
+    user = auth.get_current_user(request, db)
+    if not user:
+        return HTMLResponse("Unauthorized", status_code=401)
+    return templates.TemplateResponse(
+        request,
+        "partials/account_profile_panel.html",
+        _account_profile_template_context(request, db, user),
     )
 
 

@@ -21,6 +21,7 @@ from ..ai_usage_recorder import (
 )
 from ..ai_wallet import (
     build_wallet_topup_history_rows,
+    wallet_balance_usd_display,
     krw_from_usage_usd_micro,
     min_topup_krw,
     min_topup_usd_cents,
@@ -130,6 +131,7 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
     ctx = _usage_context(db, user)
     payment_usd = user_prefers_usd_payments(user)
     paypal_channel = bool(portone_paypal_channel_key())
+    bal_krw = wallet_balance_krw(user)
     return templates.TemplateResponse(
         request,
         "account_ai_credits.html",
@@ -137,14 +139,18 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "settings": settings,
             "payment_usd": payment_usd,
-            "wallet_balance_krw": wallet_balance_krw(user),
+            "wallet_balance_krw": bal_krw,
+            "wallet_balance_usd": wallet_balance_usd_display(bal_krw, ctx["usd_krw_rate"])
+            if payment_usd
+            else None,
             "min_topup_krw": min_topup_krw(db),
             "min_topup_usd_cents": min_topup_usd_cents(db),
             "topup_history_rows": build_wallet_topup_history_rows(
                 db,
                 user.id,
                 usd_krw_rate=ctx["usd_krw_rate"],
-                current_wallet_krw=wallet_balance_krw(user),
+                current_wallet_krw=bal_krw,
+                display_usd=payment_usd,
                 limit=50,
             ),
             "pending_claim": user_pending_claim(db, user.id),
@@ -171,7 +177,7 @@ def account_ai_credits_pay_portone(
     payment_usd = user_prefers_usd_payments(user)
     if payment_usd and not portone_paypal_channel_key():
         return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=paypal_unconfigured", status_code=303)
-    return_url = f"{_AI_CREDITS_PATH}?ok=portone#topup-form"
+    return_url = f"{_AI_CREDITS_PATH}#topup-form"
     if payment_usd:
         usd_cents = parse_usd_input_to_cents(amount_minor)
         if usd_cents is None:
@@ -207,6 +213,9 @@ def account_ai_credits_pay_portone(
         )
     if not txn:
         return RedirectResponse(url=f"{_AI_CREDITS_PATH}?err=portone_error", status_code=303)
+    pid = (txn.payment_id or "").strip()
+    txn.return_url = f"{_AI_CREDITS_PATH}?portone_sync={quote(pid)}#topup-form"
+    db.add(txn)
     db.commit()
     return RedirectResponse(url=f"/payments/portone/checkout/{int(txn.id)}", status_code=303)
 

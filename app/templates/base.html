@@ -191,7 +191,7 @@
               <span class="nav-ko">요청 콘솔</span><span class="nav-en" style="display:none">Request Console</span>
             </a></li>
             {% endif %}
-            <li><a class="dropdown-item" href="/account">
+            <li><a class="dropdown-item" href="/account" data-account-profile-modal="1" data-skip-global-busy="1" role="button">
               <i class="fa-solid fa-id-card me-2"></i>
               <span class="nav-ko">회원 정보</span><span class="nav-en" style="display:none">Profile</span>
             </a></li>
@@ -305,6 +305,30 @@
 </footer>
 {% endblock site_footer %}
 
+{% if user %}
+<div class="modal fade" id="accountProfileModal" tabindex="-1" aria-hidden="true" aria-labelledby="accountProfileModalTitle">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content" style="background:var(--surface);border-color:var(--border);color:var(--text);">
+      <div class="modal-header border-bottom" style="border-color:var(--border)!important;">
+        <h5 class="modal-title" id="accountProfileModalTitle">
+          <span class="nav-ko">회원 정보</span><span class="nav-en" style="display:none">Account profile</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" data-i18n-aria-label="app.confirmCloseAria" aria-label="Close"></button>
+      </div>
+      <div class="modal-body account-profile-modal-body" id="accountProfileModalBody">
+        <div class="text-center py-4 text-muted">
+          <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+          <div class="small mt-2">
+            <span class="nav-ko">불러오는 중…</span>
+            <span class="nav-en" style="display:none">Loading…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- 브라우저 기본 confirm(출처 표시) 대신 사용 -->
 <div class="modal fade" id="appConfirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered">
@@ -327,6 +351,7 @@
 <script src="/static/js/i18n.js?v=20260529langflicker"></script>
 <script src="/static/js/abap_float_chat_resize.js?v=20260521"></script>
 <script src="/static/js/main.js?v=20260520aichatscroll"></script>
+{% if user %}<script src="/static/js/account-profile-modal.js?v=20260529profile-modal"></script>{% endif %}
 <script src="/static/js/abap_line_numbers.js?v=20260521"></script>
 {% include "partials/menu_list_view_script.html" %}
 {% block extra_js %}{% endblock %}

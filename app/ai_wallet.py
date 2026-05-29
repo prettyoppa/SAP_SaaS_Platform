@@ -112,6 +112,26 @@ def krw_from_usage_usd_micro(micro: int, usd_krw_rate: float) -> int:
     return int(round((int(micro) / 1_000_000.0) * float(usd_krw_rate)))
 
 
+def usd_cents_from_usd_micro(micro: int) -> int:
+    """USD micro (1e-6 USD) → USD cents."""
+    return max(0, int(round(int(micro) / 10_000.0)))
+
+
+def krw_to_usd_cents(krw: int, usd_krw_rate: float) -> int:
+    """KRW won → USD cents at platform rate (display only)."""
+    rate = float(usd_krw_rate or 1350.0)
+    if rate <= 0:
+        rate = 1350.0
+    return max(0, int(round((int(krw) / rate) * 100)))
+
+
+def wallet_balance_usd_display(wallet_krw: int, usd_krw_rate: float) -> float:
+    rate = float(usd_krw_rate or 1350.0)
+    if rate <= 0:
+        rate = 1350.0
+    return round(int(wallet_krw) / rate, 2)
+
+
 def topup_contribution_krw(claim) -> int:
     """누적 충전 산정용: 취소·반려 0, 확인 시 확인금액, 대기 시 신청금액."""
     if (getattr(claim, "plan_code", None) or "").strip() != WALLET_TOPUP_PLAN_CODE:
@@ -125,6 +145,14 @@ def topup_contribution_krw(claim) -> int:
             return max(0, int(raw))
         return int(getattr(claim, "amount_minor", 0) or 0)
     return int(getattr(claim, "amount_minor", 0) or 0)
+
+
+def portone_txn_credit_krw(txn, usd_krw_rate: float) -> int:
+    """PortOne paid txn → wallet credit in KRW (USD cents converted at platform rate)."""
+    amt = int(getattr(txn, "amount_minor", 0) or 0)
+    if (getattr(txn, "currency", None) or "KRW").strip().upper() == "USD":
+        return max(1, int(round((amt / 100.0) * float(usd_krw_rate or 1350.0))))
+    return amt
 
 
 def display_confirmed_amount_minor(claim) -> int:
@@ -143,6 +171,7 @@ def build_wallet_topup_history_rows(
     *,
     usd_krw_rate: float,
     current_wallet_krw: int | None = None,
+    display_usd: bool = False,
     limit: int = 50,
 ) -> list[dict]:
     """계좌이체 입금 신청(PaymentClaim) + PortOne 카드 충전(PaymentTransaction)을 시간순으로 합쳐 표시."""
@@ -182,51 +211,82 @@ def build_wallet_topup_history_rows(
         events.append((ts, "portone_card", t))
     events.sort(key=lambda x: (x[0], x[1], getattr(x[2], "id", 0)))
 
-    cum_topup = 0
+    cum_topup_krw = 0
+    cum_topup_usd_cents = 0
     built: list[dict] = []
     for ts, kind, obj in events:
         if kind == "bank_claim":
             claim = obj  # type: ignore[assignment]
-            cum_topup += topup_contribution_krw(claim)
+            contrib_krw = topup_contribution_krw(claim)
+            cum_topup_krw += contrib_krw
             until_ts = claim.created_at
             agg = aggregate_usage_for_user(db, int(user_id), until=until_ts)
-            cum_usage = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
-            built.append(
-                {
-                    "source": "bank_claim",
-                    "claim": claim,
-                    "txn": None,
-                    "applied_at": claim.created_at,
-                    "amount_minor": int(claim.amount_minor),
-                    "confirmed_at": claim.confirmed_at if (claim.status or "") == "confirmed" else None,
-                    "confirmed_amount_minor": display_confirmed_amount_minor(claim),
-                    "cum_topup_krw": cum_topup,
-                    "cum_usage_krw": cum_usage,
-                    "balance_krw": cum_topup - cum_usage,
-                }
-            )
+            cum_usage_krw = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
+            cum_usage_usd_cents = usd_cents_from_usd_micro(int(agg.get("total_usd_micro") or 0))
+            if display_usd:
+                cum_topup_usd_cents += krw_to_usd_cents(contrib_krw, usd_krw_rate)
+            row = {
+                "source": "bank_claim",
+                "claim": claim,
+                "txn": None,
+                "applied_at": claim.created_at,
+                "amount_currency": "KRW",
+                "amount_minor": int(claim.amount_minor),
+                "confirmed_at": claim.confirmed_at if (claim.status or "") == "confirmed" else None,
+                "confirmed_amount_minor": display_confirmed_amount_minor(claim),
+                "cum_topup_krw": cum_topup_krw,
+                "cum_usage_krw": cum_usage_krw,
+                "balance_krw": cum_topup_krw - cum_usage_krw,
+            }
         else:
             txn = obj  # type: ignore[assignment]
             amt = int(txn.amount_minor or 0)
-            cum_topup += amt
+            cur = (txn.currency or "KRW").strip().upper()
+            credit_krw = portone_txn_credit_krw(txn, usd_krw_rate)
+            cum_topup_krw += credit_krw
             agg = aggregate_usage_for_user(db, int(user_id), until=ts)
-            cum_usage = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
+            cum_usage_krw = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
+            cum_usage_usd_cents = usd_cents_from_usd_micro(int(agg.get("total_usd_micro") or 0))
             paid_at = txn.paid_at or ts
-            built.append(
-                {
-                    "source": "portone_card",
-                    "claim": None,
-                    "txn": txn,
-                    "applied_at": paid_at,
-                    "amount_minor": amt,
-                    "confirmed_at": paid_at,
-                    "confirmed_amount_minor": amt,
-                    "cum_topup_krw": cum_topup,
-                    "cum_usage_krw": cum_usage,
-                    "balance_krw": cum_topup - cum_usage,
-                }
-            )
+            if display_usd:
+                if cur == "USD":
+                    cum_topup_usd_cents += amt
+                else:
+                    cum_topup_usd_cents += krw_to_usd_cents(credit_krw, usd_krw_rate)
+            row = {
+                "source": "portone_card",
+                "claim": None,
+                "txn": txn,
+                "applied_at": paid_at,
+                "amount_currency": cur,
+                "amount_minor": amt,
+                "confirmed_at": paid_at,
+                "confirmed_amount_minor": amt,
+                "credit_krw": credit_krw,
+                "cum_topup_krw": cum_topup_krw,
+                "cum_usage_krw": cum_usage_krw,
+                "balance_krw": cum_topup_krw - cum_usage_krw,
+            }
+        if display_usd:
+            row["cum_topup_usd_cents"] = cum_topup_usd_cents
+            row["cum_usage_usd_cents"] = cum_usage_usd_cents
+            row["balance_usd_cents"] = cum_topup_usd_cents - cum_usage_usd_cents
+            if kind == "bank_claim":
+                row["amount_display_usd_cents"] = krw_to_usd_cents(int(row["amount_minor"]), usd_krw_rate)
+                conf_krw = int(row["confirmed_amount_minor"] or 0)
+                row["confirmed_display_usd_cents"] = (
+                    krw_to_usd_cents(conf_krw, usd_krw_rate) if row.get("confirmed_at") else 0
+                )
+            elif row.get("amount_currency") == "USD":
+                row["amount_display_usd_cents"] = int(row["amount_minor"])
+                row["confirmed_display_usd_cents"] = int(row["confirmed_amount_minor"] or 0)
+            else:
+                row["amount_display_usd_cents"] = krw_to_usd_cents(int(row["credit_krw"]), usd_krw_rate)
+                row["confirmed_display_usd_cents"] = row["amount_display_usd_cents"]
+        built.append(row)
     built.reverse()
     if built and current_wallet_krw is not None:
         built[0]["balance_krw"] = int(current_wallet_krw)
+        if display_usd:
+            built[0]["balance_usd_cents"] = krw_to_usd_cents(int(current_wallet_krw), usd_krw_rate)
     return built[:limit]

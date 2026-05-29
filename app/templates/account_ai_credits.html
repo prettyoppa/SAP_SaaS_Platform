@@ -12,8 +12,13 @@
         <span class="nav-ko">사용량 · 충전</span><span class="nav-en" style="display:none">Usage &amp; balance</span>
       </h2>
       <p class="text-muted small mb-0">
+        {% if payment_usd %}
+        <span class="nav-ko">AI 이용 잔액(USD 표시)과 사용 내역을 확인하고 PayPal로 충전할 수 있습니다.</span>
+        <span class="nav-en" style="display:none">View your AI balance and usage (USD), and top up with PayPal.</span>
+        {% else %}
         <span class="nav-ko">AI 이용 잔액과 사용 내역을 확인하고, 계좌이체로 충전할 수 있습니다.</span>
         <span class="nav-en" style="display:none">View your AI balance and usage, and top up via bank transfer (KRW, Korea).</span>
+        {% endif %}
       </p>
     </div>
     {% if billing_ok %}
@@ -28,8 +33,13 @@
         <span class="nav-ko">이용 가능 잔액</span><span class="nav-en" style="display:none">Available balance</span>
       </h3>
       <p class="display-6 fw-semibold mb-0 account-ai-credits-balance-amount">
+        {% if payment_usd %}
+        <span class="account-ai-credits-balance-currency" aria-hidden="true">$</span>
+        <span class="account-ai-credits-balance-value font-monospace">{{ '%.2f'|format(wallet_balance_usd) }}</span>
+        {% else %}
         <span class="account-ai-credits-balance-currency" aria-hidden="true">₩</span>
         <span class="account-ai-credits-balance-value font-monospace">{{ "{:,}".format(wallet_balance_krw) }}</span>
+        {% endif %}
       </p>
       {% if user.is_consultant and not user.is_admin %}
       <p class="small text-muted mb-0 mt-2">
@@ -40,7 +50,11 @@
     </section>
     <section id="topup-form" class="rfp-section account-ai-credits-panel account-ai-credits-topup">
       <h3 class="h6 mb-2 account-ai-credits-topup-title">
+        {% if payment_usd %}
+        <i class="fa-solid fa-dollar-sign me-2 text-primary"></i>
+        {% else %}
         <i class="fa-solid fa-won-sign me-2 text-primary"></i>
+        {% endif %}
         <span class="nav-ko">AI 크레딧 충전</span><span class="nav-en" style="display:none">Top up AI credits</span>
       </h3>
       {% if pending_claim %}
@@ -64,8 +78,8 @@
       </div>
       {% endif %}
       <p class="small text-muted mb-2">
-        <span class="nav-ko"><strong>PayPal</strong> (PortOne) — 결제 완료 시 USD 금액을 환율로 환산해 AI 크레딧(원화 잔액)에 반영합니다.</span>
-        <span class="nav-en" style="display:none"><strong>PayPal</strong> (PortOne) — your payment is converted at the platform rate and credited to your AI balance (shown in KRW).</span>
+        <span class="nav-ko"><strong>PayPal</strong> (PortOne) — 결제한 USD 금액이 플랫폼 환율로 AI 크레딧 잔액에 반영됩니다.</span>
+        <span class="nav-en" style="display:none"><strong>PayPal</strong> (PortOne) — your USD payment is credited to your AI balance at the platform exchange rate.</span>
       </p>
       <form method="post" action="/account/ai-credits/pay-portone" class="row g-2 align-items-end" id="ai-credits-portone-form" data-no-enter-submit="1">
         <div class="col-md-4">
@@ -74,7 +88,7 @@
           </label>
           <input type="text" id="portone-topup-amount" name="amount_minor" class="form-control form-control-sm font-monospace js-currency-usd"
                  inputmode="decimal" autocomplete="off"
-                 data-min-cents="{{ min_topup_usd_cents }}" placeholder="30.00"/>
+                 data-min-cents="{{ min_topup_usd_cents }}" placeholder=""/>
         </div>
         <div class="col-md-4">
           <button type="submit" class="btn btn-primary btn-sm" {% if not portone_ready|default(false) %}disabled{% endif %}>
@@ -184,18 +198,46 @@
             <tr>
               <td class="small">
                 {% if row.source == 'portone_card' %}
+                {% if row.amount_currency == 'USD' %}
+                <span class="badge bg-primary bg-opacity-25 text-dark"><span class="nav-ko">PayPal</span><span class="nav-en" style="display:none">PayPal</span></span>
+                {% else %}
                 <span class="badge bg-primary bg-opacity-25 text-dark"><span class="nav-ko">카드·간편결제</span><span class="nav-en" style="display:none">Card / wallet</span></span>
+                {% endif %}
                 {% else %}
                 <span class="badge bg-secondary bg-opacity-25"><span class="nav-ko">계좌이체</span><span class="nav-en" style="display:none">Bank transfer</span></span>
                 {% endif %}
               </td>
               <td class="small text-muted">{{ row.applied_at|local_dt_span }}</td>
-              <td class="text-end font-monospace small">₩{{ "{:,}".format(row.amount_minor) }}</td>
+              <td class="text-end font-monospace small">
+                {% if payment_usd %}
+                ${{ '%.2f'|format(row.amount_display_usd_cents / 100.0) }}
+                {% elif row.amount_currency == 'USD' %}
+                ${{ '%.2f'|format(row.amount_minor / 100.0) }}
+                {% else %}
+                ₩{{ "{:,}".format(row.amount_minor) }}
+                {% endif %}
+              </td>
               <td class="small text-muted">{% if row.confirmed_at %}{{ row.confirmed_at|local_dt_span }}{% else %}—{% endif %}</td>
-              <td class="text-end font-monospace small">{% if row.confirmed_at %}₩{{ "{:,}".format(row.confirmed_amount_minor) }}{% else %}—{% endif %}</td>
-              <td class="text-end font-monospace small">₩{{ "{:,}".format(row.cum_topup_krw) }}</td>
-              <td class="text-end font-monospace small">₩{{ "{:,}".format(row.cum_usage_krw) }}</td>
-              <td class="text-end font-monospace small">₩{{ "{:,}".format(row.balance_krw) }}</td>
+              <td class="text-end font-monospace small">
+                {% if row.confirmed_at %}
+                  {% if payment_usd %}
+                  ${{ '%.2f'|format(row.confirmed_display_usd_cents / 100.0) }}
+                  {% elif row.amount_currency == 'USD' %}
+                  ${{ '%.2f'|format(row.confirmed_amount_minor / 100.0) }}
+                  {% else %}
+                  ₩{{ "{:,}".format(row.confirmed_amount_minor) }}
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-end font-monospace small">
+                {% if payment_usd %}${{ '%.2f'|format(row.cum_topup_usd_cents / 100.0) }}{% else %}₩{{ "{:,}".format(row.cum_topup_krw) }}{% endif %}
+              </td>
+              <td class="text-end font-monospace small">
+                {% if payment_usd %}${{ '%.2f'|format(row.cum_usage_usd_cents / 100.0) }}{% else %}₩{{ "{:,}".format(row.cum_usage_krw) }}{% endif %}
+              </td>
+              <td class="text-end font-monospace small">
+                {% if payment_usd %}${{ '%.2f'|format(row.balance_usd_cents / 100.0) }}{% else %}₩{{ "{:,}".format(row.balance_krw) }}{% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -213,13 +255,13 @@
       </h3>
       <p class="small text-muted mb-3">
         <span class="nav-ko">AI 호출마다 토큰·모델 단가로 <strong>추정 비용</strong>을 누적합니다.</span>
-        <span class="nav-en" style="display:none">Each AI call adds an <strong>estimated cost</strong> from tokens and model rates, shown in KRW.</span>
+        <span class="nav-en" style="display:none">Each AI call adds an <strong>estimated cost</strong> from tokens and model rates{% if payment_usd %} (USD){% else %} (KRW){% endif %}.</span>
       </p>
       <div class="row g-2 mb-3 account-ai-credits-usage-summary">
         <div class="col-md-6">
           <div class="account-ai-credits-stat p-2 rounded h-100">
             <div class="small text-muted"><span class="nav-ko">누적 추정 사용</span><span class="nav-en" style="display:none">Estimated usage (total)</span></div>
-            <div class="font-monospace fw-semibold">₩{{ "{:,}".format(ai_usage_total_krw_int) }}</div>
+            <div class="font-monospace fw-semibold">{% if payment_usd %}${{ ai_usage_total_usd }}{% else %}₩{{ "{:,}".format(ai_usage_total_krw_int) }}{% endif %}</div>
           </div>
         </div>
         <div class="col-md-6">
@@ -264,7 +306,7 @@
               </td>
               <td class="small font-monospace text-break">{{ row.model_id }}</td>
               <td class="text-end small font-monospace text-nowrap">{{ row.tokens_display }}</td>
-              <td class="text-end small font-monospace text-nowrap">₩{{ "{:,}".format(row.krw_int) }}</td>
+              <td class="text-end small font-monospace text-nowrap">{% if payment_usd %}${{ row.usd }}{% else %}₩{{ "{:,}".format(row.krw_int) }}{% endif %}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -280,7 +322,7 @@
         <div class="ai-usage-stage-row mb-2">
           <div class="d-flex justify-content-between small mb-1">
             <span><span class="nav-ko">{{ row.label }}</span><span class="nav-en" style="display:none">{{ row.label_en }}</span></span>
-            <span class="font-monospace">₩{{ "{:,}".format(row.krw_int) }} <span class="text-muted">({{ row.pct }}%)</span></span>
+            <span class="font-monospace">{% if payment_usd %}${{ row.usd }}{% else %}₩{{ "{:,}".format(row.krw_int) }}{% endif %} <span class="text-muted">({{ row.pct }}%)</span></span>
           </div>
           <div class="progress" style="height: 8px;" role="presentation">
             <div class="progress-bar bg-primary" style="width: {% if row.pct > 100 %}100{% else %}{{ row.pct }}{% endif %}%;"></div>
@@ -300,4 +342,5 @@
 {% endblock %}
 {% block extra_js %}
 <script src="/static/js/ai-credits-topup.js?v=20260520usage-log"></script>
+<script src="/static/js/ai-credits-portone-sync.js?v=20260529portone-sync"></script>
 {% endblock %}

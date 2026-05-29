@@ -128,7 +128,19 @@
     el.classList.remove('d-none');
   }
 
+  function showPaymentBusy() {
+    if (typeof showGlobalBusy === 'function') {
+      showGlobalBusy({
+        titleKo: '결제 결과를 반영하는 중입니다…',
+        titleEn: 'Applying your payment…',
+        hintKo: '완전히 끝날 때까지 이 화면을 닫거나 이동하지 마세요.',
+        hintEn: 'Do not close or leave this page until processing finishes.',
+      });
+    }
+  }
+
   async function syncAfterPay() {
+    showPaymentBusy();
     var r = await fetch(completeUrl, {
       method: 'POST',
       credentials: 'same-origin',
@@ -145,6 +157,7 @@
       return true;
     }
     showErr((j && j.error) ? j.error : 'sync');
+    if (typeof hideGlobalBusy === 'function') hideGlobalBusy();
     return false;
   }
 
@@ -188,8 +201,10 @@
       await PortOne.loadPaymentUI(paypalRequestData(customerPhone), {
         onPaymentSuccess: async function () {
           try {
-            await syncAfterPay();
+            var ok = await syncAfterPay();
+            if (!ok && typeof hideGlobalBusy === 'function') hideGlobalBusy();
           } catch (syncErr) {
+            if (typeof hideGlobalBusy === 'function') hideGlobalBusy();
             showErr(String(syncErr && syncErr.message ? syncErr.message : syncErr));
           }
         },
@@ -244,8 +259,12 @@
         return;
       }
       var ok = await syncAfterPay();
-      if (!ok && btn) btn.disabled = false;
+      if (!ok) {
+        if (typeof hideGlobalBusy === 'function') hideGlobalBusy();
+        if (btn) btn.disabled = false;
+      }
     } catch (e) {
+      if (typeof hideGlobalBusy === 'function') hideGlobalBusy();
       showErr(String(e && e.message ? e.message : e));
       if (btn) btn.disabled = false;
     }
