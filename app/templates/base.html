@@ -201,9 +201,9 @@
         <div class="dropdown">
           <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
             {% if user.is_admin or user.is_consultant %}
-            <i class="fa-solid fa-star me-1"></i>{{ user.full_name }}
+            <i class="fa-solid fa-star me-1"></i>{{ user.email }}
             {% else %}
-            <i class="fa-solid fa-user-circle me-1"></i>{{ user.full_name }}
+            <i class="fa-solid fa-user-circle me-1"></i>{{ user.email }}
             {% endif %}
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
