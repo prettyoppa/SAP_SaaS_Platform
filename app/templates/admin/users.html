@@ -56,18 +56,6 @@
       </div>
       <div class="col-6 col-md-3">
         <div class="rfp-section h-100 p-3">
-          <div class="small text-muted mb-1">유료 활성 회원</div>
-          <div class="h4 mb-0">{{ summary.active_paid_members }}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="rfp-section h-100 p-3">
-          <div class="small text-muted mb-1">RFP 보유 회원</div>
-          <div class="h4 mb-0">{{ summary.members_with_rfp }}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="rfp-section h-100 p-3">
           <div class="small text-muted mb-1">활동 기록 보유</div>
           <div class="h4 mb-0">{{ summary.members_with_any_activity }}</div>
         </div>
@@ -140,16 +128,10 @@
               <th>회사</th>
               <th style="width:90px">관리자</th>
               <th style="width:110px">컨설턴트</th>
+              <th style="width:100px">테스트계정</th>
               <th style="width:90px">인증</th>
               <th class="admin-users-actions-col" style="min-width:140px">휴대폰·번호공유</th>
               <th style="width:120px">가입일</th>
-              <th style="width:110px">RFP</th>
-              <th style="width:110px">RFP 제출</th>
-              <th style="width:110px">RFP 납품</th>
-              <th style="width:110px">유료 활성</th>
-              <th style="width:110px">연동</th>
-              <th style="width:110px">ABAP 분석</th>
-              <th style="width:110px">총 활동</th>
               <th class="admin-users-actions-col">구독·한도</th>
               <th class="admin-users-actions-col">컨설턴트 프로필</th>
               <th class="admin-users-actions-col">컨설턴트 권한</th>
@@ -183,6 +165,18 @@
                 <span class="badge bg-secondary">N</span>
                 {% endif %}
               </td>
+              <td>
+                <form method="post" action="/admin/users/{{ u.id }}/test-account-toggle" class="d-inline"
+                      data-app-confirm="이 계정의 테스트계정 표시를 변경할까요? 테스트계정이 만든 요청은 비테스트 사용자(관리자 제외)에게 보이지 않습니다.">
+                  <input type="hidden" name="q" value="{{ q or '' }}">
+                  <input type="hidden" name="verified" value="{{ verified }}">
+                  <input type="hidden" name="pending" value="{{ pending }}">
+                  <input type="hidden" name="user_kind" value="{{ user_kind }}">
+                  <button type="submit" class="btn btn-sm {% if u.is_test_account %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %}">
+                    {% if u.is_test_account %}Y{% else %}N{% endif %}
+                  </button>
+                </form>
+              </td>
               <td>{% if u.email_verified %}<span class="badge" style="background:rgba(34,197,94,.2);color:#4ade80">Y</span>{% else %}<span class="badge bg-secondary">N</span>{% endif %}</td>
               <td class="admin-users-actions-col small">
                 {% if u.phone_number %}
@@ -209,13 +203,6 @@
                 </form>
               </td>
               <td class="small text-muted">{% if u.created_at %}{{ u.created_at|local_dt_span('date') }}{% else %}—{% endif %}</td>
-              <td><span class="badge bg-secondary">{{ row.rfp_count }}</span></td>
-              <td><span class="badge bg-secondary">{{ row.rfp_submitted_count }}</span></td>
-              <td><span class="badge {% if row.rfp_delivery_count > 0 %}bg-success{% else %}bg-secondary{% endif %}">{{ row.rfp_delivery_count }}</span></td>
-              <td><span class="badge {% if row.rfp_paid_active_count > 0 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ row.rfp_paid_active_count }}</span></td>
-              <td><span class="badge bg-secondary">{{ row.integration_count }}</span></td>
-              <td><span class="badge bg-secondary">{{ row.abap_analysis_count }}</span></td>
-              <td><span class="badge {% if row.total_activity_count > 0 %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ row.total_activity_count }}</span></td>
               <td class="admin-users-actions-col">
                 <a class="btn btn-sm btn-outline-secondary" href="/admin/users/{{ u.id }}/subscription">구독</a>
               </td>
@@ -272,6 +259,55 @@
       </div>
       {% if not rows %}
       <p class="text-muted mb-0">등록된 사용자가 없습니다.</p>
+      {% endif %}
+    </div>
+
+    <div class="rfp-section admin-users-table-wrap mt-4">
+      <h5 class="mb-2"><i class="fa-solid fa-chart-simple me-2 text-info"></i>회원별 요청·납품 실적</h5>
+      <p class="text-muted small mb-3">
+        위 필터와 동일한 회원 목록 기준입니다. <strong>요청</strong>은 해당 카테고리 전체 건수, <strong>납품</strong>은 FS·개발코드 단계가 생성 중(<code>generating</code>) 또는 완료(<code>ready</code>)인 건수입니다.
+      </p>
+      <div class="table-responsive admin-users-table-responsive">
+        <table class="table table-hover align-middle admin-table admin-users-table">
+          <thead>
+            <tr>
+              <th style="width:70px">ID</th>
+              <th>이메일</th>
+              <th>이름</th>
+              <th class="text-center" colspan="2">신규 개발</th>
+              <th class="text-center" colspan="2">분석·개선</th>
+              <th class="text-center" colspan="2">연동 개발</th>
+            </tr>
+            <tr class="small text-muted">
+              <th colspan="3"></th>
+              <th class="text-center" style="width:90px">요청</th>
+              <th class="text-center" style="width:90px">납품</th>
+              <th class="text-center" style="width:90px">요청</th>
+              <th class="text-center" style="width:90px">납품</th>
+              <th class="text-center" style="width:90px">요청</th>
+              <th class="text-center" style="width:90px">납품</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in activity_rows %}
+            {% set u = row.user %}
+            <tr>
+              <td class="text-muted small">{{ u.id }}</td>
+              <td class="font-monospace small">{{ u.email }}</td>
+              <td>{{ u.full_name }}</td>
+              <td class="text-center"><span class="badge bg-secondary">{{ row.rfp_requests }}</span></td>
+              <td class="text-center"><span class="badge {% if row.rfp_deliveries > 0 %}bg-success{% else %}bg-secondary{% endif %}">{{ row.rfp_deliveries }}</span></td>
+              <td class="text-center"><span class="badge bg-secondary">{{ row.analysis_requests }}</span></td>
+              <td class="text-center"><span class="badge {% if row.analysis_deliveries > 0 %}bg-success{% else %}bg-secondary{% endif %}">{{ row.analysis_deliveries }}</span></td>
+              <td class="text-center"><span class="badge bg-secondary">{{ row.integration_requests }}</span></td>
+              <td class="text-center"><span class="badge {% if row.integration_deliveries > 0 %}bg-success{% else %}bg-secondary{% endif %}">{{ row.integration_deliveries }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if not activity_rows %}
+      <p class="text-muted mb-0">표시할 회원이 없습니다.</p>
       {% endif %}
     </div>
   </div>

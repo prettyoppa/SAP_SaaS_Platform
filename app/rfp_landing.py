@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import models
 from .delivered_code_package import rfp_delivered_body_ready
+from .test_account_visibility import filter_query_exclude_test_owners
 
 DEFAULT_SERVICE_ABAP_INTRO_MD_KO = """표준 RFP(개발제안요청)를 제출하면 AI 에이전트가 심층 인터뷰를 진행하고, 무료 개발 제안서를 생성합니다.
 프로그램 ID·SAP 모듈·개발 유형을 중심으로 한 전형적인 ABAP 과제에 적합합니다.
@@ -48,11 +49,21 @@ def parse_slashed_date(value: Optional[str]) -> Optional[date]:
     return None
 
 
-def _rfp_base_query(db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False):
+def _rfp_base_query(
+    db: Session,
+    *,
+    admin: bool,
+    user_id: int,
+    consultant_matched: bool = False,
+    viewer=None,
+):
     """관리자: 전체 RFP(+owner·messages); 일반: 본인만; 컨설턴트 메뉴: 본인+매칭 건."""
     q = db.query(models.RFP).options(joinedload(models.RFP.messages))
     if admin:
-        return q.options(joinedload(models.RFP.owner))
+        q = q.options(joinedload(models.RFP.owner))
+        if viewer is not None:
+            q = filter_query_exclude_test_owners(q, models.RFP.user_id, viewer)
+        return q
     if consultant_matched:
         ro = models.RequestOffer
         return q.options(joinedload(models.RFP.owner)).filter(
@@ -84,10 +95,21 @@ def _apply_title_and_created_filters(q, *, title_q: str | None, date_from: date 
 
 
 def rfp_landing_aggregate(
-    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
+    db: Session,
+    *,
+    admin: bool,
+    user_id: int,
+    consultant_matched: bool = False,
+    viewer=None,
 ) -> tuple[dict[str, int], dict[str, list[models.RFP]]]:
     """집계·버킷 분류(search 미적용 — 타일 카운터용)."""
-    q = _rfp_base_query(db, admin=admin, user_id=user_id, consultant_matched=consultant_matched)
+    q = _rfp_base_query(
+        db,
+        admin=admin,
+        user_id=user_id,
+        consultant_matched=consultant_matched,
+        viewer=viewer,
+    )
     rfps = q.order_by(models.RFP.created_at.desc()).all()
     buckets: dict[str, list[models.RFP]] = {k: [] for k in BUCKET_ORDER}
     for rfp in rfps:
@@ -149,9 +171,16 @@ def filtered_rfp_list_for_landing(
     date_from: date | None,
     date_to: date | None,
     consultant_matched: bool = False,
+    viewer=None,
 ) -> list[models.RFP]:
     """타일 선택 후 목록(search·날짜 반영); bucket은 'all' 또는 BUCKET_ORDER 키."""
-    q = _rfp_base_query(db, admin=admin, user_id=user_id, consultant_matched=consultant_matched)
+    q = _rfp_base_query(
+        db,
+        admin=admin,
+        user_id=user_id,
+        consultant_matched=consultant_matched,
+        viewer=viewer,
+    )
     q = _apply_title_and_created_filters(q, title_q=title_q, date_from=date_from, date_to=date_to)
     rfps = q.order_by(models.RFP.created_at.desc()).all()
     if bucket == "all":

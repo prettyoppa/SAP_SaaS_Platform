@@ -15,6 +15,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     is_consultant = Column(Boolean, default=False)
+    # True: 내부 테스트·QA — 요청 콘솔 등에서 전체 조회. 비테스트 사용자에게는 이 계정의 요청 숨김.
+    is_test_account = Column(Boolean, default=False)
     consultant_application_pending = Column(Boolean, default=False)
     email_verified = Column(Boolean, default=True)  # 기존 행은 마이그레이션에서 true
     phone_number = Column(String(32), nullable=True)

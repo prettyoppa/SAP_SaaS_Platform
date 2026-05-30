@@ -15,6 +15,7 @@ from .delivered_code_package import (
     parse_delivered_code_payload,
 )
 from .request_hub_access import abap_analysis_consultant_read_scope
+from .test_account_visibility import filter_query_exclude_test_owners
 from .rfp_landing import (
     BUCKET_ORDER,
     TILE_ORDER_WITH_ALL,
@@ -173,7 +174,12 @@ def integration_menu_bucket(ir: models.IntegrationRequest) -> str:
 
 
 def _abap_analysis_base_query(
-    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
+    db: Session,
+    *,
+    admin: bool,
+    user_id: int,
+    consultant_matched: bool = False,
+    viewer=None,
 ):
     q = (
         db.query(models.AbapAnalysisRequest)
@@ -183,6 +189,8 @@ def _abap_analysis_base_query(
         )
     )
     if admin:
+        if viewer is not None:
+            q = filter_query_exclude_test_owners(q, models.AbapAnalysisRequest.user_id, viewer)
         return q
     if consultant_matched:
         return q.filter(
@@ -213,10 +221,19 @@ def _apply_abap_analysis_filters(q, *, title_q: str | None, date_from: date | No
 
 
 def abap_analysis_menu_aggregate(
-    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
+    db: Session,
+    *,
+    admin: bool,
+    user_id: int,
+    consultant_matched: bool = False,
+    viewer=None,
 ) -> tuple[dict[str, int], dict[str, list[models.AbapAnalysisRequest]]]:
     q = _abap_analysis_base_query(
-        db, admin=admin, user_id=user_id, consultant_matched=consultant_matched
+        db,
+        admin=admin,
+        user_id=user_id,
+        consultant_matched=consultant_matched,
+        viewer=viewer,
     )
     rows = q.order_by(models.AbapAnalysisRequest.created_at.desc()).all()
     buckets: dict[str, list[models.AbapAnalysisRequest]] = {k: [] for k in BUCKET_ORDER}
@@ -238,9 +255,14 @@ def filtered_abap_analysis_menu_rows(
     date_from: date | None,
     date_to: date | None,
     consultant_matched: bool = False,
+    viewer=None,
 ) -> list[models.AbapAnalysisRequest]:
     q = _abap_analysis_base_query(
-        db, admin=admin, user_id=user_id, consultant_matched=consultant_matched
+        db,
+        admin=admin,
+        user_id=user_id,
+        consultant_matched=consultant_matched,
+        viewer=viewer,
     )
     q = _apply_abap_analysis_filters(q, title_q=title_q, date_from=date_from, date_to=date_to)
     rows = q.order_by(models.AbapAnalysisRequest.created_at.desc()).all()
@@ -250,7 +272,12 @@ def filtered_abap_analysis_menu_rows(
 
 
 def _integration_base_query(
-    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
+    db: Session,
+    *,
+    admin: bool,
+    user_id: int,
+    consultant_matched: bool = False,
+    viewer=None,
 ):
     q = db.query(models.IntegrationRequest).options(
         joinedload(models.IntegrationRequest.owner),
@@ -258,6 +285,8 @@ def _integration_base_query(
         joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
     )
     if admin:
+        if viewer is not None:
+            q = filter_query_exclude_test_owners(q, models.IntegrationRequest.user_id, viewer)
         return q
     if consultant_matched:
         ro = models.RequestOffer
@@ -288,10 +317,19 @@ def _apply_integration_filters(q, *, title_q: str | None, date_from: date | None
 
 
 def integration_menu_aggregate(
-    db: Session, *, admin: bool, user_id: int, consultant_matched: bool = False
+    db: Session,
+    *,
+    admin: bool,
+    user_id: int,
+    consultant_matched: bool = False,
+    viewer=None,
 ) -> tuple[dict[str, int], dict[str, list[models.IntegrationRequest]]]:
     q = _integration_base_query(
-        db, admin=admin, user_id=user_id, consultant_matched=consultant_matched
+        db,
+        admin=admin,
+        user_id=user_id,
+        consultant_matched=consultant_matched,
+        viewer=viewer,
     )
     rows = q.order_by(models.IntegrationRequest.created_at.desc()).all()
     buckets: dict[str, list[models.IntegrationRequest]] = {k: [] for k in BUCKET_ORDER}
@@ -313,9 +351,14 @@ def filtered_integration_menu_rows(
     date_from: date | None,
     date_to: date | None,
     consultant_matched: bool = False,
+    viewer=None,
 ) -> list[models.IntegrationRequest]:
     q = _integration_base_query(
-        db, admin=admin, user_id=user_id, consultant_matched=consultant_matched
+        db,
+        admin=admin,
+        user_id=user_id,
+        consultant_matched=consultant_matched,
+        viewer=viewer,
     )
     q = _apply_integration_filters(q, title_q=title_q, date_from=date_from, date_to=date_to)
     rows = q.order_by(models.IntegrationRequest.created_at.desc()).all()

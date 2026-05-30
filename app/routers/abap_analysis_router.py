@@ -305,23 +305,29 @@ def _require_user(request: Request, db: Session) -> models.User:
 
 def _query_abap_readable(db: Session, user: models.User):
     """GET 상세 Console·조회 화면: 관리자는 전체; 컨설턴트는 본인·오퍼 건만; 일반은 본인."""
+    from ..test_account_visibility import filter_query_exclude_test_owners
+
     q = db.query(models.AbapAnalysisRequest)
     if getattr(user, "is_admin", False):
         return q
     if getattr(user, "is_consultant", False):
-        return q.filter(
+        q = q.filter(
             or_(
                 models.AbapAnalysisRequest.user_id == user.id,
                 abap_analysis_consultant_read_scope(user.id),
             )
         )
+        return filter_query_exclude_test_owners(q, models.AbapAnalysisRequest.user_id, user)
     return q.filter(models.AbapAnalysisRequest.user_id == user.id)
 
 
 def _query_abap_console_embed(db: Session, user: models.User):
     """요청 Console iframe(읽기 전용): 관리자·컨설턴트는 목록과 동일하게 전체 분석 요청 미리보기."""
     if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
-        return db.query(models.AbapAnalysisRequest)
+        from .test_account_visibility import filter_query_exclude_test_owners
+
+        q = db.query(models.AbapAnalysisRequest)
+        return filter_query_exclude_test_owners(q, models.AbapAnalysisRequest.user_id, user)
     return _query_abap_readable(db, user)
 
 
@@ -341,11 +347,12 @@ def _get_abap_row_for_requirement_media(
 ) -> Optional[models.AbapAnalysisRequest]:
     """요구사항 인라인·캡처 이미지 — 상세·요청 Console(읽기 전용)과 동일한 조회 범위."""
     if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
-        return (
-            db.query(models.AbapAnalysisRequest)
+        row = (
+            _query_abap_console_embed(db, user)
             .filter(models.AbapAnalysisRequest.id == req_id)
             .first()
         )
+        return row
     return _get_abap_row_readable(db, user, req_id)
 
 

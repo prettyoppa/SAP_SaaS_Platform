@@ -97,7 +97,7 @@ from ..request_hub_access import (
 )
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
-from ..templates_config import layout_template_from_embed_query, templates
+from ..test_account_visibility import block_test_owned_for_viewer
 from ..form_core_validation import (
     CORE_FIELDS_INCOMPLETE_ERROR,
     description_plain_for_validate,
@@ -458,7 +458,7 @@ def _console_row_for_offer_target(
             .filter(models.RFP.id == req_id)
             .first()
         )
-        if not row:
+        if not row or block_test_owned_for_viewer(db, viewer, int(row.user_id)):
             return None
         return _console_row_from_rfp(row, viewer)
     if k == "analysis":
@@ -468,7 +468,7 @@ def _console_row_for_offer_target(
             .filter(models.AbapAnalysisRequest.id == req_id)
             .first()
         )
-        if not row:
+        if not row or block_test_owned_for_viewer(db, viewer, int(row.user_id)):
             return None
         return _console_row_from_analysis(row, viewer)
     if k == "integration":
@@ -478,7 +478,7 @@ def _console_row_for_offer_target(
             .filter(models.IntegrationRequest.id == req_id)
             .first()
         )
-        if not row:
+        if not row or block_test_owned_for_viewer(db, viewer, int(row.user_id)):
             return None
         return _console_row_from_integration(row, viewer)
     return None
@@ -914,9 +914,9 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
     date_from_dt = parse_slashed_date(date_from_raw)
     date_to_dt = parse_slashed_date(date_to_raw)
 
-    rfp_counts, _ = rfp_landing_aggregate(db, admin=True, user_id=user.id)
-    ana_counts, _ = abap_analysis_menu_aggregate(db, admin=True, user_id=user.id)
-    int_counts, _ = integration_menu_aggregate(db, admin=True, user_id=user.id)
+    rfp_counts, _ = rfp_landing_aggregate(db, admin=True, user_id=user.id, viewer=user)
+    ana_counts, _ = abap_analysis_menu_aggregate(db, admin=True, user_id=user.id, viewer=user)
+    int_counts, _ = integration_menu_aggregate(db, admin=True, user_id=user.id, viewer=user)
 
     def _count_pack(d: dict[str, int]) -> dict[str, int]:
         return {"all": int(sum(d.values())), **{k: int(d.get(k, 0)) for k in _REQ_CONSOLE_BUCKETS if k != "all"}}
@@ -962,6 +962,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             title_q=title_search,
             date_from=date_from_dt,
             date_to=date_to_dt,
+            viewer=user,
         )
         rows.extend(_console_row_from_rfp(r, user) for r in rfps)
     if kind in ("all", "analysis"):
@@ -973,6 +974,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             title_q=title_search,
             date_from=date_from_dt,
             date_to=date_to_dt,
+            viewer=user,
         )
         rows.extend(_console_row_from_analysis(r, user) for r in analyses)
     if kind in ("all", "integration"):
@@ -984,6 +986,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             title_q=title_search,
             date_from=date_from_dt,
             date_to=date_to_dt,
+            viewer=user,
         )
         rows.extend(_console_row_from_integration(r, user) for r in irs)
     if kind == "offer":

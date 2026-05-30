@@ -11,6 +11,7 @@ from . import models
 from .as_built_deliverable import as_built_entry
 from .integration_hub import integration_hub_url
 from .request_hub_access import consultant_has_request_offer, menu_abap_detail_url, menu_entity_hub_url
+from .test_account_visibility import block_test_owned_for_viewer
 from .proposal_lifecycle import has_generated_fs_material
 from .rfp_hub import rfp_hub_url
 from .rfp_reference_code import normalize_reference_code_payload
@@ -346,7 +347,10 @@ def rfp_for_hub_readonly_embed(
             preload.append(joinedload(models.RFP.fs_supplements))
         if load_followup_messages:
             preload.append(joinedload(models.RFP.followup_messages))
-        return q.options(*preload).first()
+        rfp = q.options(*preload).first()
+        if not rfp or block_test_owned_for_viewer(db, user, int(rfp.user_id)):
+            return None
+        return rfp
     return rfp_for_owner_or_admin(
         db,
         user=user,

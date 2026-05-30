@@ -8,7 +8,7 @@ from sqlalchemy import exists, or_
 from sqlalchemy.orm import Query, Session
 
 from . import models
-from .paid_tier import paid_delivery_pipeline_started, paid_engagement_is_active, user_can_operate_delivery
+from .test_account_visibility import block_test_owned_for_viewer, filter_query_exclude_test_owners
 from .request_offer_lifecycle import OFFER_STATUS_MATCHED, OFFER_STATUS_OFFERED
 
 
@@ -126,6 +126,8 @@ def user_can_view_request_deliverables(
 ) -> bool:
     """FS·개발코드 납품 조회: 요청자(결제/파이프라인 규칙), 매칭 컨설턴트, 관리자만."""
     if not user:
+        return False
+    if block_test_owned_for_viewer(db, user, int(owner_user_id)):
         return False
     if getattr(user, "is_admin", False):
         return True
@@ -318,14 +320,16 @@ def apply_integration_hub_read_access(q: Query, user, *, console_embed: bool = F
     """
     if getattr(user, "is_admin", False):
         return q
-    if console_embed and getattr(user, "is_consultant", False):
-        return q
     ro = models.RequestOffer
     offer_ok = exists().where(
         ro.request_kind == "integration",
         ro.request_id == models.IntegrationRequest.id,
         ro.consultant_user_id == user.id,
     )
-    if getattr(user, "is_consultant", False):
-        return q.filter(or_(models.IntegrationRequest.user_id == user.id, offer_ok))
-    return q.filter(models.IntegrationRequest.user_id == user.id)
+    if console_embed and getattr(user, "is_consultant", False):
+        q = q
+    elif getattr(user, "is_consultant", False):
+        q = q.filter(or_(models.IntegrationRequest.user_id == user.id, offer_ok))
+    else:
+        q = q.filter(models.IntegrationRequest.user_id == user.id)
+    return filter_query_exclude_test_owners(q, models.IntegrationRequest.user_id, user)

@@ -321,6 +321,63 @@ def admin_agent_playbook_toggle(entry_id: int, request: Request, db: Session = D
 
 # ── 사용자 삭제 (테스트용: 동일 이메일 재가입) ───────────
 
+_DELIVERY_STAGE_STATUSES = ("generating", "ready")
+
+
+def _delivery_stage_filter(model) -> object:
+    return or_(
+        model.fs_status.in_(_DELIVERY_STAGE_STATUSES),
+        model.delivered_code_status.in_(_DELIVERY_STAGE_STATUSES),
+    )
+
+
+def _count_requests_by_user(
+    db: Session,
+    model,
+    user_ids: list[int],
+    *,
+    delivery_only: bool = False,
+) -> dict[int, int]:
+    if not user_ids:
+        return {}
+    q = db.query(model.user_id, func.count(model.id)).filter(model.user_id.in_(user_ids))
+    if delivery_only:
+        q = q.filter(_delivery_stage_filter(model))
+    out: dict[int, int] = {}
+    for uid, n in q.group_by(model.user_id).all():
+        out[int(uid)] = int(n or 0)
+    return out
+
+
+def _admin_user_activity_stats(db: Session, user_ids: list[int]) -> dict[int, dict[str, int]]:
+    empty = {
+        "rfp_requests": 0,
+        "rfp_deliveries": 0,
+        "analysis_requests": 0,
+        "analysis_deliveries": 0,
+        "integration_requests": 0,
+        "integration_deliveries": 0,
+    }
+    if not user_ids:
+        return {}
+    rfp_all = _count_requests_by_user(db, models.RFP, user_ids)
+    rfp_del = _count_requests_by_user(db, models.RFP, user_ids, delivery_only=True)
+    ana_all = _count_requests_by_user(db, models.AbapAnalysisRequest, user_ids)
+    ana_del = _count_requests_by_user(db, models.AbapAnalysisRequest, user_ids, delivery_only=True)
+    int_all = _count_requests_by_user(db, models.IntegrationRequest, user_ids)
+    int_del = _count_requests_by_user(db, models.IntegrationRequest, user_ids, delivery_only=True)
+    stats: dict[int, dict[str, int]] = {}
+    for uid in user_ids:
+        stats[int(uid)] = {
+            "rfp_requests": rfp_all.get(int(uid), 0),
+            "rfp_deliveries": rfp_del.get(int(uid), 0),
+            "analysis_requests": ana_all.get(int(uid), 0),
+            "analysis_deliveries": ana_del.get(int(uid), 0),
+            "integration_requests": int_all.get(int(uid), 0),
+            "integration_deliveries": int_del.get(int(uid), 0),
+        }
+    return stats
+
 
 def _admin_users_rows_and_summary(
     db: Session,
@@ -360,85 +417,15 @@ def _admin_users_rows_and_summary(
     users = q_users.order_by(models.User.id.desc()).all()
     user_ids = [u.id for u in users]
 
-    rfp_counts: dict[int, int] = {}
-    rfp_submitted_counts: dict[int, int] = {}
-    rfp_delivery_counts: dict[int, int] = {}
-    rfp_paid_active_counts: dict[int, int] = {}
-    integration_counts: dict[int, int] = {}
-    abap_analysis_counts: dict[int, int] = {}
-
-    if user_ids:
-        for uid, n in (
-            db.query(models.RFP.user_id, func.count(models.RFP.id))
-            .filter(models.RFP.user_id.in_(user_ids))
-            .group_by(models.RFP.user_id)
-            .all()
-        ):
-            rfp_counts[int(uid)] = int(n or 0)
-        for uid, n in (
-            db.query(models.RFP.user_id, func.count(models.RFP.id))
-            .filter(
-                models.RFP.user_id.in_(user_ids),
-                models.RFP.status != "draft",
-            )
-            .group_by(models.RFP.user_id)
-            .all()
-        ):
-            rfp_submitted_counts[int(uid)] = int(n or 0)
-        for uid, n in (
-            db.query(models.RFP.user_id, func.count(models.RFP.id))
-            .filter(
-                models.RFP.user_id.in_(user_ids),
-                or_(
-                    models.RFP.fs_status.in_(("generating", "ready")),
-                    models.RFP.delivered_code_status.in_(("generating", "ready")),
-                ),
-            )
-            .group_by(models.RFP.user_id)
-            .all()
-        ):
-            rfp_delivery_counts[int(uid)] = int(n or 0)
-        for uid, n in (
-            db.query(models.RFP.user_id, func.count(models.RFP.id))
-            .filter(
-                models.RFP.user_id.in_(user_ids),
-                models.RFP.paid_engagement_status == "active",
-            )
-            .group_by(models.RFP.user_id)
-            .all()
-        ):
-            rfp_paid_active_counts[int(uid)] = int(n or 0)
-        for uid, n in (
-            db.query(models.IntegrationRequest.user_id, func.count(models.IntegrationRequest.id))
-            .filter(models.IntegrationRequest.user_id.in_(user_ids))
-            .group_by(models.IntegrationRequest.user_id)
-            .all()
-        ):
-            integration_counts[int(uid)] = int(n or 0)
-        for uid, n in (
-            db.query(models.AbapAnalysisRequest.user_id, func.count(models.AbapAnalysisRequest.id))
-            .filter(models.AbapAnalysisRequest.user_id.in_(user_ids))
-            .group_by(models.AbapAnalysisRequest.user_id)
-            .all()
-        ):
-            abap_analysis_counts[int(uid)] = int(n or 0)
+    activity_by_user = _admin_user_activity_stats(db, user_ids)
 
     rows: list[dict] = []
+    activity_rows: list[dict] = []
     for u in users:
         uid = int(u.id)
-        row = {
-            "user": u,
-            "rfp_count": rfp_counts.get(uid, 0),
-            "rfp_submitted_count": rfp_submitted_counts.get(uid, 0),
-            "rfp_delivery_count": rfp_delivery_counts.get(uid, 0),
-            "rfp_paid_active_count": rfp_paid_active_counts.get(uid, 0),
-            "integration_count": integration_counts.get(uid, 0),
-            "abap_analysis_count": abap_analysis_counts.get(uid, 0),
-        }
-        row["total_activity_count"] = (
-            row["rfp_count"] + row["integration_count"] + row["abap_analysis_count"]
-        )
-        rows.append(row)
+        rows.append({"user": u})
+        st = activity_by_user.get(uid, {})
+        activity_rows.append({"user": u, **st})
 
     total_users = db.query(func.count(models.User.id)).scalar() or 0
     verified_users = db.query(func.count(models.User.id)).filter(models.User.email_verified.is_(True)).scalar() or 0
@@ -447,15 +434,6 @@ def _admin_users_rows_and_summary(
         .filter(models.User.pending_account_deletion.is_(True))
         .scalar()
         or 0
-    )
-    active_paid_members = (
-        db.query(func.count(func.distinct(models.RFP.user_id)))
-        .filter(models.RFP.paid_engagement_status == "active")
-        .scalar()
-        or 0
-    )
-    members_with_rfp = (
-        db.query(func.count(func.distinct(models.RFP.user_id))).scalar() or 0
     )
     members_with_any_activity = (
         db.query(func.count(func.distinct(models.User.id)))
@@ -476,12 +454,10 @@ def _admin_users_rows_and_summary(
         "total_users": int(total_users),
         "verified_users": int(verified_users),
         "pending_users": int(pending_users),
-        "active_paid_members": int(active_paid_members),
-        "members_with_rfp": int(members_with_rfp),
         "members_with_any_activity": int(members_with_any_activity),
         "visible_users": len(users),
     }
-    return rows, summary
+    return rows, activity_rows, summary
 
 
 @router.get("/users", response_class=HTMLResponse)
@@ -500,7 +476,7 @@ def admin_users(
         return RedirectResponse(url="/", status_code=302)
 
     qq = (q or "").strip()
-    rows, summary = _admin_users_rows_and_summary(db, qq, verified, pending, user_kind)
+    rows, activity_rows, summary = _admin_users_rows_and_summary(db, qq, verified, pending, user_kind)
 
     return templates.TemplateResponse(
         request,
@@ -509,6 +485,7 @@ def admin_users(
             "request": request,
             "user": user,
             "rows": rows,
+            "activity_rows": activity_rows,
             "deleted": deleted == "1",
             "err": err,
             "summary": summary,
@@ -534,7 +511,7 @@ def admin_users_export_xlsx(
         return RedirectResponse(url="/", status_code=302)
 
     qq = (q or "").strip()
-    rows, _summary = _admin_users_rows_and_summary(db, qq, verified, pending, user_kind)
+    rows, activity_rows, _summary = _admin_users_rows_and_summary(db, qq, verified, pending, user_kind)
 
     wb = Workbook()
     ws = wb.active
@@ -546,25 +523,27 @@ def admin_users_export_xlsx(
         "회사",
         "관리자",
         "컨설턴트",
+        "테스트계정",
         "이메일인증",
         "휴대폰",
         "휴대폰인증",
         "가입일(UTC)",
         "구독플랜",
         "탈퇴유예",
-        "RFP",
-        "RFP제출",
-        "RFP납품단계",
-        "유료활성RFP",
-        "연동",
-        "ABAP분석",
-        "총활동",
+        "신규개발_요청",
+        "신규개발_납품",
+        "분석개선_요청",
+        "분석개선_납품",
+        "연동개발_요청",
+        "연동개발_납품",
         "컨설턴트프로필첨부",
     ]
     ws.append(headers)
 
+    activity_by_id = {int(r["user"].id): r for r in activity_rows}
     for row in rows:
         u = row["user"]
+        act = activity_by_id.get(int(u.id), {})
         if u.is_admin:
             cons = "관리자"
         elif u.is_consultant:
@@ -586,20 +565,19 @@ def admin_users_export_xlsx(
                 u.company or "",
                 "Y" if u.is_admin else "N",
                 cons,
+                "Y" if getattr(u, "is_test_account", False) else "N",
                 "Y" if u.email_verified else "N",
                 phone,
                 phone_v,
-                "Y" if getattr(u, "allow_shared_phone", False) else "N",
                 created,
                 plan,
                 "Y" if getattr(u, "pending_account_deletion", False) else "N",
-                row["rfp_count"],
-                row["rfp_submitted_count"],
-                row["rfp_delivery_count"],
-                row["rfp_paid_active_count"],
-                row["integration_count"],
-                row["abap_analysis_count"],
-                row["total_activity_count"],
+                act.get("rfp_requests", 0),
+                act.get("rfp_deliveries", 0),
+                act.get("analysis_requests", 0),
+                act.get("analysis_deliveries", 0),
+                act.get("integration_requests", 0),
+                act.get("integration_deliveries", 0),
                 has_prof,
             ]
         )
@@ -657,6 +635,31 @@ def admin_user_toggle_allow_shared_phone(
     if not target:
         return RedirectResponse(url="/admin/users", status_code=302)
     target.allow_shared_phone = not bool(getattr(target, "allow_shared_phone", False))
+    db.add(target)
+    db.commit()
+    return RedirectResponse(
+        url=_admin_users_list_redirect(q=q, verified=verified, pending=pending, user_kind=user_kind),
+        status_code=302,
+    )
+
+
+@router.post("/users/{user_id}/test-account-toggle")
+def admin_user_toggle_test_account(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str = Form(""),
+    verified: str = Form("all"),
+    pending: str = Form("all"),
+    user_kind: str = Form("all"),
+):
+    actor = _require_admin(request, db)
+    if not actor:
+        return RedirectResponse(url="/", status_code=302)
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/admin/users", status_code=302)
+    target.is_test_account = not bool(getattr(target, "is_test_account", False))
     db.add(target)
     db.commit()
     return RedirectResponse(
