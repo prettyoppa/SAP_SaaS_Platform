@@ -166,16 +166,13 @@
                 {% endif %}
               </td>
               <td>
-                <form method="post" action="/admin/users/{{ u.id }}/test-account-toggle" class="d-inline"
-                      data-app-confirm="이 계정의 테스트계정 표시를 변경할까요? 테스트계정이 만든 요청은 비테스트 사용자(관리자 제외)에게 보이지 않습니다.">
-                  <input type="hidden" name="q" value="{{ q or '' }}">
-                  <input type="hidden" name="verified" value="{{ verified }}">
-                  <input type="hidden" name="pending" value="{{ pending }}">
-                  <input type="hidden" name="user_kind" value="{{ user_kind }}">
-                  <button type="submit" class="btn btn-sm {% if u.is_test_account %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %}">
-                    {% if u.is_test_account %}Y{% else %}N{% endif %}
-                  </button>
-                </form>
+                <button type="button"
+                        class="btn btn-sm test-account-toggle-btn {% if u.is_test_account %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %}"
+                        data-user-id="{{ u.id }}"
+                        data-is-test="{{ '1' if u.is_test_account else '0' }}"
+                        aria-pressed="{{ 'true' if u.is_test_account else 'false' }}">
+                  {% if u.is_test_account %}Y{% else %}N{% endif %}
+                </button>
               </td>
               <td>{% if u.email_verified %}<span class="badge" style="background:rgba(34,197,94,.2);color:#4ade80">Y</span>{% else %}<span class="badge bg-secondary">N</span>{% endif %}</td>
               <td class="admin-users-actions-col small">
@@ -312,4 +309,63 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var confirmKo =
+    "이 계정의 테스트계정 표시를 변경할까요?\n테스트계정이 만든 요청은 비테스트 사용자(관리자 제외)에게 보이지 않습니다.";
+  var confirmEn =
+    "Change test-account marking for this user?\nRequests from test accounts are hidden from non-test users (except admins).";
+  var errKo = "테스트계정 표시를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  var errEn = "Could not update test-account marking. Please try again.";
+
+  function isEn() {
+    return (document.documentElement.getAttribute("data-effective-lang") || "en") === "en";
+  }
+
+  function applyBtn(btn, isTest) {
+    btn.setAttribute("data-is-test", isTest ? "1" : "0");
+    btn.setAttribute("aria-pressed", isTest ? "true" : "false");
+    btn.textContent = isTest ? "Y" : "N";
+    btn.classList.toggle("btn-warning", isTest);
+    btn.classList.toggle("text-dark", isTest);
+    btn.classList.toggle("btn-outline-secondary", !isTest);
+  }
+
+  document.querySelectorAll(".test-account-toggle-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (btn.disabled) return;
+      if (!window.confirm(isEn() ? confirmEn : confirmKo)) return;
+      var uid = btn.getAttribute("data-user-id");
+      if (!uid) return;
+      btn.disabled = true;
+      fetch("/admin/users/" + encodeURIComponent(uid) + "/test-account-toggle", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: new FormData(),
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error("http_" + r.status);
+          return r.json();
+        })
+        .then(function (data) {
+          if (!data || !data.ok) throw new Error("bad_response");
+          applyBtn(btn, !!data.is_test_account);
+        })
+        .catch(function () {
+          window.alert(isEn() ? errEn : errKo);
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+  });
+})();
+</script>
 {% endblock %}

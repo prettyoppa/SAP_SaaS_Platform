@@ -654,14 +654,21 @@ def admin_user_toggle_test_account(
     user_kind: str = Form("all"),
 ):
     actor = _require_admin(request, db)
+    wants_json = "application/json" in (request.headers.get("accept") or "").lower()
     if not actor:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
         return RedirectResponse(url="/", status_code=302)
     target = db.query(models.User).filter(models.User.id == user_id).first()
     if not target:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": "not_found"}, status_code=404)
         return RedirectResponse(url="/admin/users", status_code=302)
     target.is_test_account = not bool(getattr(target, "is_test_account", False))
     db.add(target)
     db.commit()
+    if wants_json:
+        return JSONResponse({"ok": True, "is_test_account": bool(target.is_test_account)})
     return RedirectResponse(
         url=_admin_users_list_redirect(q=q, verified=verified, pending=pending, user_kind=user_kind),
         status_code=302,
