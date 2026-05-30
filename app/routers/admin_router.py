@@ -648,13 +648,10 @@ def admin_user_toggle_test_account(
     user_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    q: str = Form(""),
-    verified: str = Form("all"),
-    pending: str = Form("all"),
-    user_kind: str = Form("all"),
+    ajax: str | None = Query(default=None),
 ):
     actor = _require_admin(request, db)
-    wants_json = "application/json" in (request.headers.get("accept") or "").lower()
+    wants_json = (ajax or "").strip() == "1"
     if not actor:
         if wants_json:
             return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
@@ -666,13 +663,16 @@ def admin_user_toggle_test_account(
         return RedirectResponse(url="/admin/users", status_code=302)
     target.is_test_account = not bool(getattr(target, "is_test_account", False))
     db.add(target)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        if wants_json:
+            return JSONResponse({"ok": False, "error": "db_error"}, status_code=500)
+        raise
     if wants_json:
         return JSONResponse({"ok": True, "is_test_account": bool(target.is_test_account)})
-    return RedirectResponse(
-        url=_admin_users_list_redirect(q=q, verified=verified, pending=pending, user_kind=user_kind),
-        status_code=302,
-    )
+    return RedirectResponse(url="/admin/users", status_code=302)
 
 
 @router.post("/users/{user_id}/consultant-toggle")

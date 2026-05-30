@@ -341,24 +341,37 @@
       var uid = btn.getAttribute("data-user-id");
       if (!uid) return;
       btn.disabled = true;
-      fetch("/admin/users/" + encodeURIComponent(uid) + "/test-account-toggle", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-        },
-        body: new FormData(),
-      })
+      fetch(
+        "/admin/users/" + encodeURIComponent(uid) + "/test-account-toggle?ajax=1",
+        {
+          method: "POST",
+          credentials: "same-origin",
+        }
+      )
         .then(function (r) {
-          if (!r.ok) throw new Error("http_" + r.status);
-          return r.json();
+          return r.json().then(function (data) {
+            return { ok: r.ok, data: data };
+          });
         })
-        .then(function (data) {
-          if (!data || !data.ok) throw new Error("bad_response");
-          applyBtn(btn, !!data.is_test_account);
+        .then(function (res) {
+          if (!res.ok || !res.data || !res.data.ok) {
+            var code = (res.data && res.data.error) || "failed";
+            if (code === "db_error") {
+              throw new Error("db_error");
+            }
+            throw new Error(code);
+          }
+          applyBtn(btn, !!res.data.is_test_account);
         })
-        .catch(function () {
+        .catch(function (err) {
+          if (err && err.message === "db_error") {
+            window.alert(
+              isEn()
+                ? "Database update failed. Restart the app so migrations run, then try again."
+                : "DB 저장에 실패했습니다. 서버를 재시작해 마이그레이션이 적용됐는지 확인한 뒤 다시 시도해 주세요."
+            );
+            return;
+          }
           window.alert(isEn() ? errEn : errKo);
         })
         .finally(function () {
