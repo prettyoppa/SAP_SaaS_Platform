@@ -98,6 +98,7 @@ from ..request_hub_access import (
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
 from ..test_account_visibility import block_test_owned_for_viewer
+from ..templates_config import layout_template_from_embed_query, templates
 from ..form_core_validation import (
     CORE_FIELDS_INCOMPLETE_ERROR,
     description_plain_for_validate,
