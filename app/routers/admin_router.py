@@ -1483,6 +1483,10 @@ def _kb_admin_page_context(request: Request, db: Session, user: models.User) -> 
     batch_job_active = bool(
         batch_job and (batch_job.status or "").strip() == STATUS_RUNNING
     )
+    from ..kb_request_flow import backfill_status_snapshot, collect_backfill_targets
+
+    backfill_targets = collect_backfill_targets(db)
+    backfill_status = backfill_status_snapshot()
     return {
         "request": request,
         "user": user,
@@ -1498,6 +1502,11 @@ def _kb_admin_page_context(request: Request, db: Session, user: models.User) -> 
         "generate_fail": int(qp.get("generate_fail") or 0),
         "generate_cancelled": (qp.get("generate_cancelled") or "").strip() in ("1", "true", "yes"),
         "generate_errors": (qp.get("generate_errors") or "").strip()[:2000],
+        "backfill_target_count": len(backfill_targets),
+        "backfill_step_count": sum(len(stages) for _k, _i, stages in backfill_targets),
+        "backfill_status": backfill_status,
+        "backfill_started": (qp.get("backfill_started") or "").strip() in ("1", "true", "yes"),
+        "backfill_busy": (qp.get("backfill_busy") or "").strip() in ("1", "true", "yes"),
     }
 
 
@@ -1749,6 +1758,29 @@ def admin_kb_batch_cancel(job_id: int, request: Request, db: Session = Depends(g
     if not request_batch_cancel(db, job):
         return JSONResponse({"error": "not_cancellable"}, status_code=400)
     return JSONResponse({"ok": True, "status": "cancel_requested"})
+
+
+@router.post("/kb/backfill-request-flow")
+def admin_kb_backfill_request_flow(request: Request, db: Session = Depends(get_db)):
+    from ..kb_request_flow import schedule_request_flow_backfill
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    started = schedule_request_flow_backfill(force=True)
+    if started:
+        return RedirectResponse(url="/admin/kb?view=list&backfill_started=1", status_code=303)
+    return RedirectResponse(url="/admin/kb?view=list&backfill_busy=1", status_code=303)
+
+
+@router.get("/api/kb-request-flow-backfill-status")
+def admin_kb_request_flow_backfill_status(request: Request, db: Session = Depends(get_db)):
+    from ..kb_request_flow import backfill_status_snapshot
+
+    user = _require_admin(request, db)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    return JSONResponse(backfill_status_snapshot())
 
 
 @router.post("/api/kb/render-markdown")

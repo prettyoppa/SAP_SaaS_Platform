@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
+import time
 from datetime import datetime
 from typing import Any
 
@@ -33,6 +35,34 @@ _CATEGORY_BY_KIND = {
     "rfp": "abap",
     "analysis": "analysis",
     "integration": "integration",
+}
+
+_CODELIB_PRIVACY_RULES = """
+- NEVER mention or expose the admin **code gallery** (코드갤러리), **code library**, **codelib**, `/codelib`, or internal reference-code catalog.
+- NEVER reproduce proprietary snippets from that catalog; describe SAP patterns in your own words only.
+"""
+
+_FORBIDDEN_PUBLIC_MARKERS = (
+    "코드갤러리",
+    "code gallery",
+    "codelib",
+    "/codelib",
+    "code library",
+    "abapcode",
+    "reference catalog",
+    "internal catalog",
+)
+
+_backfill_lock = threading.Lock()
+_backfill_state: dict[str, Any] = {
+    "running": False,
+    "started_at": None,
+    "finished_at": None,
+    "total_steps": 0,
+    "done_steps": 0,
+    "skipped_steps": 0,
+    "errors": [],
+    "last": None,
 }
 
 _ARTICLE_JSON_HINT = """
@@ -93,11 +123,156 @@ def _truncate(text: str | None, limit: int) -> str:
     return t[: limit - 1].rstrip() + "…"
 
 
-def _owner_is_test(db, user_id: int | None) -> bool:
-    if not user_id:
-        return False
-    u = db.query(models.User).filter(models.User.id == int(user_id)).first()
-    return bool(u and getattr(u, "is_test_account", False))
+def _redact_code_fences(text: str | None) -> str:
+    """납품·제안서에 포함된 ABAP/소스 블록은 패턴 설명만 남기도록 제거."""
+    t = (text or "").strip()
+    if not t:
+        return ""
+    return re.sub(r"```[\s\S]*?```", "\n[소스 코드는 공개 KB에 포함하지 않음 — 설계 패턴만 서술]\n", t)
+
+
+def _payload_passes_codelib_guard(payload: dict[str, str]) -> bool:
+    blob = " ".join(str(payload.get(k) or "") for k in ("title", "excerpt", "meta_description", "body_md", "tags")).lower()
+    for marker in _FORBIDDEN_PUBLIC_MARKERS:
+        if marker in blob:
+            _log.warning("kb_request_flow: blocked output mentioning forbidden marker %r", marker)
+            return False
+    return True
+
+
+def stages_available_for_request(db, request_kind: str, request_id: int) -> list[str]:
+    """요청 데이터 기준으로 KB에 반영 가능한 단계 목록 (순서 고정)."""
+    kind = (request_kind or "").strip().lower()
+    rid = int(request_id)
+    stages: list[str] = []
+    if kind == "rfp":
+        row = db.query(models.RFP).filter(models.RFP.id == rid).first()
+        if not row or (row.status or "").strip().lower() == "draft":
+            return []
+        if (row.proposal_text or "").strip():
+            stages.append("proposal")
+        if (row.fs_status or "").strip() == "ready" and (row.fs_text or "").strip():
+            stages.append("functional_spec")
+        if (row.delivered_code_status or "").strip() == "ready":
+            stages.append("delivery")
+        return stages
+    if kind == "analysis":
+        row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == rid).first()
+        if not row or bool(getattr(row, "is_draft", False)):
+            return []
+        if (row.proposal_text or "").strip():
+            stages.append("proposal")
+        if (row.fs_status or "").strip() == "ready" and (getattr(row, "fs_text", None) or "").strip():
+            stages.append("functional_spec")
+        if (getattr(row, "delivered_code_status", None) or "").strip() == "ready":
+            stages.append("delivery")
+        return stages
+    if kind == "integration":
+        row = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == rid).first()
+        if not row:
+            return []
+        if (row.proposal_text or "").strip():
+            stages.append("proposal")
+        if (row.fs_status or "").strip() == "ready" and (getattr(row, "fs_text", None) or "").strip():
+            stages.append("functional_spec")
+        if (getattr(row, "delivered_code_status", None) or "").strip() == "ready":
+            stages.append("delivery")
+        return stages
+    return stages
+
+
+def collect_backfill_targets(db) -> list[tuple[str, int, list[str]]]:
+    """일괄 백필 대상: (request_kind, request_id, stages)."""
+    out: list[tuple[str, int, list[str]]] = []
+    for row in db.query(models.RFP).order_by(models.RFP.id.asc()).all():
+        stages = stages_available_for_request(db, "rfp", int(row.id))
+        if stages:
+            out.append(("rfp", int(row.id), stages))
+    for row in db.query(models.AbapAnalysisRequest).order_by(models.AbapAnalysisRequest.id.asc()).all():
+        stages = stages_available_for_request(db, "analysis", int(row.id))
+        if stages:
+            out.append(("analysis", int(row.id), stages))
+    for row in db.query(models.IntegrationRequest).order_by(models.IntegrationRequest.id.asc()).all():
+        stages = stages_available_for_request(db, "integration", int(row.id))
+        if stages:
+            out.append(("integration", int(row.id), stages))
+    return out
+
+
+def backfill_status_snapshot() -> dict[str, Any]:
+    with _backfill_lock:
+        return dict(_backfill_state)
+
+
+def run_request_flow_backfill(*, force: bool = True) -> None:
+    """기존 요청 전건 — 단계별 KB 초안 일괄 생성 (백그라운드 1회 실행)."""
+    delay = float(os.environ.get("KB_REQUEST_FLOW_BACKFILL_DELAY_SEC") or "2")
+    with _backfill_lock:
+        if _backfill_state.get("running"):
+            return
+        _backfill_state.update(
+            {
+                "running": True,
+                "started_at": datetime.utcnow().isoformat(),
+                "finished_at": None,
+                "total_steps": 0,
+                "done_steps": 0,
+                "skipped_steps": 0,
+                "errors": [],
+                "last": None,
+            }
+        )
+
+    from .database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        targets = collect_backfill_targets(db)
+        total = sum(len(stages) for _k, _i, stages in targets)
+        with _backfill_lock:
+            _backfill_state["total_steps"] = total
+    finally:
+        db.close()
+
+    try:
+        for kind, rid, stages in targets:
+            for stage in stages:
+                label = f"{kind}:{rid}:{stage}"
+                with _backfill_lock:
+                    _backfill_state["last"] = label
+                try:
+                    ok = run_request_kb_flow(kind, rid, stage, force=force)
+                    with _backfill_lock:
+                        if ok:
+                            _backfill_state["done_steps"] = int(_backfill_state.get("done_steps") or 0) + 1
+                        else:
+                            _backfill_state["skipped_steps"] = int(_backfill_state.get("skipped_steps") or 0) + 1
+                except Exception as ex:
+                    with _backfill_lock:
+                        errs = list(_backfill_state.get("errors") or [])
+                        errs.append(f"{label}: {type(ex).__name__}")
+                        _backfill_state["errors"] = errs[-50:]
+                    _log.exception("kb_request_flow backfill failed at %s", label)
+                if delay > 0:
+                    time.sleep(delay)
+    finally:
+        with _backfill_lock:
+            _backfill_state["running"] = False
+            _backfill_state["finished_at"] = datetime.utcnow().isoformat()
+
+
+def schedule_request_flow_backfill(*, force: bool = True) -> bool:
+    """백필 작업 시작. 이미 실행 중이면 False."""
+    with _backfill_lock:
+        if _backfill_state.get("running"):
+            return False
+    threading.Thread(
+        target=run_request_flow_backfill,
+        kwargs={"force": force},
+        daemon=True,
+        name="kb-request-flow-backfill",
+    ).start()
+    return True
 
 
 def _load_request_context(db, request_kind: str, request_id: int) -> dict[str, Any] | None:
@@ -115,8 +290,8 @@ def _load_request_context(db, request_kind: str, request_id: int) -> dict[str, A
             "topic_hint": (row.title or "").strip(),
             "modules": (row.sap_modules or "").strip(),
             "dev_types": (row.dev_types or "").strip(),
-            "proposal_excerpt": _truncate(row.proposal_text, 2800),
-            "fs_excerpt": _truncate(row.fs_text, 2000),
+            "proposal_excerpt": _truncate(_redact_code_fences(row.proposal_text), 2800),
+            "fs_excerpt": _truncate(_redact_code_fences(row.fs_text), 2000),
             "delivery_note": _truncate((row.delivered_code_status or ""), 80),
             "impl_types": "",
         }
@@ -133,8 +308,8 @@ def _load_request_context(db, request_kind: str, request_id: int) -> dict[str, A
             "topic_hint": title,
             "modules": (getattr(row, "sap_modules", None) or "").strip(),
             "dev_types": "",
-            "proposal_excerpt": _truncate(row.proposal_text, 2800),
-            "fs_excerpt": _truncate(getattr(row, "fs_text", None), 2000),
+            "proposal_excerpt": _truncate(_redact_code_fences(row.proposal_text), 2800),
+            "fs_excerpt": _truncate(_redact_code_fences(getattr(row, "fs_text", None)), 2000),
             "delivery_note": _truncate((getattr(row, "delivered_code_status", None) or ""), 80),
             "impl_types": "",
         }
@@ -150,8 +325,8 @@ def _load_request_context(db, request_kind: str, request_id: int) -> dict[str, A
             "topic_hint": (row.title or "").strip(),
             "modules": (row.sap_modules or "").strip(),
             "dev_types": (getattr(row, "impl_types", None) or "").strip(),
-            "proposal_excerpt": _truncate(row.proposal_text, 2800),
-            "fs_excerpt": _truncate(getattr(row, "fs_text", None), 2000),
+            "proposal_excerpt": _truncate(_redact_code_fences(row.proposal_text), 2800),
+            "fs_excerpt": _truncate(_redact_code_fences(getattr(row, "fs_text", None)), 2000),
             "delivery_note": _truncate((getattr(row, "delivered_code_status", None) or ""), 80),
             "impl_types": (getattr(row, "impl_types", None) or "").strip(),
         }
@@ -190,6 +365,7 @@ def _build_prompt(*, ctx: dict[str, Any], stage: str, existing_body: str | None)
 - Do NOT quote member request text verbatim; synthesize generic SAP practitioner guidance.
 - Do NOT include source code, file paths, or credentials.
 - Focus on searchable SAP keywords (ABAP, ALV, RFC, IDoc, BAPI, S/4HANA, etc.).
+{_CODELIB_PRIVACY_RULES}
 
 **Existing article body (markdown):**
 {existing}
@@ -208,6 +384,7 @@ Also refresh title/excerpt/meta_description/tags if the new stage adds important
 - Do NOT quote member request text verbatim; synthesize generic SAP practitioner guidance.
 - Do NOT include source code, file paths, or credentials.
 - Focus on searchable SAP keywords useful on Google/Naver.
+{_CODELIB_PRIVACY_RULES}
 
 **Workflow notes (stage: {stage}):**
 {stage_block}
@@ -252,6 +429,8 @@ def _generate_article_fields(
     payload = _normalize_article_payload(data, keyword=keyword, research="")
     if not payload.get("body_md"):
         return None
+    if not _payload_passes_codelib_guard(payload):
+        return None
     return payload
 
 
@@ -270,14 +449,14 @@ def _apply_article_fields(article: models.KnowledgeArticle, payload: dict[str, s
     article.updated_at = datetime.utcnow()
 
 
-def run_request_kb_flow(request_kind: str, request_id: int, stage: str) -> None:
-    """Background worker: one stage → KB draft or append."""
-    if not request_flow_enabled():
-        return
+def run_request_kb_flow(request_kind: str, request_id: int, stage: str, *, force: bool = False) -> bool:
+    """Background worker: one stage → KB draft or append. 성공 시 True."""
+    if not force and not request_flow_enabled():
+        return False
     kind = (request_kind or "").strip().lower()
     st = (stage or "").strip().lower()
     if kind not in _VALID_KINDS or st not in _VALID_STAGES:
-        return
+        return False
 
     from .database import SessionLocal
 
@@ -285,9 +464,7 @@ def run_request_kb_flow(request_kind: str, request_id: int, stage: str) -> None:
     try:
         ctx = _load_request_context(db, kind, int(request_id))
         if not ctx:
-            return
-        if _owner_is_test(db, ctx.get("owner_user_id")):
-            return
+            return False
 
         fkey = flow_key(kind, int(request_id))
         article = (
@@ -298,14 +475,14 @@ def run_request_kb_flow(request_kind: str, request_id: int, stage: str) -> None:
         if article:
             note = _parse_source_note(article.source_note)
             if st in _stages_done(note):
-                return
+                return False
             existing_body = article.body_md
         else:
             existing_body = None
 
         payload = _generate_article_fields(ctx=ctx, stage=st, existing_body=existing_body)
         if not payload:
-            return
+            return False
 
         if article:
             _apply_article_fields(article, payload, stage=st)
@@ -347,9 +524,11 @@ def run_request_kb_flow(request_kind: str, request_id: int, stage: str) -> None:
             st,
             article.is_published,
         )
+        return True
     except Exception:
         db.rollback()
         _log.exception("kb_request_flow failed kind=%s id=%s stage=%s", kind, request_id, st)
+        return False
     finally:
         db.close()
 

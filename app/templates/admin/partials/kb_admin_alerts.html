@@ -39,6 +39,18 @@
 <div class="alert alert-success small py-2"><span class="nav-ko">저장되었습니다.</span><span class="nav-en" style="display:none">Saved.</span></div>
 {% endif %}
 
+{% if backfill_started %}
+<div class="alert alert-success small py-2">
+  <span class="nav-ko">기존 요청 KB 일괄 생성을 시작했습니다. 완료까지 페이지를 열어 두거나 잠시 후 목록을 새로고침하세요.</span>
+  <span class="nav-en" style="display:none">Request-flow KB backfill started. Keep this page open or refresh the list when finished.</span>
+</div>
+{% elif backfill_busy %}
+<div class="alert alert-warning small py-2">
+  <span class="nav-ko">이미 일괄 생성이 실행 중입니다.</span>
+  <span class="nav-en" style="display:none">A backfill job is already running.</span>
+</div>
+{% endif %}
+
 {% if batch_job_active %}
 <div class="alert alert-info small py-2 d-flex flex-wrap align-items-center gap-2">
   <span class="nav-ko">AI 초안 생성이 백그라운드에서 진행 중입니다.</span>

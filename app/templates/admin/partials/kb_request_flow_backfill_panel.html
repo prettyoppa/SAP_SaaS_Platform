@@ -1,0 +1,68 @@
+{# expects backfill_target_count, backfill_step_count, backfill_status #}
+<div class="admin-content-card p-3 mb-4">
+  <h6 class="fw-semibold mb-2">
+    <i class="fa-solid fa-diagram-project me-1 text-primary"></i>
+    <span class="nav-ko">기존 요청 → KB 일괄 초안</span>
+    <span class="nav-en" style="display:none">Backfill KB from existing requests</span>
+  </h6>
+  <p class="small text-muted mb-3">
+    <span class="nav-ko">제안서·FS·납품이 있는 <strong>기존 요청</strong>마다 KB 검수 대기 초안을 생성합니다(테스트계정 포함). 회원 요청 원문·납품 코드·<strong>코드갤러리</strong> 내용은 LLM에 전달하지 않으며, 출력에도 포함되지 않도록 차단합니다.</span>
+    <span class="nav-en" style="display:none">Creates review-queue KB drafts for existing requests with proposals/FS/delivery (including test accounts). Member request text, deliverable source, and <strong>code gallery</strong> content are never exposed.</span>
+  </p>
+  {% if backfill_target_count > 0 %}
+  <p class="small mb-2">
+    <span class="nav-ko">대상 요청 <strong>{{ backfill_target_count }}</strong>건 · 예상 LLM 단계 <strong>{{ backfill_step_count }}</strong>회 (이미 반영된 단계는 건너뜀)</span>
+    <span class="nav-en" style="display:none"><strong>{{ backfill_target_count }}</strong> requests · up to <strong>{{ backfill_step_count }}</strong> LLM steps (skips stages already recorded)</span>
+  </p>
+  {% else %}
+  <p class="small text-muted mb-2">
+    <span class="nav-ko">백필 대상 요청이 없습니다(초안 제외·제안서 없음).</span>
+    <span class="nav-en" style="display:none">No requests eligible for backfill yet.</span>
+  </p>
+  {% endif %}
+  {% if backfill_status and backfill_status.running %}
+  <div class="alert alert-info small py-2 mb-2" id="kb-backfill-running-alert">
+    <span class="nav-ko">일괄 생성 실행 중… (<span id="kb-backfill-done">{{ backfill_status.done_steps or 0 }}</span> / <span id="kb-backfill-total">{{ backfill_status.total_steps or 0 }}</span>)</span>
+    <span class="nav-en" style="display:none">Backfill running… (<span id="kb-backfill-done-en">{{ backfill_status.done_steps or 0 }}</span> / <span id="kb-backfill-total-en">{{ backfill_status.total_steps or 0 }}</span>)</span>
+    {% if backfill_status.last %}<span class="d-block font-monospace text-muted mt-1">{{ backfill_status.last }}</span>{% endif %}
+  </div>
+  {% endif %}
+  <form method="post" action="/admin/kb/backfill-request-flow"
+        data-app-confirm-i18n="admin.kb.confirmRequestFlowBackfill"
+        data-busy-title-ko="일괄 생성 시작 중…" data-busy-title-en="Starting backfill…">
+    <button type="submit" class="btn btn-outline-primary btn-sm" {% if backfill_target_count == 0 or (backfill_status and backfill_status.running) %}disabled{% endif %}>
+      <span class="nav-ko">기존 요청 KB 일괄 생성</span>
+      <span class="nav-en" style="display:none">Run one-time backfill</span>
+    </button>
+  </form>
+</div>
+<script>
+(function () {
+  var alertEl = document.getElementById("kb-backfill-running-alert");
+  if (!alertEl) return;
+  function poll() {
+    fetch("/admin/api/kb-request-flow-backfill-status", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data) return;
+        var done = data.done_steps || 0;
+        var total = data.total_steps || 0;
+        ["kb-backfill-done", "kb-backfill-done-en"].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.textContent = String(done);
+        });
+        ["kb-backfill-total", "kb-backfill-total-en"].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.textContent = String(total);
+        });
+        if (!data.running) {
+          window.location.reload();
+          return;
+        }
+        setTimeout(poll, 4000);
+      })
+      .catch(function () { setTimeout(poll, 6000); });
+  }
+  setTimeout(poll, 3000);
+})();
+</script>
