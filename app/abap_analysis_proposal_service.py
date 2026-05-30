@@ -85,5 +85,8 @@ def run_abap_analysis_proposal_background(analysis_id: int) -> None:
         row.proposal_generated_at = datetime.utcnow()
         row.interview_status = "completed"
         db.commit()
+        from ..kb_request_flow import schedule_request_kb_flow
+
+        schedule_request_kb_flow("analysis", analysis_id, "proposal")
     finally:
         db.close()

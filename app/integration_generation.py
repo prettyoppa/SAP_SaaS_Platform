@@ -206,6 +206,9 @@ ABAP Report/Function 모듈 작성 지시는 쓰지 말고, 외부 코드·스�
         ir.fs_error = None
         db.commit()
         append_integration_job_log(ir_id, "fs_job_log", "FS 저장 완료")
+        from .kb_request_flow import schedule_request_kb_flow
+
+        schedule_request_kb_flow("integration", ir_id, "functional_spec")
     except Exception as ex:
         ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == ir_id).first()
         if ir:
@@ -322,6 +325,9 @@ def run_integration_deliverable_job(ir_id: int, billing_user_id: int) -> None:
         ir.delivered_code_error = None
         db.commit()
         append_integration_job_log(ir_id, "delivered_job_log", "구현 산출물 저장 완료")
+        from .kb_request_flow import schedule_request_kb_flow
+
+        schedule_request_kb_flow("integration", ir_id, "delivery")
     except Exception as ex:
         ir = db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == ir_id).first()
         if ir:

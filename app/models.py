@@ -524,6 +524,7 @@ class KnowledgeArticle(Base):
     research_summary = Column(Text, nullable=True)
     source_kind = Column(String(32), nullable=True)
     source_note = Column(Text, nullable=True)
+    request_flow_key = Column(String(64), nullable=True, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

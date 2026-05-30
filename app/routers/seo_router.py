@@ -1,4 +1,4 @@
-"""robots.txt · sitemap.xml — 공개 URL만 색인 대상으로 노출."""
+"""robots.txt · sitemap.xml · llms.txt — 공개 URL만 색인 대상으로 노출."""
 
 from __future__ import annotations
 
@@ -13,18 +13,20 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
+from ..llms_txt import llms_txt_for_request
 from ..offer_inquiry_service import site_public_origin
 
 router = APIRouter(tags=["seo"])
 _log = logging.getLogger("uvicorn.error")
 
+# 로그인·민감 경로 — prefix 일치 시 차단 (아래 Allow 규칙이 우선인 경로 제외)
 _DISALLOW_PREFIXES = (
     "/admin",
     "/api",
     "/account",
-    "/rfp",
-    "/abap-analysis",
-    "/integration",
+    "/rfp/",
+    "/abap-analysis/",
+    "/integration/",
     "/request-console",
     "/login",
     "/register",
@@ -32,8 +34,22 @@ _DISALLOW_PREFIXES = (
     "/payments",
     "/billing",
     "/codelib",
-    "/review",
+    "/reviews",
     "/dev/",
+)
+
+_PUBLIC_LANDING_PATHS = (
+    "/",
+    "/about",
+    "/services/abap",
+    "/abap-analysis",
+    "/integration",
+    "/notices",
+    "/faqs",
+    "/kb",
+    "/terms",
+    "/privacy",
+    "/llms.txt",
 )
 
 
@@ -58,17 +74,39 @@ def _sitemap_url_block(loc: str, lastmod: str | None, changefreq: str, priority:
 @router.get("/robots.txt", response_class=PlainTextResponse)
 def robots_txt(request: Request) -> PlainTextResponse:
     origin = site_public_origin(request)
+    allow_lines = [f"Allow: {p}" for p in _PUBLIC_LANDING_PATHS]
+    allow_lines.extend(
+        [
+            "Allow: /kb/",
+            "Allow: /en/kb/",
+            "Allow: /notices/",
+            "Allow: /faqs/",
+        ]
+    )
     disallow = "\n".join(f"Disallow: {p}" for p in _DISALLOW_PREFIXES)
     body = "\n".join(
         [
             "User-agent: *",
-            "Allow: /",
-            "Allow: /notices",
-            "Allow: /faqs",
-            "Disallow: /kb$",
-            "Allow: /kb/",
-            "Allow: /en/kb/",
+            *allow_lines,
             disallow,
+            "",
+            "User-agent: GPTBot",
+            "Allow: /",
+            "Allow: /llms.txt",
+            "Allow: /about",
+            "Allow: /kb/",
+            "",
+            "User-agent: ChatGPT-User",
+            "Allow: /",
+            "Allow: /llms.txt",
+            "Allow: /about",
+            "Allow: /kb/",
+            "",
+            "User-agent: ClaudeBot",
+            "Allow: /",
+            "Allow: /llms.txt",
+            "Allow: /about",
+            "Allow: /kb/",
             "",
             f"Sitemap: {origin}/sitemap.xml",
             "",
@@ -77,14 +115,26 @@ def robots_txt(request: Request) -> PlainTextResponse:
     return PlainTextResponse(body, media_type="text/plain; charset=utf-8")
 
 
+@router.get("/llms.txt", response_class=PlainTextResponse)
+def llms_txt(request: Request) -> PlainTextResponse:
+    return PlainTextResponse(llms_txt_for_request(request), media_type="text/plain; charset=utf-8")
+
+
 def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     entries: list[str] = []
 
     static_pages = [
         (f"{origin}/", today, "weekly", "1.0"),
+        (f"{origin}/about", today, "monthly", "0.9"),
+        (f"{origin}/services/abap", today, "weekly", "0.85"),
+        (f"{origin}/abap-analysis", today, "weekly", "0.85"),
+        (f"{origin}/integration", today, "weekly", "0.85"),
+        (f"{origin}/kb", today, "daily", "0.85"),
         (f"{origin}/notices", today, "weekly", "0.7"),
         (f"{origin}/faqs", today, "weekly", "0.7"),
+        (f"{origin}/terms", today, "yearly", "0.4"),
+        (f"{origin}/privacy", today, "yearly", "0.4"),
     ]
     for loc, lastmod, changefreq, priority in static_pages:
         entries.append(_sitemap_url_block(loc, lastmod, changefreq, priority))
@@ -183,6 +233,8 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         fallback = [
             _sitemap_url_block(f"{origin}/", today, "weekly", "1.0"),
+            _sitemap_url_block(f"{origin}/about", today, "monthly", "0.9"),
+            _sitemap_url_block(f"{origin}/kb", today, "daily", "0.85"),
             _sitemap_url_block(f"{origin}/notices", today, "weekly", "0.7"),
             _sitemap_url_block(f"{origin}/faqs", today, "weekly", "0.7"),
         ]

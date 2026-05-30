@@ -372,6 +372,9 @@ def _run_proposal_background(rfp_id: int):
         )
         rfp.interview_status = "completed"
         db.commit()
+        from ..kb_request_flow import schedule_request_kb_flow
+
+        schedule_request_kb_flow("rfp", rfp_id, "proposal")
     finally:
         db.close()
 

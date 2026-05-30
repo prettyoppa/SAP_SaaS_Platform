@@ -1,0 +1,10 @@
+{# Public page SEO — set seo_title_ko, seo_title_en, seo_desc_ko, seo_desc_en, seo_path before include #}
+<meta name="description" content="{{ seo_desc_ko|e }}" />
+<link rel="canonical" href="{{ (request.base_url|string).rstrip('/') }}{{ seo_path|e }}" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="{{ seo_title_ko|e }}" />
+<meta property="og:description" content="{{ seo_desc_ko|e }}" />
+<meta property="og:url" content="{{ (request.base_url|string).rstrip('/') }}{{ seo_path|e }}" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="{{ seo_title_en|e }}" />
+<meta name="twitter:description" content="{{ seo_desc_en|e }}" />

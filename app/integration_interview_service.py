@@ -130,6 +130,9 @@ def _run_integration_proposal_background(integration_id: int):
         )
         ir.interview_status = "completed"
         db.commit()
+        from ..kb_request_flow import schedule_request_kb_flow
+
+        schedule_request_kb_flow("integration", integration_id, "proposal")
     finally:
         db.close()
 

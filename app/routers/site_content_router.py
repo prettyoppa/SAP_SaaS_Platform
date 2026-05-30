@@ -84,6 +84,16 @@ def _pagination_window(page: int, total_pages: int, span: int = 5) -> list[int]:
     return list(range(start, end + 1))
 
 
+@router.get("/about", response_class=HTMLResponse)
+def about_public(request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user(request, db)
+    return templates.TemplateResponse(
+        request,
+        "site/about.html",
+        {"request": request, "user": user},
+    )
+
+
 @router.get("/notices", response_class=HTMLResponse)
 def notice_public_list(
     request: Request,
@@ -315,20 +325,84 @@ def kb_article_body_inline(
 
 
 @router.get("/kb", response_class=HTMLResponse)
-def kb_public_list(request: Request, db: Session = Depends(get_db)):
-    """지식갤러리 전체 목록은 공개하지 않음(검색 유입용 개별 URL만)."""
+def kb_public_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str = "",
+    category: str = "",
+    page: int = 1,
+):
     user = auth.get_current_user(request, db)
+    page = max(1, page)
+    term = (q or "").strip()
+    cat = (category or "").strip().lower()
+    if cat and cat not in KB_CATEGORIES:
+        cat = ""
+
+    base = _kb_published_filter(db.query(models.KnowledgeArticle))
+    if cat:
+        base = base.filter(models.KnowledgeArticle.category == cat)
+    if term:
+        like = f"%{term}%"
+        base = base.filter(
+            or_(
+                models.KnowledgeArticle.title.ilike(like),
+                models.KnowledgeArticle.title_en.ilike(like),
+                models.KnowledgeArticle.excerpt.ilike(like),
+                models.KnowledgeArticle.excerpt_en.ilike(like),
+                models.KnowledgeArticle.tags.ilike(like),
+                models.KnowledgeArticle.meta_description.ilike(like),
+            )
+        )
+
+    total = base.count()
+    total_pages = max(1, math.ceil(total / PER_PAGE)) if total else 1
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * PER_PAGE
+    rows = (
+        base.order_by(
+            models.KnowledgeArticle.sort_order.asc(),
+            models.KnowledgeArticle.published_at.desc(),
+            models.KnowledgeArticle.id.desc(),
+        )
+        .offset(offset)
+        .limit(PER_PAGE)
+        .all()
+    )
+
+    list_rows: list[dict[str, Any]] = []
+    for a in rows:
+        title_md = (a.title or "").strip()
+        excerpt_md = kb_excerpt_for_locale(a, locale="ko") or (a.excerpt or "")
+        list_rows.append(
+            {
+                "article": a,
+                "title_html": _markdown_to_html(title_md),
+                "excerpt_html": _markdown_to_html(excerpt_md) if excerpt_md else "",
+            }
+        )
+
+    origin = public_request_url(request, "/kb")
     return templates.TemplateResponse(
         request,
-        "errors/simple_message.html",
+        "site/kb_list.html",
         {
             "request": request,
             "user": user,
-            "title": "지식갤러리",
-            "message": "지식갤러리 목록은 제공하지 않습니다. 검색·공유 링크로 열 수 있는 글만 공개됩니다.",
-            "message_en": "The knowledge gallery list is not available. Only individual articles opened via search or shared links are public.",
+            "q": term,
+            "category": cat,
+            "kb_categories": KB_CATEGORIES,
+            "page": page,
+            "per_page": PER_PAGE,
+            "total": total,
+            "total_pages": total_pages,
+            "list_rows": list_rows,
+            "page_nums": _pagination_window(page, total_pages),
+            "meta_description": "SAP ABAP·연동·분석 실무 지식갤러리 — 검색 친화적인 기술 글 모음",
+            "canonical_url": origin,
         },
-        status_code=404,
     )
 
 

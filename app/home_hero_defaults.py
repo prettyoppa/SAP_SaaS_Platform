@@ -6,9 +6,9 @@ import re
 
 from markupsafe import Markup, escape
 
-DEFAULT_HOME_HERO_TITLE = "SAP 개발,<br>\nCatchy가 함께 하겠습니다."
+DEFAULT_HOME_HERO_TITLE = "SAP AI 개발 협업,<br>\nCatchy가 함께 합니다."
 DEFAULT_HOME_HERO_SUBCOPY = "with 8 Power Agents"
-DEFAULT_HOME_HERO_DESC = "AI 에이전트가 요구사항을 분석하여 개발제안서를 생성합니다."
+DEFAULT_HOME_HERO_DESC = "신규 ABAP·분석·연동 요청을 AI가 정리하고, 제안서·납품까지 컨설턴트와 협업하는 SaaS입니다."
 
 _BR_SPLIT_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
 HERO_TITLE_MAX_LINES = 3

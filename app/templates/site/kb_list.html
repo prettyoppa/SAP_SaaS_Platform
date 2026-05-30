@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% block title %}SAP 지식갤러리{% endblock %}
 {% block head_meta %}
-{% if meta_description and meta_description|trim %}
-<meta name="description" content="{{ meta_description|trim|e }}" />
-{% endif %}
-{% if canonical_url and canonical_url|trim %}
-<link rel="canonical" href="{{ canonical_url|trim|e }}" />
-{% endif %}
+{% set seo_title_ko = "SAP 지식갤러리 | SAP 개발 파트너" %}
+{% set seo_title_en = "SAP Knowledge Gallery | SAP Development Partner" %}
+{% set seo_desc_ko = "SAP ABAP·연동·분석 실무 기술 글. 검색 친화적인 공개 지식베이스." %}
+{% set seo_desc_en = "Public SAP technical articles for ABAP, integration, and analysis practitioners." %}
+{% set seo_path = "/kb" %}
+{% include "partials/seo_head_public.html" %}
 {% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">

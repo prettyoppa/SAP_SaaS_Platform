@@ -252,6 +252,10 @@ def run_abap_analysis_fs_job(analysis_id: int, billing_user_id: int) -> None:
             row.fs_error = str(ex)
             append_abap_analysis_job_log(analysis_id, "fs_job_log", f"실패: {type(ex).__name__}: {ex}")
         db.commit()
+        if row and (row.fs_status or "").strip() == "ready":
+            from .kb_request_flow import schedule_request_kb_flow
+
+            schedule_request_kb_flow("analysis", analysis_id, "functional_spec")
     finally:
         hb_stop.set()
         if hb_thr is not None:
@@ -351,6 +355,10 @@ def run_abap_analysis_delivered_code_job(analysis_id: int, billing_user_id: int)
                 f"실패: {type(ex).__name__}: {ex}",
             )
         db.commit()
+        if row and (row.delivered_code_status or "").strip() == "ready":
+            from .kb_request_flow import schedule_request_kb_flow
+
+            schedule_request_kb_flow("analysis", analysis_id, "delivery")
     finally:
         hb_stop.set()
         if hb_thr is not None:

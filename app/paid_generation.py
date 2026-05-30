@@ -151,6 +151,10 @@ def run_fs_generation_job(rfp_id: int, billing_user_id: int) -> None:
             rfp.fs_error = str(ex)
             append_delivery_job_log_line(rfp_id, "fs_job_log", f"실패: {type(ex).__name__}: {ex}")
         db.commit()
+        if (rfp.fs_status or "").strip() == "ready":
+            from .kb_request_flow import schedule_request_kb_flow
+
+            schedule_request_kb_flow("rfp", rfp_id, "functional_spec")
     finally:
         hb_stop.set()
         if hb_thr is not None:
@@ -276,6 +280,10 @@ def run_delivered_code_job(rfp_id: int, billing_user_id: int) -> None:
                 f"실패: {type(ex).__name__}: {ex}",
             )
         db.commit()
+        if (rfp.delivered_code_status or "").strip() == "ready":
+            from .kb_request_flow import schedule_request_kb_flow
+
+            schedule_request_kb_flow("rfp", rfp_id, "delivery")
     finally:
         hb_stop.set()
         if hb_thr is not None:

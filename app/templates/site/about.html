@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}서비스 소개 – SAP 개발 파트너{% endblock %}
+{% block head_meta %}
+{% set seo_title_ko = "SAP AI 개발 협업 SaaS | SAP 개발 파트너" %}
+{% set seo_title_en = "SAP AI Development Collaboration SaaS | SAP Development Partner" %}
+{% set seo_desc_ko = "SAP 신규 ABAP 개발, 분석·개선, 연동 개발을 AI 에이전트와 컨설턴트 매칭으로 진행하는 SaaS 플랫폼입니다. SAP 공식 제품이 아닌 독립 서비스입니다." %}
+{% set seo_desc_en = "SaaS platform for SAP new ABAP development, analysis, and integration with AI agents and consultant matching. Independent service — not an official SAP product." %}
+{% set seo_path = "/about" %}
+{% include "partials/seo_head_public.html" %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "Catchy Lab SAP Development Partner",
+      "alternateName": ["SAP 개발 파트너", "Catch Lab SAP Dev Hub"],
+      "url": "{{ request.base_url|string }}",
+      "description": {{ seo_desc_en|tojson }}
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "SAP Development Partner",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "url": "{{ request.base_url|string }}",
+      "description": {{ seo_desc_en|tojson }},
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "KRW",
+        "description": "Free registration with usage-based AI credits"
+      }
+    }
+  ]
+}
+</script>
+{% endblock %}
+{% block content %}
+<div class="site-content-page py-4 py-md-5">
+  <div class="container" style="max-width: 48rem;">
+    <h1 class="h3 fw-semibold mb-3">
+      <span class="nav-ko">SAP AI 개발 협업 SaaS</span>
+      <span class="nav-en" style="display:none">SAP AI development collaboration SaaS</span>
+    </h1>
+    <p class="text-muted small mb-4">
+      <span class="nav-ko">본 사이트(<code>sap.ireadschool.com</code>)는 Catchy Lab이 운영하는 <strong>독립 SAP 개발 지원 플랫폼</strong>입니다. SAP SE 공식 제품·학습 사이트(learning.sap.com)와 무관합니다.</span>
+      <span class="nav-en" style="display:none">This site (<code>sap.ireadschool.com</code>) is an <strong>independent SAP development platform</strong> operated by Catchy Lab. It is not affiliated with SAP SE or official SAP Learning.</span>
+    </p>
+
+    <section class="mb-4">
+      <h2 class="h5 fw-semibold">
+        <span class="nav-ko">무엇을 하나요?</span>
+        <span class="nav-en" style="display:none">What we do</span>
+      </h2>
+      <ul class="mb-0">
+        <li class="mb-2">
+          <span class="nav-ko"><strong>신규 ABAP 개발</strong> — RFP 작성, AI 요구정리 인터뷰, 개발 제안서 생성</span>
+          <span class="nav-en" style="display:none"><strong>New ABAP development</strong> — RFP, AI requirement interviews, development proposals</span>
+        </li>
+        <li class="mb-2">
+          <span class="nav-ko"><strong>분석·개선</strong> — 기존 ABAP 코드 분석, 개선 방향 제안</span>
+          <span class="nav-en" style="display:none"><strong>Analyze &amp; improve</strong> — ABAP code analysis and improvement proposals</span>
+        </li>
+        <li class="mb-2">
+          <span class="nav-ko"><strong>연동 개발</strong> — VBA, Python, API, 배치 등 SAP 연동·자동화</span>
+          <span class="nav-en" style="display:none"><strong>Integration</strong> — VBA, Python, APIs, batch jobs, and SAP automation</span>
+        </li>
+        <li>
+          <span class="nav-ko"><strong>컨설턴트 매칭</strong> — 요청 Console에서 오퍼·매칭·납품 협업</span>
+          <span class="nav-en" style="display:none"><strong>Consultant matching</strong> — Offers, matching, and delivery via the Request Console</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="mb-4">
+      <h2 class="h5 fw-semibold">
+        <span class="nav-ko">AI는 어떻게 쓰나요?</span>
+        <span class="nav-en" style="display:none">How AI helps</span>
+      </h2>
+      <p class="mb-0 text-muted">
+        <span class="nav-ko">다중 AI 에이전트가 요구사항을 정리하고, 제안서·기능명세·구현 가이드 초안을 생성합니다. 회원의 실제 요청 원문·납품 코드는 공개하지 않으며, 검색용 <a href="/kb">지식갤러리</a>에는 일반화·비식별 요약만 축적합니다.</span>
+        <span class="nav-en" style="display:none">Multiple AI agents clarify requirements and draft proposals, functional specs, and implementation guides. Member request text and deliverables stay private; the public <a href="/kb">Knowledge Gallery</a> only stores generalized, de-identified summaries for search.</span>
+      </p>
+    </section>
+
+    <section class="mb-4">
+      <h2 class="h5 fw-semibold">
+        <span class="nav-ko">시작하기</span>
+        <span class="nav-en" style="display:none">Get started</span>
+      </h2>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="/register" class="btn btn-primary btn-sm">
+          <span class="nav-ko">무료 회원가입</span><span class="nav-en" style="display:none">Sign up free</span>
+        </a>
+        <a href="/services/abap" class="btn btn-outline-secondary btn-sm">
+          <span class="nav-ko">신규 개발 안내</span><span class="nav-en" style="display:none">New development</span>
+        </a>
+        <a href="/integration" class="btn btn-outline-secondary btn-sm">
+          <span class="nav-ko">연동 개발 안내</span><span class="nav-en" style="display:none">Integration</span>
+        </a>
+        <a href="/kb" class="btn btn-outline-secondary btn-sm">
+          <span class="nav-ko">지식갤러리</span><span class="nav-en" style="display:none">Knowledge gallery</span>
+        </a>
+      </div>
+    </section>
+
+    <p class="small text-muted mb-0">
+      <span class="nav-ko">문의: 사이트 내 회원가입 후 요청을 생성하거나, <a href="/faqs">FAQ</a>·<a href="/notices">공지</a>를 참고해 주세요.</span>
+      <span class="nav-en" style="display:none">Questions: register and create a request, or see <a href="/faqs">FAQ</a> and <a href="/notices">notices</a>.</span>
+    </p>
+  </div>
+</div>
+{% endblock %}

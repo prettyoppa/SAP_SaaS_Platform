@@ -1,8 +1,8 @@
-"""SEO robots.txt · sitemap.xml."""
+"""SEO robots.txt · sitemap.xml · llms.txt."""
 
 import unittest
-from unittest.mock import MagicMock
 
+from app.llms_txt import build_llms_txt
 from app.routers.seo_router import _sitemap_url_block
 
 
@@ -16,6 +16,12 @@ class SeoRouterTests(unittest.TestCase):
         )
         self.assertIn("&amp;", block)
         self.assertNotIn("?x=1&y=2", block)
+
+    def test_llms_txt_mentions_sap_and_about(self) -> None:
+        body = build_llms_txt("https://sap.example.com")
+        self.assertIn("SAP Development Partner", body)
+        self.assertIn("/about", body)
+        self.assertIn("NOT affiliated with SAP SE", body)
 
 
 if __name__ == "__main__":
