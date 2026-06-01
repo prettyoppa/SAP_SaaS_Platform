@@ -129,7 +129,7 @@
         <li class="nav-item nav-item-request-console position-relative">
           <div class="nav-request-console-link-wrap position-relative">
             <a class="nav-link nav-link-request-console {% if path.startswith('/request-console') %}active{% endif %}" href="/request-console">
-              <span class="nav-ko">요청 콘솔</span><span class="nav-en" style="display:none">Request Console</span>
+              <span class="nav-ko">요청 콘솔</span><span class="nav-en" style="display:none">Console</span>
             </a>
             {% if nav_console_pending %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
           </div>
@@ -146,19 +146,19 @@
         {% set nav_offer = request.state.nav_proposal_offer_badges %}
         <li class="nav-item position-relative">
           <a class="nav-link {% if path.startswith('/services/abap') or path.startswith('/rfp') %}active{% endif %}" href="/services/abap">
-            <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">New Development</span>
+            <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">Develop</span>
           </a>
           {% if nav_offer.rfp %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
         <li class="nav-item position-relative">
           <a class="nav-link {% if path.startswith('/abap-analysis') %}active{% endif %}" href="/abap-analysis">
-            <span class="nav-ko">분석·개선</span><span class="nav-en" style="display:none">Analyze · Improve</span>
+            <span class="nav-ko">분석·개선</span><span class="nav-en" style="display:none">Improve</span>
           </a>
           {% if nav_offer.analysis %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
         <li class="nav-item position-relative">
           <a class="nav-link {% if '/integration' in path %}active{% endif %}" href="/integration">
-            <span class="nav-ko">연동 개발</span><span class="nav-en" style="display:none">Integration</span>
+            <span class="nav-ko">연동 개발</span><span class="nav-en" style="display:none">Connect</span>
           </a>
           {% if nav_offer.integration %}<span class="nav-proposal-offer-dot" aria-hidden="true"></span>{% endif %}
         </li>
@@ -214,7 +214,7 @@
             {% if user.is_admin or user.is_consultant %}
             <li><a class="dropdown-item" href="/request-console">
               <i class="fa-solid fa-inbox me-2"></i>
-              <span class="nav-ko">요청 콘솔</span><span class="nav-en" style="display:none">Request Console</span>
+              <span class="nav-ko">요청 콘솔</span><span class="nav-en" style="display:none">Console</span>
             </a></li>
             {% endif %}
             <li><a class="dropdown-item" href="/account" data-account-profile-modal="1" data-skip-global-busy="1" role="button">

@@ -17,7 +17,7 @@ These Terms govern use of the SAP Development Partner website and related servic
 1. “Member” means a person who agrees to these Terms and creates an account.
 2. “General member” means a member who registers and manages development requests.
 3. “Consultant member” means a member approved by the Company who may submit offers and, after matching, use delivery and collaboration features. Pending applicants may have limited access until approval.
-4. “Development request” means a request record in the Service (RFP, ABAP analysis/improvement, integration, etc.).
+4. “Development request” means a request record in the Service (**New ABAP Development** / RFP, **Analyze & Improvement**, **SAP-Connected Development**, and related workflows).
 5. “AI features” means functions using external AI (e.g. Google Gemini) for interviews, proposals, functional specifications (FS), implementation/delivery code drafts, and contextual Q&A.
 6. “AI credits” means prepaid balance (shown in KRW or other currency/conversion shown in the Service) consumed when using AI features.
 7. “Project settlement” means features to record, pay, and confirm agreed development fees between the requester and matched consultant for a matched request. This is separate from AI credits.
@@ -36,16 +36,17 @@ Main features include, without limitation:
 
 1. Sign-up, login, email/mobile verification, profile and notifications, account deletion (including grace period)
 2. Home, notices, FAQ, about page, public Knowledge Gallery articles
-3. New development (RFP): modules, dev types, requirements, attachments, reference code, AI interview, proposals
-4. ABAP analysis/improvement and integration development workflows
-5. Request hub: body, interview, proposal, FS, delivered code, as-built deliverables
-6. Consultant offers and matching; inquiries between parties (sender display per policy)
-7. AI inquiry chat in request context
-8. AI credit balance, usage history, bank-transfer top-up claims, online payment top-up (payment gateway)
-9. Project settlement: fee agreement, platform payment, funding and payout confirmation
-10. Consultant-only: request console (within policy), profile attachments
-11. Internal reference code library managed by admins for AI/operations — distinct from public KB articles
-12. Other features the Company may add
+3. **New ABAP Development (RFP):** module and development-type selection, requirements, attachments, reference code, AI interview, development proposals
+4. **Analyze & Improvement:** submission of existing ABAP and requirements, analysis, proposals, and delivery workflow
+5. **SAP-Connected Development:** integration and automation requests (e.g. VBA, Python, APIs, batch) with a comparable hub workflow
+6. Request hub: body, interview, proposal, FS, delivered code, as-built deliverables
+7. Consultant offers and matching; inquiries between parties (sender display per policy)
+8. AI inquiry chat in request context
+9. AI credit balance, usage history, bank-transfer top-up claims, online payment top-up (payment gateway)
+10. Project settlement: fee agreement, platform payment, funding and payout confirmation
+11. Consultant-only: request console (within policy), profile attachments
+12. Internal reference code library managed by admins for AI/operations — distinct from public KB articles
+13. Other features the Company may add
 
 Scope, UI, fees, and AI credit rates follow on-screen notices and operational policy. The Company may add, change, or discontinue features within a reasonable scope. The Service is independent and not an official SAP SE product or learning site.
 

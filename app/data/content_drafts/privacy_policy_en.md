@@ -12,7 +12,7 @@ Inquiries: 〔Insert privacy email〕
 Catchy Lab (“Company”) processes personal data to provide the SAP Development Partner service (“Service”), including:
 
 - Registration, email/mobile verification, login, profile, account deletion (including grace period)
-- Development requests, interviews, proposals, FS, delivery, inquiries/reviews, offers and matching
+- New ABAP Development, Analyze & Improvement, and SAP-Connected Development requests; interviews, proposals, FS, delivery, inquiries/reviews, offers and matching
 - AI features (external AI APIs), **AI credit** balance, top-up and usage records
 - **Project settlement** (fee agreement, funding, payout confirmation, payment gateway where used)
 - Operational and marketing notifications (with consent), email and SMS
