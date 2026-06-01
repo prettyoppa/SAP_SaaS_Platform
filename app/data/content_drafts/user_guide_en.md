@@ -1,169 +1,120 @@
-# SAP Development Partner — User Guide (Draft)
+# SAP Development Partner — User Guide
 
-**Version:** 2026-05 (for review)  
+**Version:** 2026-05-29  
 **Operator:** Catchy Lab
 
-This guide describes features as currently implemented. Limits and fees follow your subscription plan and admin notices.
+This guide reflects the current deployment. Fees, AI rates, and commissions follow on-screen notices, admin announcements, and the Terms of Service.
 
 
 ## 1. Overview
 
-SAP Development Partner is a hub for **new ABAP development (RFP)**, **analysis/improvement**, and **integration** requests. AI agents help with **interview → Development Proposal**. Consultant members may provide **offers**, **matching**, **functional specs (FS)**, **delivered code**, and **final as-built deliverables**.
+SAP Development Partner is a hub for **new ABAP development (RFP)**, **analysis/improvement**, and **integration** requests. AI assists with **interview → Development Proposal**. Consultant members may provide **offers**, **matching**, **FS**, **delivered code**, **as-built deliverables**, and **project settlement**.
 
-- **Free / low cost:** Request creation, AI interview, proposal (per plan and AI credits)
-- **Paid / quotas:** FS, dev code, regenerations, offers
-- **Language:** Use the header **KO / EN** toggle (some admin content is stored in both languages)
+- **AI credits:** Prepaid balance for AI interview, proposal, FS, code, and AI inquiry chat.
+- **Project settlement:** Agreed development fees between requester and consultant after matching (separate from AI credits).
+- **Language:** Header **KO / EN** toggle.
 
 
 ## 2. Getting started
 
 ### 2.1 Sign up and login
 
-1. **Sign up** with email, password, name; agree to Terms and Privacy Policy
-2. **Email verification** via link (if enabled)
-3. **Phone verification** when required for profile, alerts, or trial
-4. **Login** from the top menu; password recovery available
+1. Register with email, password, name; agree to Terms and Privacy Policy
+2. Choose **general member** or apply as **consultant** (limited menus until approved)
+3. Complete email/mobile verification when required
+4. Login and password recovery
 
-### 2.2 Experience trial
+### 2.2 AI credits
 
-- New accounts may receive an **Experience trial** (e.g. once per email/phone).
-- During trial, some paid-tier limits may match Junior-level entitlements.
-
-### 2.3 AI credits
-
-- AI interview, proposal, FS, code, and AI inquiry chat may **consume AI credits** (KRW balance).
-- Open **Usage & balance** to see balance, **submit bank-transfer top-up**, cancel pending claims, and view history.
-- Balance updates after deposit confirmation (admin process).
+- Open **Usage & balance** (or similar) for balance, usage, and top-up history
+- **Bank transfer:** submit a claim; balance updates after the Company confirms deposit
+- **Online payment:** via PortOne or similar (card/PayPal where offered)
+- Promotional credits may apply on sign-up or events
 
 
 ## 3. Home page
 
 | Area | Description |
 |------|-------------|
-| **Hero (left)** | Title, subcopy, description (admin-configured) |
-| **Getting started (right)** | Admin **guide text** (character typing) → else **YouTube embed** → else **ABAP typing demo** |
-| **Details** | User guide PDF (default `/static/docs/user-guide.pdf` or custom URL) |
-| **Row 1 tiles** | Notices · FAQ · Inquiry/Review — full list pages |
+| **Hero (left)** | Title and description (admin-configured) |
+| **Getting started (right)** | Guide typing animation → YouTube → ABAP demo |
+| **Details** | This guide (`/user-guide`) or PDF link |
+| **Row 1 tiles** | Notices · FAQ · Inquiry/Review |
 | **Row 2 tiles** | New development · Analysis · Integration |
-| **When logged in** | Counts on tiles (totals, delivery, proposal, analysis, in progress, drafts) |
+| **When logged in** | Counts for your requests |
 
-Admins edit copy via **Home tile editor** (bottom of home) or **Admin → Site settings**.
+Admins edit copy via **Home tile editor** or **Admin → Site settings**.
 
 
 ## 4. New development (RFP)
 
 ### 4.1 Create a request
 
-1. **New development** tile or **RFP** menu → wizard
-2. Select up to **3 SAP modules** and **3 development types**
-3. Enter **requirements** (plain/rich text, screenshots)
-4. Attach files and **reference ABAP** (program/section structure)
-5. **Save draft** or **submit**
+Wizard: modules (up to 3), dev types (up to 3), requirements, attachments, reference ABAP — **save draft** or **submit**.
 
-### 4.2 AI interview
+### 4.2 Interview and proposal
 
-- After submit, **AI interview** (up to 3 rounds, limited questions per round)
-- Answers advance rounds or trigger **proposal generation**
-- **Code gallery** matches may improve questions
+**AI interview** → **Development Proposal** on the hub; print/PDF; **regenerate** consumes credits.
 
-### 4.3 Development Proposal
-
-- AI generates a **Development Proposal** draft
-- View/print (PDF) on hub **Proposal** tab; **regenerate** per plan/credits
-
-### 4.4 Request hub phases
+### 4.3 Hub phases
 
 | Phase | Content |
 |-------|---------|
-| **Request** | Submitted body, attachments, reference code |
-| **Interview** | Q&A history |
+| **Request** | Body, attachments, reference code |
+| **Interview** | Q&A |
 | **Proposal** | Proposal text |
-| **FS** | Functional spec (paid / policy) |
+| **FS** | Functional spec |
 | **Dev code** | Delivered ABAP |
-| **As-built deliverable** | Single file upload (ZIP recommended); reusable as reference on later requests |
+| **As-built** | ZIP or single deliverable file |
+| **Settlement** | Fee agreement, payment, payout confirmation |
 
-### 4.5 Offers, matching, inquiries
+### 4.4 Offers, matching, inquiries
 
-- **Offers** panel on proposal (and related) views
-- Requester: **match** or **cancel match** (may be blocked after deliverables)
-- Consultant: submit/withdraw offers; **inquiry/reply** (email/SMS consent shown; consultant email hidden)
-- **AI inquiry** float (bottom-right, uses credits)
+Consultant **offers**; requester **match**; **inquiries**; **AI inquiry** float (credits).
 
-### 4.6 Dashboard
+### 4.5 Dashboard
 
-- List/filter/sort your RFPs; open hub via phase shortcuts
+List, filter, and open hub phases for your RFPs.
 
 
-## 5. ABAP analysis / improvement
+## 5. Analysis · 6. Integration
 
-1. **Analysis** tile → submit requirements, ABAP, attachments
-2. View **analysis results** by program and section tabs
-3. Hub phases: request, analysis, proposal, etc., similar to RFP where enabled
-4. Interview, offers, as-built, and AI chat follow the same patterns when available
+Same hub pattern (including **settlement** after match) for analysis/improvement and integration requests.
 
 
-## 6. Integration development
+## 7. Knowledge gallery (KB)
 
-1. **Integration** tile → VBA, API, batch, Python, etc.
-2. Reference ABAP shown in program/section structure
-3. Same hub pattern: interview → proposal → FS → code → as-built → offers
-
-
-## 7. Code gallery
-
-- Menu **Code gallery**: search and view admin-published ABAP examples
-- Use as reference when drafting requests
+Menu **Knowledge gallery** (`/kb`): published technical articles only — not full member request text or deliverable source.
 
 
 ## 8. Notices, FAQ, inquiry/review
 
-- Dedicated **notice** and **FAQ** list/detail pages (Markdown titles/bodies; EN fields may exist)
-- **Inquiry/review:** post, comment, star ratings; privacy and admin suppression rules apply
-- Home tabs show previews; use full list pages for browsing
+List/detail pages; star ratings and comments on inquiries/reviews.
 
 
 ## 9. Consultant members
 
-### 9.1 Registration
-
-- Choose **consultant** at sign-up; upload profile attachment; await approval
-
-### 9.2 Request console
-
-- **Request console:** browse other members’ requests (per policy/scope)
-- Submit offers and handle inquiries
-
-### 9.3 Consultant plans
-
-- Experience, Junior, Senior, Superior — different quotas for offers, FS, code (see plan page)
+After approval: **request console**, offers, delivery, **project settlement (payee)**. AI features deduct your **AI credits**.
 
 
-## 10. Member subscription plans
+## 10. General members · settlement (payer)
 
-- Experience, End User, Power User, Process Innovator, etc.
-- Feature matrix: inquiries/reviews, dev requests, proposal regen, FS, code, etc.
-- Plan changes per operations (bank transfer, admin grant)
+On matched requests, use hub **Settlement** to agree amount, fund (bank transfer or online payment), and confirm payout. The Company is not a party to the underlying contract (Terms Article 8).
 
 
 ## 11. Profile and account
 
-- Profile: name, company, timezone, password, email change (verification), phone, notification consent
-- Switch to consultant from profile
-- **Delete account:** grace period; cancel via email link during grace
+Profile, notifications, switch to consultant, **account deletion** with grace period.
 
 
 ## 12. UI tips
 
-- **Dark/light theme**
-- **Processing** overlay on long operations
-- **Draft** float on compose screens (stacked above AI inquiry when both present)
-- Top-up FAB may hide on hub/detail where AI inquiry float is shown
+**Dark/light** theme; processing overlay; draft FAB; top-up button may hide where AI inquiry float is shown.
 
 
 ## 13. Admin (reference)
 
-- Site settings: home copy, guide text KO/EN, video URL, tips, service intros, terms, privacy
-- Notices, FAQ, review moderation, plans, payment confirmation, gallery/KB — separate admin menus
+Site settings, notices/FAQ/reviews, payment confirmation, settlements, KB, internal code library.
 
 
 ## 14. Contact
@@ -172,4 +123,4 @@ Support, billing, privacy: 〔insert contact〕
 
 ---
 
-*Draft only; the live site and notices prevail.*
+*The live site and official notices prevail over this draft.*

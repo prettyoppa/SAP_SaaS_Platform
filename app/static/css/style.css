@@ -4746,6 +4746,11 @@ html[data-theme="dark"] .navbar-custom .nav-request-console-bubble::before {
 }
 .site-article-body.markdown-body li {
   margin-bottom: 0.35rem;
+  color: var(--text);
+}
+.site-article-body.markdown-body ul,
+.site-article-body.markdown-body ol {
+  color: var(--text);
 }
 .site-article-body.markdown-body hr {
   border-color: var(--border);
@@ -4754,10 +4759,49 @@ html[data-theme="dark"] .navbar-custom .nav-request-console-bubble::before {
 .site-article-body.markdown-body strong {
   color: var(--text);
 }
+.site-article-body.markdown-body code {
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
 .site-article-body.markdown-body table {
   width: 100%;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+}
+.site-article-body.markdown-body .proposal-table-wrap .proposal-md-table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border);
+  color: var(--text);
+}
+.site-article-body.markdown-body .proposal-md-table th,
+.site-article-body.markdown-body .proposal-md-table td {
+  color: var(--text);
+  border-color: var(--border);
+  vertical-align: top;
+}
+html[data-theme="dark"] .site-article-body.markdown-body .proposal-md-table thead.table-light {
+  --bs-table-bg: color-mix(in srgb, var(--surface2) 88%, var(--primary) 12%);
+  --bs-table-color: var(--text);
+  background-color: var(--bs-table-bg) !important;
+  color: var(--text) !important;
+}
+html[data-theme="dark"] .site-article-body.markdown-body .proposal-md-table thead.table-light th {
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+html[data-theme="dark"] .site-article.card .site-article-header h1.h3.fw-semibold {
+  color: var(--text) !important;
+}
+html[data-theme="dark"] .site-content-page .site-content-breadcrumb .breadcrumb-item.active {
+  color: var(--muted);
+}
+html[data-theme="dark"] .site-content-page .btn-outline-secondary {
+  color: var(--text);
+  border-color: var(--border);
 }
 
 /* 공지/FAQ 상세: 헤더 제목 마크다운·본문이 테마 대비 색으로 보이도록 */
