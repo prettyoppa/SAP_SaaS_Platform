@@ -4681,6 +4681,16 @@ html[data-theme="dark"] .navbar-custom .nav-request-console-bubble::before {
   background: var(--surface);
   min-height: 50vh;
 }
+.site-content-page .text-muted strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.site-content-page .text-muted a.site-about-kb-link {
+  color: var(--primary-light);
+}
+.site-content-page .text-muted a.site-about-kb-link:hover {
+  color: var(--primary);
+}
 .site-content-container {
   max-width: 820px;
 }
