@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}서비스 소개 – SAP 개발 파트너{% endblock %}
 {% block head_meta %}
-{% set seo_title_ko = "SAP AI 개발 협업 SaaS | SAP 개발 파트너" %}
-{% set seo_title_en = "SAP AI Development Collaboration SaaS | SAP Development Partner" %}
-{% set seo_desc_ko = "SAP 신규 ABAP 개발, 분석·개선, 연동 개발을 AI 에이전트와 컨설턴트 매칭으로 진행하는 SaaS 플랫폼입니다. SAP 공식 제품이 아닌 독립 서비스입니다." %}
-{% set seo_desc_en = "SaaS platform for SAP new ABAP development, analysis, and integration with AI agents and consultant matching. Independent service — not an official SAP product." %}
+{% set seo_title_ko = "SAP AI 개발 협업 플랫폼 | SAP 개발 파트너" %}
+{% set seo_title_en = "SAP AI Development Collaboration Platform | SAP Development Partner" %}
+{% set seo_desc_ko = "요구사항 정리부터 제안서·기능명세·납품 협업까지. SAP 신규 ABAP, 분석·개선, 연동 개발을 AI와 검증된 컨설턴트와 함께 진행하는 독립 SaaS입니다." %}
+{% set seo_desc_en = "From requirements to proposals, functional specs, and delivery — SAP ABAP, analysis, and integration with AI agents and matched consultants. Independent SaaS platform." %}
 {% set seo_path = "/about" %}
 {% include "partials/seo_head_public.html" %}
 <script type="application/ld+json">
@@ -39,65 +39,100 @@
 {% block content %}
 <div class="site-content-page py-4 py-md-5">
   <div class="container" style="max-width: 48rem;">
+    <p class="text-uppercase small text-muted mb-2">
+      <span class="nav-ko">Catchy Lab · 독립 SAP 개발 플랫폼</span>
+      <span class="nav-en" style="display:none">Catchy Lab · Independent SAP development platform</span>
+    </p>
     <h1 class="h3 fw-semibold mb-3">
-      <span class="nav-ko">SAP AI 개발 협업 SaaS</span>
-      <span class="nav-en" style="display:none">SAP AI development collaboration SaaS</span>
+      <span class="nav-ko">요구사항부터 납품까지,<br class="d-none d-sm-inline"/> 한 흐름으로 이어지는 SAP 개발 협업</span>
+      <span class="nav-en" style="display:none">SAP development collaboration,<br class="d-none d-sm-inline"/> from requirements through delivery</span>
     </h1>
-    <p class="text-muted small mb-4">
-      <span class="nav-ko">본 사이트(<code>sap.ireadschool.com</code>)는 Catchy Lab이 운영하는 <strong>독립 SAP 개발 지원 플랫폼</strong>입니다. SAP SE 공식 제품·학습 사이트(learning.sap.com)와 무관합니다.</span>
-      <span class="nav-en" style="display:none">This site (<code>sap.ireadschool.com</code>) is an <strong>independent SAP development platform</strong> operated by Catchy Lab. It is not affiliated with SAP SE or official SAP Learning.</span>
+    <p class="lead text-muted mb-4" style="font-size: 1.05rem;">
+      <span class="nav-ko">SAP 개발 파트너는 AI 에이전트와 컨설턴트 매칭을 결합한 SaaS입니다. RFP·인터뷰·제안서·기능명세·구현 협업을 하나의 워크스페이스에서 진행할 수 있습니다.</span>
+      <span class="nav-en" style="display:none">SAP Development Partner is a SaaS that combines AI agents with consultant matching. Run RFPs, interviews, proposals, functional specs, and delivery collaboration in one workspace.</span>
+    </p>
+    <p class="small text-muted mb-4 pb-2 border-bottom" style="border-color: var(--border) !important;">
+      <span class="nav-ko">SAP SE 공식 제품·<code>learning.sap.com</code>과 무관한 독립 서비스입니다.</span>
+      <span class="nav-en" style="display:none">An independent service — not affiliated with SAP SE or <code>learning.sap.com</code>.</span>
     </p>
 
     <section class="mb-4">
-      <h2 class="h5 fw-semibold">
-        <span class="nav-ko">무엇을 하나요?</span>
-        <span class="nav-en" style="display:none">What we do</span>
+      <h2 class="h5 fw-semibold mb-3">
+        <span class="nav-ko">세 가지 개발 채널</span>
+        <span class="nav-en" style="display:none">Three development channels</span>
       </h2>
-      <ul class="mb-0">
+      <div class="vstack gap-3">
+        <div>
+          <h3 class="h6 fw-semibold mb-1">
+            <span class="nav-ko">신규 ABAP 개발</span>
+            <span class="nav-en" style="display:none">New ABAP development</span>
+          </h3>
+          <p class="text-muted small mb-0">
+            <span class="nav-ko">AI 인터뷰로 요구사항을 구조화하고, 개발 제안서·기능명세 초안까지 빠르게 확보합니다.</span>
+            <span class="nav-en" style="display:none">Structure requirements with AI interviews and move quickly to development proposals and functional-spec drafts.</span>
+          </p>
+        </div>
+        <div>
+          <h3 class="h6 fw-semibold mb-1">
+            <span class="nav-ko">분석·개선</span>
+            <span class="nav-en" style="display:none">Analyze &amp; improve</span>
+          </h3>
+          <p class="text-muted small mb-0">
+            <span class="nav-ko">레거시 ABAP를 진단하고, 개선 우선순위와 실행 가능한 제안을 도출합니다.</span>
+            <span class="nav-en" style="display:none">Diagnose legacy ABAP and produce prioritized, actionable improvement plans.</span>
+          </p>
+        </div>
+        <div>
+          <h3 class="h6 fw-semibold mb-1">
+            <span class="nav-ko">연동 개발</span>
+            <span class="nav-en" style="display:none">Integration development</span>
+          </h3>
+          <p class="text-muted small mb-0">
+            <span class="nav-ko">VBA, Python, API, 배치 등 SAP 주변 자동화·연동 과제를 동일한 협업 흐름으로 관리합니다.</span>
+            <span class="nav-en" style="display:none">Manage VBA, Python, API, and batch integration work in the same collaboration flow.</span>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <h2 class="h5 fw-semibold mb-3">
+        <span class="nav-ko">플랫폼이 돕는 일</span>
+        <span class="nav-en" style="display:none">What the platform delivers</span>
+      </h2>
+      <ul class="text-muted small mb-0 ps-3">
         <li class="mb-2">
-          <span class="nav-ko"><strong>신규 ABAP 개발</strong> — RFP 작성, AI 요구정리 인터뷰, 개발 제안서 생성</span>
-          <span class="nav-en" style="display:none"><strong>New ABAP development</strong> — RFP, AI requirement interviews, development proposals</span>
+          <span class="nav-ko"><strong class="text-body">다중 AI 에이전트</strong> — 요구정리, 제안서, FS·구현 가이드 초안 생성</span>
+          <span class="nav-en" style="display:none"><strong class="text-body">Multi-agent AI</strong> — requirements, proposals, FS and implementation-guide drafts</span>
         </li>
         <li class="mb-2">
-          <span class="nav-ko"><strong>분석·개선</strong> — 기존 ABAP 코드 분석, 개선 방향 제안</span>
-          <span class="nav-en" style="display:none"><strong>Analyze &amp; improve</strong> — ABAP code analysis and improvement proposals</span>
-        </li>
-        <li class="mb-2">
-          <span class="nav-ko"><strong>연동 개발</strong> — VBA, Python, API, 배치 등 SAP 연동·자동화</span>
-          <span class="nav-en" style="display:none"><strong>Integration</strong> — VBA, Python, APIs, batch jobs, and SAP automation</span>
+          <span class="nav-ko"><strong class="text-body">컨설턴트 매칭</strong> — 요청 Console에서 오퍼·매칭·납품까지 추적</span>
+          <span class="nav-en" style="display:none"><strong class="text-body">Consultant matching</strong> — offers, matching, and delivery in the Request Console</span>
         </li>
         <li>
-          <span class="nav-ko"><strong>컨설턴트 매칭</strong> — 요청 Console에서 오퍼·매칭·납품 협업</span>
-          <span class="nav-en" style="display:none"><strong>Consultant matching</strong> — Offers, matching, and delivery via the Request Console</span>
+          <span class="nav-ko"><strong class="text-body"><a href="/kb">지식갤러리</a></strong> — SAP 실무 주제의 공개 기술 글 (검색·학습용)</span>
+          <span class="nav-en" style="display:none"><strong class="text-body"><a href="/kb">Knowledge Gallery</a></strong> — published SAP practitioner articles for search and learning</span>
         </li>
       </ul>
     </section>
 
     <section class="mb-4">
-      <h2 class="h5 fw-semibold">
-        <span class="nav-ko">AI는 어떻게 쓰나요?</span>
-        <span class="nav-en" style="display:none">How AI helps</span>
-      </h2>
-      <p class="mb-0 text-muted">
-        <span class="nav-ko">다중 AI 에이전트가 요구사항을 정리하고, 제안서·기능명세·구현 가이드 초안을 생성합니다. 회원의 실제 요청 원문·납품 코드는 공개하지 않으며, 검색용 <a href="/kb">지식갤러리</a>에는 일반화·비식별 요약만 축적합니다.</span>
-        <span class="nav-en" style="display:none">Multiple AI agents clarify requirements and draft proposals, functional specs, and implementation guides. Member request text and deliverables stay private; the public <a href="/kb">Knowledge Gallery</a> only stores generalized, de-identified summaries for search.</span>
-      </p>
-    </section>
-
-    <section class="mb-4">
-      <h2 class="h5 fw-semibold">
+      <h2 class="h5 fw-semibold mb-3">
         <span class="nav-ko">시작하기</span>
         <span class="nav-en" style="display:none">Get started</span>
       </h2>
       <div class="d-flex flex-wrap gap-2">
         <a href="/register" class="btn btn-primary btn-sm">
-          <span class="nav-ko">무료 회원가입</span><span class="nav-en" style="display:none">Sign up free</span>
+          <span class="nav-ko">무료로 시작하기</span><span class="nav-en" style="display:none">Get started free</span>
         </a>
         <a href="/services/abap" class="btn btn-outline-secondary btn-sm">
-          <span class="nav-ko">신규 개발 안내</span><span class="nav-en" style="display:none">New development</span>
+          <span class="nav-ko">신규 개발</span><span class="nav-en" style="display:none">New development</span>
+        </a>
+        <a href="/abap-analysis" class="btn btn-outline-secondary btn-sm">
+          <span class="nav-ko">분석·개선</span><span class="nav-en" style="display:none">Analyze &amp; improve</span>
         </a>
         <a href="/integration" class="btn btn-outline-secondary btn-sm">
-          <span class="nav-ko">연동 개발 안내</span><span class="nav-en" style="display:none">Integration</span>
+          <span class="nav-ko">연동 개발</span><span class="nav-en" style="display:none">Integration</span>
         </a>
         <a href="/kb" class="btn btn-outline-secondary btn-sm">
           <span class="nav-ko">지식갤러리</span><span class="nav-en" style="display:none">Knowledge gallery</span>
@@ -106,8 +141,8 @@
     </section>
 
     <p class="small text-muted mb-0">
-      <span class="nav-ko">문의: 사이트 내 회원가입 후 요청을 생성하거나, <a href="/faqs">FAQ</a>·<a href="/notices">공지</a>를 참고해 주세요.</span>
-      <span class="nav-en" style="display:none">Questions: register and create a request, or see <a href="/faqs">FAQ</a> and <a href="/notices">notices</a>.</span>
+      <span class="nav-ko">궁금한 점은 <a href="/faqs">FAQ</a>·<a href="/notices">공지</a>를 참고하시거나, 회원가입 후 요청을 등록해 보세요.</span>
+      <span class="nav-en" style="display:none">See <a href="/faqs">FAQ</a> and <a href="/notices">notices</a>, or sign up and submit your first request.</span>
     </p>
   </div>
 </div>
