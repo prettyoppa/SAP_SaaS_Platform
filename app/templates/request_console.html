@@ -238,12 +238,12 @@ html[data-theme="dark"] .btn-console-offer:hover {
       <form method="get" class="d-flex gap-2">
         <input type="hidden" name="kind" value="{{ kind }}" />
         <input type="hidden" name="bucket" value="{{ bucket }}" />
-        <input type="search" name="title" value="{{ menu_search_title }}" placeholder="제목 검색" class="form-control form-control-sm" />
-        <button type="submit" class="btn btn-sm btn-outline-secondary" data-no-busy="true">검색</button>
+        <input type="search" name="title" value="{{ menu_search_title }}" placeholder="제목 검색" class="form-control form-control-sm" data-i18n-placeholder="svcAbap.placeholderTitle" />
+        <button type="submit" class="btn btn-sm btn-outline-secondary" data-no-busy="true"><span class="nav-ko">검색</span><span class="nav-en" style="display:none">Search</span></button>
       </form>
     </div>
     {% if console_offer_notify_warn is defined and console_offer_notify_warn %}
-    <div class="alert alert-warning small py-2 mb-2 mx-1">오퍼는 등록되었습니다. {{ console_offer_notify_warn }}</div>
+    <div class="alert alert-warning small py-2 mb-2 mx-1"><span class="nav-ko">오퍼는 등록되었습니다.</span><span class="nav-en" style="display:none">Offer registered.</span> {{ console_offer_notify_warn }}</div>
     {% endif %}
     {% if console_offer_engagement_err is defined and console_offer_engagement_err %}
     <div class="alert alert-warning small py-2 mb-2 mx-1">
@@ -270,7 +270,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
             <tr>
               <td>
                 <div class="fw-medium">{{ p.title }}</div>
-                <div class="text-muted">{{ p.request_no }} · {{ p.kind_ko }} · 오퍼 #{{ p.offer_id }}</div>
+                <div class="text-muted">{{ p.request_no }} · <span class="nav-ko">{{ p.kind_ko }}</span><span class="nav-en" style="display:none">{{ p.kind_en }}</span> · <span class="nav-ko">오퍼</span><span class="nav-en" style="display:none">Offer</span> #{{ p.offer_id }}</div>
               </td>
               <td>{{ p.owner_name }}</td>
               <td>{{ p.consultant_name }}</td>
@@ -279,7 +279,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
                 {{ p.last_author_name }}
                 {% if p.last_preview %}<div class="text-muted text-truncate" style="max-width:14rem" title="{{ p.last_preview }}">{{ p.last_preview }}</div>{% endif %}
               </td>
-              <td class="text-nowrap"><a class="btn btn-sm btn-outline-primary" href="{{ p.hub_url }}" target="_blank" rel="noopener">허브</a></td>
+              <td class="text-nowrap"><a class="btn btn-sm btn-outline-primary" href="{{ p.hub_url }}" target="_blank" rel="noopener"><span class="nav-ko">허브</span><span class="nav-en" style="display:none">Hub</span></a></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -299,7 +299,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
             <a class="lvl1-link console-nav-link {% if kind == 'offer' %}console-tree-active{% endif %}" href="/request-console?kind=offer&bucket=all" data-no-busy="true">
               <span class="lvl1-label">
                 <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>
-                <span>오퍼</span>
+                <span class="nav-ko">오퍼</span><span class="nav-en" style="display:none">Offers</span>
                 <span class="text-muted">({{ counts_by_kind['offer']['all'] }})</span>
                 {% if console_offer_pending_inquiry is defined and console_offer_pending_inquiry %}
                 <span class="console-tree-pending-dot" title="답변 대기 문의가 있습니다" aria-hidden="true"></span>
@@ -313,7 +313,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
             <a class="lvl1-link console-nav-link {% if kind == 'matching' %}console-tree-active{% endif %}" href="/request-console?kind=matching&bucket=all" data-no-busy="true">
               <span class="lvl1-label">
                 <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
-                <span>매칭</span>
+                <span class="nav-ko">매칭</span><span class="nav-en" style="display:none">Matching</span>
                 <span class="text-muted">({{ counts_by_kind['matching']['all'] }})</span>
                 {% if console_matching_pending_inquiry is defined and console_matching_pending_inquiry %}
                 <span class="console-tree-pending-dot" title="답변 대기 문의가 있습니다" aria-hidden="true"></span>
@@ -332,7 +332,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
             <a class="lvl1-link console-nav-link {% if kind == k and bucket == 'all' %}console-tree-active{% endif %}" href="/request-console?kind={{ k }}&bucket=all" data-no-busy="true">
               <span class="lvl1-label">
                 <i class="fa-solid {{ kind_icons[k] }}"></i>
-                <span>{{ kind_labels[k] }}</span>
+                <span class="nav-ko">{{ kind_labels[k] }}</span><span class="nav-en" style="display:none">{{ kind_labels_en[k] }}</span>
                 <span class="text-muted">({{ counts_by_kind[k]['all'] }})</span>
               </span>
             </a>
@@ -342,7 +342,11 @@ html[data-theme="dark"] .btn-console-offer:hover {
             <a href="/request-console?kind={{ k }}&bucket={{ b }}" class="{% if kind == k and bucket == b %}active{% endif %} console-nav-link" data-no-busy="true">
               <span class="lvl2-label">
                 <i class="fa-solid {{ bucket_meta[b].icon if b != 'all' else 'fa-layer-group' }}"></i>
-                <span>{{ bucket_meta[b].label if b != 'all' else '전체' }}</span>
+                {% if b == 'all' %}
+                <span class="nav-ko">전체</span><span class="nav-en" style="display:none">All</span>
+                {% else %}
+                <span class="nav-ko">{{ bucket_meta[b].label }}</span><span class="nav-en" style="display:none">{{ bucket_meta[b].label_en }}</span>
+                {% endif %}
               </span>
               <span class="text-muted small">{{ counts_by_kind[k][b] }}</span>
             </a>
@@ -378,10 +382,10 @@ html[data-theme="dark"] .btn-console-offer:hover {
             </div>
             <div class="small text-muted text-nowrap">{{ r.created_at|local_dt_span }}</div>
           </div>
-          <div class="mail-sub">{{ r.request_no }} · {{ r.kind_ko }} · {{ bucket_meta[r.bucket].label }}</div>
+          <div class="mail-sub">{{ r.request_no }} · <span class="nav-ko">{{ r.kind_ko }}</span><span class="nav-en" style="display:none">{{ r.kind_en }}</span> · <span class="nav-ko">{{ bucket_meta[r.bucket].label }}</span><span class="nav-en" style="display:none">{{ bucket_meta[r.bucket].label_en }}</span></div>
           {% if user.is_consultant and r.request_offer_total_count is defined %}
           <div class="mail-sub text-muted" title="이 요청에 다른 컨설턴트 오퍼를 포함한 총 오퍼 건수입니다.">
-            <i class="fa-solid fa-hand-holding me-1" aria-hidden="true"></i>이 요청 오퍼 {{ r.request_offer_total_count }}건 · {% if r.request_has_matched %}<span class="text-body-secondary">매칭 있음</span>{% else %}미매칭{% endif %}
+            <i class="fa-solid fa-hand-holding me-1" aria-hidden="true"></i><span class="nav-ko">이 요청 오퍼 {{ r.request_offer_total_count }}건 · {% if r.request_has_matched %}<span class="text-body-secondary">매칭 있음</span>{% else %}미매칭{% endif %}</span><span class="nav-en" style="display:none">Offers on this request: {{ r.request_offer_total_count }} · {% if r.request_has_matched %}<span class="text-body-secondary">Matched</span>{% else %}Unmatched{% endif %}</span>
           </div>
           {% elif user.is_admin and r.request_offer_total_count is defined %}
           <div class="mail-sub text-muted" title="해당 요청(RequestOffer) 건수입니다.">
@@ -392,7 +396,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
         </div>
         {% endfor %}
       {% else %}
-        <div class="p-3 text-muted small">조회 결과가 없습니다.</div>
+        <div class="p-3 text-muted small"><span class="nav-ko">조회 결과가 없습니다.</span><span class="nav-en" style="display:none">No matching requests.</span></div>
       {% endif %}
     </section>
 
@@ -403,29 +407,30 @@ html[data-theme="dark"] .btn-console-offer:hover {
       {% set can_console_offer = user.is_consultant and kind not in ('offer', 'matching') and selected_row.bucket == 'proposal' and not selected_row.consultant_has_offered and selected_row.engagement_open_for_offers|default(false) %}
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div>
-          <div class="small text-muted">{{ selected_row.request_no }} · {{ selected_row.kind_ko }}</div>
+          <div class="small text-muted">{{ selected_row.request_no }} · <span class="nav-ko">{{ selected_row.kind_ko }}</span><span class="nav-en" style="display:none">{{ selected_row.kind_en }}</span></div>
           <h5 class="mb-1">{{ selected_row.title }}</h5>
-          <div class="small text-muted">{{ bucket_meta[selected_row.bucket].label }} · {{ selected_row.created_at|local_dt_span }}</div>
+          <div class="small text-muted"><span class="nav-ko">{{ bucket_meta[selected_row.bucket].label }}</span><span class="nav-en" style="display:none">{{ bucket_meta[selected_row.bucket].label_en }}</span> · {{ selected_row.created_at|local_dt_span }}</div>
           {% if selected_row.offer_consultant_name is defined and selected_row.offer_consultant_name %}
-          <div class="small text-muted mt-1"><i class="fa-solid fa-user-tie me-1"></i>컨설턴트: {{ selected_row.offer_consultant_name }}{% if selected_row.offer_consultant_email %} <span class="font-monospace">· {{ selected_row.offer_consultant_email }}</span>{% endif %}</div>
+          <div class="small text-muted mt-1"><i class="fa-solid fa-user-tie me-1"></i><span class="nav-ko">컨설턴트:</span><span class="nav-en" style="display:none">Consultant:</span> {{ selected_row.offer_consultant_name }}{% if selected_row.offer_consultant_email %} <span class="font-monospace">· {{ selected_row.offer_consultant_email }}</span>{% endif %}</div>
           {% endif %}
           {% if user.is_consultant and selected_row.request_offer_total_count is defined %}
           <div class="small text-muted mt-1" title="이 요청에 다른 컨설턴트 오퍼를 포함한 총 오퍼 건수입니다.">
-            <i class="fa-solid fa-hand-holding me-1" aria-hidden="true"></i>이 요청 오퍼 {{ selected_row.request_offer_total_count }}건 · {% if selected_row.request_has_matched %}매칭 있음{% else %}미매칭{% endif %}
+            <i class="fa-solid fa-hand-holding me-1" aria-hidden="true"></i><span class="nav-ko">이 요청 오퍼 {{ selected_row.request_offer_total_count }}건 · {% if selected_row.request_has_matched %}매칭 있음{% else %}미매칭{% endif %}</span><span class="nav-en" style="display:none">Offers on this request: {{ selected_row.request_offer_total_count }} · {% if selected_row.request_has_matched %}Matched{% else %}Unmatched{% endif %}</span>
           </div>
           {% elif user.is_admin and selected_row.request_offer_total_count is defined %}
           <div class="small text-muted mt-1">오퍼 {{ selected_row.request_offer_total_count }}건 · 제안 중 {{ selected_row.request_offer_open_count }} · 매칭 {{ selected_row.request_offer_matched_count }}</div>
           {% endif %}
         </div>
         <div class="d-flex gap-1 align-items-start">
-          <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true">상세 열기</a>
+          <a class="btn btn-sm btn-primary console-nav-link" href="{{ selected_row.detail_href }}" id="console-open-detail" data-no-busy="true"><span class="nav-ko">상세 열기</span><span class="nav-en" style="display:none">Open details</span></a>
           {% if user.is_consultant and kind not in ('offer', 'matching') and selected_row.bucket == 'proposal' and not selected_row.consultant_has_offered and not selected_row.engagement_open_for_offers|default(false) %}
           <span class="small text-muted align-self-center" title="요청자가 개발 의뢰하기를 누른 뒤 오퍼할 수 있습니다.">
             <span class="nav-ko">개발 의뢰 대기</span><span class="nav-en" style="display:none">Awaiting dev request</span>
           </span>
           {% elif can_console_offer %}
           <form method="post" action="/request-console/offer" id="console-offer-form" data-no-busy="true"
-                data-offer-confirm-message="{{ console_offer_confirm_message }}">
+                data-offer-confirm-message-ko="{{ console_offer_confirm_message_ko }}"
+                data-offer-confirm-message-en="{{ console_offer_confirm_message_en }}">
             <input type="hidden" name="sel_key" value="{{ selected_row.sel_key }}" />
             <input type="hidden" name="return_kind" value="{{ kind }}" />
             <input type="hidden" name="return_bucket" value="{{ bucket }}" />
@@ -434,7 +439,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
             <input type="hidden" name="return_date_from" value="{{ menu_date_from_raw }}" />
             <input type="hidden" name="return_date_to" value="{{ menu_date_to_raw }}" />
             <button type="submit" class="btn btn-sm btn-console-offer d-inline-flex align-items-center gap-1" id="console-offer-btn">
-              <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>오퍼
+              <i class="fa-solid fa-hand-holding" aria-hidden="true"></i><span class="nav-ko">오퍼</span><span class="nav-en" style="display:none">Offer</span>
             </button>
           </form>
           {% endif %}
@@ -445,7 +450,7 @@ html[data-theme="dark"] .btn-console-offer:hover {
         <iframe id="console-detail-iframe" class="console-detail-iframe" src="{{ selected_row.preview_href|default(selected_row.detail_href, true) }}" loading="lazy" referrerpolicy="same-origin"></iframe>
       </div>
       {% else %}
-      <div class="text-muted small">리스트에서 요청을 선택해 주세요.</div>
+      <div class="text-muted small"><span class="nav-ko">리스트에서 요청을 선택해 주세요.</span><span class="nav-en" style="display:none">Select a request from the list.</span></div>
       {% endif %}
     </aside>
   </div>
@@ -519,9 +524,12 @@ html[data-theme="dark"] .btn-console-offer:hover {
         return;
       }
       ev.preventDefault();
+      const isKo = (document.documentElement.getAttribute('data-effective-lang') || 'ko') === 'ko';
       const msg =
-        (offerForm.dataset.offerConfirmMessage || '').trim() ||
-        '요청자에게 이메일 및 SMS로 알림이 전송되며, 요청자는 오퍼한 컨설턴트님의 프로필 확인이 가능해집니다.';
+        (isKo ? offerForm.dataset.offerConfirmMessageKo : offerForm.dataset.offerConfirmMessageEn) ||
+        (isKo
+          ? '요청자에게 이메일 및 SMS로 알림이 전송되며, 요청자는 오퍼한 컨설턴트님의 프로필 확인이 가능해집니다.'
+          : 'The requester will be notified by email and SMS and can view your consultant profile.');
       const proceed = () => {
         offerForm.dataset.consoleOfferSubmitting = '1';
         if (typeof showGlobalBusy === 'function') {

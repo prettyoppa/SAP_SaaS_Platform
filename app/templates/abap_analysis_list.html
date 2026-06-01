@@ -20,7 +20,8 @@
               <i class="fa-solid fa-hospital nav-icon-analysis-light"></i>
               <i class="fa-regular fa-hospital nav-icon-analysis-dark"></i>
             </span>
-            <span data-i18n="analysis.pageTitle">SAP ABAP 분석·개선</span>
+            <span class="nav-ko">SAP ABAP 분석·개선</span>
+            <span class="nav-en" style="display:none">Improve</span>
           </h2>
           <div class="service-analysis-intro markdown-body-lite text-muted mb-0 small">
             <div class="nav-ko">{{ service_analysis_intro_html_ko | safe }}</div>
@@ -55,7 +56,7 @@
           </div>
           <div>
             <div class="stat-card-num">{% if key == 'all' %}{{ menu_total_rows }}{% else %}{{ menu_landing_counts.get(key, 0) }}{% endif %}</div>
-            <div class="stat-card-label">{{ m.label }}</div>
+            <div class="stat-card-label"><span class="nav-ko">{{ m.label }}</span><span class="nav-en" style="display:none">{{ m.label_en }}</span></div>
           </div>
         </a>
       </div>
@@ -93,7 +94,7 @@
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
           <h5 class="mb-0 flex-grow-1 d-flex align-items-center gap-2 flex-wrap">
             <i class="fa-solid {{ bucket_meta[selected_menu_bucket].icon }} small" style="color: {{ bucket_meta[selected_menu_bucket].fg }}"></i>
-            {{ bucket_meta[selected_menu_bucket].label }}
+            <span class="nav-ko">{{ bucket_meta[selected_menu_bucket].label }}</span><span class="nav-en" style="display:none">{{ bucket_meta[selected_menu_bucket].label_en }}</span>
             <span class="text-muted small fw-normal">({{ filtered_menu_rows|length }} <span data-i18n="common.itemsUnit">건</span>)</span>
             {% if selected_menu_bucket == 'delivery' %}
             <span class="badge rounded-pill bg-secondary bg-opacity-25 text-muted small fw-normal" data-i18n="svcAbap.preparing">준비 중</span>

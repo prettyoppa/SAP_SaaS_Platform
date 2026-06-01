@@ -22,6 +22,9 @@ CONSOLE_OFFER_CONFIRM_MESSAGE_KO = (
     "요청자에게 이메일 및 SMS로 알림이 전송되며, "
     "요청자는 오퍼한 컨설턴트님의 프로필 확인이 가능해집니다."
 )
+CONSOLE_OFFER_CONFIRM_MESSAGE_EN = (
+    "The requester will be notified by email and SMS and can view your consultant profile."
+)
 OFFER_MATCH_ERR_BLOCKED = "match_blocked"
 
 from .request_offer_lifecycle import (

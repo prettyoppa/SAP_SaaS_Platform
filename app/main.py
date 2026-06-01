@@ -355,6 +355,26 @@ def _seed_legal_site_content():
         db.close()
 
 
+def _migrate_nav_aligned_labels():
+    """홈 타일 EN·i18n EN 오버라이드가 구형 장문/오역이면 네비 짧은 라벨로 맞춤."""
+    from .ui_nav_labels import migrate_home_tile_en_nav_labels, migrate_i18n_en_nav_overrides
+
+    db = SessionLocal()
+    try:
+        n1 = migrate_home_tile_en_nav_labels(db)
+        n2 = migrate_i18n_en_nav_overrides(db)
+        if n1 or n2:
+            from .i18n_overrides import invalidate_en_overrides_cache
+
+            invalidate_en_overrides_cache()
+            _log.info("[DB] nav-aligned labels migrated (tiles=%s, i18n=%s)", n1, n2)
+    except Exception:
+        _log.exception("[DB] nav-aligned label migration failed")
+        db.rollback()
+    finally:
+        db.close()
+
+
 def _seed_home_tile_settings():
     """홈 4타일·이용가이드 PDF URL 등 기본 SiteSettings 시드."""
     defaults = [
@@ -591,6 +611,7 @@ def _bootstrap_database():
     _seed_modules_and_devtypes()
     _ensure_integration_impl_devtypes()
     _seed_home_tile_settings()
+    _migrate_nav_aligned_labels()
     _seed_subscription_catalog()
     _seed_legal_site_content()
     _migrate_bank_transfer_sla_for_wallet()

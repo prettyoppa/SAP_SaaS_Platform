@@ -86,9 +86,12 @@ def home_tile_stage_links(channel: str) -> dict[str, str]:
 
 def standard_menu_bucket_meta() -> dict[str, dict]:
     """신규 개발·분석·연동 랜딩에서 동일한 타일 라벨·아이콘."""
+    from .ui_nav_labels import BUCKET_LABEL_EN
+
     return {
         "all": {
             "label": "전체",
+            "label_en": BUCKET_LABEL_EN["all"],
             "icon": "fa-layer-group",
             "fg": "#a78bfa",
             "bg": "rgba(167,139,250,.22)",
@@ -96,15 +99,40 @@ def standard_menu_bucket_meta() -> dict[str, dict]:
         },
         "delivery": {
             "label": "납품",
+            "label_en": BUCKET_LABEL_EN["delivery"],
             "icon": "fa-truck",
             "fg": "#94a3b8",
             "bg": "rgba(148,163,184,.22)",
             "hint": "FS·납품 코드 생성·완료",
         },
-        "proposal": {"label": "제안", "icon": "fa-file-lines", "fg": "#22c55e", "bg": "rgba(34,197,94,.18)"},
-        "analysis": {"label": "분석", "icon": "fa-magnifying-glass-chart", "fg": "#6366f1", "bg": "rgba(99,102,241,.18)"},
-        "in_progress": {"label": "진행중", "icon": "fa-spinner", "fg": "#eab308", "bg": "rgba(234,179,8,.2)"},
-        "draft": {"label": "임시저장", "icon": "fa-floppy-disk", "fg": "#64748b", "bg": "rgba(100,116,139,.2)"},
+        "proposal": {
+            "label": "제안",
+            "label_en": BUCKET_LABEL_EN["proposal"],
+            "icon": "fa-file-lines",
+            "fg": "#22c55e",
+            "bg": "rgba(34,197,94,.18)",
+        },
+        "analysis": {
+            "label": "분석",
+            "label_en": BUCKET_LABEL_EN["analysis"],
+            "icon": "fa-magnifying-glass-chart",
+            "fg": "#6366f1",
+            "bg": "rgba(99,102,241,.18)",
+        },
+        "in_progress": {
+            "label": "진행중",
+            "label_en": BUCKET_LABEL_EN["in_progress"],
+            "icon": "fa-spinner",
+            "fg": "#eab308",
+            "bg": "rgba(234,179,8,.2)",
+        },
+        "draft": {
+            "label": "임시저장",
+            "label_en": BUCKET_LABEL_EN["draft"],
+            "icon": "fa-floppy-disk",
+            "fg": "#64748b",
+            "bg": "rgba(100,116,139,.2)",
+        },
     }
 
 

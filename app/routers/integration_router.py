@@ -58,6 +58,7 @@ from ..devtype_catalog import (
 )
 from ..offer_inquiry_service import (
     CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
+    CONSOLE_OFFER_CONFIRM_MESSAGE_EN,
     apply_request_offer_match_action,
     clear_match_notice_pending_for_consultant,
     consultant_has_pending_match_notice,
@@ -693,6 +694,8 @@ def _console_request_offer_stats(
 
 def _admin_pending_inquiry_monitor_rows(http_request: Request, db: Session) -> list[dict[str, Any]]:
     """답변 대기 오퍼별: 요청·회원·담당 컨설턴트·마지막 글 요약."""
+    from ..ui_nav_labels import row_kind_en
+
     out: list[dict[str, Any]] = []
     for oid in sorted(pending_inquiry_reply_offer_ids_all(db)):
         of = (
@@ -747,12 +750,14 @@ def _admin_pending_inquiry_monitor_rows(http_request: Request, db: Session) -> l
         else:
             req_no = _request_no("INT", int(of.request_id))
             kind_ko = "연동개발"
+        kind_en = row_kind_en(rk or "integration")
         hub = _console_public_detail_url(http_request, rk, int(of.request_id))
         out.append(
             {
                 "offer_id": int(oid),
                 "request_no": req_no,
                 "kind_ko": kind_ko,
+                "kind_en": kind_en,
                 "title": (title or "").strip() or f"요청 {req_no}",
                 "owner_name": owner_name or "—",
                 "consultant_name": cname or "—",
@@ -825,6 +830,7 @@ def _console_row_from_rfp(r: models.RFP, user) -> dict[str, Any]:
         "entity_id": r.id,
         "kind": "abap",
         "kind_ko": "신규개발",
+        "kind_en": "Develop",
         "request_no": _request_no("RFP", r.id),
         "title": (r.title or "").strip() or f"요청 {_request_no('RFP', r.id)}",
         "bucket": bucket,
@@ -853,6 +859,7 @@ def _console_row_from_analysis(row: models.AbapAnalysisRequest, user) -> dict[st
         "entity_id": row.id,
         "kind": "analysis",
         "kind_ko": "분석개선",
+        "kind_en": "Improve",
         "request_no": _request_no("ANA", row.id),
         "title": (row.title or "").strip() or f"요청 {_request_no('ANA', row.id)}",
         "bucket": bucket,
@@ -881,6 +888,7 @@ def _console_row_from_integration(ir: models.IntegrationRequest, user) -> dict[s
         "entity_id": ir.id,
         "kind": "integration",
         "kind_ko": "연동개발",
+        "kind_en": "Connect",
         "request_no": _request_no("INT", ir.id),
         "title": (ir.title or "").strip() or f"요청 {_request_no('INT', ir.id)}",
         "bucket": bucket,
@@ -1137,14 +1145,10 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
         selected_row = rows[0]
 
     bucket_meta = standard_menu_bucket_meta()
-    kind_labels = {
-        "all": "전체",
-        "abap": "신규개발",
-        "analysis": "분석개선",
-        "integration": "연동개발",
-        "offer": "오퍼",
-        "matching": "매칭",
-    }
+    from ..ui_nav_labels import KIND_LABELS_EN, KIND_LABELS_KO
+
+    kind_labels = KIND_LABELS_KO
+    kind_labels_en = KIND_LABELS_EN
     return templates.TemplateResponse(
         request,
         "request_console.html",
@@ -1157,6 +1161,7 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "selected_row": selected_row,
             "counts_by_kind": counts_by_kind,
             "kind_labels": kind_labels,
+            "kind_labels_en": kind_labels_en,
             "bucket_meta": bucket_meta,
             "menu_search_title": title_search or "",
             "menu_date_from_raw": date_from_raw or "",
@@ -1170,7 +1175,8 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
                 request.query_params.get("console_offer_engagement_err") or ""
             ).strip()
             == "1",
-            "console_offer_confirm_message": CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
+            "console_offer_confirm_message_ko": CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
+            "console_offer_confirm_message_en": CONSOLE_OFFER_CONFIRM_MESSAGE_EN,
             "console_pending_inquiry_rows": console_pending_inquiry_rows,
             "console_matching_notice_pending": console_matching_notice_pending,
         },
