@@ -259,6 +259,35 @@ def _has_requirement_context(row: models.AbapAnalysisRequest) -> bool:
     return requirement_has_body_context(row, "abap")
 
 
+def _abap_analysis_chat_context_ok(
+    row: models.AbapAnalysisRequest,
+    db: Session,
+) -> bool:
+    """AI 문의 POST 허용: ABAP·요구사항·기존 대화, 임시저장은 제목 등 최소 메타도 허용."""
+    if _effective_abap_source(row).strip():
+        return True
+    if _has_requirement_context(row):
+        return True
+    has_thread = (
+        db.query(models.AbapAnalysisFollowupMessage.id)
+        .filter(models.AbapAnalysisFollowupMessage.request_id == row.id)
+        .limit(1)
+        .first()
+    )
+    if has_thread is not None:
+        return True
+    if row.is_draft:
+        if len((row.title or "").strip()) >= MIN_TITLE_LEN:
+            return True
+        if (getattr(row, "program_id", None) or "").strip():
+            return True
+        if _attachment_entries(row):
+            return True
+        if _screenshot_entries(row):
+            return True
+    return False
+
+
 def _apply_requirement_body(
     row: models.AbapAnalysisRequest,
     user: models.User,
@@ -1929,9 +1958,9 @@ def abap_analysis_chat_post(
     anchor = (hub_anchor or "").strip().lstrip("#")
     phase_frag = f"#{anchor}" if anchor else ""
     eff_src = _effective_abap_source(row)
-    if not eff_src.strip() and not _has_requirement_context(row):
+    if not _abap_analysis_chat_context_ok(row, db):
         return RedirectResponse(
-            url=f"{chat_base}?chat_err={quote('요구사항 또는 ABAP 코드가 없어 AI 문의를 시작할 수 없습니다.')}",
+            url=f"{chat_base}?chat_err={quote('요구사항 또는 ABAP 코드가 없어 AI 문의를 시작할 수 없습니다. 임시저장 후에도 안 되면 제목·요구사항·참고 코드를 저장했는지 확인해 주세요.')}",
             status_code=303,
         )
 
