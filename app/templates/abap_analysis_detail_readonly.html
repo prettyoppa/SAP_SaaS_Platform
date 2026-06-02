@@ -141,7 +141,10 @@
         <div class="alert alert-danger mb-0">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           <span data-i18n="detail.analysisErrorPrefix">분석 오류:</span> {{ analysis.error }}
-          <div class="mt-2 small">재분석은 전체 상세 페이지에서 진행할 수 있습니다.</div>
+          <div class="mt-2 small">
+            <span class="nav-ko">요청자는 전체 상세 페이지에서 요청 수정 후 다시 제출할 수 있습니다.</span>
+            <span class="nav-en" style="display:none">The requester can edit and resubmit from the full detail page.</span>
+          </div>
         </div>
         {% else %}
         <div class="proposal-card mb-0">

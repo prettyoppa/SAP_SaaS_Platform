@@ -103,6 +103,10 @@ from ..proposal_section6_decisions import (
     proposal_section6_hub_template_ctx,
     section6_decisions_flash_from_query,
 )
+from ..abap_analysis_request_edit import (
+    abap_hub_request_edit_unlocked,
+    abap_may_open_request_edit_form,
+)
 from ..abap_analysis_proposal_service import run_abap_analysis_proposal_background
 from ..agent_display import prepare_member_facing_proposal_markdown, wrap_unbracketed_agent_names
 from ..code_asset_access import fs_download_hub_ctx, user_may_copy_download_request_assets
@@ -1115,8 +1119,8 @@ def abap_analysis_duplicate_request(req_id: int, request: Request, db: Session =
 def abap_analysis_edit_form(req_id: int, request: Request, db: Session = Depends(get_db)):
     user = _require_user(request, db)
     row = _get_request_for_user(db, user, req_id)
-    if not row or not row.is_draft:
-        return RedirectResponse(url="/abap-analysis", status_code=302)
+    if not row or not abap_may_open_request_edit_form(db, row, user):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}" if row else "/abap-analysis", status_code=302)
     chat_err = (request.query_params.get("chat_err") or "").strip() or None
     draft_saved = (request.query_params.get("draft_saved") or "").strip() == "1"
     return _form_template_response(
@@ -1170,8 +1174,8 @@ async def abap_analysis_edit_save(
 
     user = _require_user(request, db)
     row = _get_request_for_user(db, user, req_id)
-    if not row or not row.is_draft:
-        return RedirectResponse(url="/abap-analysis", status_code=302)
+    if not row or not abap_may_open_request_edit_form(db, row, user):
+        return RedirectResponse(url=f"/abap-analysis/{req_id}" if row else "/abap-analysis", status_code=302)
 
     title_raw = title or ""
     title_clean = (title_raw.strip())[:TITLE_MAX_LEN]
@@ -1185,6 +1189,8 @@ async def abap_analysis_edit_save(
     del_flags = [bool(delete_0), bool(delete_1), bool(delete_2), bool(delete_3), bool(delete_4)]
     ref_initial = _ref_initial_from_raw(reference_code_json)
     is_draft_save = (save_action or "").strip().lower() == "draft"
+    if not row.is_draft:
+        is_draft_save = False
     existing_att = _attachment_entries(row)
 
     def _form_state() -> dict:
@@ -1333,6 +1339,8 @@ async def abap_analysis_edit_save(
         row.analysis_json = json.dumps(analysis, ensure_ascii=False)
         row.is_analyzed = analyzed
         row.is_draft = False
+        row.interview_status = "pending"
+        row.proposal_section6_decisions_json = None
 
     db.add(row)
     db.commit()
@@ -1503,6 +1511,11 @@ def _prepare_abap_analysis_detail_ctx(
         and int(user.id) == int(row.user_id)
         and proposal_delete_block_reason(row) is None
     )
+    hub_request_edit_unlocked = (
+        not readonly_console
+        and int(user.id) == int(row.user_id)
+        and abap_hub_request_edit_unlocked(db, row)
+    )
 
     ana_hub: dict[str, Any] = {
         "ana_hub_proposal_generating": ana_hub_proposal_generating,
@@ -1514,6 +1527,7 @@ def _prepare_abap_analysis_detail_ctx(
         ),
         "ana_interview_status": ana_ist,
         "hub_can_delete_proposal": hub_can_delete_proposal,
+        "hub_request_edit_unlocked": hub_request_edit_unlocked,
         "proposal_hub_flash": proposal_hub_flash,
         "engagement_flash": engagement_flash,
         "entity_owner_id": int(row.user_id),
@@ -2457,30 +2471,6 @@ def abap_analysis_download_attachment(
     if not os.path.isfile(ref):
         return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
     return FileResponse(ref, filename=fname)
-
-
-@router.post("/{req_id}/reanalyze")
-def abap_analysis_reanalyze(req_id: int, request: Request, db: Session = Depends(get_db)):
-    user = _require_user(request, db)
-    row = _get_request_for_user(db, user, req_id)
-    if not row:
-        return RedirectResponse(url="/abap-analysis", status_code=302)
-    if row.is_draft:
-        return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
-    eff_src = _effective_abap_source(row)
-    analysis = _run_analysis(
-        _requirement_plain(row),
-        eff_src,
-        _attachment_entries(row),
-        screenshot_entries=_screenshot_entries(row),
-    )
-    analyzed = not bool(analysis.get("error"))
-    row.source_code = eff_src
-    row.analysis_json = json.dumps(analysis, ensure_ascii=False)
-    row.is_analyzed = analyzed
-    db.add(row)
-    db.commit()
-    return RedirectResponse(url=f"/abap-analysis/{req_id}", status_code=302)
 
 
 @router.post("/{req_id}/delete")

@@ -23,7 +23,11 @@
           {% if edit_row %}
           <p class="small text-muted mb-0 mt-2">
             요청 ID <span class="badge bg-dark-subtle text-dark border font-monospace">{{ edit_row.id|request_no('ANA') }}</span>
-            <span class="ms-1">· 임시저장</span>
+            {% if edit_row.is_draft %}
+            <span class="ms-1">· <span data-i18n="badge.draft">임시저장</span></span>
+            {% else %}
+            <span class="ms-1">· <span class="nav-ko">제출됨 — 저장 시 분석이 다시 실행됩니다</span><span class="nav-en" style="display:none">Submitted — saving re-runs analysis</span></span>
+            {% endif %}
           </p>
           {% endif %}
         </div>

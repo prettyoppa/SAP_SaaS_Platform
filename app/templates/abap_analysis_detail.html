@@ -40,13 +40,11 @@
               <a href="/abap-analysis/{{ row.id }}/edit" class="btn btn-outline-primary btn-sm">
                 <i class="fa-solid fa-pen me-1"></i>계속 작성
               </a>
-              {% else %}
-              <form method="post" action="/abap-analysis/{{ row.id }}/reanalyze" style="display:inline"
-                    data-busy-agents='[{"agentKo":"「요구분석」","doingKo":"요구사항·제출 코드를 다시 분석하고 있습니다","agentEn":"「Requirements」","doingEn":"re-running structured analysis on requirements and submitted code"}]'>
-                <button type="submit" class="btn btn-outline-primary btn-sm">
-                  <i class="fa-solid fa-rotate me-1"></i>재분석
-                </button>
-              </form>
+              {% elif user.id == row.user_id and not readonly_console|default(false) %}
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="abapRequestEditReveal"
+                      {% if not hub_request_edit_unlocked|default(false) %}disabled title="제안서가 생성 중이거나 완료되면, 또는 연동된 신규개발 인터뷰·제안이 있으면 요청 수정을 열 수 없습니다."{% endif %}>
+                <i class="fa-solid fa-pen me-1"></i><span class="nav-ko">수정</span><span class="nav-en" style="display:none">Edit</span>
+              </button>
               {% endif %}
               <form method="post" action="/abap-analysis/{{ row.id }}/delete" style="display:inline"
                     data-app-confirm="이 분석 요청을 삭제할까요? 첨부 파일과 분석 결과가 함께 삭제되며 되돌릴 수 없습니다.">
@@ -67,6 +65,29 @@
               <span class="rfp-status-badge status-badge-submitted ms-2">분석 오류/미완료</span>
               {% endif %}
             </div>
+            {% if user.id == row.user_id and not row.is_draft and not readonly_console|default(false) %}
+            <div id="abapRequestEditDock" class="d-none mt-2">
+              <a href="/abap-analysis/{{ row.id }}/edit" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i><span class="nav-ko">요청 수정 페이지로 이동</span><span class="nav-en" style="display:none">Open request edit</span>
+              </a>
+              <p class="small text-muted mb-0 mt-2">
+                <span class="nav-ko">수정 후 다시 제출하면 요구사항·코드 분석이 다시 실행됩니다. 제안서·인터뷰가 있으면 먼저 삭제해야 수정할 수 있습니다.</span>
+                <span class="nav-en" style="display:none">After you save, analysis runs again. Delete the proposal or linked new-development interview first if edit is locked.</span>
+              </p>
+            </div>
+            <script>
+            (function () {
+              var btn = document.getElementById('abapRequestEditReveal');
+              var dock = document.getElementById('abapRequestEditDock');
+              if (btn && dock && !btn.disabled) {
+                btn.addEventListener('click', function () {
+                  dock.classList.remove('d-none');
+                  btn.setAttribute('aria-expanded', 'true');
+                });
+              }
+            })();
+            </script>
+            {% endif %}
           </div>
         </div>
 
@@ -166,7 +187,10 @@
         <div class="alert alert-danger mb-0">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           <span data-i18n="detail.analysisErrorPrefix">분석 오류:</span> {{ analysis.error }}
-          <div class="mt-2 small" data-i18n="detail.retryHint">재분석 버튼으로 다시 시도해 주세요.</div>
+          <div class="mt-2 small">
+            <span class="nav-ko">요청 수정에서 내용을 고친 뒤 다시 제출해 보세요.</span>
+            <span class="nav-en" style="display:none">Open request edit, fix the content, and submit again.</span>
+          </div>
         </div>
         {% else %}
         <div class="proposal-card mb-0">
