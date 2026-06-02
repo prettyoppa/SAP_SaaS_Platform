@@ -561,7 +561,6 @@ def _form_template_response(
                 ),
             )
             turns = _pair_abap_followup_turns(follow_msgs)
-            eff = _effective_abap_source(row_w).strip()
             snap_f = ai_inquiry_snapshot(db, user, "analysis", row_w.id)
             ai_inquiry = {
                 "mode": "live",
@@ -575,7 +574,8 @@ def _form_template_response(
                 "max_turns": snap_f["max_turns_display"],
                 "header_i18n": "chat.abapHeaderTitle",
                 "context_i18n": "chat.abapContextHelp",
-                "form_ready": bool(eff) or _has_requirement_context(row_w),
+                # 임시저장·작성 화면: RFP 편집과 동일하게 입력 UI 표시(전송 시 서버에서 맥락 검증).
+                "form_ready": True,
             }
     else:
         ai_inquiry = {

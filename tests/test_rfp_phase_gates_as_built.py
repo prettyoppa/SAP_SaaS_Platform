@@ -57,6 +57,22 @@ def test_integration_as_built_requires_zip():
     assert ph["has_as_built"] is False
 
 
+def test_abap_draft_shows_request_phase_link():
+    row = MagicMock()
+    row.id = 6
+    row.user_id = 1
+    row.is_draft = True
+    row.is_analyzed = False
+    row.delivered_code_status = "none"
+    row.as_built_zip_json = None
+    row.fs_status = "none"
+    row.fs_text = ""
+    row.proposal_text = ""
+    row.interview_status = ""
+    ph = abap_analysis_phase_gates(row, user=None)
+    assert ph["request_href"] == "/abap-analysis/6/edit"
+
+
 def test_abap_as_built_requires_zip():
     row = MagicMock()
     row.id = 3

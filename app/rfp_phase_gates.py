@@ -255,7 +255,7 @@ def abap_analysis_phase_gates(row: models.AbapAnalysisRequest, user: Optional[An
     owner_id = int(row.user_id)
     draft = bool(getattr(row, "is_draft", False))
     base = menu_abap_detail_url(user=user, owner_user_id=owner_id, request_id=aid, draft=draft)
-    request_href = f"{base}#abap-phase-request" if not draft else None
+    request_href = base if draft else f"{base}#abap-phase-request"
 
     analyzed = bool(getattr(row, "is_analyzed", False)) and not draft
     has_analysis = analyzed
