@@ -100,6 +100,7 @@ from ..rfp_followup_chat import (
     rfp_followup_context_block,
     validate_rfp_user_message,
 )
+from ..ai_followup_chat_ajax import ai_chat_json_error, ai_chat_json_ok, wants_ai_chat_json
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from ..rfp_phase_gates import rfp_for_hub_readonly_embed, rfp_for_owner_or_admin, rfp_owned_only
 from . import interview_router as _interview_views
@@ -1706,6 +1707,8 @@ def rfp_hub_chat_post(
 
     msg, verr = validate_rfp_user_message(message)
     if verr:
+        if wants_ai_chat_json(request):
+            return ai_chat_json_error(verr)
         return RedirectResponse(
             url=_rfp_ai_chat_redirect(rfp_id, return_to, verr, hub_phase=hub_phase or None),
             status_code=303,
@@ -1759,8 +1762,26 @@ def rfp_hub_chat_post(
     if not getattr(user, "is_admin", False):
         record_ai_inquiry_user_turn(db, user.id, "rfp", rfp.id, ledger_after=used_ai + 1)
     db.commit()
+
+    after_all = (
+        db.query(models.RfpFollowupMessage)
+        .filter(models.RfpFollowupMessage.rfp_id == rfp.id)
+        .order_by(models.RfpFollowupMessage.created_at.asc())
+        .all()
+    )
+    turns = pair_followup_turn_messages(
+        filter_followup_messages_for_viewer(
+            after_all,
+            request_owner_id=int(rfp.user_id),
+            viewer_user_id=int(user.id),
+            viewer_is_admin=bool(getattr(user, "is_admin", False)),
+        )
+    )
+    snap = ai_inquiry_snapshot(db, user, "rfp", rfp.id)
+    if wants_ai_chat_json(request):
+        return ai_chat_json_ok(request, turns=turns, limit_reached=bool(snap.get("reached")))
     return RedirectResponse(
-        url=_rfp_ai_chat_redirect(rfp_id, return_to, hub_phase=hub_phase or None),
+        url=_rfp_ai_chat_redirect(rfp_id, return_to, hub_phase=hub_phase or None) + "#rfp-followup-chat",
         status_code=303,
     )
 

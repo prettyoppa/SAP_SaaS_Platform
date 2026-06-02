@@ -24,6 +24,11 @@ from ..abap_followup_chat import (
     generate_followup_reply,
     validate_user_message,
 )
+from ..ai_followup_chat_ajax import (
+    ai_chat_json_error,
+    ai_chat_json_ok,
+    wants_ai_chat_json,
+)
 
 _log = logging.getLogger(__name__)
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
@@ -1985,18 +1990,23 @@ def abap_analysis_chat_post(
             request_id=int(req_id),
         )
     anchor = (hub_anchor or "").strip().lstrip("#")
-    phase_frag = f"#{anchor}" if anchor else ""
+    phase_frag = f"#{anchor}" if anchor else "#abap-followup-chat"
+    _ctx_err = (
+        "요구사항 또는 ABAP 코드가 없어 AI 문의를 시작할 수 없습니다. "
+        "임시저장 후에도 안 되면 제목·요구사항·참고 코드를 저장했는지 확인해 주세요."
+    )
     eff_src = _effective_abap_source(row)
     if not _abap_analysis_chat_context_ok(row, db):
-        return RedirectResponse(
-            url=f"{chat_base}?chat_err={quote('요구사항 또는 ABAP 코드가 없어 AI 문의를 시작할 수 없습니다. 임시저장 후에도 안 되면 제목·요구사항·참고 코드를 저장했는지 확인해 주세요.')}",
-            status_code=303,
-        )
+        if wants_ai_chat_json(request):
+            return ai_chat_json_error(_ctx_err)
+        return RedirectResponse(url=f"{chat_base}?chat_err={quote(_ctx_err)}", status_code=303)
 
     msg, verr = validate_user_message(message)
     if verr:
+        if wants_ai_chat_json(request):
+            return ai_chat_json_error(verr)
         return RedirectResponse(
-            url=f"{chat_base}?chat_err={quote(verr)}#abap-followup-chat",
+            url=f"{chat_base}?chat_err={quote(verr)}{phase_frag}",
             status_code=303,
         )
 
@@ -2062,6 +2072,24 @@ def abap_analysis_chat_post(
     if not getattr(user, "is_admin", False):
         record_ai_inquiry_user_turn(db, user.id, "analysis", row.id, ledger_after=used_ai + 1)
     db.commit()
+
+    after_all = (
+        db.query(models.AbapAnalysisFollowupMessage)
+        .filter(models.AbapAnalysisFollowupMessage.request_id == row.id)
+        .order_by(models.AbapAnalysisFollowupMessage.created_at.asc())
+        .all()
+    )
+    turns = _pair_abap_followup_turns(
+        filter_followup_messages_for_viewer(
+            after_all,
+            request_owner_id=int(row.user_id),
+            viewer_user_id=int(user.id),
+            viewer_is_admin=bool(getattr(user, "is_admin", False)),
+        )
+    )
+    snap = ai_inquiry_snapshot(db, user, "analysis", row.id)
+    if wants_ai_chat_json(request):
+        return ai_chat_json_ok(request, turns=turns, limit_reached=bool(snap.get("reached")))
     return RedirectResponse(url=f"{chat_base}{phase_frag}", status_code=303)
 
 

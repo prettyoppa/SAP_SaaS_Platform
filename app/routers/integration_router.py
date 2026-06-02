@@ -14,6 +14,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, auth
+from ..ai_followup_chat_ajax import ai_chat_json_error, ai_chat_json_ok, wants_ai_chat_json
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from .abap_analysis_router import _pair_abap_followup_turns as _pair_integration_followup_turns
 from ..attachment_context import build_attachment_llm_digest
@@ -2617,6 +2618,8 @@ def integration_chat_post(
 
     msg, verr = validate_integration_user_message(message)
     if verr:
+        if wants_ai_chat_json(request):
+            return ai_chat_json_error(verr)
         return RedirectResponse(
             url=f"{chat_base}?chat_err={quote(verr)}#integration-followup-chat",
             status_code=303,
@@ -2671,7 +2674,26 @@ def integration_chat_post(
     if not getattr(user, "is_admin", False):
         record_ai_inquiry_user_turn(db, user.id, "integration", ir.id, ledger_after=used_ai + 1)
     db.commit()
-    return RedirectResponse(url=chat_base, status_code=303)
+
+    after_all = (
+        db.query(models.IntegrationFollowupMessage)
+        .filter(models.IntegrationFollowupMessage.request_id == ir.id)
+        .order_by(models.IntegrationFollowupMessage.created_at.asc())
+        .all()
+    )
+    turns = _pair_integration_followup_turns(
+        filter_followup_messages_for_viewer(
+            after_all,
+            request_owner_id=int(ir.user_id),
+            viewer_user_id=int(user.id),
+            viewer_is_admin=bool(getattr(user, "is_admin", False)),
+        )
+    )
+    snap = ai_inquiry_snapshot(db, user, "integration", ir.id)
+    if wants_ai_chat_json(request):
+        return ai_chat_json_ok(request, turns=turns, limit_reached=bool(snap.get("reached")))
+    chat_url = chat_base if "#" in chat_base else f"{chat_base}#integration-followup-chat"
+    return RedirectResponse(url=chat_url, status_code=303)
 
 
 @router.post("/integration/{req_id}/activate-dev-engagement")

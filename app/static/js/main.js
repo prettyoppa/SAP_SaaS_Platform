@@ -528,6 +528,121 @@ function scrollAiChatPanelToEnd(panel) {
 
 window.scrollAiChatPanelToEnd = scrollAiChatPanelToEnd;
 
+function _aiChatLang() {
+  return (
+    document.documentElement.getAttribute('data-effective-lang') ||
+    document.documentElement.getAttribute('data-lang') ||
+    document.documentElement.lang ||
+    'ko'
+  );
+}
+
+function showAiChatInlineError(panel, message) {
+  if (!panel) return;
+  const body = panel.querySelector('.abap-float-chat-body');
+  if (!body) return;
+  let el = body.querySelector('[data-ai-chat-inline-error]');
+  if (message) {
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'alert alert-warning py-2 small mb-3';
+      el.dataset.aiChatInlineError = '1';
+      body.insertBefore(el, body.firstChild);
+    }
+    el.textContent = message;
+  } else if (el) {
+    el.remove();
+  }
+}
+
+function applyAiChatLogUpdate(panel, root, data) {
+  if (!panel) return;
+  showAiChatInlineError(panel, '');
+  const body = panel.querySelector('.abap-float-chat-body');
+  if (!body) return;
+  const html = (data && data.log_html) || '';
+  const emptyP = body.querySelector('[data-i18n="chat.noThreadsYet"]');
+  let logWrap = body.querySelector('.abap-chat-log');
+  if (html.trim()) {
+    if (emptyP) emptyP.remove();
+    if (!logWrap) {
+      logWrap = document.createElement('div');
+      logWrap.className = 'abap-chat-log abap-chat-log-panel mb-0';
+      body.appendChild(logWrap);
+    }
+    logWrap.innerHTML = html;
+  }
+  scrollAiChatPanelToEnd(panel);
+  const launcher = root && root.querySelector('.abap-float-chat-launcher');
+  if (launcher) {
+    const n = (data && data.turn_count) || 0;
+    let badge = launcher.querySelector('.abap-float-chat-count');
+    if (n > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'abap-float-chat-count';
+        badge.setAttribute('aria-hidden', 'true');
+        launcher.appendChild(badge);
+      }
+      badge.textContent = String(n);
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+  if (data && data.limit_reached) {
+    const form = panel.querySelector('.abap-followup-form');
+    if (form) {
+      const footer = form.closest('.abap-float-chat-footer');
+      const limitMsg =
+        _aiChatLang() === 'en'
+          ? 'You have reached the follow-up question limit for this request.'
+          : '후속 질문 횟수에 도달했습니다.';
+      if (footer) {
+        footer.innerHTML = `<p class="small text-muted mb-0">${limitMsg}</p>`;
+      }
+    }
+  }
+}
+
+async function submitAbapFollowupAjax(form) {
+  const panel = form.closest('.abap-float-chat-panel');
+  const root = panel && panel.closest('.abap-float-chat');
+  const busy = panel && panel.querySelector('.abap-float-chat-local-busy');
+  const submitBtn = form.querySelector('button[type="submit"]');
+  if (busy) busy.removeAttribute('hidden');
+  if (submitBtn) submitBtn.disabled = true;
+  const failMsg =
+    _aiChatLang() === 'en'
+      ? 'Could not send your message. Please try again.'
+      : '전송에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+  try {
+    const res = await fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      credentials: 'same-origin',
+      headers: { 'X-Abap-Ai-Chat': '1', Accept: 'application/json' },
+    });
+    let data = { ok: false };
+    try {
+      data = await res.json();
+    } catch (_) {
+      /* ignore */
+    }
+    if (!res.ok || !data.ok) {
+      showAiChatInlineError(panel, (data && data.error) || failMsg);
+      return;
+    }
+    applyAiChatLogUpdate(panel, root, data);
+    const ta = form.querySelector('textarea');
+    if (ta) ta.value = '';
+  } catch (_) {
+    showAiChatInlineError(panel, failMsg);
+  } finally {
+    if (busy) busy.setAttribute('hidden', '');
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
 function _captureAiFollowupFormContext(form) {
   try {
     sessionStorage.setItem(_RESTORE_PAGE_SCROLL_KEY, String(window.scrollY));
@@ -603,20 +718,13 @@ document.addEventListener(
       return;
     }
     if (!form.classList.contains('abap-followup-form')) return;
-    if (form.dataset.noBusy !== 'true' && form.dataset.noBusy !== '') return;
-    const panel = form.closest('.abap-float-chat-panel');
-    const busy = panel && panel.querySelector('.abap-float-chat-local-busy');
-    if (busy) busy.removeAttribute('hidden');
-    const root = panel && panel.closest('.abap-float-chat');
-    const launcher = root && root.querySelector('.abap-float-chat-launcher');
-    if (launcher && launcher.id) {
-      try {
-        sessionStorage.setItem(_KEEP_AI_LAUNCHER_KEY, launcher.id);
-      } catch (_) {
-        /* ignore */
-      }
-    }
-    _captureAiFollowupFormContext(form);
+    e.preventDefault();
+    e.stopPropagation();
+    if (form.dataset.aiChatSubmitting === '1') return;
+    form.dataset.aiChatSubmitting = '1';
+    submitAbapFollowupAjax(form).finally(() => {
+      delete form.dataset.aiChatSubmitting;
+    });
   },
   true,
 );
