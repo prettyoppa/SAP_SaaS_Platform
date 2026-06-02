@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 import zipfile
 from datetime import datetime
@@ -23,6 +24,8 @@ from ..abap_followup_chat import (
     generate_followup_reply,
     validate_user_message,
 )
+
+_log = logging.getLogger(__name__)
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from ..database import get_db
 from ..followup_messages_util import followup_created_at_sort_key
@@ -257,6 +260,32 @@ def _requirement_plain(row: models.AbapAnalysisRequest) -> str:
 
 def _has_requirement_context(row: models.AbapAnalysisRequest) -> bool:
     return requirement_has_body_context(row, "abap")
+
+
+def _chat_requirement_for_llm(row: models.AbapAnalysisRequest) -> str:
+    """AI 문의 프롬프트용 요구사항(HTML → plain, 임시저장은 제목·메타 보강)."""
+    plain = _requirement_plain(row).strip()
+    if plain:
+        return plain
+    if not row.is_draft:
+        return ""
+    parts: list[str] = []
+    title = (row.title or "").strip()
+    if title:
+        parts.append(f"요청 제목(임시저장): {title}")
+    pid = (getattr(row, "program_id", None) or "").strip()
+    if pid:
+        parts.append(f"프로그램 ID: {pid}")
+    tc = (getattr(row, "transaction_code", None) or "").strip()
+    if tc:
+        parts.append(f"T-code: {tc}")
+    mods = (getattr(row, "sap_modules", None) or "").strip()
+    if mods:
+        parts.append(f"SAP 모듈: {mods}")
+    devs = (getattr(row, "dev_types", None) or "").strip()
+    if devs:
+        parts.append(f"개발 유형: {devs}")
+    return "\n".join(parts)
 
 
 def _abap_analysis_chat_context_ok(
@@ -1995,21 +2024,23 @@ def abap_analysis_chat_post(
         viewer_is_admin=bool(getattr(user, "is_admin", False)),
     )
 
+    att_digest = ""
     try:
         att_digest = build_attachment_llm_digest(_attachment_entries(row), max_total_chars=10_000)
         ab_digest = as_built_llm_digest(row, max_total_chars=8_000)
         if ab_digest.strip():
             att_digest = (att_digest + "\n\n" + ab_digest).strip()[:18_000]
-        reply = generate_followup_reply(
-            requirement_text=row.requirement_text or "",
-            source_code=eff_src,
-            analysis_obj=analysis,
-            history_messages=prior,
-            user_question=msg,
-            attachment_digest=att_digest,
-        )
     except Exception:
-        reply = "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+        _log.exception("abap analysis chat attachment digest failed req_id=%s", req_id)
+
+    reply = generate_followup_reply(
+        requirement_text=_chat_requirement_for_llm(row),
+        source_code=eff_src,
+        analysis_obj=analysis,
+        history_messages=prior,
+        user_question=msg,
+        attachment_digest=att_digest,
+    )
 
     tid = int(user.id)
     db.add(

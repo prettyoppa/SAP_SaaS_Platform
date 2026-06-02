@@ -6,6 +6,7 @@ Gemini 직접 호출(경량). CrewAI 미사용.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from pathlib import Path
@@ -15,7 +16,9 @@ from dotenv import load_dotenv
 
 from .agents.free_crew import SAP_KOREAN_CODE_ANALYSIS_STYLE
 from .ai_inquiry_guard import ai_inquiry_model_policy_footer, check_ai_inquiry_user_text
-from .gemini_model import get_gemini_model_id
+from .gemini_model import get_gemini_api_key, get_gemini_model_id
+
+_log = logging.getLogger(__name__)
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -193,11 +196,22 @@ def _build_followup_code_excerpt(source_code: str, user_question: str) -> tuple[
 
 
 def _get_model() -> genai.GenerativeModel:
-    api_key = os.environ.get("GOOGLE_API_KEY")
+    api_key = get_gemini_api_key()
     if not api_key:
         raise RuntimeError("GOOGLE_API_KEY가 설정되지 않았습니다.")
     genai.configure(api_key=api_key)
     return genai.GenerativeModel(get_gemini_model_id())
+
+
+def _gemini_user_error_message(exc: BaseException) -> str:
+    msg = str(exc or "").lower()
+    if "google_api_key" in msg or "api key" in msg or "api_key" in msg:
+        return "AI API 키가 설정되지 않았거나 유효하지 않습니다. 잠시 후 다시 시도해 주세요."
+    if "quota" in msg or "rate" in msg or "429" in msg or "resource_exhausted" in msg:
+        return "AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."
+    if "not found" in msg and "model" in msg:
+        return "AI 모델 설정 오류입니다. 관리자에게 문의해 주세요."
+    return "응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 
 
 def _format_history(rows: list) -> str:
@@ -224,6 +238,12 @@ def generate_followup_reply(
     """분석 맥락 + 대화 이력 + 새 질문에 대한 한국어 답변(일반 텍스트)."""
     req = (requirement_text or "").strip()[:20_000]
     code_excerpt, code_note = _build_followup_code_excerpt(source_code or "", user_question.strip())
+    if not (code_note or "").strip():
+        code_note = (
+            "아래 「ABAP 원문」에는 회원이 제출한 코드 컨텍스트를 넣었다."
+            if (code_excerpt or "").strip()
+            else "제출된 ABAP 전본이 없거나 임시저장 단계다. 요구사항·제목·첨부 요약과 질문만으로 답한다."
+        )
     try:
         aj = json.dumps(analysis_obj, ensure_ascii=False)
     except Exception:
@@ -275,14 +295,20 @@ def generate_followup_reply(
 위 새 질문에 대해서만 답변 본문을 작성하라. 인사말 생략."""
     prompt = prompt + ai_inquiry_model_policy_footer()
 
-    model = _get_model()
-    response = model.generate_content(prompt)
+    try:
+        model = _get_model()
+        response = model.generate_content(prompt)
+    except Exception as exc:
+        _log.exception("abap_followup_chat generate_content failed")
+        return _gemini_user_error_message(exc)
+
     try:
         raw = (response.text or "").strip()
     except Exception:
+        _log.warning("abap_followup_chat empty or blocked response", exc_info=True)
         raw = ""
     if not raw:
-        return "응답을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
+        return "응답을 생성하지 못했습니다. 안전 필터 또는 빈 응답일 수 있습니다. 질문을 바꿔 다시 시도해 주세요."
     return raw
 
 
