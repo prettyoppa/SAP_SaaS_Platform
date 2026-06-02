@@ -150,7 +150,7 @@
       <span class="rfp-section-num">03</span>
       <div class="flex-grow-1">
         <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
-          <h4 class="mb-0" {% if form_scope == 'rfp' %}data-i18n="rfp.s3.title"{% endif %}>첨부 파일</h4>
+          <h4 class="mb-0" data-i18n="rfp.s3.title">첨부 파일</h4>
           {{ wg.wg_btn('sh-s03-h') }}
         </div>
         {{ wg.wg_panel(writing_guides_by_lang, 'shared.s03_attach', 'sh-s03-h', user) }}
@@ -165,7 +165,7 @@
                  class="file-drop-native-input"/>
           <span class="file-drop-content d-block text-center py-4 px-2" id="drop-content">
             <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
-            <p class="fw-semibold mb-1" {% if form_scope == 'rfp' %}data-i18n="rfp.dropTitle"{% endif %}>클릭하거나 아래 영역으로 파일을 드래그하세요</p>
+            <p class="fw-semibold mb-1" data-i18n="rfp.dropHint">클릭하거나 아래 영역으로 파일을 드래그하세요</p>
             <p class="text-muted small mb-0">
               <span class="nav-ko">MD, PDF, Excel(.xlsx), Word(.docx), PowerPoint(.pptx), TXT, 이미지 · 구형 .doc/.xls/.ppt 불가 · 파일당 20MB · 최대 5개</span>
               <span class="nav-en" style="display:none">MD, PDF, Excel (.xlsx), Word (.docx), PowerPoint (.pptx), TXT, images · no legacy .doc/.xls/.ppt · 20MB each · max 5</span>
@@ -181,16 +181,16 @@
 
     {% if edit_mode and resource and attachment_entries %}
     <div class="border rounded p-3 mt-3" style="background:var(--surface2);border-color:var(--border)!important;">
-      <div class="fw-semibold mb-2"><i class="fa-solid fa-paperclip me-1"></i>저장된 첨부</div>
+      <div class="fw-semibold mb-2"><i class="fa-solid fa-paperclip me-1"></i><span data-i18n="refForm.savedAttachments">저장된 첨부</span></div>
       {% for att in attachment_entries %}
       <div class="d-flex flex-wrap align-items-start gap-2 mb-2 pb-2 border-bottom" style="border-color:var(--border)!important;">
         <div class="flex-grow-1">
           <a href="/{{ attach_base }}/{{ resource.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename }}</a>
-          <span class="text-muted small">(미리보기/다운로드)</span>
+          <span class="text-muted small">(<span data-i18n="refForm.previewDownload">미리보기/다운로드</span>)</span>
         </div>
         <div class="form-check">
           <input class="form-check-input" type="checkbox" name="delete_{{ loop.index0 }}" value="1" id="del-{{ attach_base }}-{{ loop.index0 }}">
-          <label class="form-check-label small text-danger" for="del-{{ attach_base }}-{{ loop.index0 }}">삭제</label>
+          <label class="form-check-label small text-danger" for="del-{{ attach_base }}-{{ loop.index0 }}" data-i18n="refForm.deleteAttachment">삭제</label>
         </div>
         <input type="text" class="form-control form-control-sm" style="min-width:220px"
                name="note_orig_{{ loop.index0 }}" value="{{ att.note or '' }}" maxlength="200"/>
@@ -205,58 +205,84 @@
       <span class="rfp-section-num">04</span>
       <div class="flex-grow-1">
         <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
-          <h4 class="mb-0">참고 ABAP 코드</h4>
+          <h4 class="mb-0" data-i18n="refForm.s4Title">참고 ABAP 코드</h4>
           {{ wg.wg_btn('sh-s04-pol') }}
         </div>
         {{ wg.wg_panel(writing_guides_by_lang, s04_policy_key, 'sh-s04-pol', user) }}
       </div>
     </div>
 
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-      <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-ref-code" aria-expanded="false" aria-controls="collapse-ref-code">
-        <i class="fa-solid fa-code me-2"></i>ABAP 코드 입력란 펼치기 / 접기
+    {% if user and user.is_admin %}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      <button type="button" class="btn btn-outline-primary btn-sm" data-codelib-import="{{ form_scope }}" data-ref-collapse="#collapse-ref-code"
+              title="관리자: 코드 갤러리에서 한 건 불러오기">
+        <i class="fa-solid fa-folder-open me-1"></i><span data-i18n="refForm.galleryImport">코드 갤러리에서 가져오기</span>
       </button>
-      {% if user and user.is_admin %}
-      <button type="button" class="btn btn-outline-primary btn-sm" data-codelib-import="{{ form_scope }}" data-ref-collapse="#collapse-ref-code" title="관리자: 코드 갤러리에서 한 건 불러오기">
-        <i class="fa-solid fa-folder-open me-1"></i>코드 갤러리에서 가져오기
-      </button>
-      {% endif %}
     </div>
+    {% endif %}
 
-    <div class="collapse" id="collapse-ref-code">
+    <details class="interview-summary-toggle ref-code-edit-outer mb-0" id="collapse-ref-code"
+             {% if edit_mode and ref_code_initial %}open{% endif %}>
+      <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2 mb-0">
+        <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+        <i class="fa-solid fa-code me-1"></i>
+        <span data-i18n="refForm.outerToggle">참고 ABAP 코드 입력 (펼치기 / 접기)</span>
+      </summary>
+      <div class="interview-summary-body pt-2 px-0 pb-0">
       <div id="ref-code-slots-host">
         {% for rs in [0, 1, 2] %}
-        <div class="ref-code-slot card mb-4 border" data-ref-slot="{{ rs }}" style="background:var(--surface2);border-color:var(--border)!important;">
-          <div class="card-header py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <strong>ABAP 코드 {{ rs + 1 }}</strong>
-            <div class="d-flex align-items-center gap-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary js-ref-remove-last d-none" data-slot="{{ rs }}" title="가장 마지막에 연 항목만 닫을 수 있습니다">이 항목 닫기</button>
-              <span class="badge bg-secondary small">본 요청 분석용</span>
+        <details class="interview-summary-toggle ref-code-slot-fold ref-code-slot card mb-3 border" data-ref-slot="{{ rs }}"
+                 style="background:var(--surface2);border-color:var(--border)!important;" open>
+          <summary class="card-header py-2 interview-summary-header d-flex flex-wrap align-items-center gap-2 mb-0"
+                   style="background:rgba(0,0,0,.06);border-color:var(--border)!important;list-style:none;">
+            <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+            <span class="fw-semibold">
+              <span class="nav-ko">ABAP 코드 {{ rs + 1 }}</span>
+              <span class="nav-en" style="display:none">ABAP code {{ rs + 1 }}</span>
+            </span>
+            <span class="js-ref-slot-summary-pid fw-semibold font-monospace text-primary"></span>
+            <span class="badge bg-secondary small ms-auto" data-i18n="refForm.slotBadge">본 요청 분석용</span>
+          </summary>
+          <div class="card-body interview-summary-body pt-2">
+            <div class="d-flex flex-wrap justify-content-end mb-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary js-ref-remove-last d-none" data-slot="{{ rs }}"
+                      data-i18n="refForm.removeSlot" title="가장 마지막에 연 항목만 닫을 수 있습니다">이 항목 닫기</button>
             </div>
-          </div>
-          <div class="card-body">
+            <div class="row g-3 mb-3 js-ref-slot-meta">
+              <div class="col-md-5">
+                <label class="form-label fw-semibold small mb-1" data-i18n="refForm.fieldProgramId">프로그램 ID</label>
+                <input type="text" class="form-control font-monospace js-ref-pid" maxlength="40" autocomplete="off"/>
+                <div class="small mt-1 text-warning js-ref-fb-pid" style="min-height:1.25rem"></div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold small mb-1" data-i18n="refForm.fieldTcode">트랜잭션 코드</label>
+                <input type="text" class="form-control js-ref-tcode" maxlength="20" autocomplete="off"/>
+                <div class="small mt-1 text-warning js-ref-fb-tcode" style="min-height:1.25rem"></div>
+              </div>
+            </div>
             <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
-              <div class="fw-semibold small mb-0">ABAP 소스 (섹션별)</div>
+              <div class="fw-semibold small mb-0" data-i18n="refForm.sectionsHeading">ABAP 소스 (섹션별)</div>
               {{ wg.wg_btn('sh-ref-slot-' ~ (rs|string)) }}
             </div>
             {{ wg.wg_panel(writing_guides_by_lang, 'shared.ref_slot_agent_note', 'sh-ref-slot-' ~ (rs|string), user) }}
             <div id="ref-sections-{{ rs }}"></div>
             <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="ref-add-sec-{{ rs }}" data-slot="{{ rs }}">
-              <i class="fa-solid fa-plus me-1"></i>Include / 섹션 추가
+              <i class="fa-solid fa-plus me-1"></i><span data-i18n="refForm.addSection">Include / 섹션 추가</span>
             </button>
           </div>
-        </div>
+        </details>
         {% endfor %}
       </div>
-      <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-2 px-1 pb-1">
         <button type="button" class="btn btn-outline-secondary btn-sm" id="ref-add-slot-btn">
-          <i class="fa-solid fa-plus me-1"></i>ABAP 코드 추가 (최대 3건)
+          <i class="fa-solid fa-plus me-1"></i><span data-i18n="refForm.addSlot">ABAP 코드 추가 (최대 3건)</span>
         </button>
         <button type="button" class="btn btn-outline-danger btn-sm" id="ref-delete-all-btn">
-          <i class="fa-solid fa-trash me-1"></i>저장된 참고 코드 모두 삭제
+          <i class="fa-solid fa-trash me-1"></i><span data-i18n="refForm.deleteAll">저장된 참고 코드 모두 삭제</span>
         </button>
       </div>
-    </div>
+      </div>
+    </details>
   </div>
 
   <div class="rfp-form-footer mt-4 pt-4 border-top" style="border-color:var(--border)!important;">

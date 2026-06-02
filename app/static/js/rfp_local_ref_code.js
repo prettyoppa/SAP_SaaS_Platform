@@ -20,6 +20,14 @@
     '기타 Include',
   ];
 
+  function t(key, fallback) {
+    if (typeof window.t === 'function') {
+      var v = window.t(key);
+      if (v && v !== key) return v;
+    }
+    return fallback || key;
+  }
+
   function rfpId() {
     var c = window.__RFP_CTX__ || {};
     return c.rfpId || null;
@@ -39,6 +47,57 @@
     return [{ type: '메인 프로그램', name: '', code: '' }];
   }
 
+  function updateSlotSummary(slotIdx) {
+    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+    if (!root) return;
+    var el = root.querySelector('.js-ref-slot-summary-pid');
+    if (!el) return;
+    var pid = ((root.querySelector('.js-ref-pid') || {}).value || '').trim();
+    el.textContent = pid;
+    el.style.display = pid ? '' : 'none';
+  }
+
+  function applySlotFields(slotIdx, slotData) {
+    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+    if (!root) return;
+    slotData = slotData || {};
+    var pid = root.querySelector('.js-ref-pid');
+    var tc = root.querySelector('.js-ref-tcode');
+    if (pid) pid.value = slotData.program_id || '';
+    if (tc) tc.value = slotData.transaction_code || '';
+    updateSlotSummary(slotIdx);
+  }
+
+  function wireSlotMeta(slotIdx) {
+    var root = document.querySelector('[data-ref-slot="' + slotIdx + '"]');
+    if (!root) return;
+    if (window.initSapPidTcodePair) {
+      window.initSapPidTcodePair({
+        programEl: root.querySelector('.js-ref-pid'),
+        transactionEl: root.querySelector('.js-ref-tcode'),
+        feedbackPid: root.querySelector('.js-ref-fb-pid'),
+        feedbackTc: root.querySelector('.js-ref-fb-tcode'),
+        maxPid: 40,
+        maxTc: 20,
+        mirrorTc: true,
+        onChange: function () {
+          updateSlotSummary(slotIdx);
+          scheduleSave();
+        },
+      });
+    } else {
+      ['.js-ref-pid', '.js-ref-tcode'].forEach(function (sel) {
+        var el = root.querySelector(sel);
+        if (el) {
+          el.addEventListener('input', function () {
+            updateSlotSummary(slotIdx);
+            scheduleSave();
+          });
+        }
+      });
+    }
+  }
+
   function makeSectionEl(slotIdx, idx, sec) {
     sec = sec || { type: '메인 프로그램', name: '', code: '' };
     if (TYPE_OPTIONS.indexOf(sec.type) < 0) sec.type = '메인 프로그램';
@@ -51,11 +110,11 @@
     var sel = document.createElement('select');
     sel.className = 'form-select form-select-sm section-type-select';
     sel.style.maxWidth = '220px';
-    TYPE_OPTIONS.forEach(function (t) {
+    TYPE_OPTIONS.forEach(function (typ) {
       var o = document.createElement('option');
-      o.value = t;
-      o.textContent = t;
-      if (t === sec.type) o.selected = true;
+      o.value = typ;
+      o.textContent = typ;
+      if (typ === sec.type) o.selected = true;
       sel.appendChild(o);
     });
 
@@ -68,7 +127,7 @@
     var rm = document.createElement('button');
     rm.type = 'button';
     rm.className = 'btn btn-sm btn-outline-danger ref-remove-sec';
-    rm.textContent = '섹션 삭제';
+    rm.textContent = t('refForm.sectionDelete', '섹션 삭제');
     if (idx === 0) {
       rm.disabled = true;
     }
@@ -182,6 +241,7 @@
   }
 
   function clearSlot(slotIdx) {
+    applySlotFields(slotIdx, {});
     rebuildSections(slotIdx, defaultSections());
   }
 
@@ -250,6 +310,32 @@
     });
   }
 
+  function expandRefCollapseMaybe(collapseSelector) {
+    if (!collapseSelector) return;
+    var el = document.querySelector(collapseSelector);
+    if (!el) return;
+    if (el.tagName === 'DETAILS') {
+      el.open = true;
+      return;
+    }
+    if (typeof window.bootstrap !== 'undefined') {
+      try {
+        window.bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show();
+      } catch (e) {}
+    }
+  }
+
+  function openRefSectionIfNeeded() {
+    var hash = (window.location.hash || '').replace(/^#/, '');
+    if (hash === 'section-ref-code' || hash === 'collapse-ref-code') {
+      expandRefCollapseMaybe('#collapse-ref-code');
+    }
+    var loaded = loadInitial();
+    if (loaded && minSlotsFromPayload(loaded.slots) > 0) {
+      expandRefCollapseMaybe('#collapse-ref-code');
+    }
+  }
+
   function init() {
     var host = document.getElementById('ref-code-slots-host');
     if (!host) return;
@@ -265,6 +351,8 @@
 
     for (var i = 0; i < MAX_SLOTS; i++) {
       var slotData = (loaded && loaded.slots && loaded.slots[i]) || {};
+      applySlotFields(i, slotData);
+      wireSlotMeta(i);
       rebuildSections(
         i,
         slotData.sections && slotData.sections.length ? slotData.sections : defaultSections()
@@ -273,9 +361,12 @@
     }
 
     applySlotVisibility();
+    openRefSectionIfNeeded();
 
     document.querySelectorAll('.js-ref-remove-last').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
         var idx = parseInt(btn.getAttribute('data-slot'), 10);
         removeLastRefSlot(idx);
       });
@@ -287,6 +378,8 @@
         if (visibleSlotCount < MAX_SLOTS) {
           visibleSlotCount++;
           applySlotVisibility();
+          var nextRoot = document.querySelector('[data-ref-slot="' + (visibleSlotCount - 1) + '"]');
+          if (nextRoot && nextRoot.tagName === 'DETAILS') nextRoot.open = true;
           scheduleSave();
         }
       });
@@ -350,15 +443,6 @@
     if (typeof window.updateReview === 'function') window.updateReview();
   }
 
-  function expandRefCollapseMaybe(collapseSelector) {
-    if (!collapseSelector) return;
-    var el = document.querySelector(collapseSelector);
-    if (!el || typeof window.bootstrap === 'undefined') return;
-    try {
-      window.bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show();
-    } catch (e) {}
-  }
-
   /** 관리자: 코드 갤러리 API에서 받은 payload로 참고 코드 영역을 덮어씁니다. */
   function applyGalleryRefPayload(payload, collapseSelector) {
     if (!payload || !Array.isArray(payload.slots)) return Promise.resolve(false);
@@ -379,6 +463,7 @@
 
       for (var i = 0; i < MAX_SLOTS; i++) {
         var slotData = payload.slots[i] || {};
+        applySlotFields(i, slotData);
         rebuildSections(
           i,
           slotData.sections && slotData.sections.length ? slotData.sections : defaultSections()
@@ -407,12 +492,14 @@
   window.initRfpLocalRefCode = init;
   window.scheduleRfpRefCodeSave = scheduleSave;
   window.applyRfpGalleryRefPayload = applyGalleryRefPayload;
+  window.expandRfpRefCodePanel = expandRefCollapseMaybe;
   window.countRfpRefCodeSlotsFilled = function () {
     var n = 0;
     for (var i = 0; i < visibleSlotCount; i++) {
       var root = document.querySelector('[data-ref-slot="' + i + '"]');
       if (!root) continue;
       var filled = false;
+      if (((root.querySelector('.js-ref-pid') || {}).value || '').trim()) filled = true;
       root.querySelectorAll('.section-code').forEach(function (ta) {
         if (ta.value.trim()) filled = true;
       });
