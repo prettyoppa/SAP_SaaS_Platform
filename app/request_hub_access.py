@@ -128,7 +128,13 @@ def user_can_view_request_deliverables(
     """FS·개발코드 납품 조회: 요청자(결제/파이프라인 규칙), 매칭 컨설턴트, 관리자만."""
     if not user:
         return False
-    if block_test_owned_for_viewer(db, user, int(owner_user_id)):
+    if block_test_owned_for_viewer(
+        db,
+        user,
+        int(owner_user_id),
+        request_kind=request_kind,
+        request_id=int(request_id),
+    ):
         return False
     if getattr(user, "is_admin", False):
         return True
@@ -333,4 +339,10 @@ def apply_integration_hub_read_access(q: Query, user, *, console_embed: bool = F
         q = q.filter(or_(models.IntegrationRequest.user_id == user.id, offer_ok))
     else:
         q = q.filter(models.IntegrationRequest.user_id == user.id)
-    return filter_query_exclude_test_owners(q, models.IntegrationRequest.user_id, user)
+    return filter_query_exclude_test_owners(
+        q,
+        models.IntegrationRequest.user_id,
+        user,
+        request_kind="integration",
+        request_id_column=models.IntegrationRequest.id,
+    )

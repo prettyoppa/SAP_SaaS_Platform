@@ -99,7 +99,13 @@ from ..request_hub_access import (
 )
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import content_disposition_attachment, delivered_code_zip_basename, sanitize_path_component
-from ..test_account_visibility import block_test_owned_for_viewer
+from ..test_account_visibility import (
+    block_test_owned_for_viewer,
+    enrich_console_row_consultant_publish,
+    owner_user_is_test_account,
+    parse_console_sel_key,
+    set_published_to_consultants,
+)
 from ..templates_config import layout_template_from_embed_query, templates
 from ..form_core_validation import (
     CORE_FIELDS_INCOMPLETE_ERROR,
@@ -461,7 +467,9 @@ def _console_row_for_offer_target(
             .filter(models.RFP.id == req_id)
             .first()
         )
-        if not row or block_test_owned_for_viewer(db, viewer, int(row.user_id)):
+        if not row or block_test_owned_for_viewer(
+            db, viewer, int(row.user_id), request_kind="rfp", request_id=req_id
+        ):
             return None
         return _console_row_from_rfp(row, viewer)
     if k == "analysis":
@@ -471,7 +479,9 @@ def _console_row_for_offer_target(
             .filter(models.AbapAnalysisRequest.id == req_id)
             .first()
         )
-        if not row or block_test_owned_for_viewer(db, viewer, int(row.user_id)):
+        if not row or block_test_owned_for_viewer(
+            db, viewer, int(row.user_id), request_kind="analysis", request_id=req_id
+        ):
             return None
         return _console_row_from_analysis(row, viewer)
     if k == "integration":
@@ -481,7 +491,9 @@ def _console_row_for_offer_target(
             .filter(models.IntegrationRequest.id == req_id)
             .first()
         )
-        if not row or block_test_owned_for_viewer(db, viewer, int(row.user_id)):
+        if not row or block_test_owned_for_viewer(
+            db, viewer, int(row.user_id), request_kind="integration", request_id=req_id
+        ):
             return None
         return _console_row_from_integration(row, viewer)
     return None
@@ -838,6 +850,7 @@ def _console_row_from_rfp(r: models.RFP, user) -> dict[str, Any]:
         "created_at": r.created_at,
         "owner_name": getattr(getattr(r, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(r, "owner", None), "company", "") or "",
+        "owner_user_id": int(r.user_id),
         "detail_href": detail_href,
         "preview_href": preview_href,
         "summary": (r.description or "").strip(),
@@ -867,6 +880,7 @@ def _console_row_from_analysis(row: models.AbapAnalysisRequest, user) -> dict[st
         "created_at": row.created_at,
         "owner_name": getattr(getattr(row, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(row, "owner", None), "company", "") or "",
+        "owner_user_id": int(row.user_id),
         "detail_href": detail_href,
         "preview_href": preview_href,
         "summary": (row.requirement_text or "").strip(),
@@ -896,6 +910,7 @@ def _console_row_from_integration(ir: models.IntegrationRequest, user) -> dict[s
         "created_at": ir.created_at,
         "owner_name": getattr(getattr(ir, "owner", None), "full_name", "") or "",
         "owner_company": getattr(getattr(ir, "owner", None), "company", "") or "",
+        "owner_user_id": int(ir.user_id),
         "detail_href": detail_href,
         "preview_href": preview_href,
         "summary": (ir.description or "").strip(),
@@ -1118,6 +1133,9 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
     for row in rows:
         _attach_console_offer_meta(row)
 
+    for row in rows:
+        enrich_console_row_consultant_publish(db, row, user)
+
     count_keys: list[tuple[str, int]] = []
     for row in rows:
         ck = _console_row_offer_count_key(row)
@@ -1182,6 +1200,41 @@ def request_console_page(request: Request, db: Session = Depends(get_db)):
             "console_matching_notice_pending": console_matching_notice_pending,
         },
     )
+
+
+@router.post("/request-console/consultant-publish")
+async def request_console_consultant_publish(request: Request, db: Session = Depends(get_db)):
+    """관리자: 테스트 계정 소유 요청을 비테스트 컨설턴트에게 공개/비공개."""
+    user = auth.get_current_user(request, db)
+    if not user or not getattr(user, "is_admin", False):
+        return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "invalid_json"}, status_code=400)
+    parsed = parse_console_sel_key((body.get("sel_key") or "").strip())
+    if not parsed:
+        return JSONResponse({"ok": False, "error": "invalid_sel_key"}, status_code=400)
+    req_kind, req_id = parsed
+    owner_id = body.get("owner_user_id")
+    if owner_id is None:
+        return JSONResponse({"ok": False, "error": "missing_owner"}, status_code=400)
+    try:
+        owner_id_int = int(owner_id)
+    except (TypeError, ValueError):
+        return JSONResponse({"ok": False, "error": "invalid_owner"}, status_code=400)
+    if not owner_user_is_test_account(db, owner_id_int):
+        return JSONResponse({"ok": False, "error": "not_test_owner"}, status_code=400)
+    published = bool(body.get("published", False))
+    set_published_to_consultants(
+        db,
+        request_kind=req_kind,
+        request_id=req_id,
+        published=published,
+        updated_by_user_id=int(user.id),
+    )
+    db.commit()
+    return JSONResponse({"ok": True, "published": published})
 
 
 @router.post("/request-console/offer")

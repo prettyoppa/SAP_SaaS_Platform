@@ -445,6 +445,24 @@ html[data-theme="dark"] .btn-console-offer:hover {
           {% endif %}
         </div>
       </div>
+      {% if user.is_admin and selected_row.can_toggle_consultant_publish|default(false) %}
+      <div class="console-consultant-publish-bar d-flex align-items-center gap-2 mt-2 py-1 px-2 rounded border border-secondary-subtle bg-body-tertiary"
+           id="console-consultant-publish-wrap">
+        <span class="small text-muted mb-0">
+          <span class="nav-ko">컨설턴트에게</span><span class="nav-en" style="display:none">To consultants</span>
+        </span>
+        <div class="form-check form-switch mb-0 ms-1">
+          <input class="form-check-input" type="checkbox" role="switch" id="console-consultant-publish"
+                 {% if selected_row.consultant_published|default(false) %}checked{% endif %}
+                 data-sel-key="{{ selected_row.sel_key }}"
+                 data-owner-user-id="{{ selected_row.owner_user_id }}">
+          <label class="form-check-label small mb-0" for="console-consultant-publish">
+            <span class="nav-ko">공개</span><span class="nav-en" style="display:none">Published</span>
+          </label>
+        </div>
+        <span class="small text-muted mb-0 d-none" id="console-consultant-publish-status" aria-live="polite"></span>
+      </div>
+      {% endif %}
       <hr class="my-2" />
       <div class="console-detail-frame-wrap">
         <iframe id="console-detail-iframe" class="console-detail-iframe" src="{{ selected_row.preview_href|default(selected_row.detail_href, true) }}" loading="lazy" referrerpolicy="same-origin"></iframe>
@@ -552,6 +570,57 @@ html[data-theme="dark"] .btn-console-offer:hover {
         });
       } else if (window.confirm(msg)) {
         proceed();
+      }
+    });
+  }
+  const publishToggle = document.getElementById('console-consultant-publish');
+  const publishStatus = document.getElementById('console-consultant-publish-status');
+  if (publishToggle) {
+    publishToggle.addEventListener('change', async () => {
+      const prev = !publishToggle.checked;
+      publishToggle.disabled = true;
+      if (publishStatus) {
+        publishStatus.classList.remove('d-none', 'text-danger', 'text-success');
+        const isKo = (document.documentElement.getAttribute('data-effective-lang') || 'ko') === 'ko';
+        publishStatus.textContent = isKo ? '저장 중…' : 'Saving…';
+      }
+      try {
+        const res = await fetch('/request-console/consultant-publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            sel_key: publishToggle.dataset.selKey || '',
+            owner_user_id: publishToggle.dataset.ownerUserId || '',
+            published: publishToggle.checked,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          publishToggle.checked = prev;
+          if (publishStatus) {
+            publishStatus.classList.add('text-danger');
+            const isKo = (document.documentElement.getAttribute('data-effective-lang') || 'ko') === 'ko';
+            publishStatus.textContent = isKo ? '저장 실패' : 'Save failed';
+          }
+          return;
+        }
+        if (publishStatus) {
+          publishStatus.classList.add('text-success');
+          const isKo = (document.documentElement.getAttribute('data-effective-lang') || 'ko') === 'ko';
+          publishStatus.textContent = publishToggle.checked
+            ? (isKo ? '공개됨' : 'Published')
+            : (isKo ? '비공개' : 'Hidden');
+        }
+      } catch (_err) {
+        publishToggle.checked = prev;
+        if (publishStatus) {
+          publishStatus.classList.add('text-danger');
+          const isKo = (document.documentElement.getAttribute('data-effective-lang') || 'ko') === 'ko';
+          publishStatus.textContent = isKo ? '저장 실패' : 'Save failed';
+        }
+      } finally {
+        publishToggle.disabled = false;
       }
     });
   }

@@ -348,7 +348,9 @@ def rfp_for_hub_readonly_embed(
         if load_followup_messages:
             preload.append(joinedload(models.RFP.followup_messages))
         rfp = q.options(*preload).first()
-        if not rfp or block_test_owned_for_viewer(db, user, int(rfp.user_id)):
+        if not rfp or block_test_owned_for_viewer(
+            db, user, int(rfp.user_id), request_kind="rfp", request_id=int(rfp_id)
+        ):
             return None
         return rfp
     return rfp_for_owner_or_admin(

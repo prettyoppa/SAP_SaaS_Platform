@@ -380,17 +380,29 @@ def _query_abap_readable(db: Session, user: models.User):
                 abap_analysis_consultant_read_scope(user.id),
             )
         )
-        return filter_query_exclude_test_owners(q, models.AbapAnalysisRequest.user_id, user)
+        return filter_query_exclude_test_owners(
+            q,
+            models.AbapAnalysisRequest.user_id,
+            user,
+            request_kind="analysis",
+            request_id_column=models.AbapAnalysisRequest.id,
+        )
     return q.filter(models.AbapAnalysisRequest.user_id == user.id)
 
 
 def _query_abap_console_embed(db: Session, user: models.User):
     """요청 Console iframe(읽기 전용): 관리자·컨설턴트는 목록과 동일하게 전체 분석 요청 미리보기."""
     if getattr(user, "is_admin", False) or getattr(user, "is_consultant", False):
-        from .test_account_visibility import filter_query_exclude_test_owners
+        from ..test_account_visibility import filter_query_exclude_test_owners
 
         q = db.query(models.AbapAnalysisRequest)
-        return filter_query_exclude_test_owners(q, models.AbapAnalysisRequest.user_id, user)
+        return filter_query_exclude_test_owners(
+            q,
+            models.AbapAnalysisRequest.user_id,
+            user,
+            request_kind="analysis",
+            request_id_column=models.AbapAnalysisRequest.id,
+        )
     return _query_abap_readable(db, user)
 
 

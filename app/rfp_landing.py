@@ -62,7 +62,13 @@ def _rfp_base_query(
     if admin:
         q = q.options(joinedload(models.RFP.owner))
         if viewer is not None:
-            q = filter_query_exclude_test_owners(q, models.RFP.user_id, viewer)
+            q = filter_query_exclude_test_owners(
+                q,
+                models.RFP.user_id,
+                viewer,
+                request_kind="rfp",
+                request_id_column=models.RFP.id,
+            )
         return q
     if consultant_matched:
         ro = models.RequestOffer

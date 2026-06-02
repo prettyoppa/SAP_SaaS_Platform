@@ -218,7 +218,13 @@ def _abap_analysis_base_query(
     )
     if admin:
         if viewer is not None:
-            q = filter_query_exclude_test_owners(q, models.AbapAnalysisRequest.user_id, viewer)
+            q = filter_query_exclude_test_owners(
+                q,
+                models.AbapAnalysisRequest.user_id,
+                viewer,
+                request_kind="analysis",
+                request_id_column=models.AbapAnalysisRequest.id,
+            )
         return q
     if consultant_matched:
         return q.filter(
@@ -314,7 +320,13 @@ def _integration_base_query(
     )
     if admin:
         if viewer is not None:
-            q = filter_query_exclude_test_owners(q, models.IntegrationRequest.user_id, viewer)
+            q = filter_query_exclude_test_owners(
+                q,
+                models.IntegrationRequest.user_id,
+                viewer,
+                request_kind="integration",
+                request_id_column=models.IntegrationRequest.id,
+            )
         return q
     if consultant_matched:
         ro = models.RequestOffer

@@ -711,6 +711,22 @@ class RequestOffer(Base):
     )
 
 
+class RequestConsultantVisibility(Base):
+    """관리자가 테스트 계정 소유 요청을 비테스트 컨설턴트에게 공개할 때 사용."""
+
+    __tablename__ = "request_consultant_visibility"
+    __table_args__ = (
+        UniqueConstraint("request_kind", "request_id", name="uq_request_consultant_visibility"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_kind = Column(String(16), nullable=False, index=True)  # rfp | analysis | integration
+    request_id = Column(Integer, nullable=False, index=True)
+    visible_to_consultants = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
 class RequestOfferInquiry(Base):
     """오퍼 단위 요청자↔컨설턴트 메시지 이력(이메일·SMS 알림)."""
 
