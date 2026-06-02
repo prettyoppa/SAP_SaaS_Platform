@@ -156,8 +156,8 @@
                 {% endif %}
 
                 {% if source_program_groups and source_program_groups|length %}
-                <h6 class="text-muted mt-3 small text-uppercase">참고 ABAP 코드</h6>
-                {% set tabs_base_id = 'abap-ref-src' %}
+                <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.refAbap">참고 ABAP 코드</h6>
+                {% set tabs_base_id = 'abap-ref-src-' ~ row.id %}
                 {% include "partials/reference_code_program_boxes.html" %}
                 {% endif %}
               </div>

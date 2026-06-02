@@ -66,7 +66,7 @@
         </ul>
         {% endif %}
         {% if wf_source_program_groups and wf_source_program_groups|length %}
-        <h6 class="text-muted mt-3 small text-uppercase">참고 ABAP 코드</h6>
+        <h6 class="text-muted mt-3 small text-uppercase" data-i18n="reqPanel.refAbap">참고 ABAP 코드</h6>
         {% set tabs_base_id = wf_tabs_base_id %}
         {% set source_program_groups = wf_source_program_groups %}
         {% set code_asset_unlocked = wf_code_asset_unlocked|default(false) %}

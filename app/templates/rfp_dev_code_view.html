@@ -59,9 +59,11 @@
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <i class="fa-solid fa-code me-1"></i>
         <span>코드 본문</span>
-        <span class="small text-muted">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
+        <span class="small text-muted nav-ko">({{ reference_section_count }}개 섹션{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }}개 프로그램{% endif %})</span>
+        <span class="small text-muted nav-en" style="display:none">({{ reference_section_count }} sections{% if source_program_groups|length > 1 %} · {{ source_program_groups|length }} programs{% endif %})</span>
       </summary>
       <div class="interview-summary-body p-0 px-0 pt-2">
+        {% set tabs_base_id = tabs_base_id|default('rfp-dev-code-src') %}
         {% include "partials/reference_code_program_boxes.html" %}
       </div>
     </details>

@@ -322,6 +322,18 @@ def _section_short_tab_label(sec: dict, j: int) -> str:
     return f"섹션{j}"
 
 
+def _program_display_header(slot: dict) -> str:
+    """뷰 헤더용: program_id 없을 때 첫 섹션명 등으로 대체."""
+    pid = (slot.get("program_id") or "").strip()
+    if pid:
+        return pid
+    for sec in slot.get("sections") or []:
+        name = (sec.get("name") or "").strip()
+        if name:
+            return name
+    return ""
+
+
 def reference_code_program_groups_for_tabs(payload: str | None) -> list[dict]:
     """
     프로그램(슬롯)별 박스 → 각 박스 안에서 섹션 탭 UX.
@@ -353,7 +365,9 @@ def reference_code_program_groups_for_tabs(payload: str | None) -> list[dict]:
         groups.append({
             "code_type": ct,
             "code_type_label": ct_label,
+            "slot_index": int(slot.get("index") or len(groups) + 1),
             "program_id": (slot.get("program_id") or "").strip(),
+            "header_label": _program_display_header(slot),
             "transaction_code": (slot.get("transaction_code") or "").strip(),
             "title": (slot.get("title") or "").strip(),
             "sections": secs_out,
