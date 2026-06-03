@@ -3,6 +3,7 @@ import os
 from io import BytesIO
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, Request, Form, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -379,6 +380,30 @@ def _admin_user_activity_stats(db: Session, user_ids: list[int]) -> dict[int, di
     return stats
 
 
+def _admin_users_list_url(
+    *,
+    q: str = "",
+    verified: str = "all",
+    pending: str = "all",
+    user_kind: str = "all",
+    err: str | None = None,
+) -> str:
+    params: dict[str, str] = {}
+    qq = (q or "").strip()
+    if qq:
+        params["q"] = qq
+    if verified and verified != "all":
+        params["verified"] = verified
+    if pending and pending != "all":
+        params["pending"] = pending
+    if user_kind and user_kind != "all":
+        params["user_kind"] = user_kind
+    if err:
+        params["err"] = err
+    qs = urlencode(params)
+    return f"/admin/users?{qs}" if qs else "/admin/users"
+
+
 def _admin_users_rows_and_summary(
     db: Session,
     qq: str,
@@ -411,6 +436,12 @@ def _admin_users_rows_and_summary(
         q_users = q_users.filter(models.User.is_admin.is_(True))
     elif user_kind == "consultant":
         q_users = q_users.filter(models.User.is_admin.is_(False), models.User.is_consultant.is_(True))
+    elif user_kind == "consultant_pending":
+        q_users = q_users.filter(
+            models.User.is_admin.is_(False),
+            models.User.is_consultant.is_(False),
+            models.User.consultant_application_pending.is_(True),
+        )
     elif user_kind == "member":
         q_users = q_users.filter(models.User.is_admin.is_(False), models.User.is_consultant.is_(False))
 
@@ -435,6 +466,16 @@ def _admin_users_rows_and_summary(
         .scalar()
         or 0
     )
+    pending_consultant_apps = (
+        db.query(func.count(models.User.id))
+        .filter(
+            models.User.is_admin.is_(False),
+            models.User.is_consultant.is_(False),
+            models.User.consultant_application_pending.is_(True),
+        )
+        .scalar()
+        or 0
+    )
     members_with_any_activity = (
         db.query(func.count(func.distinct(models.User.id)))
         .outerjoin(models.RFP, models.RFP.user_id == models.User.id)
@@ -454,6 +495,7 @@ def _admin_users_rows_and_summary(
         "total_users": int(total_users),
         "verified_users": int(verified_users),
         "pending_users": int(pending_users),
+        "pending_consultant_apps": int(pending_consultant_apps),
         "members_with_any_activity": int(members_with_any_activity),
         "visible_users": len(users),
     }
@@ -676,15 +718,22 @@ def admin_user_toggle_test_account(
 
 
 @router.post("/users/{user_id}/consultant-toggle")
-def admin_user_toggle_consultant(user_id: int, request: Request, db: Session = Depends(get_db)):
+async def admin_user_toggle_consultant(user_id: int, request: Request, db: Session = Depends(get_db)):
     actor = _require_admin(request, db)
+    form = await request.form()
+    list_url = _admin_users_list_url(
+        q=str(form.get("q") or ""),
+        verified=str(form.get("verified") or "all"),
+        pending=str(form.get("pending") or "all"),
+        user_kind=str(form.get("user_kind") or "all"),
+    )
     if not actor:
         return RedirectResponse(url="/", status_code=302)
     target = db.query(models.User).filter(models.User.id == user_id).first()
     if not target:
-        return RedirectResponse(url="/admin/users", status_code=302)
+        return RedirectResponse(url=list_url, status_code=302)
     if target.is_admin:
-        return RedirectResponse(url="/admin/users?err=admin_consultant", status_code=302)
+        return RedirectResponse(url=_admin_users_list_url(err="admin_consultant"), status_code=302)
     was_consultant = bool(getattr(target, "is_consultant", False))
     was_pending = bool(getattr(target, "consultant_application_pending", False))
     target.is_consultant = not was_consultant
@@ -698,7 +747,7 @@ def admin_user_toggle_consultant(user_id: int, request: Request, db: Session = D
             send_consultant_approved_email(target.email)
         except Exception:
             pass
-    return RedirectResponse(url="/admin/users", status_code=302)
+    return RedirectResponse(url=list_url, status_code=302)
 
 
 @router.get("/users/{user_id}/consultant-profile/download")

@@ -10,7 +10,7 @@
   <link href="/static/vendor/bootstrap-5.3.3/css/bootstrap.min.css?v=20260512" rel="stylesheet"/>
   <link href="/static/vendor/fontawesome-free-6.5.1/css/all.min.css?v=20260512" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="/static/css/style.css?v=20260521herogray" rel="stylesheet"/>
+  <link href="/static/css/style.css?v=20260529joblog" rel="stylesheet"/>
   <!-- 테마 깜빡임 방지: CSS 로드 전에 테마·파비콘 적용 -->
   <script>
     (function() {
@@ -44,6 +44,8 @@
     html[data-effective-lang="ko"] #btn-en.lang-btn { color: var(--muted); background: transparent; }
     html[data-effective-lang="ko"] #btn-ko.lang-btn { color: var(--primary-light); background: rgba(99,102,241,.1); }
     html[data-theme="light"][data-effective-lang="ko"] #btn-ko.lang-btn { color: var(--primary); background: rgba(79,70,229,.08); }
+    /* EN: hide KO-default [data-i18n] copy until i18n.js applies translations */
+    html[data-effective-lang="en"]:not(.i18n-ready) [data-i18n] { visibility: hidden; }
   </style>
   <script>
     (function () {
@@ -94,11 +96,11 @@
       <i class="fa-solid fa-robot busy-spinner-icon busy-spinner-mascot busy-spinner-mascot--agent" aria-hidden="true"></i>
     </div>
     <div class="global-busy-title fw-semibold nav-ko">처리 중입니다…</div>
-    <div class="global-busy-title fw-semibold nav-en" style="display:none">Processing…</div>
+    <div class="global-busy-title fw-semibold nav-en">Processing…</div>
     <ul id="global-busy-agent-lines-ko" class="global-busy-agent-lines list-unstyled small mb-0 mt-2 nav-ko text-start text-muted d-none"></ul>
-    <ul id="global-busy-agent-lines-en" class="global-busy-agent-lines list-unstyled small mb-0 mt-2 nav-en text-start text-muted d-none" style="display:none"></ul>
+    <ul id="global-busy-agent-lines-en" class="global-busy-agent-lines list-unstyled small mb-0 mt-2 nav-en text-start text-muted d-none"></ul>
     <p class="global-busy-hint small mb-0 mt-2 nav-ko text-muted">잠시만 기다려 주세요.</p>
-    <p class="global-busy-hint small mb-0 mt-2 nav-en text-muted" style="display:none">Please wait.</p>
+    <p class="global-busy-hint small mb-0 mt-2 nav-en text-muted">Please wait.</p>
   </div>
 </div>
 
@@ -389,9 +391,9 @@
 
 <script src="/static/vendor/bootstrap-5.3.3/js/bootstrap.bundle.min.js?v=20260512"></script>
 <script>window.__I18nEnOverrides = {{ request.state.i18n_en_overrides | tojson }};</script>
-<script src="/static/js/i18n.js?v=20260529profilelang"></script>
+<script src="/static/js/i18n.js?v=20260529i18nready"></script>
 <script src="/static/js/abap_float_chat_resize.js?v=20260521"></script>
-<script src="/static/js/main.js?v=20260529aichatajax"></script>
+<script src="/static/js/main.js?v=20260529busylang"></script>
 {% if user %}<script src="/static/js/account-profile-modal.js?v=20260529profilelang"></script>{% endif %}
 <script src="/static/js/abap_line_numbers.js?v=20260521"></script>
 {% include "partials/menu_list_view_script.html" %}

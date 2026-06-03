@@ -155,6 +155,33 @@ function _busyOverlay() {
   return document.getElementById('global-busy-overlay');
 }
 
+function _effectiveUiLang() {
+  const el = document.documentElement;
+  const eff = (el && el.getAttribute('data-effective-lang')) || '';
+  if (eff === 'en' || eff === 'ko') return eff;
+  try {
+    const stored = localStorage.getItem('lang');
+    if (stored === 'en' || stored === 'ko') return stored;
+  } catch (_) { /* ignore */ }
+  return 'ko';
+}
+
+function _syncBusyOverlayLang() {
+  const isKo = _effectiveUiLang() === 'ko';
+  const root = _busyOverlay();
+  if (!root) return;
+  root.querySelectorAll('.nav-ko').forEach((el) => {
+    el.style.display = isKo ? '' : 'none';
+  });
+  root.querySelectorAll('.nav-en').forEach((el) => {
+    if (el.classList.contains('d-none') && el.childElementCount === 0) {
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = isKo ? 'none' : '';
+  });
+}
+
 function _busyDefaults() {
   const root = _busyOverlay();
   if (!root) return { titleKo: '', titleEn: '', hintKo: '', hintEn: '' };
@@ -224,6 +251,7 @@ function showGlobalBusy(meta) {
   const el = _busyOverlay();
   if (!el) return;
   const d = _busyDefaults();
+  const isKo = _effectiveUiLang() === 'ko';
   _clearAgentLines();
   const ring = el.querySelector('.busy-spinner-ring');
   if (ring) ring.classList.remove('busy-spinner-ring--agents-mascot');
@@ -244,12 +272,12 @@ function showGlobalBusy(meta) {
     agents.forEach((row) => {
       const { ko, en } = _agentSentence(row);
       if (!ko && !en) return;
-      if (listKo && ko) {
+      if (listKo && ko && isKo) {
         const li = document.createElement('li');
         li.textContent = ko;
         listKo.appendChild(li);
       }
-      if (listEn && en) {
+      if (listEn && en && !isKo) {
         const li2 = document.createElement('li');
         li2.textContent = en;
         listEn.appendChild(li2);
@@ -265,6 +293,7 @@ function showGlobalBusy(meta) {
     _setBusyTitles(titleKo, titleEn);
     _setBusyHints(hintKo, hintEn);
   }
+  _syncBusyOverlayLang();
   el.removeAttribute('hidden');
 }
 
@@ -881,6 +910,14 @@ document.addEventListener('DOMContentLoaded', () => {
           hideGlobalBusy();
           return;
         }
+        /* Same page, hash-only — in-page phase jump; no full navigation */
+        if (
+          u.pathname === window.location.pathname &&
+          u.hash &&
+          u.search === new URL(window.location.href).search
+        ) {
+          return;
+        }
       } catch (_) {
         return;
       }
@@ -895,6 +932,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.abap-float-chat-local-busy').forEach((el) => {
       el.setAttribute('hidden', '');
     });
+  });
+
+  window.addEventListener('load', () => {
+    hideGlobalBusy();
   });
 
   settleRequestConsoleNavBubble();

@@ -2,7 +2,7 @@
 <div id="hubDeliveryJobLogPanel" class="delivery-job-log-overlay d-none" aria-hidden="true">
   <div class="delivery-job-log-backdrop" data-close-hub-delivery-log="1" aria-hidden="true"></div>
   <div class="delivery-job-log-sheet border shadow" role="dialog" aria-modal="true" aria-labelledby="hubDeliveryJobLogTitle">
-    <div class="d-flex align-items-center border-bottom px-3 py-2 flex-shrink-0 bg-body">
+    <div class="delivery-job-log-header d-flex align-items-center border-bottom px-3 py-2 flex-shrink-0">
       <h5 class="modal-title mb-0" id="hubDeliveryJobLogTitle">
         <span class="nav-ko">생성 작업 실행 로그</span>
         <span class="nav-en" style="display:none">Generation job log</span>
@@ -33,10 +33,10 @@
       </ul>
       <div class="tab-content border border-top-0 rounded-bottom p-2" id="hubJobLogTabContent">
         <div class="tab-pane fade show active" id="hubPaneFsLog" role="tabpanel">
-          <pre id="hubJobLogFs" class="small mb-0 p-2 rounded hub-job-log-pre">(불러오는 중…)</pre>
+          <pre id="hubJobLogFs" class="small mb-0 p-2 rounded hub-job-log-pre"><span class="nav-ko">(불러오는 중…)</span><span class="nav-en" style="display:none">(Loading…)</span></pre>
         </div>
         <div class="tab-pane fade" id="hubPaneDcLog" role="tabpanel">
-          <pre id="hubJobLogDc" class="small mb-0 p-2 rounded hub-job-log-pre">(불러오는 중…)</pre>
+          <pre id="hubJobLogDc" class="small mb-0 p-2 rounded hub-job-log-pre"><span class="nav-ko">(불러오는 중…)</span><span class="nav-en" style="display:none">(Loading…)</span></pre>
         </div>
       </div>
     </div>
@@ -62,15 +62,42 @@
   z-index: 1;
   width: min(42rem, 96vw);
   max-width: 100%;
-  background: var(--surface, #fff);
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
   display: flex;
   flex-direction: column;
   max-height: 100%;
+}
+.delivery-job-log-header {
+  background: var(--surface);
+  border-color: var(--border) !important;
+}
+.delivery-job-log-header .modal-title {
+  color: var(--text);
+  font-weight: 600;
 }
 .delivery-job-log-body { flex: 1; min-height: 0; overflow: auto; }
 .hub-job-log-pre {
   max-height: 50vh;
   background: var(--surface2);
+  color: var(--text);
   white-space: pre-wrap;
+}
+html[data-theme="dark"] .delivery-job-log-sheet .nav-tabs {
+  border-color: var(--border);
+}
+html[data-theme="dark"] .delivery-job-log-sheet .nav-tabs .nav-link {
+  color: var(--muted);
+}
+html[data-theme="dark"] .delivery-job-log-sheet .nav-tabs .nav-link.active {
+  color: var(--text);
+  background: var(--surface2);
+  border-color: var(--border);
+}
+html[data-theme="dark"] .delivery-job-log-sheet .tab-content {
+  background: var(--surface);
+  border-color: var(--border) !important;
+  color: var(--text);
 }
 </style>

@@ -582,6 +582,7 @@ const TRANSLATIONS = {
     "admin.kb.confirmRequestFlowBackfill": "Generate KB review drafts for all existing requests (proposal/FS/delivery stages)? Test accounts are included. Code gallery content will never be published. This may take a long time and uses API credits.",
     "admin.users.confirmSharedPhoneOn": "Allow this member to verify a phone number already used by another account? They still need the SMS code.",
     "admin.users.confirmSharedPhoneOff": "Revoke shared-phone permission for this member? They cannot verify a number already used elsewhere until re-enabled.",
+    "admin.users.confirmConsultantToggle": "Change consultant access for this account?",
     "kb.searchPlaceholder": "Search title, excerpt, tags",
   },
 
@@ -1161,6 +1162,7 @@ const TRANSLATIONS = {
     "admin.kb.confirmRequestFlowBackfill": "기존 요청(제안·FS·납품 단계)마다 KB 검수 대기 초안을 일괄 생성합니다. 테스트계정 포함. 코드갤러리 내용은 공개하지 않습니다. API 사용량이 많고 시간이 걸릴 수 있습니다. 계속할까요?",
     "admin.users.confirmSharedPhoneOn": "이 회원이 다른 계정과 동일한 휴대폰 번호로 인증할 수 있게 할까요? SMS 인증번호는 여전히 필요합니다.",
     "admin.users.confirmSharedPhoneOff": "이 회원의 동일번호 허용을 해제할까요? 해제 후에는 다른 계정이 쓰는 번호로 인증할 수 없습니다.",
+    "admin.users.confirmConsultantToggle": "이 계정의 컨설턴트 권한을 변경할까요?",
     "kb.searchPlaceholder": "제목·요약·태그 검색",
   }
 };
@@ -1251,6 +1253,7 @@ function setLang(lang) {
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('btn-' + lang);
   if (btn) btn.classList.add('active');
+  document.documentElement.classList.add('i18n-ready');
   const themeBtn = document.getElementById('themeToggleBtn');
   if (themeBtn) {
     themeBtn.title = isKo
@@ -1323,4 +1326,5 @@ if (document.documentElement.getAttribute('data-effective-lang') !== currentLang
     btn.classList.add('active');
   }
 }
+document.documentElement.classList.add('i18n-ready');
 window.setLang = setLang;

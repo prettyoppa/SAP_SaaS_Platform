@@ -7,8 +7,8 @@
       <span class="nav-ko"><strong>개발 의뢰 활성</strong> — 전문가 그룹이 오퍼를 제안할 수 있습니다. 오퍼를 받으면 오퍼한 전문가 프로필 확인 후 매칭 여부를 결정하세요.</span>
       <span class="nav-en" style="display:none"><strong>Development request open</strong> — our expert group may submit offers. When you receive an offer, review the expert&apos;s profile and decide whether to match.</span>
     </span>
-    {% if fs_phase_url is defined and fs_phase_url %}
-    <a href="{{ fs_phase_url }}" class="btn btn-sm btn-outline-primary mb-0">
+    {% if fs_phase_url is defined and fs_phase_url and can_view_deliverables|default(false) %}
+    <a href="{{ fs_phase_url }}" class="btn btn-sm btn-outline-primary mb-0" data-skip-global-busy="1">
       <span class="nav-ko">FS·납품 보기</span><span class="nav-en" style="display:none">View FS &amp; delivery</span>
     </a>
     {% endif %}
