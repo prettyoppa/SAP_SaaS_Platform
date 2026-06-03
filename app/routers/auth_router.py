@@ -421,6 +421,66 @@ def _account_profile_edit_shared_context(user: models.User, *, tz_choices: list[
     }
 
 
+def _profile_lang_currency_from_user(user: models.User) -> tuple[str, str]:
+    return (
+        _normalize_lang(getattr(user, "preferred_lang", None)),
+        _normalize_billing_currency(getattr(user, "billing_currency", None)),
+    )
+
+
+def _profile_lang_currency_from_form(
+    user: models.User,
+    preferred_lang: str | None,
+    billing_currency: str | None,
+) -> tuple[str, str]:
+    pl = (
+        _normalize_lang(preferred_lang)
+        if (preferred_lang or "").strip()
+        else _normalize_lang(getattr(user, "preferred_lang", None))
+    )
+    bc = (
+        _normalize_billing_currency(billing_currency)
+        if (billing_currency or "").strip()
+        else _normalize_billing_currency(getattr(user, "billing_currency", None))
+    )
+    return pl, bc
+
+
+def _account_profile_edit_response_context(
+    user: models.User,
+    *,
+    tz_choices: list[dict[str, str]],
+    full_name_value: str,
+    company_value: str,
+    timezone_value: str,
+    account_type_value: str,
+    consultant_application_pending: bool,
+    ops_email_opt_in_value: bool,
+    marketing_email_opt_in_value: bool,
+    ops_sms_opt_in_value: bool,
+    marketing_sms_opt_in_value: bool,
+    preferred_lang_value: str,
+    billing_currency_value: str,
+    error: str | None = None,
+) -> dict:
+    return {
+        "user": user,
+        "full_name_value": full_name_value,
+        "company_value": company_value,
+        "timezone_value": timezone_value,
+        "ops_email_opt_in_value": ops_email_opt_in_value,
+        "marketing_email_opt_in_value": marketing_email_opt_in_value,
+        "ops_sms_opt_in_value": ops_sms_opt_in_value,
+        "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
+        "account_type_value": account_type_value,
+        "consultant_application_pending": consultant_application_pending,
+        "preferred_lang_value": preferred_lang_value,
+        "billing_currency_value": billing_currency_value,
+        "error": error,
+        **_account_profile_edit_shared_context(user, tz_choices=tz_choices),
+    }
+
+
 def _parse_new_password(raw: str | None) -> tuple[str | None, str | None]:
     s = (raw or "").strip()
     if len(s) < _MIN_PASSWORD_LEN:
@@ -1477,26 +1537,30 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login?next=/account/edit", status_code=302)
+    db.refresh(user)
     tzc = _time_zone_choices()
+    preferred_lang_value, billing_currency_value = _profile_lang_currency_from_user(user)
     return templates.TemplateResponse(
         request,
         "account_profile_edit.html",
-        {
-            "user": user,
-            "full_name_value": user.full_name,
-            "company_value": user.company or "",
-            "timezone_value": getattr(user, "timezone", None) or "",
-            "ops_email_opt_in_value": bool(getattr(user, "ops_email_opt_in", False)),
-            "marketing_email_opt_in_value": bool(getattr(user, "marketing_email_opt_in", False)),
-            "ops_sms_opt_in_value": bool(getattr(user, "ops_sms_opt_in", False)),
-            "marketing_sms_opt_in_value": bool(getattr(user, "marketing_sms_opt_in", False)),
-            "account_type_value": "consultant"
+        _account_profile_edit_response_context(
+            user,
+            tz_choices=tzc,
+            full_name_value=user.full_name,
+            company_value=user.company or "",
+            timezone_value=getattr(user, "timezone", None) or "",
+            ops_email_opt_in_value=bool(getattr(user, "ops_email_opt_in", False)),
+            marketing_email_opt_in_value=bool(getattr(user, "marketing_email_opt_in", False)),
+            ops_sms_opt_in_value=bool(getattr(user, "ops_sms_opt_in", False)),
+            marketing_sms_opt_in_value=bool(getattr(user, "marketing_sms_opt_in", False)),
+            account_type_value="consultant"
             if (getattr(user, "is_consultant", False) or getattr(user, "consultant_application_pending", False))
             else "member",
-            "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
-            "error": None,
-            **_account_profile_edit_shared_context(user, tz_choices=tzc),
-        },
+            consultant_application_pending=bool(getattr(user, "consultant_application_pending", False)),
+            preferred_lang_value=preferred_lang_value,
+            billing_currency_value=billing_currency_value,
+            error=None,
+        ),
     )
 
 
@@ -1535,69 +1599,67 @@ async def account_profile_edit_post(
     name_ok, err = _parse_profile_full_name(full_name)
     company_ok = _parse_profile_company(company)
     tz_ok, tz_err = _parse_profile_timezone(timezone)
+    submitted_pl, submitted_bc = _profile_lang_currency_from_form(user, preferred_lang, billing_currency)
 
-    if err:
+    def _profile_edit_err(
+        *,
+        full_name_value: str,
+        company_value: str,
+        timezone_value: str,
+        error: str,
+        account_type_value: str | None = None,
+        consultant_application_pending: bool | None = None,
+    ):
         return templates.TemplateResponse(
             request,
             "account_profile_edit.html",
-            {
-                "user": user,
-                "full_name_value": (full_name or "").strip()[:_MAX_PROFILE_FULL_NAME],
-                "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
-                "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
-                "ops_email_opt_in_value": ops_email_opt_in_value,
-                "marketing_email_opt_in_value": marketing_email_opt_in_value,
-                "ops_sms_opt_in_value": ops_sms_opt_in_value,
-                "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
-                "account_type_value": account_type_norm,
-                "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
-                "error": err,
-                **_account_profile_edit_shared_context(user, tz_choices=tzc),
-            },
+            _account_profile_edit_response_context(
+                user,
+                tz_choices=tzc,
+                full_name_value=full_name_value,
+                company_value=company_value,
+                timezone_value=timezone_value,
+                ops_email_opt_in_value=ops_email_opt_in_value,
+                marketing_email_opt_in_value=marketing_email_opt_in_value,
+                ops_sms_opt_in_value=ops_sms_opt_in_value,
+                marketing_sms_opt_in_value=marketing_sms_opt_in_value,
+                account_type_value=account_type_norm if account_type_value is None else account_type_value,
+                consultant_application_pending=(
+                    bool(getattr(user, "consultant_application_pending", False))
+                    if consultant_application_pending is None
+                    else consultant_application_pending
+                ),
+                preferred_lang_value=submitted_pl,
+                billing_currency_value=submitted_bc,
+                error=error,
+            ),
             status_code=400,
         )
 
+    if err:
+        return _profile_edit_err(
+            full_name_value=(full_name or "").strip()[:_MAX_PROFILE_FULL_NAME],
+            company_value=(company or "").strip()[:_MAX_PROFILE_COMPANY],
+            timezone_value=(timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+            error=err,
+        )
+
     if tz_err:
-        return templates.TemplateResponse(
-            request,
-            "account_profile_edit.html",
-            {
-                "user": user,
-                "full_name_value": name_ok or "",
-                "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
-                "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
-                "ops_email_opt_in_value": ops_email_opt_in_value,
-                "marketing_email_opt_in_value": marketing_email_opt_in_value,
-                "ops_sms_opt_in_value": ops_sms_opt_in_value,
-                "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
-                "account_type_value": account_type_norm,
-                "consultant_application_pending": bool(getattr(user, "consultant_application_pending", False)),
-                "error": tz_err,
-                **_account_profile_edit_shared_context(user, tz_choices=tzc),
-            },
-            status_code=400,
+        return _profile_edit_err(
+            full_name_value=name_ok or "",
+            company_value=(company or "").strip()[:_MAX_PROFILE_COMPANY],
+            timezone_value=(timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+            error=tz_err,
         )
 
     def _profile_edit_error(err: str):
         was_p = bool(getattr(user, "consultant_application_pending", False))
-        return templates.TemplateResponse(
-            request,
-            "account_profile_edit.html",
-            {
-                "user": user,
-                "full_name_value": name_ok or "",
-                "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
-                "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
-                "ops_email_opt_in_value": ops_email_opt_in_value,
-                "marketing_email_opt_in_value": marketing_email_opt_in_value,
-                "ops_sms_opt_in_value": ops_sms_opt_in_value,
-                "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
-                "account_type_value": account_type_norm,
-                "consultant_application_pending": was_p,
-                "error": err,
-                **_account_profile_edit_shared_context(user, tz_choices=tzc),
-            },
-            status_code=400,
+        return _profile_edit_err(
+            full_name_value=name_ok or "",
+            company_value=(company or "").strip()[:_MAX_PROFILE_COMPANY],
+            timezone_value=(timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+            error=err,
+            consultant_application_pending=was_p,
         )
 
     if account_type_norm == "consultant":
@@ -1618,24 +1680,12 @@ async def account_profile_edit_post(
         user.is_consultant = False
     else:
         if not user.is_consultant and not new_profile_path and not (consultant_profile_file and (consultant_profile_file.filename or "").strip()):
-            return templates.TemplateResponse(
-                request,
-                "account_profile_edit.html",
-                {
-                    "user": user,
-                    "full_name_value": name_ok or "",
-                    "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
-                    "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
-                    "ops_email_opt_in_value": ops_email_opt_in_value,
-                    "marketing_email_opt_in_value": marketing_email_opt_in_value,
-                    "ops_sms_opt_in_value": ops_sms_opt_in_value,
-                    "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
-                    "account_type_value": account_type_norm,
-                    "consultant_application_pending": was_pending,
-                    "error": "consultant_profile_required",
-                    **_account_profile_edit_shared_context(user, tz_choices=tzc),
-                },
-                status_code=400,
+            return _profile_edit_err(
+                full_name_value=name_ok or "",
+                company_value=(company or "").strip()[:_MAX_PROFILE_COMPANY],
+                timezone_value=(timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                error="consultant_profile_required",
+                consultant_application_pending=was_pending,
             )
         if remove_profile:
             new_profile_path = None
@@ -1644,44 +1694,20 @@ async def account_profile_edit_post(
             try:
                 raw = await _read_upload_limited(consultant_profile_file, _CONSULTANT_PROFILE_MAX_BYTES)
             except ValueError:
-                return templates.TemplateResponse(
-                    request,
-                    "account_profile_edit.html",
-                    {
-                        "user": user,
-                        "full_name_value": name_ok or "",
-                        "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
-                        "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
-                        "ops_email_opt_in_value": ops_email_opt_in_value,
-                        "marketing_email_opt_in_value": marketing_email_opt_in_value,
-                        "ops_sms_opt_in_value": ops_sms_opt_in_value,
-                        "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
-                        "account_type_value": account_type_norm,
-                        "consultant_application_pending": was_pending,
-                        "error": "consultant_profile_too_large",
-                        **_account_profile_edit_shared_context(user, tz_choices=tzc),
-                    },
-                    status_code=400,
+                return _profile_edit_err(
+                    full_name_value=name_ok or "",
+                    company_value=(company or "").strip()[:_MAX_PROFILE_COMPANY],
+                    timezone_value=(timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                    error="consultant_profile_too_large",
+                    consultant_application_pending=was_pending,
                 )
             except Exception:
-                return templates.TemplateResponse(
-                    request,
-                    "account_profile_edit.html",
-                    {
-                        "user": user,
-                        "full_name_value": name_ok or "",
-                        "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
-                        "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
-                        "ops_email_opt_in_value": ops_email_opt_in_value,
-                        "marketing_email_opt_in_value": marketing_email_opt_in_value,
-                        "ops_sms_opt_in_value": ops_sms_opt_in_value,
-                        "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
-                        "account_type_value": account_type_norm,
-                        "consultant_application_pending": was_pending,
-                        "error": "consultant_profile_upload_failed",
-                        **_account_profile_edit_shared_context(user, tz_choices=tzc),
-                    },
-                    status_code=400,
+                return _profile_edit_err(
+                    full_name_value=name_ok or "",
+                    company_value=(company or "").strip()[:_MAX_PROFILE_COMPANY],
+                    timezone_value=(timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                    error="consultant_profile_upload_failed",
+                    consultant_application_pending=was_pending,
                 )
             if len(raw) > 0:
                 try:
@@ -1690,24 +1716,12 @@ async def account_profile_edit_post(
                         raw,
                     )
                 except Exception:
-                    return templates.TemplateResponse(
-                        request,
-                        "account_profile_edit.html",
-                        {
-                            "user": user,
-                            "full_name_value": name_ok or "",
-                            "company_value": (company or "").strip()[:_MAX_PROFILE_COMPANY],
-                            "timezone_value": (timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
-                            "ops_email_opt_in_value": ops_email_opt_in_value,
-                            "marketing_email_opt_in_value": marketing_email_opt_in_value,
-                            "ops_sms_opt_in_value": ops_sms_opt_in_value,
-                            "marketing_sms_opt_in_value": marketing_sms_opt_in_value,
-                            "account_type_value": account_type_norm,
-                            "consultant_application_pending": was_pending,
-                            "error": "consultant_profile_upload_failed",
-                            **_account_profile_edit_shared_context(user, tz_choices=tzc),
-                        },
-                        status_code=400,
+                    return _profile_edit_err(
+                        full_name_value=name_ok or "",
+                        company_value=(company or "").strip()[:_MAX_PROFILE_COMPANY],
+                        timezone_value=(timezone or "").strip()[:_MAX_VIEWER_TZ_LEN],
+                        error="consultant_profile_upload_failed",
+                        consultant_application_pending=was_pending,
                     )
         if account_type_norm == "consultant" and not new_profile_path:
             return _profile_edit_error("consultant_profile_required")
@@ -1735,10 +1749,8 @@ async def account_profile_edit_post(
     user.consent_updated_at = datetime.utcnow()
     user.consultant_profile_file_path = new_profile_path
     user.consultant_profile_file_name = new_profile_name
-    user.preferred_lang = _normalize_lang(preferred_lang or getattr(user, "preferred_lang", "ko"))
-    user.billing_currency = _normalize_billing_currency(
-        billing_currency or getattr(user, "billing_currency", "KRW")
-    )
+    user.preferred_lang = submitted_pl
+    user.billing_currency = submitted_bc
     db.add(user)
     db.commit()
     if should_send_consultant_apply_email:

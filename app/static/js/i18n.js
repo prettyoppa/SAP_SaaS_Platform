@@ -1210,12 +1210,12 @@ if (guestHint) {
   } else {
     currentLang = 'en';
   }
-} else if (userChoseLang && (storedLang === 'ko' || storedLang === 'en')) {
-  currentLang = storedLang;
-} else if (cookieLang === 'en' || cookieLang === 'ko') {
-  currentLang = cookieLang;
 } else if (hinted === 'en' || hinted === 'ko') {
   currentLang = hinted;
+} else if (cookieLang === 'en' || cookieLang === 'ko') {
+  currentLang = cookieLang;
+} else if (userChoseLang && (storedLang === 'ko' || storedLang === 'en')) {
+  currentLang = storedLang;
 } else if (storedLang === 'ko' || storedLang === 'en') {
   currentLang = storedLang;
 } else {
@@ -1233,10 +1233,13 @@ function syncLangVisibility(lang) {
   });
 }
 
-function setLang(lang) {
+function setLang(lang, options) {
+  const persist = !options || options.persist !== false;
   currentLang = lang;
   localStorage.setItem('lang', lang);
-  localStorage.setItem('lang_user_choice', '1');
+  if (persist) {
+    localStorage.setItem('lang_user_choice', '1');
+  }
   writeUiLangCookie(lang);
   mergeI18nEnOverrides();
 
@@ -1265,12 +1268,13 @@ function setLang(lang) {
     if (aria) themeBtn.setAttribute('aria-label', aria);
   }
   document.dispatchEvent(new CustomEvent('app:langchange', { detail: { lang: lang } }));
-  // 로그인 회원의 언어 선호 저장(실패해도 UI 동작은 유지)
-  try {
-    const fd = new FormData();
-    fd.append('lang', lang);
-    fetch('/account/preferred-lang', { method: 'POST', body: fd }).catch(() => {});
-  } catch (_) {}
+  if (persist) {
+    try {
+      const fd = new FormData();
+      fd.append('lang', lang);
+      fetch('/account/preferred-lang', { method: 'POST', body: fd }).catch(() => {});
+    } catch (_) {}
+  }
 }
 
 function t(key) {
@@ -1310,7 +1314,7 @@ function confirmI18n(key) {
 window.confirmI18n = confirmI18n;
 
 if (document.documentElement.getAttribute('data-effective-lang') !== currentLang) {
-  setLang(currentLang);
+  setLang(currentLang, { persist: false });
 } else {
   syncLangVisibility(currentLang);
   mergeI18nEnOverrides();
