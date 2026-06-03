@@ -13,6 +13,7 @@ from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
 from ..database import get_db
 from ..delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
 from ..interview_answer_payload import parse_answer_payload_form
+from ..interview_locale import interview_lang_for_user
 from ..proposal_section6_decisions import (
     get_entity_decisions_raw,
     load_request_entity_for_decisions,
@@ -80,7 +81,11 @@ def rfp_section6_interview_start(
     with ai_usage_scope(
         AiUsageContext(user_id=int(user.id), request_kind="rfp", request_id=int(rfp_id))
     ):
-        payload = start_section6_interview(open_items=open_items, request_title=title)
+        payload = start_section6_interview(
+            open_items=open_items,
+            request_title=title,
+            interview_lang=interview_lang_for_user(user),
+        )
     _save_payload(db, entity, payload)
     return RedirectResponse(
         url=_redirect(return_to, focus_section6=True, section6_interview="started"),
@@ -115,6 +120,7 @@ async def rfp_section6_interview_answer(
                 answer_payload=o,
                 current_answer=current_answer,
                 request_title=title,
+                interview_lang=interview_lang_for_user(user),
             )
     except ValueError:
         return RedirectResponse(
@@ -151,7 +157,11 @@ def integration_section6_interview_start(
     with ai_usage_scope(
         AiUsageContext(user_id=int(user.id), request_kind="integration", request_id=int(req_id))
     ):
-        payload = start_section6_interview(open_items=open_items, request_title=title)
+        payload = start_section6_interview(
+            open_items=open_items,
+            request_title=title,
+            interview_lang=interview_lang_for_user(user),
+        )
     _save_payload(db, entity, payload)
     return RedirectResponse(
         url=_redirect(return_to, focus_section6=True, section6_interview="started"),
@@ -188,6 +198,7 @@ async def integration_section6_interview_answer(
                 answer_payload=o,
                 current_answer=current_answer,
                 request_title=title,
+                interview_lang=interview_lang_for_user(user),
             )
     except ValueError:
         return RedirectResponse(
@@ -224,7 +235,11 @@ def abap_section6_interview_start(
     with ai_usage_scope(
         AiUsageContext(user_id=int(user.id), request_kind="analysis", request_id=int(req_id))
     ):
-        payload = start_section6_interview(open_items=open_items, request_title=title)
+        payload = start_section6_interview(
+            open_items=open_items,
+            request_title=title,
+            interview_lang=interview_lang_for_user(user),
+        )
     _save_payload(db, entity, payload)
     return RedirectResponse(
         url=_redirect(return_to, focus_section6=True, section6_interview="started"),
@@ -259,6 +274,7 @@ async def abap_section6_interview_answer(
                 answer_payload=o,
                 current_answer=current_answer,
                 request_title=title,
+                interview_lang=interview_lang_for_user(user),
             )
     except ValueError:
         return RedirectResponse(

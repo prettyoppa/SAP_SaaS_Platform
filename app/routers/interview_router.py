@@ -32,6 +32,7 @@ from ..proposal_lifecycle import (
 from ..rfp_hub import rfp_hub_url
 from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
 from ..ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
+from ..interview_locale import interview_lang_for_user
 from ..subscription_catalog import METRIC_DEV_PROPOSAL, METRIC_DEV_PROPOSAL_REGEN
 from ..subscription_quota import try_consume_monthly, try_consume_per_request
 from ..agent_playbook import (
@@ -541,6 +542,7 @@ def serve_interview_workspace(
                 code_library_context=code_ctx,
                 member_safe_output=_ms,
                 playbook_addon=pb_iv,
+                interview_lang=interview_lang_for_user(user),
             )
     except RuntimeError as e:
         wizard_ctx = {
@@ -913,6 +915,7 @@ def interview_answer_step(
             library_pool=lib_pool,
             member_safe_output=_ms_ans,
             playbook_addon=pb_f,
+            interview_lang=interview_lang_for_user(user),
         )
     if bool(fol.get("round_complete")):
         _finalize_message_row()

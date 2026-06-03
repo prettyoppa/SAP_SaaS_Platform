@@ -24,6 +24,7 @@ from ..integration_crew_adapter import integration_request_to_crew_rfp_dict, _me
 from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
 from ..agent_playbook import PlaybookContext, STAGE_INTERVIEW, build_playbook_addon
+from ..interview_locale import interview_lang_for_user
 from .interview_router import (
     _answer_block_for_export,
     _fc,
@@ -324,6 +325,7 @@ def integration_interview_answer_step(
             library_pool=lib_pool,
             member_safe_output=_ms_ans,
             playbook_addon=pb_f,
+            interview_lang=interview_lang_for_user(user),
         )
     if bool(fol.get("round_complete")):
         _finalize_message_row()

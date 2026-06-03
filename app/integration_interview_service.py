@@ -14,6 +14,7 @@ from .agents.agent_tools import get_code_library_context
 from .integration_crew_adapter import integration_request_to_crew_rfp_dict, _member_safe_for_integration
 from .integration_hub import integration_hub_url
 from .ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
+from .interview_locale import interview_lang_for_user
 from .subscription_catalog import METRIC_DEV_PROPOSAL
 from .subscription_quota import try_consume_monthly
 from .agent_playbook import (
@@ -297,6 +298,7 @@ def serve_integration_interview_workspace(
                 code_library_context=code_ctx,
                 member_safe_output=_ms,
                 playbook_addon=pb_iv,
+                interview_lang=interview_lang_for_user(user),
             )
     except RuntimeError as e:
         wizard_ctx = {

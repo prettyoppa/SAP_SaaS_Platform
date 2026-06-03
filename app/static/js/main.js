@@ -197,13 +197,22 @@ function _clearAgentLines() {
   if (card) card.classList.remove('has-agent-lines');
 }
 
+function _agentEnDisplayName(raw) {
+  const t = (raw || '').trim().replace(/[「」]/g, '').trim();
+  return t || (raw || '').trim();
+}
+
 function _agentSentence(row) {
   const ak = (row.agentKo || '').trim();
   const dk = (row.doingKo || '').trim();
   const ae = (row.agentEn || '').trim();
   const de = (row.doingEn || '').trim();
   const ko = ak && dk ? `${ak} 에이전트가 ${dk}` : dk || ak || '';
-  const en = ae && de ? `${ae} is ${de}` : de || ae || ko;
+  const enName = _agentEnDisplayName(ae);
+  const en =
+    enName && de
+      ? `${enName} Agent is ${de}`
+      : de || enName || ko;
   return { ko, en };
 }
 

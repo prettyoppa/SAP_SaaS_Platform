@@ -24,6 +24,17 @@ from dotenv import load_dotenv
 from ..agent_playbook import playbook_prompt_wrap
 from ..agent_display import agent_label_ko, agents_ai_source_ko
 from ..gemini_model import get_gemini_model_id
+from ..interview_locale import (
+    default_interview_question,
+    default_interview_questions,
+    interview_followup_anti_dup_block,
+    interview_gate_issues_label,
+    interview_in_round_empty_label,
+    interview_reviewer_language_line,
+    mia_interview_prompt_bundle,
+    normalize_interview_lang,
+    suggested_answers_task_preamble,
+)
 from ..rfp_reference_code import REF_SLOT_MARKER
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
@@ -68,6 +79,10 @@ def _kickoff_logged(crew, *, stage: str, agent_key: str | None = None):
     return logged_crew_kickoff(crew, stage=stage, agent_key=agent_key)
 
 
+def _mia_prompt(lang: str) -> str:
+    return mia_interview_prompt_bundle(normalize_interview_lang(lang))
+
+
 def run_interview_qa_enhancement(
     llm: LLM,
     rfp_data: dict,
@@ -78,6 +93,7 @@ def run_interview_qa_enhancement(
     code_library_context: str,
     question: str,
     suggested_answers: list,
+    interview_lang: str = "ko",
 ) -> tuple[str, list[str]]:
     """
     B: 요구분석 합불 → 불합이면 질의 1회 재작성 → A: 제안검수 최종(질문·선지 전면 대체 가능).
@@ -88,6 +104,7 @@ def run_interview_qa_enhancement(
         return q0, sa0
 
     f_analyst, f_questioner, _, f_reviewer = _make_agents(llm)
+    ilang = normalize_interview_lang(interview_lang)
     rfp_ctx = _fmt_rfp(rfp_data)
     conv_ctx = _fmt_conv(conversation)
     if len(conv_ctx) > 6000:
@@ -95,7 +112,7 @@ def run_interview_qa_enhancement(
     inr = (
         _fmt_in_round(in_round_qa)
         if in_round_qa
-        else "(이번 라운드 첫 질문 — 아직 답 없음)"
+        else interview_in_round_empty_label(ilang)
     )
     lib_snip = ""
     if code_library_context:
@@ -135,7 +152,7 @@ def run_interview_qa_enhancement(
 - 2~{MAX_SUGGESTED_ANSWERS}개, 각 **한 요지**의 완성 답
 
 출력 JSON 한 블록만:
-{{"pass": true 또는 false, "issues": "불합이면 질문 작성자가 고칠 점(한국어). 합격이면 빈 문자열."}}""",
+{{"pass": true 또는 false, "issues": "{interview_gate_issues_label(ilang)}"}}""",
         agent=f_analyst,
         expected_output='{"pass": ..., "issues": "..."}',
     )
@@ -168,8 +185,7 @@ def run_interview_qa_enhancement(
 [이번 라운드]
 {inr}
 
-{MIA_INTERVIEW_SCOPE_AND_STYLE}
-{SAP_INTERVIEW_CREDIBILITY}
+{_mia_prompt(ilang)}
 
 출력 JSON 한 블록만:
 {{"question": "...", "suggested_answers": ["...", "..."]}} (2~{MAX_SUGGESTED_ANSWERS}개)""",
@@ -188,7 +204,7 @@ def run_interview_qa_enhancement(
                 q, sa = rq, _normalize_suggested_answers(rsa)
                 if len(sa) < 2:
                     more = generate_suggested_answers_for_question(
-                        rfp_data, q, round_num, 1
+                        rfp_data, q, round_num, 1, interview_lang=ilang
                     )
                     sa = _normalize_suggested_answers(list(sa) + list(more))
         except Exception:
@@ -214,10 +230,9 @@ def run_interview_qa_enhancement(
 선택 답안:
 {sa_lines2}
 
-{MIA_INTERVIEW_SCOPE_AND_STYLE}
-{SAP_INTERVIEW_CREDIBILITY}
+{_mia_prompt(ilang)}
 
-- 고객(IT 비전문가)이 읽을 수 있는 한국어, SAP 용어는 앞서 규칙 따름
+{interview_reviewer_language_line(ilang)}
 - suggested_answers 는 2~{MAX_SUGGESTED_ANSWERS}개, 복수 선택 가능한 완성 답
 
 출력 JSON 한 블록만:
@@ -236,7 +251,7 @@ def run_interview_qa_enhancement(
         if fq:
             if len(fsa) < 2:
                 more = generate_suggested_answers_for_question(
-                    rfp_data, fq, round_num, 1
+                    rfp_data, fq, round_num, 1, interview_lang=ilang
                 )
                 fsa = _normalize_suggested_answers(list(fsa) + list(more))
             return fq[:2000], fsa
@@ -244,7 +259,7 @@ def run_interview_qa_enhancement(
         pass
     if len(sa) < 2 and q:
         more = generate_suggested_answers_for_question(
-            rfp_data, q, round_num, 1
+            rfp_data, q, round_num, 1, interview_lang=ilang
         )
         sa = _normalize_suggested_answers(list(sa) + list(more))
     return q, sa
@@ -253,33 +268,6 @@ def run_interview_qa_enhancement(
 def _interview_source_after_enhance() -> str:
     return agents_ai_source_ko("f_analyst", "f_questioner", "f_reviewer")
 
-# Mia 인터뷰: RFP 범위·SAP 용어·답안 버튼 일관성
-MIA_INTERVIEW_SCOPE_AND_STYLE = """
-[질문 범위 — 반드시 준수]
-- RFP 본문·첨부·이전 인터뷰 답에 없는 편의 기능·부가 UX는 질문에 넣지 마라. (RFP에 명시된 경우만 예외.)
-- **한 턴에 정하는 것은 '한 가지 질문'뿐이다.** '또한/그리고'로 Plant와 Sales Order Type처럼 **주제가 다른** 것을 한 질문에 섞지 마라 — 반드시 **질문을 나눈다.**
-- 질문은 **짧고** (2~3문장 이하). **선지(suggested_answers)에 쓰일 나열·시나리오**를 질문에 **미리 중복**해서 길게 쓰지 마라. (옵션이 말하도록 하고, 질문은 한 축의 결정만.)
-- [전체 인터뷰 + 이번 라운드 Q&A]에 **이미 확답**한 주제(같은 말의 다른 말로 포함)는 **다시 묻지 마라.**
-
-[RFP·애매한 표현 — 임의 번역·영어 갖다 붙이기 금지]
-- RFP에 '납기 카테고리' 등 **뜻이 불명확**한 말이 있고 정의가 없을 때, 임의로 "Delivery category" 등으로 **끼워 맞추지 말고** RFP 식 **그대로** 인용한 뒤, **한 가지 확인 질문**으로 "무엇을 뜻하는지(예: Schedule line category(일정 라인)인지, 다른 항목인지)"를 묻는다.
-- Schedule line category(Einteilungskategorie)는 SAP 표준 용어이나, "Delivery category"는 **이 맥락의 직역**이 아닐 수 있음(혼동 금지). **잘못 맞을 바엔** 고객에게 뜻을 묻는다.
-
-[suggested_answers — 한 줄씩, 한 질문에 대해서만]
-- 2~5개. **각 항목은 '위에 묻는 한 질문'에 대한 응답만** (한 항목에 **서로 독립된** 두 가지를 합쳐 쓰지 말 것).
-- 서로 **다른 대안**이면 OK, 복수 선택이 의미가 있으면 OK. (단, **한 행=한 요지**.)
-- **과장되게 정중한 백서체·다단 영어 병기**는 피하고, 실무 톤으로 짧게.
-
-[출력 형식]
-- JSON에서 ** … ** 별표 감싸기 금지.
-"""
-
-SAP_INTERVIEW_CREDIBILITY = """
-[SAP 사실·질문 품질 — 반드시 준수]
-- BAPI/트랜잭션 필수 키를 "자동/수동 선택하시죠"식 **템플릿**으로만 묻지 마라. **이전 답·RFP에 이미 정책이 있으면** 그 취지를 따르고 **같은 주제는 반복하지 않는다.**
-- "필드가 있나", "마스터 조회하나"만 나열한 **상투** 질문/선지는 금지. RFP·도메인에 **특정**한 정책·실패/재처리·경계만.
-- RFP·이전 답이 충분하면 followup JSON에서 **round_complete: true** (억지로 3문항을 채우지 않는다. 한 라운드 최대 3문항).
-"""
 
 _MEMBER_FACING_NO_STORAGE_NAMES = """
 [고객 서면 필수 — 일반 회원 RFP]
@@ -517,13 +505,6 @@ def _parse_questions(raw: str) -> list[str]:
     return [q for q in questions if len(q) > 10][:3]
 
 
-_DEFAULT_QUESTIONS = [
-    "이 개발의 주요 사용자는 누구인가요? (예: 영업팀, 물류팀, 경영진)",
-    "조회 결과를 엑셀로 다운로드하거나 인쇄하는 기능이 필요한가요?",
-    "기존에 유사한 프로그램이 있나요? 있다면 어떤 점을 개선하고 싶으신가요?",
-]
-
-
 def _fmt_in_round(in_round: list[tuple[str, str]]) -> str:
     if not in_round:
         return "(이번 라운드 아직 답이 없음)"
@@ -655,6 +636,7 @@ def generate_suggested_answers_for_question(
     question: str,
     round_num: int,
     step_in_round: int,
+    interview_lang: str = "ko",
 ) -> list[str]:
     """
     질문 1개에 대해 일반회원이 고를 수 있는 답안 후보(2~5개, 최대 MAX_SUGGESTED_ANSWERS).
@@ -662,12 +644,13 @@ def generate_suggested_answers_for_question(
     q = (question or "").strip()
     if not q:
         return []
+    ilang = normalize_interview_lang(interview_lang)
     try:
         llm = _get_llm()
         _, f_questioner, _, _ = _make_agents(llm)
         rfp_ctx = _fmt_rfp(rfp_data)
         t = Task(
-            description=f"""다음은 SAP 맞춤개발 RFP 인터뷰 질문입니다. 비전문가가 버튼만 눌러 한 질문에 답하도록, 짧은 답안 후보만 만드세요.
+            description=f"""{suggested_answers_task_preamble(ilang)}
 
 [RFP 요약]
 {rfp_ctx}
@@ -677,8 +660,7 @@ def generate_suggested_answers_for_question(
 
 (라운드 {round_num}, 이 라운드 {step_in_round}번째 질문)
 
-{MIA_INTERVIEW_SCOPE_AND_STYLE}
-{SAP_INTERVIEW_CREDIBILITY}
+{_mia_prompt(ilang)}
 
 참고: 별표 둘로 감싼 강조(**)는 쓰지 말 것.
 
@@ -722,6 +704,7 @@ def generate_sequential_start(
     code_library_context: str = "",
     member_safe_output: bool = False,
     playbook_addon: str = "",
+    interview_lang: str = "ko",
 ) -> dict:
     """
     라운드의 첫 질문 1개 + (1라운드·라이브러리) 나머지 질문 풀.
@@ -730,15 +713,16 @@ def generate_sequential_start(
     """
     analysis_summary, lib_ctx = _parse_code_library_context(code_library_context)
     member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
+    ilang = normalize_interview_lang(interview_lang)
 
-    if round_num == 1 and code_library_context and not member_ref:
+    if round_num == 1 and code_library_context and not member_ref and ilang != "en":
         try:
             ctx = lib_ctx if lib_ctx else json.loads(code_library_context)
             qs = [str(q).strip() for q in (ctx.get("questions") or []) if str(q).strip()]
             if qs:
                 rest = [q for q in qs[1:4] if q][:2]
                 su = generate_suggested_answers_for_question(
-                    rfp_data, qs[0], round_num, 1
+                    rfp_data, qs[0], round_num, 1, interview_lang=ilang
                 )
                 q_out, su_out = qs[0], su
                 out_src = ctx.get(
@@ -758,6 +742,7 @@ def generate_sequential_start(
                             code_library_context,
                             str(qs[0]),
                             su or [],
+                            interview_lang=ilang,
                         )
                         if q2 and str(q2).strip():
                             q_out, su_out, out_src = (
@@ -808,8 +793,7 @@ def generate_sequential_start(
 2. 구현에 반드시 필요한 미확정 사항만 (편의·부가기능 제외)
 3. 이번 라운드 첫 질문으로 물을 한 가지 결정(한 줄)
 
-{MIA_INTERVIEW_SCOPE_AND_STYLE}
-{SAP_INTERVIEW_CREDIBILITY}
+{_mia_prompt(ilang)}
 ※ 내부 유사 사례·회원 제출 ABAP 코드가 있으면 RFP·인터뷰를 최우선으로, 유사 사례는 힌트일 뿐.{_pb_wrap}""",
         agent=f_analyst,
         expected_output="요구사항 현황 분석 결과 (텍스트)",
@@ -825,8 +809,7 @@ def generate_sequential_start(
 {mia_member}
 {_ms_rule}
 
-{MIA_INTERVIEW_SCOPE_AND_STYLE}
-{SAP_INTERVIEW_CREDIBILITY}
+{_mia_prompt(ilang)}
 
 질문은 한 가지 결정만 담는다. 고객(비전문가)이 이해할 수 있는 말로, 이전 라운드에서 끝난 주제는 반복하지 않는다.
 
@@ -850,9 +833,11 @@ def generate_sequential_start(
     except Exception:
         q1, sugg = "", []
     if not q1:
-        q1 = _DEFAULT_QUESTIONS[0]
+        q1 = default_interview_question(ilang, 0)
     if len(sugg) < 2:
-        more = generate_suggested_answers_for_question(rfp_data, q1, round_num, 1)
+        more = generate_suggested_answers_for_question(
+            rfp_data, q1, round_num, 1, interview_lang=ilang
+        )
         sugg = _normalize_suggested_answers(list(sugg) + list(more))
     src_out = agents_ai_source_ko("f_analyst", "f_questioner")
     if _interview_qa_enhance_enabled() and (q1 or "").strip():
@@ -867,6 +852,7 @@ def generate_sequential_start(
                 code_library_context,
                 q1,
                 sugg,
+                interview_lang=ilang,
             )
             src_out = _interview_source_after_enhance()
         except Exception:
@@ -888,12 +874,15 @@ def generate_sequential_followup(
     library_pool: Optional[list] = None,
     member_safe_output: bool = False,
     playbook_addon: str = "",
+    interview_lang: str = "ko",
 ) -> dict:
     """
     이번 라운드: 조기 완료(round_complete) 또는 다음 질문 1개.
     library_pool 은 소모하지 않고 힌트로만 LLM에 넘깁니다(강제로 3문항 채우지 않음).
     """
     library_pool = [str(x).strip() for x in (library_pool or []) if str(x).strip()]
+    ilang = normalize_interview_lang(interview_lang)
+    defaults = default_interview_questions(ilang)
 
     analysis_summary, _ = _parse_code_library_context(code_library_context)
     member_ref = (rfp_data.get("reference_code_for_agents") or "").strip()
@@ -930,11 +919,7 @@ def generate_sequential_followup(
         lib_from_pool = "(추가 질문 후보 없음)"
     _fol_ms = _MEMBER_FACING_NO_STORAGE_NAMES if member_safe_output else ""
 
-    anti_dup = f"""[이번 라운드·이미 오간 Q&A(반복 금지 — **답 내용**까지 읽을 것)]
-{done_brief}
-- 위에서 사용자가 **이미 끊어 말한** 정책(Plant, Sales Order Type, 엑셀 오류 시 롤백 방식 등)을 **또 묻지 마라.**
-- 같은 취지를 영어/한글 **표현만 바꿔** 다시 쓰는 것도 금지.
-- 남는 것이 없으면 round_complete: true. RFP·구현에 **아직 열린 다른 한 가지**만 next_question(한 축)으로. RFP에 없으면 알림·승인·'특정 담당자'·일반 워크플로는 묻지 마라."""
+    anti_dup = interview_followup_anti_dup_block(ilang, done_brief)
 
     hard_cap = MAX_QUESTIONS_PER_ROUND
     decision_help = f"""[이번 라운드 현황]
@@ -958,8 +943,7 @@ RFP: {rfp_ctx}
 {lib_from_pool}
 {anti_dup}
 {_fol_ms}
-{MIA_INTERVIEW_SCOPE_AND_STYLE}
-{SAP_INTERVIEW_CREDIBILITY}{_pb_f}""",
+{_mia_prompt(ilang)}{_pb_f}""",
         agent=f_analyst,
         expected_output="질문을 더할지, 이미 충분한지(한 문장)",
     )
@@ -979,8 +963,7 @@ RFP: {rfp_ctx}
 
 {anti_dup}
 
-{MIA_INTERVIEW_SCOPE_AND_STYLE}
-{SAP_INTERVIEW_CREDIBILITY}
+{_mia_prompt(ilang)}
 
 - round_complete 가 true이면 next_question 은 null 또는 "" 이고, suggested_answers 는 빈 배열이어도 된다.
 - round_complete 가 false이면 next_question: 15자 이상, **한 가지만**. 질문에 '또한/그리고'로 **두 주제**를 섞지 마라(선지에만 나열할 수 있는 **긴 시나리오**를 질문에 사전에 복붙하지 말라).
@@ -1036,11 +1019,11 @@ RFP: {rfp_ctx}
                 "suggested_answers": [],
                 "source": agents_ai_source_ko("f_analyst", "f_questioner"),
             }
-        i = min(n_done, len(_DEFAULT_QUESTIONS) - 1)
-        nq = _DEFAULT_QUESTIONS[min(i + 1, len(_DEFAULT_QUESTIONS) - 1)]
+        i = min(n_done, len(defaults) - 1)
+        nq = defaults[min(i + 1, len(defaults) - 1)]
     if len(sugg) < 2 and nq:
         more = generate_suggested_answers_for_question(
-            rfp_data, nq, round_num, q_index
+            rfp_data, nq, round_num, q_index, interview_lang=ilang
         )
         sugg = _normalize_suggested_answers(list(sugg) + list(more))
     src_fu = agents_ai_source_ko("f_analyst", "f_questioner")
@@ -1056,6 +1039,7 @@ RFP: {rfp_ctx}
                 code_library_context,
                 nq,
                 sugg,
+                interview_lang=ilang,
             )
             src_fu = _interview_source_after_enhance()
         except Exception:
@@ -1078,6 +1062,7 @@ def generate_round_questions(
     code_library_context: str = "",
     member_safe_output: bool = False,
     playbook_addon: str = "",
+    interview_lang: str = "ko",
 ) -> dict:
     """
     (호환) 한 라운드의 첫 질문 1개 + 라이브러리 풀. 레거시 코드가 3문항을 기대할 경우
@@ -1090,6 +1075,7 @@ def generate_round_questions(
         code_library_context,
         member_safe_output=member_safe_output,
         playbook_addon=playbook_addon,
+        interview_lang=interview_lang,
     )
 
 
