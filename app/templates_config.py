@@ -11,7 +11,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
-from .agent_display import agent_label_ko
+from .agent_display import agent_label_en, agent_label_ko
 from .home_hero_defaults import resolve_home_hero_fields
 from .youtube_embed import youtube_embed_info, youtube_video_id
 from .rfp_phase_gates import integration_phase_gates, rfp_phase_gates, abap_analysis_phase_gates
@@ -52,7 +52,21 @@ def _interview_bold_filter(s) -> Markup:
 
 
 templates.env.filters["interview_bold"] = _interview_bold_filter
-templates.env.filters["agent_label"] = agent_label_ko
+
+
+def _agent_label_i18n_filter(role_id: str) -> Markup:
+    """KO/EN 대외명 – 언어 토글(nav-ko/nav-en)과 함께 사용."""
+    ko = escape(agent_label_ko(role_id))
+    en = escape(agent_label_en(role_id))
+    return Markup(
+        f'<span class="nav-ko">{ko}</span>'
+        f'<span class="nav-en" style="display:none">{en}</span>'
+    )
+
+
+templates.env.filters["agent_label"] = _agent_label_i18n_filter
+templates.env.filters["agent_label_ko"] = agent_label_ko
+templates.env.filters["agent_label_en"] = agent_label_en
 templates.env.filters["phase_gates"] = rfp_phase_gates
 templates.env.filters["integration_phase_gates"] = integration_phase_gates
 templates.env.filters["abap_analysis_phase_gates"] = abap_analysis_phase_gates

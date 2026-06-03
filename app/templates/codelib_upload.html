@@ -281,7 +281,8 @@
 {% block extra_js %}
 <script src="/static/js/sap_field_input.js?v=20260419a"></script>
 <script>
-const AGENT_F_ANALYST = {{ "f_analyst"|agent_label|tojson }};
+const AGENT_F_ANALYST_KO = {{ "f_analyst"|agent_label_ko|tojson }};
+const AGENT_F_ANALYST_EN = {{ "f_analyst"|agent_label_en|tojson }};
 function uiMsg(key, koFallback, enFallback) {
   try {
     if (typeof window.t === 'function') {
@@ -459,8 +460,8 @@ if (!container) {
           '<span class="spinner-border spinner-border-sm me-2"></span>' +
           uiMsg(
             'codelib.uploadAnalyzing',
-            AGENT_F_ANALYST + '가 코드를 분석하는 중... (10~30초 소요)',
-            AGENT_F_ANALYST + ' is analyzing your code... (takes about 10-30 seconds)',
+            AGENT_F_ANALYST_KO + '가 코드를 분석하는 중... (10~30초 소요)',
+            AGENT_F_ANALYST_EN + ' is analyzing your code... (takes about 10-30 seconds)',
           );
       }
     });
