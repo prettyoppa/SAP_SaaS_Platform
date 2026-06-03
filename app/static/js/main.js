@@ -224,9 +224,26 @@ function _clearAgentLines() {
   if (card) card.classList.remove('has-agent-lines');
 }
 
-function _agentEnDisplayName(raw) {
-  const t = (raw || '').trim().replace(/[「」]/g, '').trim();
-  return t || (raw || '').trim();
+function _hasAgentBrackets(text) {
+  return /[「『]/.test(text) && /[」』]/.test(text);
+}
+
+/** agent_display.agent_label_ko — 「대외명」 에이전트 */
+function _agentKoLabel(raw) {
+  const t = (raw || '').trim();
+  if (!t) return '';
+  if (t.includes('에이전트')) return t;
+  if (_hasAgentBrackets(t)) return `${t} 에이전트`;
+  return `「${t}」 에이전트`;
+}
+
+/** agent_display.agent_label_en — 「Short」 Agent */
+function _agentEnLabel(raw) {
+  const t = (raw || '').trim();
+  if (!t) return '';
+  if (/\bAgent\b/i.test(t)) return t;
+  if (_hasAgentBrackets(t)) return `${t} Agent`;
+  return `「${t}」 Agent`;
 }
 
 function _agentSentence(row) {
@@ -234,12 +251,10 @@ function _agentSentence(row) {
   const dk = (row.doingKo || '').trim();
   const ae = (row.agentEn || '').trim();
   const de = (row.doingEn || '').trim();
-  const ko = ak && dk ? `${ak} 에이전트가 ${dk}` : dk || ak || '';
-  const enName = _agentEnDisplayName(ae);
-  const en =
-    enName && de
-      ? `${enName} Agent is ${de}`
-      : de || enName || ko;
+  const koLabel = _agentKoLabel(ak);
+  const enLabel = _agentEnLabel(ae);
+  const ko = koLabel && dk ? `${koLabel}가 ${dk}` : dk || koLabel || '';
+  const en = enLabel && de ? `${enLabel} is ${de}` : de || enLabel || ko;
   return { ko, en };
 }
 

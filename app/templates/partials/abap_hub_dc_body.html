@@ -12,7 +12,7 @@
   {% endif %}
 
   {% if ana_dc_busy %}
-  {% with job_label = '개발코드', delivery_gen_modal_id = 'hubDeliveryProgressModal' %}
+  {% with job_label = '개발코드', job_label_en = 'Dev code', delivery_gen_modal_id = 'hubDeliveryProgressModal' %}
   {% include 'partials/hub_delivery_generating_compact_hint.html' %}
   {% endwith %}
   {% endif %}

@@ -26,31 +26,57 @@
           </div>
 
           {% if _dg_dc %}
-          <h3 class="mb-2">{% if delivery_gen_dc_title is defined and delivery_gen_dc_title %}{{ delivery_gen_dc_title }}{% else %}납품 코드 작성 중{% endif %}</h3>
+          <h3 class="mb-2">
+            {% if delivery_gen_dc_title is defined and delivery_gen_dc_title %}
+            <span class="nav-ko">{{ delivery_gen_dc_title }}</span>
+            {% if delivery_gen_dc_title_en is defined and delivery_gen_dc_title_en %}
+            <span class="nav-en" style="display:none">{{ delivery_gen_dc_title_en }}</span>
+            {% endif %}
+            {% else %}
+            <span class="nav-ko">납품 코드 작성 중</span>
+            <span class="nav-en" style="display:none">Writing delivered code</span>
+            {% endif %}
+          </h3>
           <p class="text-muted mb-1 hub-delivery-gen-agents-line">
             {% if delivery_gen_dc_agents_line is defined and delivery_gen_dc_agents_line %}
-            {{ delivery_gen_dc_agents_line|safe }}
+            <span class="nav-ko">{{ delivery_gen_dc_agents_line|safe }}</span>
+            {% if delivery_gen_dc_agents_line_en is defined and delivery_gen_dc_agents_line_en %}
+            <span class="nav-en" style="display:none">{{ delivery_gen_dc_agents_line_en|safe }}</span>
+            {% endif %}
             {% else %}
-            <strong>{{ 'p_coder'|agent_label }}</strong>가 기능명세를 바탕으로 납품 ABAP 초안을 작성하고,
+            <span class="nav-ko"><strong>{{ 'p_coder'|agent_label }}</strong>가 기능명세를 바탕으로 납품 ABAP 초안을 작성하고,
             <strong>{{ 'p_inspector'|agent_label }}</strong>가 검토·보완하며,
-            <strong>{{ 'p_tester'|agent_label }}</strong>가 단위 테스트 시나리오를 작성하고 있습니다.
+            <strong>{{ 'p_tester'|agent_label }}</strong>가 단위 테스트 시나리오를 작성하고 있습니다.</span>
+            <span class="nav-en" style="display:none"><strong>{{ 'p_coder'|agent_label }}</strong> is drafting delivered ABAP from the FS,
+            <strong>{{ 'p_inspector'|agent_label }}</strong> is reviewing and refining it, and
+            <strong>{{ 'p_tester'|agent_label }}</strong> is writing unit test scenarios.</span>
             {% endif %}
           </p>
-          <p class="text-muted small mb-4">{% if delivery_gen_dc_eta is defined and delivery_gen_dc_eta %}{{ delivery_gen_dc_eta }}{% else %}AI 에이전트 3명이 순차적으로 작업 중입니다. 약 1~5분 소요될 수 있습니다.{% endif %}</p>
+          <p class="text-muted small mb-4">
+            {% if delivery_gen_dc_eta is defined and delivery_gen_dc_eta %}
+            <span class="nav-ko">{{ delivery_gen_dc_eta }}</span>
+            {% if delivery_gen_dc_eta_en is defined and delivery_gen_dc_eta_en %}
+            <span class="nav-en" style="display:none">{{ delivery_gen_dc_eta_en }}</span>
+            {% endif %}
+            {% else %}
+            <span class="nav-ko">AI 에이전트 3명이 순차적으로 작업 중입니다. 약 1~5분 소요될 수 있습니다.</span>
+            <span class="nav-en" style="display:none">Three AI agents are working in sequence. This may take about 1–5 minutes.</span>
+            {% endif %}
+          </p>
           <div class="d-flex justify-content-center gap-3 mb-4 hub-delivery-gen-steps" data-pipeline="dc">
             <div class="text-center generating-step active" data-step-index="0">
               <div class="step-icon">✍️</div>
-              <div class="step-label small">{{ 'p_coder'|agent_label }}<br><span class="text-muted">ABAP 초안</span></div>
+              <div class="step-label small">{{ 'p_coder'|agent_label }}<br><span class="text-muted"><span class="nav-ko">ABAP 초안</span><span class="nav-en" style="display:none">ABAP draft</span></span></div>
             </div>
             <div class="text-center text-muted" style="padding-top:12px">→</div>
             <div class="text-center generating-step" data-step-index="1">
               <div class="step-icon">🔍</div>
-              <div class="step-label small">{{ 'p_inspector'|agent_label }}<br><span class="text-muted">검토·수정</span></div>
+              <div class="step-label small">{{ 'p_inspector'|agent_label }}<br><span class="text-muted"><span class="nav-ko">검토·수정</span><span class="nav-en" style="display:none">Review &amp; refine</span></span></div>
             </div>
             <div class="text-center text-muted" style="padding-top:12px">→</div>
             <div class="text-center generating-step" data-step-index="2">
               <div class="step-icon">✅</div>
-              <div class="step-label small">{{ 'p_tester'|agent_label }}<br><span class="text-muted">테스트 시나리오</span></div>
+              <div class="step-label small">{{ 'p_tester'|agent_label }}<br><span class="text-muted"><span class="nav-ko">테스트 시나리오</span><span class="nav-en" style="display:none">Test scenarios</span></span></div>
             </div>
           </div>
           {% elif _dg_fs %}
@@ -69,7 +95,7 @@
           <div class="d-flex justify-content-center gap-3 mb-4 hub-delivery-gen-steps" data-pipeline="fs">
             <div class="text-center generating-step active" data-step-index="0">
               <div class="step-icon">📐</div>
-              <div class="step-label small">{{ 'p_architect'|agent_label }}<br><span class="text-muted">기능명세 작성</span></div>
+              <div class="step-label small">{{ 'p_architect'|agent_label }}<br><span class="text-muted"><span class="nav-ko">기능명세 작성</span><span class="nav-en" style="display:none">Writing FS</span></span></div>
             </div>
           </div>
           {% else %}
@@ -95,7 +121,8 @@
           {% if _dg_title %}
           <div class="text-muted small">
             <i class="fa-solid fa-file-lines me-1"></i>
-            요청: <strong>{{ _dg_title }}</strong>
+            <span class="nav-ko">요청: <strong>{{ _dg_title }}</strong></span>
+            <span class="nav-en" style="display:none">Request: <strong>{{ _dg_title }}</strong></span>
           </div>
           {% endif %}
         </div>

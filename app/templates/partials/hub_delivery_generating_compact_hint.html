@@ -1,12 +1,14 @@
-{# job_label: FS | 개발코드. delivery_gen_modal_id. wrap_class #}
+{# job_label / job_label_en: FS | 개발코드 / Dev code. delivery_gen_modal_id. wrap_class #}
+{% set _job_ko = job_label|default('') %}
+{% set _job_en = job_label_en|default(_job_ko) %}
 {% set _modal_id = delivery_gen_modal_id|default('hubDeliveryProgressModal') %}
 <button type="button"
         class="btn btn-link p-0 text-start hub-delivery-gen-hint-open {{ wrap_class|default('mb-3') }}"
         data-delivery-gen-modal="{{ _modal_id }}"
-        aria-label="{{ job_label }} 생성 진행 상세 보기">
+        aria-label="{{ _job_ko }} 생성 진행 상세 보기">
   <span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>
   <span class="text-muted small">
-    <span class="nav-ko">{{ job_label }} 생성 중입니다. 다른 화면으로 이동해도 서버에서 계속됩니다.<span class="text-primary fw-semibold ms-1">진행 상세 보기</span></span>
-    <span class="nav-en" style="display:none">{{ job_label }} is generating on the server. You can leave this page.<span class="text-primary fw-semibold ms-1">View progress</span></span>
+    <span class="nav-ko">{{ _job_ko }} 생성 중입니다. 다른 화면으로 이동해도 서버에서 계속됩니다.<span class="text-primary fw-semibold ms-1">진행 상세 보기</span></span>
+    <span class="nav-en" style="display:none">{{ _job_en }} is generating on the server. You can leave this page.<span class="text-primary fw-semibold ms-1">View progress</span></span>
   </span>
 </button>
