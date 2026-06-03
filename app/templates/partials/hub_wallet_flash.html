@@ -1,0 +1,9 @@
+{% if wallet_flash %}
+<div class="alert alert-{{ wallet_flash.kind|default('danger') }} d-flex align-items-center mb-3" role="alert">
+  <i class="fa-solid fa-wallet me-2" aria-hidden="true"></i>
+  <span data-i18n="{{ wallet_flash.i18n }}">
+    <span class="nav-ko">AI 크레딧 잔액이 부족합니다. <a href="/account/ai-credits">사용량 · 충전</a>에서 충전한 뒤 다시 시도해 주세요.</span>
+    <span class="nav-en" style="display:none">Insufficient AI credits. Top up on <a href="/account/ai-credits">Usage &amp; balance</a>, then try again.</span>
+  </span>
+</div>
+{% endif %}

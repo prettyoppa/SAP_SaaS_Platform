@@ -15,6 +15,12 @@ from sqlalchemy.orm import Session, joinedload
 
 from .. import models, auth
 from ..ai_followup_chat_ajax import ai_chat_json_error, ai_chat_json_ok, wants_ai_chat_json
+from ..ai_wallet_gates import (
+    wallet_flash_from_query,
+    wallet_insufficient_message,
+    wallet_insufficient_url,
+    wallet_preflight_for_user_id,
+)
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from .abap_analysis_router import _pair_abap_followup_turns as _pair_integration_followup_turns
 from ..attachment_context import build_attachment_llm_digest
@@ -2186,6 +2192,8 @@ def _collect_integration_unified_hub_ctx(
                 kind = "danger" if ee == "wallet_insufficient" else "warning"
                 engagement_flash = {**em, "kind": kind}
 
+    wallet_flash = wallet_flash_from_query(request)
+
     proposal_hub_flash = None
     pe = (request.query_params.get("proposal_err") or "").strip()
     if pe == "deleted":
@@ -2269,6 +2277,7 @@ def _collect_integration_unified_hub_ctx(
             else ""
         ),
         "engagement_flash": engagement_flash,
+        "wallet_flash": wallet_flash,
         "entity_owner_id": int(ir.user_id),
         **request_engagement_hub_ctx(
             db,
@@ -2675,6 +2684,16 @@ def integration_chat_post(
             return ai_chat_json_error(verr)
         return RedirectResponse(
             url=f"{chat_base}?chat_err={quote(verr)}#integration-followup-chat",
+            status_code=303,
+        )
+
+    werr = wallet_preflight_for_user_id(db, int(ir.user_id), stage="ai_inquiry")
+    if werr:
+        if wants_ai_chat_json(request):
+            return ai_chat_json_error(wallet_insufficient_message(), status_code=402)
+        return RedirectResponse(
+            url=wallet_insufficient_url(f"{chat_base}?chat_err={quote(wallet_insufficient_message())}")
+            + "#integration-followup-chat",
             status_code=303,
         )
 

@@ -399,6 +399,12 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Enter at least 40 characters in the requirements field (saved draft not required; uses text on screen).'
       : '「요구사항 자유 기술」에 40자 이상 입력해 주세요. (임시저장 없이 화면에 입력된 내용을 사용합니다)';
   }
+  function rfpWalletInsufficientMsg() {
+    const en = typeof currentLang !== 'undefined' && currentLang === 'en';
+    return en
+      ? 'Insufficient AI credits. Top up on Usage & balance, then try again.'
+      : 'AI 크레딧 잔액이 부족합니다. 「사용량 · 충전」에서 충전한 뒤 다시 시도해 주세요.';
+  }
 
   async function postRfpSuggest(body) {
     const res = await fetch('/rfp/api/suggest-field', {
@@ -433,6 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (!res.ok) {
           if (data.error === 'description_insufficient') alert(rfpAiInsufficientMsg());
+          else if (data.error === 'wallet_insufficient') alert(rfpWalletInsufficientMsg());
           else alert(data.error === 'login_required' ? '로그인이 필요합니다.' : '제목 자동 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
           return;
         }
@@ -473,6 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (!res.ok) {
           if (data.error === 'description_insufficient') alert(rfpAiInsufficientMsg());
+          else if (data.error === 'wallet_insufficient') alert(rfpWalletInsufficientMsg());
           else if (data.error === 'title_empty') {
             alert('요청 제목을 먼저 입력해 주세요.');
           } else {

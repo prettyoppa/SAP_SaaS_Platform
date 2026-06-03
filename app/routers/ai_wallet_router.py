@@ -26,6 +26,7 @@ from ..ai_wallet import (
     min_topup_krw,
     min_topup_usd_cents,
     parse_usd_input_to_cents,
+    member_wallet_balance_display_krw,
     wallet_balance_krw,
 )
 from ..billing_currency import user_prefers_usd_payments
@@ -131,7 +132,7 @@ def account_ai_credits_page(request: Request, db: Session = Depends(get_db)):
     ctx = _usage_context(db, user)
     payment_usd = user_prefers_usd_payments(user)
     paypal_channel = bool(portone_paypal_channel_key())
-    bal_krw = wallet_balance_krw(user)
+    bal_krw = member_wallet_balance_display_krw(user)
     return templates.TemplateResponse(
         request,
         "account_ai_credits.html",

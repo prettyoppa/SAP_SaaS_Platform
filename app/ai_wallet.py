@@ -49,6 +49,19 @@ def wallet_balance_krw(user) -> int:
     return int(getattr(user, "ai_wallet_balance_krw", None) or 0)
 
 
+def member_wallet_balance_display_krw(user) -> int:
+    """회원·컨설턴트 화면 표시용 — 음수 잔액은 0으로."""
+    bal = wallet_balance_krw(user)
+    try:
+        from .ai_usage_billing import user_skips_wallet
+
+        if user_skips_wallet(user):
+            return bal
+    except Exception:
+        pass
+    return max(0, bal)
+
+
 def apply_wallet_credit(user, amount_krw: int) -> int:
     """원화 잔액에 amount를 더하고 갱신된 잔액을 반환."""
     new_bal = wallet_balance_krw(user) + int(amount_krw)
@@ -56,9 +69,25 @@ def apply_wallet_credit(user, amount_krw: int) -> int:
     return new_bal
 
 
-def apply_wallet_debit(user, amount_krw: int) -> int:
-    """충전 취소·거절·AI 사용 추정 비용 차감."""
-    new_bal = wallet_balance_krw(user) - int(amount_krw)
+def apply_wallet_debit(user, amount_krw: int, *, allow_negative: bool = False) -> int:
+    """충전 취소·거절·AI 사용 추정 비용 차감. 일반 회원은 0 미만 불가."""
+    amount = max(0, int(amount_krw))
+    if amount <= 0:
+        return wallet_balance_krw(user)
+    bal = wallet_balance_krw(user)
+    skip_floor = allow_negative
+    if not skip_floor:
+        try:
+            from .ai_usage_billing import user_skips_wallet
+
+            skip_floor = user_skips_wallet(user)
+        except Exception:
+            skip_floor = False
+    if skip_floor:
+        new_bal = bal - amount
+    else:
+        amount = min(amount, max(0, bal))
+        new_bal = max(0, bal - amount)
     user.ai_wallet_balance_krw = new_bal
     return new_bal
 
@@ -75,11 +104,24 @@ def usd_krw_rate_from_db(db) -> float:
 
 
 def debit_wallet_for_usage_micro(db, user, usd_micro: int) -> int:
-    """AI 사용 원장(micro USD)에 대응하는 원화를 지갑에서 차감. 차감액 반환."""
+    """AI 사용 원장(micro USD)에 대응하는 원화를 지갑에서 차감. 실제 차감액 반환."""
+    if user is None:
+        return 0
+    try:
+        from .ai_usage_billing import user_skips_wallet
+
+        if user_skips_wallet(user):
+            return 0
+    except Exception:
+        pass
     krw = krw_from_usage_usd_micro(int(usd_micro), usd_krw_rate_from_db(db))
-    if krw > 0 and user is not None:
-        apply_wallet_debit(user, krw)
-    return krw
+    if krw <= 0:
+        return 0
+    bal = wallet_balance_krw(user)
+    debit_amt = min(krw, max(0, bal))
+    if debit_amt > 0:
+        apply_wallet_debit(user, debit_amt)
+    return debit_amt
 
 
 def is_wallet_topup_plan_code(plan_code: str | None) -> bool:

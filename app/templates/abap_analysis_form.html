@@ -187,7 +187,16 @@
           <span class="nav-en" style="display:none">ABAP body is too short for analysis. Add more source text.</span>
         </div>
         {% endif %}
-        {% if error and error not in ['core_fields_incomplete', 'invalid_file', 'file_too_large', 'empty_attachment', 'max_selection', 'sap_system_version_required', 'sap_system_version_invalid', 'program_id_required', 'program_id_too_long', 'program_id_ime', 'program_id_chars', 'transaction_code_too_long', 'transaction_code_ime', 'transaction_code_chars', 'too_many_attachments', 'screenshot_too_many', 'screenshot_too_large', 'screenshot_total_too_large', 'screenshot_invalid', 'reference_code_too_large', 'need_title', 'need_requirement', 'need_reference_code', 'code_too_short'] %}
+        {% if error == 'wallet_insufficient' %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+          <i class="fa-solid fa-wallet me-2"></i>
+          <span data-i18n="wallet.insufficientFlash">
+            <span class="nav-ko">AI 크레딧 잔액이 부족합니다. <a href="/account/ai-credits">사용량 · 충전</a>에서 충전한 뒤 다시 시도해 주세요.</span>
+            <span class="nav-en" style="display:none">Insufficient AI credits. Top up on <a href="/account/ai-credits">Usage &amp; balance</a>, then try again.</span>
+          </span>
+        </div>
+        {% endif %}
+        {% if error and error not in ['core_fields_incomplete', 'invalid_file', 'file_too_large', 'empty_attachment', 'max_selection', 'sap_system_version_required', 'sap_system_version_invalid', 'program_id_required', 'program_id_too_long', 'program_id_ime', 'program_id_chars', 'transaction_code_too_long', 'transaction_code_ime', 'transaction_code_chars', 'too_many_attachments', 'screenshot_too_many', 'screenshot_too_large', 'screenshot_total_too_large', 'screenshot_invalid', 'reference_code_too_large', 'need_title', 'need_requirement', 'need_reference_code', 'code_too_short', 'wallet_insufficient'] %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           <span class="nav-ko">제출 처리 중 오류가 발생했습니다. 입력 내용을 확인해 주세요.</span>

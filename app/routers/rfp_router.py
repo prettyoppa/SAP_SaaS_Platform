@@ -101,6 +101,13 @@ from ..rfp_followup_chat import (
     validate_rfp_user_message,
 )
 from ..ai_followup_chat_ajax import ai_chat_json_error, ai_chat_json_ok, wants_ai_chat_json
+from ..ai_wallet_gates import (
+    wallet_flash_from_query,
+    wallet_insufficient_message,
+    wallet_insufficient_url,
+    wallet_preflight_for_ai,
+    wallet_preflight_for_user_id,
+)
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
 from ..rfp_phase_gates import rfp_for_hub_readonly_embed, rfp_for_owner_or_admin, rfp_owned_only
 from . import interview_router as _interview_views
@@ -586,6 +593,9 @@ async def rfp_api_suggest_field(
     user = auth.get_current_user(request, db)
     if not user:
         return JSONResponse({"ok": False, "error": "login_required"}, status_code=401)
+    werr = wallet_preflight_for_ai(db, user, stage="other")
+    if werr:
+        return JSONResponse({"ok": False, "error": werr}, status_code=402)
     k = (body.kind or "").strip().lower()
     try:
         desc_fmt = (body.description_format or "html").strip().lower()
@@ -1084,6 +1094,8 @@ def _collect_rfp_unified_hub_ctx(
                 kind = "danger" if ee == "wallet_insufficient" else "warning"
                 engagement_flash = {**em, "kind": kind}
 
+    wallet_flash = wallet_flash_from_query(request)
+
     proposal_hub_flash = None
     pe = (request.query_params.get("proposal_err") or "").strip()
     if pe == "deleted":
@@ -1174,6 +1186,7 @@ def _collect_rfp_unified_hub_ctx(
         ),
         "paid_engagement_active": paid_engagement_is_active(rfp),
         "engagement_flash": engagement_flash,
+        "wallet_flash": wallet_flash,
         "entity_owner_id": int(rfp.user_id),
         **request_engagement_hub_ctx(
             db,
@@ -1711,6 +1724,17 @@ def rfp_hub_chat_post(
             return ai_chat_json_error(verr)
         return RedirectResponse(
             url=_rfp_ai_chat_redirect(rfp_id, return_to, verr, hub_phase=hub_phase or None),
+            status_code=303,
+        )
+
+    werr = wallet_preflight_for_user_id(db, int(rfp.user_id), stage="ai_inquiry")
+    if werr:
+        if wants_ai_chat_json(request):
+            return ai_chat_json_error(wallet_insufficient_message(), status_code=402)
+        return RedirectResponse(
+            url=wallet_insufficient_url(
+                _rfp_ai_chat_redirect(rfp_id, return_to, hub_phase=hub_phase or None)
+            ),
             status_code=303,
         )
 

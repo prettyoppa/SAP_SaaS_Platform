@@ -22,9 +22,9 @@
   <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.proposal">제안서</span></span>
   {% endif %}
   {% if ph.has_analysis and ph.analysis_href %}
-  <a href="{{ ph.analysis_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="detail.phaseAnalysis">분석 결과</span></a>
+  <a href="{{ ph.analysis_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.analysis">분석 결과</span></a>
   {% else %}
-  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="detail.phaseAnalysis">분석 결과</span></span>
+  <span class="btn btn-sm btn-outline-secondary rfp-phase-btn rfp-phase-btn--muted disabled" tabindex="-1" aria-disabled="true"><span data-i18n="phase.analysis">분석 결과</span></span>
   {% endif %}
   {% if ph.request_href %}
   <a href="{{ ph.request_href }}" class="btn btn-sm btn-outline-secondary rfp-phase-btn"><span data-i18n="phase.request">요청</span></a>

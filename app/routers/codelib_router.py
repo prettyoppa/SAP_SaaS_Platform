@@ -418,15 +418,34 @@ def codelib_upload(
     analysis = {}
     analyzed = False
     if not save_as_draft:
+        from ..ai_wallet_gates import wallet_preflight_for_ai
+        from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
+
+        werr = wallet_preflight_for_ai(db, user, stage="codelib")
+        if werr:
+            return templates.TemplateResponse(request, "codelib_upload.html", {
+                "request": request, "user": user,
+                "modules": modules, "devtypes": devtypes,
+                "error": "wallet_insufficient",
+                "form_program_id": program_id,
+                "form_transaction_code": transaction_code,
+                "edit_code": None,
+                "edit_sections": None,
+                "selected_modules": sap_modules,
+                "selected_devtypes": dev_types,
+            })
         try:
             from ..agents.free_crew import analyze_code_for_library
 
-            analysis = analyze_code_for_library(
-                source_code=source_code,
-                title=title,
-                modules=sap_modules,
-                dev_types=dev_types,
-            )
+            with ai_usage_scope(
+                AiUsageContext(user_id=int(user.id), request_kind="codelib", request_id=None)
+            ):
+                analysis = analyze_code_for_library(
+                    source_code=source_code,
+                    title=title,
+                    modules=sap_modules,
+                    dev_types=dev_types,
+                )
             analyzed = not bool(analysis.get("error"))
         except Exception as e:
             analysis = {"error": str(e)}

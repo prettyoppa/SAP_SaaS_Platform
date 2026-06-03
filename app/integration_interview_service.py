@@ -13,6 +13,7 @@ from . import models
 from .agents.agent_tools import get_code_library_context
 from .integration_crew_adapter import integration_request_to_crew_rfp_dict, _member_safe_for_integration
 from .integration_hub import integration_hub_url
+from .ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
 from .subscription_catalog import METRIC_DEV_PROPOSAL
 from .subscription_quota import try_consume_monthly
 from .agent_playbook import (
@@ -103,6 +104,15 @@ def _run_integration_proposal_background(integration_id: int):
         )
         if not ir:
             return
+        from .ai_wallet_gates import wallet_preflight_for_ai
+
+        owner = db.query(models.User).filter(models.User.id == int(ir.user_id)).first()
+        werr = wallet_preflight_for_ai(db, owner, stage="proposal") if owner else "forbidden"
+        if werr:
+            ir.interview_status = "in_progress"
+            ir.proposal_text = None
+            db.commit()
+            return
         try:
             rfp_dict = integration_request_to_crew_rfp_dict(db, ir)
             conv = _integration_conversation_for_crew(ir)
@@ -113,14 +123,23 @@ def _run_integration_proposal_background(integration_id: int):
                 rfp_dict.get("dev_types", []),
                 member_safe_output=ms,
             )
+            from .ai_usage_recorder import AiUsageContext, ai_usage_scope
+
             pb = _playbook_addon_integration(db, STAGE_PROPOSAL)
-            proposal = _fc().generate_proposal(
-                rfp_dict,
-                conv,
-                code_library_context=code_ctx,
-                member_safe_output=ms,
-                playbook_addon=pb,
-            )
+            with ai_usage_scope(
+                AiUsageContext(
+                    user_id=int(ir.user_id),
+                    request_kind="integration",
+                    request_id=int(ir.id),
+                )
+            ):
+                proposal = _fc().generate_proposal(
+                    rfp_dict,
+                    conv,
+                    code_library_context=code_ctx,
+                    member_safe_output=ms,
+                    playbook_addon=pb,
+                )
         except Exception as ex:
             proposal = f"# Proposal 생성 오류\n\n{ex}"
         from .agent_display import prepare_member_facing_proposal_markdown
@@ -225,6 +244,12 @@ def serve_integration_interview_workspace(
     next_round = len(msgs) + 1
 
     if next_round > _fc().MAX_ROUNDS or (answered and len(answered) >= _fc().MAX_ROUNDS):
+        werr = wallet_preflight_for_ai(db, user, stage="proposal")
+        if werr:
+            return IntegrationInterviewWorkspaceOutcome(
+                kind="redirect",
+                redirect_url=wallet_insufficient_url(integration_hub_url(iid, "interview")),
+            )
         err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
         if err_p == "disabled":
             return IntegrationInterviewWorkspaceOutcome(
@@ -248,16 +273,31 @@ def serve_integration_interview_workspace(
         rfp_dict.get("dev_types", []),
         member_safe_output=_ms,
     )
-    try:
-        pb_iv = _playbook_addon_integration(db, STAGE_INTERVIEW)
-        result = _fc().generate_sequential_start(
-            rfp_data=rfp_dict,
-            conversation=conv,
-            round_num=next_round,
-            code_library_context=code_ctx,
-            member_safe_output=_ms,
-            playbook_addon=pb_iv,
+    werr = wallet_preflight_for_ai(db, user, stage="interview")
+    if werr:
+        return IntegrationInterviewWorkspaceOutcome(
+            kind="redirect",
+            redirect_url=wallet_insufficient_url(integration_hub_url(iid, "interview")),
         )
+    try:
+        from .ai_usage_recorder import AiUsageContext, ai_usage_scope
+
+        pb_iv = _playbook_addon_integration(db, STAGE_INTERVIEW)
+        with ai_usage_scope(
+            AiUsageContext(
+                user_id=int(user.id),
+                request_kind="integration",
+                request_id=int(ir.id),
+            )
+        ):
+            result = _fc().generate_sequential_start(
+                rfp_data=rfp_dict,
+                conversation=conv,
+                round_num=next_round,
+                code_library_context=code_ctx,
+                member_safe_output=_ms,
+                playbook_addon=pb_iv,
+            )
     except RuntimeError as e:
         wizard_ctx = {
             "request": request,

@@ -234,6 +234,8 @@ def generate_followup_reply(
     history_messages: list,
     user_question: str,
     attachment_digest: str = "",
+    billing_user_id: int | None = None,
+    request_id: int | None = None,
 ) -> str:
     """분석 맥락 + 대화 이력 + 새 질문에 대한 한국어 답변(일반 텍스트)."""
     req = (requirement_text or "").strip()[:20_000]
@@ -301,6 +303,17 @@ def generate_followup_reply(
     except Exception as exc:
         _log.exception("abap_followup_chat generate_content failed")
         return _gemini_user_error_message(exc)
+
+    if billing_user_id:
+        from .ai_usage_recorder import log_gemini_generate_content
+
+        log_gemini_generate_content(
+            response,
+            stage="ai_inquiry",
+            user_id=int(billing_user_id),
+            request_kind="analysis",
+            request_id=request_id,
+        )
 
     try:
         raw = (response.text or "").strip()

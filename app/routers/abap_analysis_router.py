@@ -29,6 +29,13 @@ from ..ai_followup_chat_ajax import (
     ai_chat_json_ok,
     wants_ai_chat_json,
 )
+from ..ai_wallet_gates import (
+    wallet_flash_from_query,
+    wallet_insufficient_message,
+    wallet_insufficient_url,
+    wallet_preflight_for_ai,
+    wallet_preflight_for_user_id,
+)
 
 _log = logging.getLogger(__name__)
 from ..subscription_quota import ai_inquiry_snapshot, get_ai_inquiry_used, record_ai_inquiry_user_turn
@@ -554,35 +561,51 @@ def _run_analysis(
     screenshot_entries: Optional[list[dict]] = None,
     sap_modules: Optional[List[str]] = None,
     dev_types: Optional[List[str]] = None,
+    *,
+    billing_user_id: int | None = None,
+    request_id: int | None = None,
 ) -> dict:
     from ..agents.free_crew import analyze_code_for_library, augment_abap_analysis_with_requirement
+    from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
 
-    att = attachment_entries if attachment_entries else []
-    shots = screenshot_entries if screenshot_entries else []
-    digest = _merge_llm_digests(att, shots)
+    def _execute() -> dict:
+        att = attachment_entries if attachment_entries else []
+        shots = screenshot_entries if screenshot_entries else []
+        digest = _merge_llm_digests(att, shots)
 
-    title_snip = requirement_text.strip()[:200] or "ABAP 분석"
-    structural = analyze_code_for_library(
-        source_code=source_code,
-        title=title_snip,
-        modules=list(sap_modules or []),
-        dev_types=list(dev_types or []),
-        include_interview_questions=False,
-        attachment_digest=digest,
-    )
-    out = dict(structural)
-    if not structural.get("error"):
-        aug = augment_abap_analysis_with_requirement(
-            requirement_text,
-            structural,
-            source_code,
+        title_snip = requirement_text.strip()[:200] or "ABAP 분석"
+        structural = analyze_code_for_library(
+            source_code=source_code,
+            title=title_snip,
+            modules=list(sap_modules or []),
+            dev_types=list(dev_types or []),
+            include_interview_questions=False,
             attachment_digest=digest,
         )
-        if aug.get("error"):
-            out["requirement_analysis_error"] = aug["error"]
-        else:
-            out["requirement_analysis"] = {k: v for k, v in aug.items() if k != "error"}
-    return out
+        out = dict(structural)
+        if not structural.get("error"):
+            aug = augment_abap_analysis_with_requirement(
+                requirement_text,
+                structural,
+                source_code,
+                attachment_digest=digest,
+            )
+            if aug.get("error"):
+                out["requirement_analysis_error"] = aug["error"]
+            else:
+                out["requirement_analysis"] = {k: v for k, v in aug.items() if k != "error"}
+        return out
+
+    if billing_user_id is not None:
+        with ai_usage_scope(
+            AiUsageContext(
+                user_id=int(billing_user_id),
+                request_kind="analysis",
+                request_id=request_id,
+            )
+        ):
+            return _execute()
+    return _execute()
 
 
 def _form_template_response(
@@ -1045,6 +1068,10 @@ async def abap_analysis_create(
             db.rollback()
             return _bad(body_err)
         if not is_draft_save:
+            werr = wallet_preflight_for_ai(db, user, stage="codelib")
+            if werr:
+                db.rollback()
+                return _bad("wallet_insufficient")
             analysis = _run_analysis(
                 _requirement_plain(row),
                 src,
@@ -1052,6 +1079,8 @@ async def abap_analysis_create(
                 screenshot_entries=_screenshot_entries(row),
                 sap_modules=sap_modules,
                 dev_types=dev_types,
+                billing_user_id=int(user.id),
+                request_id=int(row.id),
             )
             analyzed = not bool(analysis.get("error"))
             row.analysis_json = json.dumps(analysis, ensure_ascii=False)
@@ -1327,6 +1356,9 @@ async def abap_analysis_edit_save(
         row.is_analyzed = False
         row.analysis_json = None
     else:
+        werr = wallet_preflight_for_ai(db, user, stage="codelib")
+        if werr:
+            return _bad("wallet_insufficient")
         analysis = _run_analysis(
             _requirement_plain(row),
             src,
@@ -1334,6 +1366,8 @@ async def abap_analysis_edit_save(
             screenshot_entries=_screenshot_entries(row),
             sap_modules=sap_modules,
             dev_types=dev_types,
+            billing_user_id=int(user.id),
+            request_id=int(row.id),
         )
         analyzed = not bool(analysis.get("error"))
         row.analysis_json = json.dumps(analysis, ensure_ascii=False)
@@ -1506,6 +1540,8 @@ def _prepare_abap_analysis_detail_ctx(
                 kind = "danger" if ee == "wallet_insufficient" else "warning"
                 engagement_flash = {**em, "kind": kind}
 
+    wallet_flash = wallet_flash_from_query(request)
+
     hub_can_delete_proposal = (
         not readonly_console
         and int(user.id) == int(row.user_id)
@@ -1530,6 +1566,7 @@ def _prepare_abap_analysis_detail_ctx(
         "hub_request_edit_unlocked": hub_request_edit_unlocked,
         "proposal_hub_flash": proposal_hub_flash,
         "engagement_flash": engagement_flash,
+        "wallet_flash": wallet_flash,
         "entity_owner_id": int(row.user_id),
         **request_engagement_hub_ctx(
             db,
@@ -2036,6 +2073,16 @@ def abap_analysis_chat_post(
             status_code=303,
         )
 
+    werr = wallet_preflight_for_user_id(db, int(row.user_id), stage="ai_inquiry")
+    if werr:
+        if wants_ai_chat_json(request):
+            return ai_chat_json_error(wallet_insufficient_message(), status_code=402)
+        return RedirectResponse(
+            url=wallet_insufficient_url(f"{chat_base}?chat_err={quote(wallet_insufficient_message())}")
+            + phase_frag,
+            status_code=303,
+        )
+
     used_ai = get_ai_inquiry_used(db, user.id, "analysis", row.id)
 
     analysis: dict = {}
@@ -2076,6 +2123,8 @@ def abap_analysis_chat_post(
         history_messages=prior,
         user_question=msg,
         attachment_digest=att_digest,
+        billing_user_id=int(row.user_id),
+        request_id=int(row.id),
     )
 
     tid = int(user.id)

@@ -31,6 +31,7 @@ from ..proposal_lifecycle import (
 )
 from ..rfp_hub import rfp_hub_url
 from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
+from ..ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
 from ..subscription_catalog import METRIC_DEV_PROPOSAL, METRIC_DEV_PROPOSAL_REGEN
 from ..subscription_quota import try_consume_monthly, try_consume_per_request
 from ..agent_playbook import (
@@ -344,6 +345,13 @@ def _run_proposal_background(rfp_id: int):
         rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
         if not rfp:
             return
+        owner = db.query(models.User).filter(models.User.id == int(rfp.user_id)).first()
+        werr = wallet_preflight_for_ai(db, owner, stage="proposal")
+        if werr:
+            rfp.interview_status = "in_progress"
+            rfp.proposal_text = None
+            db.commit()
+            return
         try:
             rfp_dict = _rfp_to_dict(rfp)
             conv = _conversation_list_for_llm(rfp)
@@ -486,6 +494,12 @@ def serve_interview_workspace(
     next_round = len(rfp.messages) + 1
 
     if next_round > _fc().MAX_ROUNDS or (answered and len(answered) >= _fc().MAX_ROUNDS):
+        werr = wallet_preflight_for_ai(db, user, stage="proposal")
+        if werr:
+            return InterviewWorkspaceOutcome(
+                kind="redirect",
+                redirect_url=wallet_insufficient_url(rfp_hub_url(rid, "interview")),
+            )
         err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
         if err_p == "disabled":
             return InterviewWorkspaceOutcome(
@@ -509,6 +523,12 @@ def serve_interview_workspace(
         rfp_dict.get("dev_types", []),
         member_safe_output=_ms,
     )
+    werr = wallet_preflight_for_ai(db, user, stage="interview")
+    if werr:
+        return InterviewWorkspaceOutcome(
+            kind="redirect",
+            redirect_url=wallet_insufficient_url(rfp_hub_url(rid, "interview")),
+        )
     try:
         pb_iv = _playbook_addon_for_rfp(db, rfp, STAGE_INTERVIEW)
         with ai_usage_scope(
@@ -667,6 +687,12 @@ def request_proposal_now(
     if not _interview_has_substance(rfp):
         return RedirectResponse(
             url=f"{rfp_hub_url(rfp_id, hub_proposal_phase)}&err=proposal",
+            status_code=302,
+        )
+    werr = wallet_preflight_for_ai(db, user, stage="proposal")
+    if werr:
+        return RedirectResponse(
+            url=wallet_insufficient_url(rfp_hub_url(rfp_id, hub_proposal_phase)),
             status_code=302,
         )
     err_p = try_consume_monthly(db, user, METRIC_DEV_PROPOSAL, 1)
@@ -868,6 +894,12 @@ def interview_answer_step(
         _finalize_message_row()
         return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
+    werr = wallet_preflight_for_ai(db, user, stage="interview")
+    if werr:
+        return RedirectResponse(
+            url=wallet_insufficient_url(rfp_hub_url(rfp_id, "interview")),
+            status_code=302,
+        )
     pb_f = _playbook_addon_for_rfp(db, rfp, STAGE_INTERVIEW)
     with ai_usage_scope(
         AiUsageContext(user_id=int(user.id), request_kind="rfp", request_id=int(rfp.id))
@@ -1002,6 +1034,12 @@ def regenerate_proposal(
     if not rfp:
         return RedirectResponse(url="/", status_code=302)
 
+    werr = wallet_preflight_for_ai(db, user, stage="proposal")
+    if werr:
+        return RedirectResponse(
+            url=wallet_insufficient_url(rfp_hub_url(rfp_id, "proposal")),
+            status_code=302,
+        )
     err_r = try_consume_per_request(db, user, METRIC_DEV_PROPOSAL_REGEN, "rfp", rfp_id, 1)
     if err_r == "disabled":
         return RedirectResponse(

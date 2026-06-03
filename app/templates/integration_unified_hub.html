@@ -34,6 +34,7 @@
       <span>{{ subscription_quota_flash }}</span>
     </div>
     {% endif %}
+    {% include 'partials/hub_wallet_flash.html' %}
     {% include 'partials/hub_proposal_flash.html' %}
 
     {% if ir.workflow_rfp_id and ir.workflow_rfp %}

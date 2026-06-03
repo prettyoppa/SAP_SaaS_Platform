@@ -576,6 +576,42 @@ def _migrate_wallet_deduct_historical_ai_usage():
         db.close()
 
 
+def _clamp_member_negative_ai_wallets():
+    """일반·컨설턴트 계정 음수 AI 잔액을 0으로 보정(관리자 제외, 1회)."""
+    from . import models
+
+    flag_key = "ai_wallet_member_nonneg_v1"
+    db = SessionLocal()
+    try:
+        flag = db.query(models.SiteSettings).filter(models.SiteSettings.key == flag_key).first()
+        if flag and (flag.value or "").strip() == "1":
+            return
+        rows = (
+            db.query(models.User)
+            .filter(models.User.is_admin.is_(False))
+            .all()
+        )
+        changed = 0
+        for user in rows:
+            bal = int(getattr(user, "ai_wallet_balance_krw", None) or 0)
+            if bal < 0:
+                user.ai_wallet_balance_krw = 0
+                changed += 1
+        if not flag:
+            db.add(models.SiteSettings(key=flag_key, value="1"))
+        else:
+            flag.value = "1"
+        db.commit()
+        if changed:
+            import logging
+
+            logging.getLogger(__name__).info(
+                "Clamped negative ai_wallet_balance_krw for %s non-admin user(s)", changed
+            )
+    finally:
+        db.close()
+
+
 def _migrate_bank_transfer_sla_for_wallet():
     """구독 플랜 시절 기본 SLA 문구 → AI 잔액 즉시 반영 안내."""
     legacy = {
@@ -617,6 +653,7 @@ def _bootstrap_database():
     _migrate_bank_transfer_sla_for_wallet()
     _backfill_payment_claim_confirmed_amounts()
     _migrate_wallet_deduct_historical_ai_usage()
+    _clamp_member_negative_ai_wallets()
     _migrate_kb_workflow_statuses()
     _sync_admins()
     _log.info("[DB] bootstrap complete")

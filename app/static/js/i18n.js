@@ -18,6 +18,7 @@ const TRANSLATIONS = {
     "nav.usageBalance": "Usage & balance",
     "wallet.fabTopupTitle": "Top up AI credits",
     "wallet.fabStartTitle": "Get started free",
+    "wallet.insufficientFlash": "Insufficient AI credits. Top up on Usage & balance, then try again.",
     /* Footer */
     "footer.tagline": "AI-Powered SAP Development Platform",
     "footer.copy": "© 2026 SAP Dev Hub. All rights reserved.",
@@ -250,6 +251,7 @@ const TRANSLATIONS = {
     "phase.devCode": "Dev code",
     "phase.fs": "FS",
     "phase.proposal": "Proposal",
+    "phase.analysis": "Analysis results",
     "phase.interview": "Interview",
     "phase.interviewUnavailable": "Interview opens after a workflow is linked.",
     "phase.interviewPending": "Interview phase is not available yet.",
@@ -599,6 +601,7 @@ const TRANSLATIONS = {
     "nav.usageBalance": "사용량 확인",
     "wallet.fabTopupTitle": "AI 크레딧 충전",
     "wallet.fabStartTitle": "무료로 시작하기",
+    "wallet.insufficientFlash": "AI 크레딧 잔액이 부족합니다. 「사용량 · 충전」에서 충전한 뒤 다시 시도해 주세요.",
     /* Footer */
     "footer.tagline": "AI 기반 SAP 개발 자동화 플랫폼",
     "footer.copy": "© 2026 SAP Dev Hub. All rights reserved.",
@@ -831,6 +834,7 @@ const TRANSLATIONS = {
     "phase.devCode": "개발코드",
     "phase.fs": "FS",
     "phase.proposal": "제안서",
+    "phase.analysis": "분석 결과",
     "phase.interview": "인터뷰",
     "phase.interviewUnavailable": "워크플로가 연결되면 인터뷰 단계로 이동할 수 있습니다.",
     "phase.interviewPending": "인터뷰 단계는 아직 준비 중입니다.",

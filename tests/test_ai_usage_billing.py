@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, patch
 from app.ai_usage_billing import (
     delivery_job_billing_user_id,
     skips_delivery_wallet_preflight,
+    user_skips_wallet,
+    wallet_preflight_for_ai_stage,
     wallet_preflight_for_delivery_stage,
 )
 
@@ -15,8 +17,10 @@ def test_delivery_billing_user_is_actor_not_owner():
 
 def test_admin_skips_wallet_preflight():
     admin = MagicMock(is_admin=True, is_consultant=False)
+    assert user_skips_wallet(admin) is True
     assert skips_delivery_wallet_preflight(admin) is True
     assert wallet_preflight_for_delivery_stage(MagicMock(), admin, stage="fs") is None
+    assert wallet_preflight_for_ai_stage(MagicMock(), admin, stage="interview") is None
 
 
 def test_consultant_zero_balance_blocked():

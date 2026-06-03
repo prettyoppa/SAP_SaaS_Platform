@@ -155,6 +155,7 @@ detail.integrationTitle	연동 요청	Integration request
 detail.linkedRfp	연결된 요청(RFP)	Linked RFP
 detail.newDevTag	신규 개발	New development
 detail.phaseAnalysis	2. 분석 결과	2. Analysis results
+phase.analysis	분석 결과	Analysis results
 detail.phaseImprove	4. 개선 제안 요청	4. Improvement request
 detail.phaseReqLink	3. 요구사항 연계 분석	3. Requirements linkage analysis
 detail.phaseRequest	1. 요청	1. Request

@@ -123,6 +123,14 @@ def integration_request_proposal_now(
         return RedirectResponse(url=integration_hub_url(req_id, "proposal"), status_code=302)
     if not _substance(ir):
         return RedirectResponse(url=f"{integration_hub_url(req_id, 'interview')}&err=proposal", status_code=302)
+    from ..ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
+
+    werr = wallet_preflight_for_ai(db, user, stage="proposal")
+    if werr:
+        return RedirectResponse(
+            url=wallet_insufficient_url(integration_hub_url(req_id, "proposal")),
+            status_code=302,
+        )
     ir.interview_status = "generating_proposal"
     db.commit()
     background_tasks.add_task(_run_integration_proposal_background, ir.id)
@@ -287,20 +295,36 @@ def integration_interview_answer_step(
         _finalize_message_row()
         return RedirectResponse(url=integration_hub_url(req_id, "interview"), status_code=302)
 
+    from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
+    from ..ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
+
+    werr = wallet_preflight_for_ai(db, user, stage="interview")
+    if werr:
+        return RedirectResponse(
+            url=wallet_insufficient_url(integration_hub_url(req_id, "interview")),
+            status_code=302,
+        )
     pb_f = build_playbook_addon(
         db,
         PlaybookContext(entity="integration", stage=STAGE_INTERVIEW, workflow_origin="integration_native"),
     )
-    fol = _fc().generate_sequential_followup(
-        rfp_data=rfp_dict,
-        conversation=conv,
-        round_num=msg.round_number,
-        in_round_qa=in_round,
-        code_library_context=code_ctx,
-        library_pool=lib_pool,
-        member_safe_output=_ms_ans,
-        playbook_addon=pb_f,
-    )
+    with ai_usage_scope(
+        AiUsageContext(
+            user_id=int(user.id),
+            request_kind="integration",
+            request_id=int(ir.id),
+        )
+    ):
+        fol = _fc().generate_sequential_followup(
+            rfp_data=rfp_dict,
+            conversation=conv,
+            round_num=msg.round_number,
+            in_round_qa=in_round,
+            code_library_context=code_ctx,
+            library_pool=lib_pool,
+            member_safe_output=_ms_ans,
+            playbook_addon=pb_f,
+        )
     if bool(fol.get("round_complete")):
         _finalize_message_row()
         return RedirectResponse(url=integration_hub_url(req_id, "interview"), status_code=302)
@@ -393,6 +417,14 @@ def integration_regenerate_proposal(
     if err_r == "per_request_limit":
         return RedirectResponse(
             url=f"{integration_hub_url(req_id, 'proposal')}&quota_err=proposal_regen_limit",
+            status_code=302,
+        )
+    from ..ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
+
+    werr = wallet_preflight_for_ai(db, user, stage="proposal")
+    if werr:
+        return RedirectResponse(
+            url=wallet_insufficient_url(integration_hub_url(req_id, "proposal")),
             status_code=302,
         )
     ir.interview_status = "generating_proposal"
