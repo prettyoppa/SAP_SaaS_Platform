@@ -389,6 +389,7 @@
     if (delAll) {
       delAll.addEventListener('click', function () {
         var msg =
+          t('refForm.deleteAllConfirm') ||
           '입력한 ABAP 코드를 모두 삭제할까요? 이 요청 분석·제안서에 더 이상 반영되지 않습니다.';
         var runWipe = function () {
           var id = rfpId();
@@ -452,6 +453,7 @@
       typeof window.countRfpRefCodeSlotsFilled === 'function' &&
       window.countRfpRefCodeSlotsFilled() > 0;
     var confirmMsg =
+      t('refForm.galleryReplaceConfirm') ||
       '이미 입력된 참고 코드가 있습니다. 갤러리 항목으로 바꿀까요? (저장된 내용은 덮어씌워집니다)';
     var doApply = function () {
       expandRefCollapseMaybe(collapseSelector);

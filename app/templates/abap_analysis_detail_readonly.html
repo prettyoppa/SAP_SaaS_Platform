@@ -16,7 +16,7 @@
                 <i class="fa-regular fa-hospital nav-icon-analysis-dark"></i>
               </div>
               <div>
-                <h2 class="mb-1">{% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}SAP ABAP 분석·개선{% endif %}</h2>
+                <h2 class="mb-1">{% if row.title and row.title.strip() %}{{ row.title.strip() }}{% else %}<span data-i18n="detail.abapTitle">SAP ABAP 분석·개선</span>{% endif %}</h2>
                 <div class="small text-muted">{{ row.id|request_no('ANA') }} · {{ row.created_at|local_dt_span }} · <span data-i18n="detail.analysisTag">분석·개선</span></div>
                 {% if user.is_admin and owner %}
                 <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
@@ -31,11 +31,11 @@
 
             <div class="d-flex gap-2 flex-wrap align-items-center">
               {% if row.is_draft %}
-              <span class="rfp-status-badge ms-0" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)">임시저장</span>
+              <span class="rfp-status-badge ms-0" style="background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)"><span data-i18n="badge.draft">임시저장</span></span>
               {% elif row.is_analyzed %}
-              <span class="rfp-status-badge status-badge-completed ms-0">분석 완료</span>
+              <span class="rfp-status-badge status-badge-completed ms-0"><span data-i18n="detail.analysisDone">분석 완료</span></span>
               {% else %}
-              <span class="rfp-status-badge status-badge-submitted ms-0">분석 오류/미완료</span>
+              <span class="rfp-status-badge status-badge-submitted ms-0"><span data-i18n="detail.analysisPending">분석 오류/미완료</span></span>
               {% endif %}
             </div>
           </div>
@@ -99,9 +99,9 @@
                   {% for att in attachment_entries %}
                   <li class="mb-1">
                     {% if code_asset_unlocked|default(false) %}
-                    <a href="/abap-analysis/{{ row.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{{ att.filename or '파일' }}</a>
+                    <a href="/abap-analysis/{{ row.id }}/attachment?idx={{ loop.index0 }}" target="_blank" rel="noopener">{% if att.filename %}{{ att.filename }}{% else %}<span data-i18n="common.fileFallback">파일</span>{% endif %}</a>
                     {% else %}
-                    <span class="text-muted">{{ att.filename or '파일' }}</span>
+                    <span class="text-muted">{% if att.filename %}{{ att.filename }}{% else %}<span data-i18n="common.fileFallback">파일</span>{% endif %}</span>
                     {% endif %}
                     {% if att.note %}<span class="text-muted small">— {{ att.note }}</span>{% endif %}
                   </li>
@@ -150,13 +150,13 @@
         <div class="proposal-card mb-0">
           <div class="proposal-body{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">
             <h4 style="border-left:3px solid var(--primary);padding-left:.75rem;margin-top:0;margin-bottom:1.25rem">
-              <i class="fa-solid fa-robot me-2 text-primary-light"></i>{{ 'f_analyst'|agent_label }} – 코드 구조 분석
+              <i class="fa-solid fa-robot me-2 text-primary-light"></i>{{ 'f_analyst'|agent_label }} – <span data-i18n="analysis.codeStructureTitle">코드 구조 분석</span>
             </h4>
 
             {% if analysis.program_purpose %}
             <details class="analysis-fold mb-3" open>
               <summary class="analysis-fold-summary">
-                <i class="fa-solid fa-book me-2 text-info"></i>프로그램 개요
+                <i class="fa-solid fa-book me-2 text-info"></i><span data-i18n="analysis.programOverview">프로그램 개요</span>
               </summary>
               <div class="analysis-fold-body">{{ analysis.program_purpose }}</div>
             </details>
@@ -164,7 +164,7 @@
 
             {% set screen_list = analysis.get('screens', []) %}
             {% if screen_list and screen_list|length > 0 %}
-            <div class="mb-2 small text-muted"><i class="fa-solid fa-display me-1"></i>식별된 스크린·UI</div>
+            <div class="mb-2 small text-muted"><i class="fa-solid fa-display me-1"></i><span data-i18n="analysis.screensIdentified">식별된 스크린·UI</span></div>
             {% for scr in screen_list %}
             <details class="analysis-fold mb-3">
               <summary class="analysis-fold-summary d-flex flex-wrap align-items-baseline gap-2">
@@ -179,7 +179,7 @@
                   {% for b in bullets %}<li>{{ b }}</li>{% endfor %}
                 </ul>
                 {% else %}
-                <p class="mb-0 text-muted small">상세 불릿이 없습니다.</p>
+                <p class="mb-0 text-muted small" data-i18n="analysis.noScreenBullets">상세 불릿이 없습니다.</p>
                 {% endif %}
               </div>
             </details>
@@ -215,7 +215,7 @@
               {% if analysis.applied_techniques %}
               <div class="col-12">
                 <details class="analysis-fold">
-                  <summary class="analysis-fold-summary"><i class="fa-solid fa-wand-magic-sparkles me-2 text-warning"></i>적용 기법</summary>
+                  <summary class="analysis-fold-summary"><i class="fa-solid fa-wand-magic-sparkles me-2 text-warning"></i><span data-i18n="analysis.appliedTechniques">적용 기법</span></summary>
                   <div class="analysis-fold-body">
                     <ul class="analysis-list mb-0">{% for t in analysis.applied_techniques %}<li>{{ t }}</li>{% endfor %}</ul>
                   </div>
@@ -226,7 +226,7 @@
 
             {% if analysis.get('questions') %}
             <details class="analysis-fold mb-0 mt-3">
-              <summary class="analysis-fold-summary"><i class="fa-solid fa-comments me-2 text-info"></i>추가 확인 질문</summary>
+              <summary class="analysis-fold-summary"><i class="fa-solid fa-comments me-2 text-info"></i><span data-i18n="analysis.followUpQuestions">추가 확인 질문</span></summary>
               <div class="analysis-fold-body">
                 <ul class="analysis-list mb-0">{% for q in analysis.questions %}<li>{{ q }}</li>{% endfor %}</ul>
               </div>
@@ -317,7 +317,7 @@
               <div class="proposal-body">{{ ana_proposal_html|safe }}</div>
             </div>
             {% elif ana_can_request_proposal|default(false) %}
-            <p class="text-muted small mb-0">개발 제안서 생성은 요청자가 전체 상세에서 시작할 수 있습니다.</p>
+            <p class="text-muted small mb-0" data-i18n="hub.proposalReadonlyHint">개발 제안서 생성은 요청자가 전체 상세에서 시작할 수 있습니다.</p>
             {% else %}
             <p class="text-muted small mb-0" data-i18n="hub.proposalNone">제안서가 아직 없습니다.</p>
             {% endif %}

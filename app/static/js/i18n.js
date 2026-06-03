@@ -129,6 +129,39 @@ const TRANSLATIONS = {
     "refForm.savedAttachments": "Saved attachments",
     "refForm.deleteAttachment": "Delete",
     "refForm.previewDownload": "Preview / download",
+    "refForm.deleteAllConfirm": "Delete all entered reference ABAP code? It will no longer be used for analysis or proposals.",
+    "refForm.galleryReplaceConfirm": "Reference code is already filled in. Replace it with the gallery item? (Saved content will be overwritten.)",
+    "abap.form.pageTitle": "SAP ABAP analysis · improvement request",
+    "abap.form.requestIdLabel": "Request ID",
+    "abap.form.resubmitNote": "Submitted — saving re-runs analysis",
+    "abap.submitBtn": "Submit &amp; analyze",
+    "abap.form.footerHint": "<strong>Detailed requirements</strong> improve analysis accuracy. After submit, <strong>AI analysis</strong> runs on your request.",
+    "detail.abapEditLockedTooltip": "Cannot edit while a proposal is generating or ready, or while a linked new-development interview exists.",
+    "detail.readonlyTitleSuffix": " (view only)",
+    "analysis.codeStructureTitle": "Code structure analysis",
+    "analysis.programOverview": "Program overview",
+    "analysis.screensIdentified": "Screens · UI identified in source",
+    "analysis.noScreenBullets": "No detail bullets.",
+    "analysis.appliedTechniques": "Techniques applied",
+    "analysis.followUpQuestions": "Follow-up questions",
+    "hub.proposalReadonlyHint": "The requester can start proposal generation from the full detail page.",
+    "rfp.programIdLabel": "Program ID",
+    "rfp.tcodeLabel": "Transaction code",
+    "rfp.aiAutoGen": "AI suggest",
+    "rfp.aiTitleTooltip": "Draft title from requirement body (KO/EN/etc.)",
+    "rfp.aiProgramTooltip": "Draft Z program name from request title",
+    "rfp.attachPreviewSuffix": " (click to preview)",
+    "rfp.attachRemoveAria": "Remove attachment",
+    "rfp.attachRemove": "Remove",
+    "rfp.attachNoteLabel": "Note (optional)",
+    "rfp.attachNotePlaceholder": "Attachment {n} note",
+    "rfp.submitting": "Submitting…",
+    "reqRich.modeRich": "Rich text &amp; images",
+    "reqRich.modePlain": "Plain text",
+    "reqRich.pasteHint": "Paste screenshots into the body with <kbd>Ctrl</kbd>+<kbd>V</kbd> (up to 5)",
+    "reqRich.placeholderRich": "Describe your requirements. Paste screenshots where needed.",
+    "reqRich.placeholderPlain": "Describe your requirements.",
+    "reqRich.charUnit": "chars",
     "rfp.changeFile": "Click to change file",
     "rfp.s4.title": "Review & Submit",
     "rfp.s4.sub": "Your request will be reviewed and a free Development Proposal will be generated.",
@@ -677,6 +710,39 @@ const TRANSLATIONS = {
     "refForm.savedAttachments": "저장된 첨부",
     "refForm.deleteAttachment": "삭제",
     "refForm.previewDownload": "미리보기/다운로드",
+    "refForm.deleteAllConfirm": "입력한 ABAP 코드를 모두 삭제할까요? 이 요청 분석·제안서에 더 이상 반영되지 않습니다.",
+    "refForm.galleryReplaceConfirm": "이미 입력된 참고 코드가 있습니다. 갤러리 항목으로 바꿀까요? (저장된 내용은 덮어씌워집니다)",
+    "abap.form.pageTitle": "SAP ABAP 분석·개선 요청",
+    "abap.form.requestIdLabel": "요청 ID",
+    "abap.form.resubmitNote": "제출됨 — 저장 시 분석이 다시 실행됩니다",
+    "abap.submitBtn": "제출 및 분석",
+    "abap.form.footerHint": "<strong>구체적인 요구사항</strong>을 작성할수록 분석결과가 더 정확해집니다. 제출 후 요청에 대해 <strong>AI 분석</strong>이 실행됩니다.",
+    "detail.abapEditLockedTooltip": "제안서가 생성 중이거나 완료되면, 또는 연동된 신규개발 인터뷰·제안이 있으면 요청 수정을 열 수 없습니다.",
+    "detail.readonlyTitleSuffix": " (조회)",
+    "analysis.codeStructureTitle": "코드 구조 분석",
+    "analysis.programOverview": "프로그램 개요",
+    "analysis.screensIdentified": "식별된 스크린·UI",
+    "analysis.noScreenBullets": "상세 불릿이 없습니다.",
+    "analysis.appliedTechniques": "적용 기법",
+    "analysis.followUpQuestions": "추가 확인 질문",
+    "hub.proposalReadonlyHint": "개발 제안서 생성은 요청자가 전체 상세에서 시작할 수 있습니다.",
+    "rfp.programIdLabel": "프로그램 ID",
+    "rfp.tcodeLabel": "트랜잭션 코드",
+    "rfp.aiAutoGen": "AI 자동생성",
+    "rfp.aiTitleTooltip": "요구사항 본문 언어에 맞춰 제목 초안(한·영 등)",
+    "rfp.aiProgramTooltip": "요청 제목을 바탕으로 Z 프로그램명 초안",
+    "rfp.attachPreviewSuffix": " (클릭하여 미리 보기)",
+    "rfp.attachRemoveAria": "첨부 제거",
+    "rfp.attachRemove": "제거",
+    "rfp.attachNoteLabel": "설명 (선택)",
+    "rfp.attachNotePlaceholder": "첨부 {n} 설명",
+    "rfp.submitting": "제출 중…",
+    "reqRich.modeRich": "서식·이미지",
+    "reqRich.modePlain": "텍스트만",
+    "reqRich.pasteHint": "본문에 <kbd>Ctrl</kbd>+<kbd>V</kbd>로 캡처 붙여넣기 (최대 5장)",
+    "reqRich.placeholderRich": "요구사항을 입력하세요. 화면 캡처는 원하는 위치에 붙여넣을 수 있습니다.",
+    "reqRich.placeholderPlain": "요구사항을 입력하세요.",
+    "reqRich.charUnit": "자",
     "rfp.changeFile": "클릭하여 파일 변경",
     "rfp.s4.title": "검토 후 제출",
     "rfp.s4.sub": "요청이 검토되고 무료 개발 제안서가 생성됩니다.",
@@ -1173,6 +1239,11 @@ function setLang(lang) {
 
   applyTranslations();
 
+  document.querySelectorAll('.req-rich-editor[data-placeholder-ko]').forEach(function (el) {
+    var ph = isKo ? el.getAttribute('data-placeholder-ko') : el.getAttribute('data-placeholder-en');
+    if (ph) el.setAttribute('data-placeholder', ph);
+  });
+
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('btn-' + lang);
   if (btn) btn.classList.add('active');
@@ -1237,6 +1308,11 @@ if (document.documentElement.getAttribute('data-effective-lang') !== currentLang
   syncLangVisibility(currentLang);
   mergeI18nEnOverrides();
   applyTranslations();
+  document.querySelectorAll('.req-rich-editor[data-placeholder-ko]').forEach(function (el) {
+    var isKoInit = (currentLang === 'ko');
+    var ph = isKoInit ? el.getAttribute('data-placeholder-ko') : el.getAttribute('data-placeholder-en');
+    if (ph) el.setAttribute('data-placeholder', ph);
+  });
   const btn = document.getElementById('btn-' + currentLang);
   if (btn) {
     document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));

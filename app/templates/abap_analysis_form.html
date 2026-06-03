@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}SAP ABAP 분석·개선 요청 – SAP 개발 파트너{% endblock %}
+{% block title %}<span data-i18n="abap.form.pageTitle">SAP ABAP 분석·개선 요청</span> – SAP 개발 파트너{% endblock %}
 
 {% block content %}
 <script>
@@ -19,14 +19,14 @@
 
         <div class="rfp-header mb-4">
           {% include 'partials/nav_prev_screen.html' %}
-          <h2 class="rfp-title">SAP ABAP 분석·개선 요청</h2>
+          <h2 class="rfp-title" data-i18n="abap.form.pageTitle">SAP ABAP 분석·개선 요청</h2>
           {% if edit_row %}
           <p class="small text-muted mb-0 mt-2">
-            요청 ID <span class="badge bg-dark-subtle text-dark border font-monospace">{{ edit_row.id|request_no('ANA') }}</span>
+            <span data-i18n="abap.form.requestIdLabel">요청 ID</span> <span class="badge bg-dark-subtle text-dark border font-monospace">{{ edit_row.id|request_no('ANA') }}</span>
             {% if edit_row.is_draft %}
             <span class="ms-1">· <span data-i18n="badge.draft">임시저장</span></span>
             {% else %}
-            <span class="ms-1">· <span class="nav-ko">제출됨 — 저장 시 분석이 다시 실행됩니다</span><span class="nav-en" style="display:none">Submitted — saving re-runs analysis</span></span>
+            <span class="ms-1">· <span data-i18n="abap.form.resubmitNote">제출됨 — 저장 시 분석이 다시 실행됩니다</span></span>
             {% endif %}
           </p>
           {% endif %}
@@ -35,7 +35,7 @@
         {% if draft_saved and edit_row %}
         <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-circle-check me-2"></i>
-          <span>임시저장되었습니다. 요청 ID <strong class="font-monospace">{{ edit_row.id|request_no('ANA') }}</strong> — 이어서 작성하거나 나중에 목록에서 이 ID로 찾을 수 있습니다.</span>
+          <span data-i18n="rfp.draftSavedFlash">임시저장되었습니다. 요청 ID <strong class="font-monospace">{{ edit_row.id|request_no('ANA') }}</strong> — 이어서 작성하거나 나중에 목록에서 이 ID로 찾을 수 있습니다.</span>
         </div>
         {% endif %}
 
@@ -51,19 +51,22 @@
         {% if error == 'file_too_large' %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>첨부 파일은 최대 20MB까지 업로드할 수 있습니다.</span>
+          <span class="nav-ko">첨부 파일은 최대 20MB까지 업로드할 수 있습니다.</span>
+          <span class="nav-en" style="display:none">Each attachment must be 20MB or smaller.</span>
         </div>
         {% endif %}
         {% if error == 'empty_attachment' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>첨부 파일이 비어 있습니다. 파일을 다시 선택하거나, 드래그 대신 <strong>클릭해서 파일 선택</strong>으로 올려 보세요.</span>
+          <span class="nav-ko">첨부 파일이 비어 있습니다. 파일을 다시 선택하거나, 드래그 대신 <strong>클릭해서 파일 선택</strong>으로 올려 보세요.</span>
+          <span class="nav-en" style="display:none">The attachment is empty. Re-select the file or use <strong>click to choose files</strong> instead of drag-and-drop.</span>
         </div>
         {% endif %}
         {% if error == 'max_selection' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>SAP 모듈 또는 개발 유형은 각각 최대 3개까지만 선택할 수 있습니다.</span>
+          <span class="nav-ko">SAP 모듈 또는 개발 유형은 각각 최대 3개까지만 선택할 수 있습니다.</span>
+          <span class="nav-en" style="display:none">You can select up to 3 SAP modules and 3 development types.</span>
         </div>
         {% endif %}
         {% if error in ['sap_system_version_required', 'sap_system_version_invalid'] %}
@@ -84,10 +87,18 @@
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           <span>
-            {% if error == 'program_id_required' %}프로그램 ID를 입력해 주세요.{% endif %}
-            {% if error == 'program_id_too_long' %}프로그램 ID는 40자 이내로 입력해 주세요.{% endif %}
-            {% if error == 'program_id_ime' %}한글·일본어·중국어 키보드로 입력할 수 없습니다. 영문·숫자·기호(공백 제외)만 사용해 주세요.{% endif %}
-            {% if error == 'program_id_chars' %}허용되지 않는 문자가 있습니다. 인쇄되는 영문·숫자·기호만 사용할 수 있습니다.{% endif %}
+            {% if error == 'program_id_required' %}
+            <span class="nav-ko">프로그램 ID를 입력해 주세요.</span><span class="nav-en" style="display:none">Please enter a program ID.</span>
+            {% endif %}
+            {% if error == 'program_id_too_long' %}
+            <span class="nav-ko">프로그램 ID는 40자 이내로 입력해 주세요.</span><span class="nav-en" style="display:none">Program ID must be 40 characters or fewer.</span>
+            {% endif %}
+            {% if error == 'program_id_ime' %}
+            <span class="nav-ko">한글·일본어·중국어 키보드로 입력할 수 없습니다. 영문·숫자·기호(공백 제외)만 사용해 주세요.</span><span class="nav-en" style="display:none">IME input is not allowed. Use printable ASCII letters, digits, and symbols (no spaces).</span>
+            {% endif %}
+            {% if error == 'program_id_chars' %}
+            <span class="nav-ko">허용되지 않는 문자가 있습니다. 인쇄되는 영문·숫자·기호만 사용할 수 있습니다.</span><span class="nav-en" style="display:none">Invalid characters. Use printable ASCII only.</span>
+            {% endif %}
           </span>
         </div>
         {% endif %}
@@ -95,76 +106,92 @@
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
           <span>
-            {% if error == 'transaction_code_too_long' %}트랜잭션 코드는 20자 이내로 입력해 주세요.{% endif %}
-            {% if error == 'transaction_code_ime' %}트랜잭션 코드에는 한글 등 IME 입력을 사용할 수 없습니다.{% endif %}
-            {% if error == 'transaction_code_chars' %}트랜잭션 코드에 허용되지 않는 문자가 있습니다.{% endif %}
+            {% if error == 'transaction_code_too_long' %}
+            <span class="nav-ko">트랜잭션 코드는 20자 이내로 입력해 주세요.</span><span class="nav-en" style="display:none">T-code must be 20 characters or fewer.</span>
+            {% endif %}
+            {% if error == 'transaction_code_ime' %}
+            <span class="nav-ko">트랜잭션 코드에는 한글 등 IME 입력을 사용할 수 없습니다.</span><span class="nav-en" style="display:none">IME input is not allowed in the T-code field.</span>
+            {% endif %}
+            {% if error == 'transaction_code_chars' %}
+            <span class="nav-ko">트랜잭션 코드에 허용되지 않는 문자가 있습니다.</span><span class="nav-en" style="display:none">The T-code contains invalid characters.</span>
+            {% endif %}
           </span>
         </div>
         {% endif %}
         {% if error == 'too_many_attachments' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>첨부 파일은 최대 5개까지 가능합니다.</span>
+          <span class="nav-ko">첨부 파일은 최대 5개까지 가능합니다.</span><span class="nav-en" style="display:none">You can attach up to 5 files.</span>
         </div>
         {% endif %}
         {% if error == 'screenshot_too_many' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>요구사항 캡처는 최대 5장까지 붙여넣을 수 있습니다.</span>
+          <span class="nav-ko">요구사항 캡처는 최대 5장까지 붙여넣을 수 있습니다.</span>
+          <span class="nav-en" style="display:none">You can paste up to 5 requirement screenshots.</span>
         </div>
         {% endif %}
         {% if error == 'screenshot_too_large' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>캡처 한 장의 용량이 너무 큽니다. (장당 약 2MB 이하)</span>
+          <span class="nav-ko">캡처 한 장의 용량이 너무 큽니다. (장당 약 2MB 이하)</span>
+          <span class="nav-en" style="display:none">One screenshot is too large (about 2MB per image max).</span>
         </div>
         {% endif %}
         {% if error == 'screenshot_total_too_large' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>캡처 용량 합계가 너무 큽니다. (전체 약 8MB 이하)</span>
+          <span class="nav-ko">캡처 용량 합계가 너무 큽니다. (전체 약 8MB 이하)</span>
+          <span class="nav-en" style="display:none">Total screenshot size is too large (about 8MB max).</span>
         </div>
         {% endif %}
         {% if error == 'screenshot_invalid' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>캡처 이미지 형식이 올바르지 않습니다. PNG·JPEG·WebP 캡처만 사용해 주세요.</span>
+          <span class="nav-ko">캡처 이미지 형식이 올바르지 않습니다. PNG·JPEG·WebP 캡처만 사용해 주세요.</span>
+          <span class="nav-en" style="display:none">Invalid screenshot format. Use PNG, JPEG, or WebP only.</span>
         </div>
         {% endif %}
         {% if error == 'reference_code_too_large' %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>코드 정보가 허용 용량을 초과했습니다. ABAP 섹션을 줄이거나 항목 수를 조정해 주세요. (대략 JSON 6MB·UTF-8 기준)</span>
+          <span class="nav-ko">코드 정보가 허용 용량을 초과했습니다. ABAP 섹션을 줄이거나 항목 수를 조정해 주세요. (대략 JSON 6MB·UTF-8 기준)</span>
+          <span class="nav-en" style="display:none">Reference code exceeds the size limit. Reduce ABAP sections or slots (about 6MB JSON UTF-8).</span>
         </div>
         {% endif %}
         {% if error == 'need_title' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>요청 제목을 입력해 주세요. (공백 제외 2자 이상)</span>
+          <span class="nav-ko">요청 제목을 입력해 주세요. (공백 제외 2자 이상)</span>
+          <span class="nav-en" style="display:none">Enter a request title (at least 2 non-space characters).</span>
         </div>
         {% endif %}
         {% if error == 'need_requirement' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>요구사항 자유 기술을 20자 이상 입력해 주세요.</span>
+          <span class="nav-ko">요구사항 자유 기술을 20자 이상 입력해 주세요.</span>
+          <span class="nav-en" style="display:none">Enter at least 20 characters in the requirements field.</span>
         </div>
         {% endif %}
         {% if error == 'need_reference_code' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>ABAP 코드(본문)를 한 건 이상 입력해 주세요.</span>
+          <span class="nav-ko">ABAP 코드(본문)를 한 건 이상 입력해 주세요.</span>
+          <span class="nav-en" style="display:none">Enter at least one ABAP code section with body text.</span>
         </div>
         {% endif %}
         {% if error == 'code_too_short' %}
         <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>ABAP 본문이 너무 짧습니다. 분석 가능한 분량을 입력해 주세요.</span>
+          <span class="nav-ko">ABAP 본문이 너무 짧습니다. 분석 가능한 분량을 입력해 주세요.</span>
+          <span class="nav-en" style="display:none">ABAP body is too short for analysis. Add more source text.</span>
         </div>
         {% endif %}
         {% if error and error not in ['core_fields_incomplete', 'invalid_file', 'file_too_large', 'empty_attachment', 'max_selection', 'sap_system_version_required', 'sap_system_version_invalid', 'program_id_required', 'program_id_too_long', 'program_id_ime', 'program_id_chars', 'transaction_code_too_long', 'transaction_code_ime', 'transaction_code_chars', 'too_many_attachments', 'screenshot_too_many', 'screenshot_too_large', 'screenshot_total_too_large', 'screenshot_invalid', 'reference_code_too_large', 'need_title', 'need_requirement', 'need_reference_code', 'code_too_short'] %}
         <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>제출 처리 중 오류가 발생했습니다. 입력 내용을 확인해 주세요.</span>
+          <span class="nav-ko">제출 처리 중 오류가 발생했습니다. 입력 내용을 확인해 주세요.</span>
+          <span class="nav-en" style="display:none">Submit failed. Check your input and try again.</span>
         </div>
         {% endif %}
 
@@ -195,7 +222,7 @@
 <script src="/static/js/codelib_picker.js?v=20260422a"></script>
 <script src="/static/js/file_preview.js?v=1"></script>
 <script src="/static/js/requirement_rich_editor.js?v=20260521sync1"></script>
-<script src="/static/js/rfp_form.js?v=20260521sapver"></script>
+<script src="/static/js/rfp_form.js?v=20260529b"></script>
 {% if user and user.is_admin %}
 <script src="/static/js/writing_guides_admin.js?v=20260422wgmd"></script>
 {% endif %}

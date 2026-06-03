@@ -39,8 +39,8 @@
 {% set rich_suffix = rich_id_suffix|default('default') %}
 {% set radio_group_name = rich_radio_name|default('req-mode-toggle') %}
 {% set rich_non_html = rich_non_html_format|default('plain') %}
-{% set ph_rich = rich_placeholder_rich|default('요구사항을 입력하세요. 화면 캡처는 원하는 위치에 붙여넣을 수 있습니다.') %}
-{% set ph_plain = rich_placeholder_plain|default('요구사항을 입력하세요.') %}
+{% set ph_rich = rich_placeholder_rich|default('') %}
+{% set ph_plain = rich_placeholder_plain|default('') %}
 
 <div class="req-rich-field" id="{{ rich_root_id|default('req-rich-root') }}" data-default-mode="{{ req_fmt }}"
      data-form-id="{{ rich_form_id }}" data-char-count-id="{{ rich_char_count_id }}"
@@ -48,36 +48,38 @@
   <input type="hidden" name="{{ fmt_field }}" class="req-rich-fmt-input" value="{{ req_fmt }}"/>
   <input type="hidden" name="{{ body_field }}" class="req-rich-hidden-body" value=""/>
 
-  <div class="btn-group btn-group-sm mb-2" role="group" aria-label="본문 입력 방식">
+  <div class="btn-group btn-group-sm mb-2" role="group">
     <input type="radio" class="btn-check req-rich-mode-rich-input" name="{{ radio_group_name }}" id="req-mode-rich-{{ rich_suffix }}" value="html" autocomplete="off"
            {% if req_fmt == 'html' %}checked{% endif %}/>
-    <label class="btn btn-outline-primary" for="req-mode-rich-{{ rich_suffix }}">서식·이미지</label>
+    <label class="btn btn-outline-primary" for="req-mode-rich-{{ rich_suffix }}"><span data-i18n="reqRich.modeRich">서식·이미지</span></label>
     <input type="radio" class="btn-check req-rich-mode-plain-input" name="{{ radio_group_name }}" id="req-mode-plain-{{ rich_suffix }}" value="plain" autocomplete="off"
            {% if req_fmt != 'html' %}checked{% endif %}/>
-    <label class="btn btn-outline-secondary" for="req-mode-plain-{{ rich_suffix }}">텍스트만</label>
+    <label class="btn btn-outline-secondary" for="req-mode-plain-{{ rich_suffix }}"><span data-i18n="reqRich.modePlain">텍스트만</span></label>
   </div>
 
   <div class="req-rich-alert alert alert-warning py-2 px-3 small d-none mb-2" role="alert"></div>
 
   <div class="req-rich-toolbar btn-toolbar mb-2 {% if req_fmt != 'html' %}d-none{% endif %}" role="toolbar">
     <div class="btn-group btn-group-sm me-1">
-      <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="굵게"><i class="fa-solid fa-bold"></i></button>
-      <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="기울임"><i class="fa-solid fa-italic"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="bold" title="Bold"><i class="fa-solid fa-bold"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="italic" title="Italic"><i class="fa-solid fa-italic"></i></button>
     </div>
     <div class="btn-group btn-group-sm">
-      <button type="button" class="btn btn-outline-secondary" data-cmd="insertUnorderedList" title="목록"><i class="fa-solid fa-list-ul"></i></button>
+      <button type="button" class="btn btn-outline-secondary" data-cmd="insertUnorderedList" title="List"><i class="fa-solid fa-list-ul"></i></button>
     </div>
-    <small class="text-muted ms-2 align-self-center">본문에 <kbd>Ctrl</kbd>+<kbd>V</kbd>로 캡처 붙여넣기 (최대 5장)</small>
+    <small class="text-muted ms-2 align-self-center" data-i18n="reqRich.pasteHint">본문에 <kbd>Ctrl</kbd>+<kbd>V</kbd>로 캡처 붙여넣기 (최대 5장)</small>
   </div>
 
   <div class="form-control req-rich-editor req-rich-surface rfp-textarea {% if req_fmt != 'html' %}d-none{% endif %}"
        contenteditable="true" role="textbox" aria-multiline="true"
-       data-placeholder="{{ ph_rich }}">{% if req_html %}{{ req_html|safe }}{% endif %}</div>
+       data-placeholder-ko="{{ ph_rich or '요구사항을 입력하세요. 화면 캡처는 원하는 위치에 붙여넣을 수 있습니다.' }}"
+       data-placeholder-en="{{ ph_rich or 'Describe your requirements. Paste screenshots where needed.' }}"
+       data-i18n-placeholder="reqRich.placeholderRich">{% if req_html %}{{ req_html|safe }}{% endif %}</div>
 
   <textarea class="form-control req-rich-plain rfp-textarea {% if req_fmt == 'html' %}d-none{% endif %}"
-            rows="10" placeholder="{{ ph_plain }}">{{ req_plain }}</textarea>
+            rows="10" data-i18n-placeholder="reqRich.placeholderPlain" placeholder="{{ ph_plain or '요구사항을 입력하세요.' }}">{{ req_plain }}</textarea>
 
   <div class="d-flex justify-content-end mt-1">
-    <small class="text-muted"><span id="{{ rich_char_count_id }}">0</span> 자</small>
+    <small class="text-muted"><span id="{{ rich_char_count_id }}">0</span> <span data-i18n="reqRich.charUnit">자</span></small>
   </div>
 </div>

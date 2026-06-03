@@ -1,5 +1,13 @@
 /* SAP Dev Hub – RFP Form (program ID, multi-attach, review, local ref code) */
 
+function rfpT(key, fallback) {
+  if (typeof window.t === 'function') {
+    var v = window.t(key);
+    if (v !== null && v !== undefined && v !== key) return v;
+  }
+  return fallback != null ? fallback : key;
+}
+
 let _rfpNotePrefill = null;
 function loadRfpNotePrefill() {
   const el = document.getElementById('rfp-notes-prefill');
@@ -125,7 +133,7 @@ function renderAttachmentRows(input, maxFiles, notePreset) {
     nameEl.href = '#';
     nameEl.className = 'flex-grow-1 text-break small fw-medium rfp-att-open';
     nameEl.textContent = file.name;
-    nameEl.title = file.name + ' (클릭하여 미리 보기)';
+    nameEl.title = file.name + rfpT('rfp.attachPreviewSuffix', ' (클릭하여 미리 보기)');
     nameEl.addEventListener('click', ev => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -138,22 +146,22 @@ function renderAttachmentRows(input, maxFiles, notePreset) {
     rm.type = 'button';
     rm.className = 'btn btn-sm btn-outline-danger rfp-att-remove flex-shrink-0';
     rm.setAttribute('data-idx', String(i));
-    rm.setAttribute('aria-label', '첨부 제거');
-    rm.textContent = '제거';
+    rm.setAttribute('aria-label', rfpT('rfp.attachRemoveAria', '첨부 제거'));
+    rm.textContent = rfpT('rfp.attachRemove', '제거');
 
     const br = document.createElement('div');
     br.className = 'w-100';
 
     const lbl = document.createElement('label');
     lbl.className = 'small text-muted mb-0 w-100';
-    lbl.textContent = '설명 (선택)';
+    lbl.textContent = rfpT('rfp.attachNoteLabel', '설명 (선택)');
 
     const noteInput = document.createElement('input');
     noteInput.type = 'text';
     noteInput.className = 'form-control form-control-sm';
     noteInput.name = `note_${i}`;
     noteInput.maxLength = 200;
-    noteInput.placeholder = `첨부 ${i + 1} 설명`;
+    noteInput.placeholder = rfpT('rfp.attachNotePlaceholder', '첨부 ' + (i + 1) + ' 설명').replace('{n}', String(i + 1));
     noteInput.value = notes[i] || '';
 
     row.appendChild(iconWrap);
@@ -352,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (form && submitBtn) {
       form.addEventListener('submit', () => {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + rfpT('rfp.submitting', 'Submitting…');
       });
     }
   });

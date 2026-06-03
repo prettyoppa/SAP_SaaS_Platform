@@ -10,7 +10,7 @@
       <span class="rfp-section-num">01</span>
       <div class="flex-grow-1">
         <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
-          <h4 class="mb-0">요청 제목</h4>
+          <h4 class="mb-0" data-i18n="rfp.s1.title">요청 제목</h4>
           {{ wg.wg_btn('sh-s01-h') }}
         </div>
         {{ wg.wg_panel(writing_guides_by_lang, 'shared.s01_header', 'sh-s01-h', user) }}
@@ -20,7 +20,7 @@
     <div class="mb-4">
       <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
         <label class="form-label fw-semibold mb-0" for="title">
-          요청 제목 <span class="text-danger">*</span>
+          <span data-i18n="rfp.titleLabel">요청 제목</span> <span class="text-danger">*</span>
         </label>
         {{ wg.wg_btn('sh-title') }}
       </div>
@@ -28,8 +28,8 @@
       <div class="input-group input-group-lg rfp-field-ai-wrap rfp-field-ai-title">
         <input type="text" name="title" id="title" class="form-control" maxlength="{{ title_maxlen|default(200) }}" autocomplete="off"
                value="{{ (form.get('title') if form else None) or (resource.title if resource else '') or '' }}"/>
-        <button type="button" class="btn rfp-ai-inline-btn rfp-ai-inline-btn--title" id="rfp-ai-title-btn" title="요구사항 본문 언어에 맞춰 제목 초안(한·영 등)">
-          AI 자동생성
+        <button type="button" class="btn rfp-ai-inline-btn rfp-ai-inline-btn--title" id="rfp-ai-title-btn" data-i18n-title="rfp.aiTitleTooltip" title="요구사항 본문 언어에 맞춰 제목 초안(한·영 등)">
+          <span data-i18n="rfp.aiAutoGen">AI 자동생성</span>
         </button>
       </div>
     </div>
@@ -38,7 +38,7 @@
       <div class="col-md-5">
         <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
           <label class="form-label fw-semibold mb-0" for="program_id">
-            프로그램 ID <span class="text-danger">*</span>
+            <span data-i18n="rfp.programIdLabel">프로그램 ID</span> <span class="text-danger">*</span>
           </label>
           {{ wg.wg_btn('sh-pid') }}
         </div>
@@ -46,15 +46,15 @@
         <div class="input-group rfp-field-ai-wrap rfp-field-ai-pid">
           <input type="text" name="program_id" id="program_id" class="form-control font-monospace" maxlength="40" autocomplete="off"
                  value="{{ (form.get('program_id') if form else None) or (resource.program_id if resource else '') or '' }}"/>
-          <button type="button" class="btn rfp-ai-inline-btn rfp-ai-inline-btn--pid" id="rfp-ai-program-btn" title="요청 제목을 바탕으로 Z 프로그램명 초안">
-            AI 자동생성
+          <button type="button" class="btn rfp-ai-inline-btn rfp-ai-inline-btn--pid" id="rfp-ai-program-btn" data-i18n-title="rfp.aiProgramTooltip" title="요청 제목을 바탕으로 Z 프로그램명 초안">
+            <span data-i18n="rfp.aiAutoGen">AI 자동생성</span>
           </button>
         </div>
         <div class="small mt-1 text-warning" id="program-id-feedback" style="min-height:1.25rem"></div>
       </div>
       <div class="col-md-4">
         <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
-          <label class="form-label fw-semibold mb-0" for="transaction_code">트랜잭션 코드</label>
+          <label class="form-label fw-semibold mb-0" for="transaction_code"><span data-i18n="rfp.tcodeLabel">트랜잭션 코드</span></label>
           {{ wg.wg_btn('sh-tcode') }}
         </div>
         {{ wg.wg_panel(writing_guides_by_lang, 'shared.field_transaction', 'sh-tcode', user) }}
@@ -68,7 +68,7 @@
     <div class="mb-4">
       <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
         <label class="form-label fw-semibold mb-0">
-          SAP 모듈 <span class="text-danger">*</span>
+          <span data-i18n="rfp.moduleLabel">SAP 모듈</span> <span class="text-danger">*</span>
           <span class="badge bg-secondary ms-2" id="module-count">0 / 3</span>
         </label>
         {{ wg.wg_btn('sh-mod') }}
@@ -89,7 +89,7 @@
     <div class="mb-2">
       <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
         <label class="form-label fw-semibold mb-0">
-          개발 유형 <span class="text-danger">*</span>
+          <span data-i18n="rfp.devTypeLabel">개발 유형</span> <span class="text-danger">*</span>
           <span class="badge bg-secondary ms-2" id="devtype-count">0 / 3</span>
         </label>
         {{ wg.wg_btn('sh-dt') }}
@@ -115,7 +115,7 @@
       <span class="rfp-section-num">02</span>
       <div class="flex-grow-1">
         <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
-          <h4 class="mb-0" {% if form_scope == 'rfp' %}data-i18n="rfp.s2.title"{% endif %}>요구사항 자유 기술</h4>
+          <h4 class="mb-0" data-i18n="rfp.s2.title">요구사항 자유 기술</h4>
           {{ wg.wg_btn('sh-s02-h') }}
         </div>
         {{ wg.wg_panel(writing_guides_by_lang, s02_body_key, 'sh-s02-h', user) }}
@@ -291,25 +291,28 @@
         <i class="fa-solid fa-cat text-primary me-2" aria-hidden="true"></i>
         <span>
           {% if form_scope == 'abap' %}
-          <strong>구체적인 요구사항</strong>을 작성할수록 분석결과가 더 정확해집니다. 제출 후 <strong>AI 인터뷰</strong>를 거쳐 최종 분석결과가 생성됩니다.
+          <span data-i18n="abap.form.footerHint"><strong>구체적인 요구사항</strong>을 작성할수록 분석결과가 더 정확해집니다. 제출 후 요청에 대해 <strong>AI 분석</strong>이 실행됩니다.</span>
           {% else %}
-          <strong>구체적인 요구사항</strong>을 작성할수록 제안서가 더 정확해집니다. 제출 후 <strong>AI 인터뷰</strong>를 거쳐 생성됩니다.
+          <span data-i18n="rfp.freeNote"><strong>구체적인 요구사항</strong>을 작성할수록 제안서가 더 정확해집니다. 제출 후 <strong>AI 인터뷰</strong>를 거쳐 생성됩니다.</span>
           {% endif %}
         </span>
       </div>
     </div>
     <div class="d-flex gap-3 justify-content-end flex-wrap">
-      <a href="{{ cancel_url }}" class="btn btn-outline-secondary px-4">취소</a>
-      <button type="submit" name="save_action" value="submit" class="btn btn-primary btn-lg px-5" id="submit-btn">
+      <a href="{{ cancel_url }}" class="btn btn-outline-secondary px-4" data-i18n="rfp.cancel">취소</a>
+      <button type="submit" name="save_action" value="submit" class="btn btn-primary btn-lg px-5" id="submit-btn"
+              {% if form_scope == 'abap' %}
+              data-busy-agents='[{"agentKo":"「분석」","doingKo":"요구사항과 ABAP 소스를 분석하고 있습니다","agentEn":"「Analysis」","doingEn":"analyzing requirements and ABAP source"},{"agentKo":"「분석」","doingKo":"코드 구조와 요구사항 연계를 정리하고 있습니다","agentEn":"「Analysis」","doingEn":"mapping code structure to your requirements"}]'
+              {% endif %}>
         <i class="fa-solid fa-paper-plane me-2"></i>
-        <span {% if form_scope == 'rfp' %}data-i18n="rfp.submitBtn"{% endif %}>{% if form_scope == 'rfp' %}제출{% else %}{{ submit_button_label }}{% endif %}</span>
+        <span {% if form_scope == 'rfp' %}data-i18n="rfp.submitBtn"{% elif form_scope == 'abap' %}data-i18n="abap.submitBtn"{% endif %}>{% if form_scope == 'rfp' %}제출{% elif form_scope == 'abap' %}제출 및 분석{% else %}{{ submit_button_label }}{% endif %}</span>
       </button>
     </div>
   </div>
 </form>
 {% if show_draft_button %}
 <div class="draft-float-launcher" data-draft-float-root>
-  <button type="submit" form="{{ form_id }}" name="save_action" value="draft" class="btn draft-float-btn" id="draft-btn-float" title="임시저장" formnovalidate>
+  <button type="submit" form="{{ form_id }}" name="save_action" value="draft" class="btn draft-float-btn" id="draft-btn-float" data-i18n-title="badge.draft" title="임시저장" formnovalidate data-no-busy="true">
     <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
     <span class="draft-float-btn-label nav-ko">임시저장</span>
     <span class="draft-float-btn-label nav-en" style="display:none">Save draft</span>
