@@ -33,3 +33,20 @@ def test_markdown_html_skips_separator_only_table_rows():
     assert "<td>:---</td>" not in html
     assert html.count("<tbody>") == 1
     assert html.count("<tr>") >= 2
+
+
+def test_markdown_fenced_code_renders_chat_pre_block():
+    md = """설명입니다.
+
+```abap
+IF lv_x IS INITIAL.
+  CONCATENATE 'a' 'b' INTO lv_y.
+ENDIF.
+```
+
+끝.
+"""
+    html = markdown_to_html(md)
+    assert "chat-md-pre" in html
+    assert "CONCATENATE" in html
+    assert "```abap" not in html

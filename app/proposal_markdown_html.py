@@ -113,6 +113,27 @@ def _gfm_table_block_to_html(rows: list[str]) -> str:
     )
 
 
+def _extract_fenced_code_to_placeholders(md: str) -> tuple[str, list[str]]:
+    """```lang\\n...\\n``` 블록을 <pre>로 치환(채팅·제안서 공통)."""
+    from markupsafe import escape
+
+    blocks: list[str] = []
+
+    def _repl(m: re.Match[str]) -> str:
+        lang = (m.group(1) or "").strip()
+        body = (m.group(2) or "").rstrip("\n")
+        idx = len(blocks)
+        lang_attr = f' data-code-lang="{escape(lang)}"' if lang else ""
+        blocks.append(
+            f'<pre class="chat-md-pre"><code class="chat-md-code"{lang_attr}>'
+            f"{escape(body)}</code></pre>"
+        )
+        return f"\n__MDCODE{idx}__\n"
+
+    out = re.sub(r"```([^\n`]*)\n([\s\S]*?)```", _repl, md)
+    return out, blocks
+
+
 def _extract_md_tables_to_placeholders(md: str) -> tuple[str, list[str]]:
     """GFM 스타일 | 표| 를 잡아 HTML로 변환한 뒤 자리 표시자로 치환(이후 본문 처리)."""
     lines = md.split("\n")
@@ -149,6 +170,7 @@ def markdown_to_html(md: str) -> str:
     """허브 proposal-body와 동일한 HTML 조각을 반환."""
     md = wrap_unbracketed_agent_names(md or "")
     md, table_parts = _extract_md_tables_to_placeholders(md)
+    md, code_parts = _extract_fenced_code_to_placeholders(md)
     html = md
     html = re.sub(r"^# (.+)$", r"<h1>\1</h1>", html, flags=re.MULTILINE)
     html = re.sub(r"^## (.+)$", r"<h2>\1</h2>", html, flags=re.MULTILINE)
@@ -169,6 +191,15 @@ def markdown_to_html(md: str) -> str:
             idx = int(m_tbl.group(1))
             if 0 <= idx < len(table_parts):
                 result.append(table_parts[idx])
+            continue
+        m_code = re.match(r"^__MDCODE(\d+)__$", s)
+        if m_code:
+            if in_list:
+                result.append(f"</{list_type}>")
+                in_list, list_type = False, None
+            idx = int(m_code.group(1))
+            if 0 <= idx < len(code_parts):
+                result.append(code_parts[idx])
             continue
         if s.startswith("- "):
             if not in_list or list_type != "ul":

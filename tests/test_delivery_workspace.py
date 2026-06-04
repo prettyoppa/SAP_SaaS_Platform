@@ -10,10 +10,13 @@ from app.database import Base, SessionLocal, engine
 from app.delivery_fs_supplements import KIND_RFP
 from app.delivery_workspace import (
     apply_slot_source,
+    clear_pending_suggestion,
     get_official_package,
+    get_pending_suggestion,
     get_working_package,
     normalize_request_kind,
     parse_package,
+    set_pending_suggestion,
 )
 from app.delivered_code_package import delivered_package_has_body, normalize_delivered_package
 from app.delivery_workspace_access import user_can_use_delivery_workspace
@@ -157,6 +160,50 @@ class DeliveryWorkspaceTests(unittest.TestCase):
         self.assertEqual(off["slots"][0]["source"], "REPORT ztest.")
         work2 = parse_package(rfp.delivered_code_working_payload, KIND_RFP)
         self.assertEqual(work2["slots"][0]["source"], "REPORT zfix.")
+
+    def test_pending_suggestion_persists_in_working_payload(self):
+        consultant = models.User(
+            email="c3@example.com",
+            full_name="C3",
+            hashed_password="x",
+            is_consultant=True,
+        )
+        self.db.add(consultant)
+        self.db.commit()
+        rfp = models.RFP(
+            user_id=int(consultant.id),
+            title="t",
+            delivered_code_status="ready",
+            delivered_code_payload=_normalized_sample_json(),
+        )
+        self.db.add(rfp)
+        self.db.commit()
+        self.db.refresh(rfp)
+
+        big_src = "REPORT ztest.\n" + ("  WRITE 'x'.\n" * 400)
+        set_pending_suggestion(
+            self.db,
+            rfp,
+            KIND_RFP,
+            0,
+            suggested_source=big_src,
+            se38_error="Formal parameter RC does not exist.",
+            peer_count=2,
+        )
+        self.db.commit()
+        self.db.refresh(rfp)
+
+        pkg = get_working_package(self.db, rfp, KIND_RFP)
+        pending = get_pending_suggestion(pkg, 0)
+        self.assertIsNotNone(pending)
+        self.assertIn("WRITE 'x'", pending["suggested_source"])
+        self.assertEqual(pending["se38_error"], "Formal parameter RC does not exist.")
+        self.assertEqual(pending["peer_count"], 2)
+
+        clear_pending_suggestion(self.db, rfp, KIND_RFP)
+        self.db.commit()
+        pkg2 = get_working_package(self.db, rfp, KIND_RFP)
+        self.assertIsNone(get_pending_suggestion(pkg2, 0))
 
 
 if __name__ == "__main__":

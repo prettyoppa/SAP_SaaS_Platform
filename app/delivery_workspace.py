@@ -30,6 +30,69 @@ KIND_ALIASES = {
     KIND_INTEGRATION: KIND_INTEGRATION,
 }
 
+# 작업본 JSON 메타 — normalize_delivered_package 대상 아님(ZIP·슬롯 스키마 제외)
+WORKSPACE_PENDING_KEY = "_workspace_pending"
+
+
+def _read_pending_from_raw(raw: str | None) -> dict[str, Any] | None:
+    if not raw or not str(raw).strip():
+        return None
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return None
+    pending = data.get(WORKSPACE_PENDING_KEY) if isinstance(data, dict) else None
+    return pending if isinstance(pending, dict) else None
+
+
+def get_pending_suggestion(pkg: dict[str, Any] | None, slot_index: int) -> dict[str, Any] | None:
+    """슬롯별 마지막 AI 수정 제안(작업본 JSON에 저장)."""
+    if not pkg or not isinstance(pkg, dict):
+        return None
+    pending = pkg.get(WORKSPACE_PENDING_KEY)
+    if not isinstance(pending, dict):
+        return None
+    try:
+        if int(pending.get("slot_index", -1)) != int(slot_index):
+            return None
+    except (TypeError, ValueError):
+        return None
+    return pending
+
+
+def set_pending_suggestion(
+    db: Session,
+    row: Any,
+    request_kind: str,
+    slot_index: int,
+    *,
+    suggested_source: str,
+    se38_error: str = "",
+    fix_elsewhere_target: str | None = None,
+    fix_elsewhere_reason: str | None = None,
+    peer_count: int = 0,
+) -> None:
+    pkg = get_working_package(db, row, request_kind)
+    if not pkg:
+        raise ValueError("no_package")
+    pkg[WORKSPACE_PENDING_KEY] = {
+        "slot_index": int(slot_index),
+        "suggested_source": (suggested_source or "")[:200_000],
+        "se38_error": (se38_error or "")[:8_000],
+        "fix_elsewhere_target": (fix_elsewhere_target or "").strip()[:500],
+        "fix_elsewhere_reason": (fix_elsewhere_reason or "").strip()[:2_000],
+        "peer_count": max(0, int(peer_count)),
+    }
+    save_working_package(db, row, pkg, request_kind)
+
+
+def clear_pending_suggestion(db: Session, row: Any, request_kind: str) -> None:
+    pkg = get_working_package(db, row, request_kind)
+    if not pkg or WORKSPACE_PENDING_KEY not in pkg:
+        return
+    del pkg[WORKSPACE_PENDING_KEY]
+    save_working_package(db, row, pkg, request_kind)
+
 
 def normalize_request_kind(raw: str | None) -> str | None:
     k = (raw or "").strip().lower()
@@ -85,8 +148,11 @@ def get_working_package(db: Session, row: Any, request_kind: str) -> dict[str, A
     if not kind:
         return None
     raw_work = getattr(row, "delivered_code_working_payload", None)
+    pending = _read_pending_from_raw(raw_work)
     pkg = parse_package(raw_work, kind)
     if pkg and package_has_slots(pkg, kind):
+        if pending is not None:
+            pkg[WORKSPACE_PENDING_KEY] = pending
         return pkg
     official = get_official_package(row, kind)
     if not official:
@@ -103,9 +169,13 @@ def save_working_package(
     db: Session, row: Any, pkg: dict[str, Any], request_kind: str
 ) -> None:
     kind = normalize_request_kind(request_kind) or ""
-    normalized = normalize_package(pkg, kind)
+    pending = pkg.get(WORKSPACE_PENDING_KEY) if isinstance(pkg.get(WORKSPACE_PENDING_KEY), dict) else None
+    pkg_for_norm = {k: v for k, v in pkg.items() if k != WORKSPACE_PENDING_KEY}
+    normalized = normalize_package(pkg_for_norm, kind)
     if not normalized:
         raise ValueError("invalid_package")
+    if pending is not None:
+        normalized[WORKSPACE_PENDING_KEY] = pending
     row.delivered_code_working_payload = json.dumps(normalized, ensure_ascii=False)
     db.add(row)
     db.flush()

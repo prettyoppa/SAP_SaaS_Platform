@@ -3817,6 +3817,76 @@ html[data-theme="light"] .abap-float-chat-panel .abap-msg-bubble--me.chat-md-bod
   border: 1px solid rgba(99, 102, 241, 0.22);
 }
 
+/* 채팅 말풍선 — fenced/인라인 코드 가독성 (Bootstrap 기본 분홍 code 색 덮어씀) */
+.chat-md-body pre.chat-md-pre {
+  margin: 0.35rem 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.45rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-md-body pre.chat-md-pre code.chat-md-code {
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: inherit;
+  color: inherit;
+}
+html[data-theme="dark"] .abap-float-chat-panel .abap-msg-bubble--them.chat-md-body code,
+html[data-theme="dark"] .interview-msg-stream .abap-msg-bubble--them.chat-md-body code,
+html[data-theme="dark"] .abap-chat-log .abap-msg-bubble--them.chat-md-body code {
+  color: #e0f2fe;
+  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+html[data-theme="dark"] .abap-float-chat-panel .abap-msg-bubble--them.chat-md-body pre,
+html[data-theme="dark"] .interview-msg-stream .abap-msg-bubble--them.chat-md-body pre,
+html[data-theme="dark"] .abap-chat-log .abap-msg-bubble--them.chat-md-body pre {
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.42);
+}
+html[data-theme="dark"] .abap-float-chat-panel .abap-msg-bubble--them.chat-md-body strong,
+html[data-theme="dark"] .interview-msg-stream .abap-msg-bubble--them.chat-md-body strong,
+html[data-theme="dark"] .abap-chat-log .abap-msg-bubble--them.chat-md-body strong {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+html[data-theme="dark"] .abap-float-chat-panel .abap-msg-bubble--me.chat-md-body code,
+html[data-theme="dark"] .interview-msg-stream .abap-msg-bubble--me.chat-md-body code {
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+html[data-theme="dark"] .abap-float-chat-panel .abap-msg-bubble--me.chat-md-body pre,
+html[data-theme="dark"] .interview-msg-stream .abap-msg-bubble--me.chat-md-body pre {
+  color: #f1f5f9;
+  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+html[data-theme="light"] .abap-float-chat-panel .abap-msg-bubble--them.chat-md-body code,
+html[data-theme="light"] .interview-msg-stream .abap-msg-bubble--them.chat-md-body code,
+html[data-theme="light"] .abap-chat-log .abap-msg-bubble--them.chat-md-body code {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+html[data-theme="light"] .abap-float-chat-panel .abap-msg-bubble--them.chat-md-body pre,
+html[data-theme="light"] .interview-msg-stream .abap-msg-bubble--them.chat-md-body pre,
+html[data-theme="light"] .abap-chat-log .abap-msg-bubble--them.chat-md-body pre {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+}
+
 /* 연동 요청 폼 — 작성 가이드 본문(토글과 같은 글자 크기·링크 색, 테두리 없음) */
 .int-write-guide-body {
   border: none !important;

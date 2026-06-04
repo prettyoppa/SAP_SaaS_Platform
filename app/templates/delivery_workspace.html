@@ -29,6 +29,9 @@
     {% elif ws_err == 'missing_source' %}
     <span class="nav-ko">슬롯 소스가 비어 있습니다.</span>
     <span class="nav-en" style="display:none">Slot source is empty.</span>
+    {% elif ws_err == 'suggestion_lost' %}
+    <span class="nav-ko">AI 수정 제안을 화면에 불러오지 못했습니다. 같은 오류 내용으로 「AI 수정 제안」을 다시 실행해 주세요.</span>
+    <span class="nav-en" style="display:none">Could not load the AI fix suggestion. Run “Suggest AI fix” again with the same error text.</span>
     {% else %}
     <span class="nav-ko">작업을 완료하지 못했습니다 ({{ ws_err }}).</span>
     <span class="nav-en" style="display:none">Could not complete the action ({{ ws_err }}).</span>
@@ -121,7 +124,8 @@
         </button>
       </form>
 
-      <form method="post" action="{{ workspace_base }}/suggest-fix" class="mb-4 border-top pt-3 dw-slot-form">
+      <form method="post" action="{{ workspace_base }}/suggest-fix" class="mb-4 border-top pt-3 dw-slot-form"
+            data-busy-agents='[{"agentKo":"「ABAP」","doingKo":"SE38 오류를 분석해 수정안 ABAP을 작성하고 있습니다","agentEn":"「ABAP」","doingEn":"analyzing the SE38 error and drafting a fix"}]'>
         <input type="hidden" name="return_to" value="{{ return_url }}">
         <input type="hidden" name="slot_index" value="{{ sl.index }}">
         <label class="form-label small fw-semibold">
@@ -138,7 +142,7 @@
           <span class="nav-en" style="display:none"><strong>Include/sub tab:</strong> The fix may be in main{% if main_slot_filenames %} ({{ main_slot_filenames|join(', ') }}){% endif %}. If AI says fix elsewhere, switch tabs and request again.</span>
         </div>
         {% endif %}
-        <textarea name="se38_error" class="form-control small mb-2" rows="4"></textarea>
+        <textarea name="se38_error" class="form-control small mb-2" rows="4">{% if loop.index0 == slot_index %}{{ last_se38_error|default('', true)|e }}{% endif %}</textarea>
         <button type="submit" class="btn btn-warning btn-sm"
                 {% if sl.role|lower not in ['main_report', 'main', 'report'] %}data-app-confirm-i18n="deliveryWorkspace.suggestIncludeConfirm"{% endif %}>
           <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
@@ -160,7 +164,7 @@
         <span class="nav-en" style="display:none">AI says the fix belongs in <strong>{{ fix_elsewhere_target or 'another slot (e.g. main)' }}</strong>.{% if fix_elsewhere_reason %} ({{ fix_elsewhere_reason }}){% endif %} Do not apply here—open that tab and request a new suggestion.</span>
       </div>
       {% endif %}
-      <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/apply" class="border-top pt-3 dw-slot-form" id="dw-apply-form">
+      <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/apply" class="border-top pt-3 dw-slot-form" id="dw-apply-form" data-dw-suggestion-block>
         <input type="hidden" name="return_to" value="{{ return_url }}">
         <label class="form-label small fw-semibold">
           <span class="nav-ko">AI 제안 (검토 후 반영)</span>
@@ -235,6 +239,14 @@
   });
   var initial = root.getAttribute('data-initial-slot');
   if (initial != null && initial !== '') showSlot(initial);
+  try {
+    var params = new URLSearchParams(window.location.search || '');
+    var ok = params.get('ws_ok');
+    if (ok === 'suggested' || ok === 'suggested_elsewhere') {
+      var block = root.querySelector('[data-dw-suggestion-block]');
+      if (block) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  } catch (e) { /* ignore */ }
 })();
 </script>
 {% endblock %}

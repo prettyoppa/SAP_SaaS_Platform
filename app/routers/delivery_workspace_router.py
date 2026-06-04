@@ -16,10 +16,13 @@ from ..delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
 from ..delivery_workspace import (
     apply_slot_source,
     build_workspace_zip_bytes,
+    clear_pending_suggestion,
+    get_pending_suggestion,
     get_working_package,
     load_request_row,
     normalize_request_kind,
     package_has_slots,
+    set_pending_suggestion,
     slots_detail_for_ui,
 )
 from ..delivery_workspace_access import user_can_use_delivery_workspace
@@ -142,24 +145,22 @@ def delivery_workspace_page(
     if slot_details and slot_idx >= len(slot_details):
         slot_idx = 0
 
-    sess_key = f"dw_suggested_{norm}_{int(row.id)}"
-    err_sess_key = f"dw_se38_error_{norm}_{int(row.id)}"
-    ws_ok_val = (ws_ok or "").strip()
-    if ws_ok_val == "suggested":
-        suggested_source = (request.session.pop(sess_key, None) or "").strip()
-    else:
-        suggested_source = (request.session.get(sess_key) or "").strip()
+    pending = get_pending_suggestion(pkg, slot_idx)
+    suggested_source = ((pending or {}).get("suggested_source") or "").strip()
+    last_se38 = ((pending or {}).get("se38_error") or "").strip()
+    peer_count_sess = int((pending or {}).get("peer_count") or 0)
+    fix_elsewhere_target = ((pending or {}).get("fix_elsewhere_target") or "").strip() or None
+    fix_elsewhere_reason = ((pending or {}).get("fix_elsewhere_reason") or "").strip() or None
 
-    last_se38 = (request.session.get(err_sess_key) or "").strip()
+    ws_ok_val = (ws_ok or "").strip()
+    if ws_ok_val in ("suggested", "suggested_elsewhere") and not suggested_source:
+        ws_ok_val = ""
+        ws_err = ws_err or "suggestion_lost"
+
     slots_raw = pkg.get("slots") or []
     cross_hints: tuple[str, ...] = ()
     if last_se38 and slot_details:
         cross_hints = cross_slot_fix_hints(last_se38, slots_raw, active_index=slot_idx)
-    elsewhere_sess_key = f"dw_elsewhere_{norm}_{int(row.id)}"
-    peer_count_sess = int(request.session.get(f"dw_peer_count_{norm}_{int(row.id)}") or 0)
-    elsewhere = request.session.get(elsewhere_sess_key) or {}
-    if not isinstance(elsewhere, dict):
-        elsewhere = {}
     main_names = list(main_slot_filenames(slots_raw))
 
     ctx = {
@@ -175,13 +176,14 @@ def delivery_workspace_page(
         "slot_index": slot_idx,
         "program_id": (pkg.get("program_id") or "").strip(),
         "ws_err": (ws_err or "").strip() or None,
-        "ws_ok": (ws_ok or "").strip() or None,
+        "ws_ok": ws_ok_val or None,
         "ws_warn": (ws_warn or "").strip() or None,
         "suggested_source": suggested_source,
+        "last_se38_error": last_se38,
         "cross_slot_hints": list(cross_hints),
         "main_slot_filenames": main_names,
-        "fix_elsewhere_target": (elsewhere.get("target") or "").strip() or None,
-        "fix_elsewhere_reason": (elsewhere.get("reason") or "").strip() or None,
+        "fix_elsewhere_target": fix_elsewhere_target,
+        "fix_elsewhere_reason": fix_elsewhere_reason,
         "suggest_peer_slot_count": peer_count_sess,
         "sap_version": (getattr(row, "sap_system_version", None) or "").strip(),
         **workspace_page_header(row, norm),
@@ -304,24 +306,31 @@ def delivery_workspace_suggest_fix(
             status_code=303,
         )
     db.commit()
-    sess_key = f"dw_suggested_{norm}_{int(row.id)}"
-    err_sess_key = f"dw_se38_error_{norm}_{int(row.id)}"
-    elsewhere_sess_key = f"dw_elsewhere_{norm}_{int(row.id)}"
-    request.session[sess_key] = suggested[:200_000]
-    request.session[err_sess_key] = (se38_error or "")[:8_000]
-    request.session[f"dw_peer_count_{norm}_{int(row.id)}"] = int(peer_count)
     deferred, fix_target, fix_reason = suggestion_defers_fix_elsewhere(
         suggested, current_src
     )
-    if deferred:
-        request.session[elsewhere_sess_key] = {
-            "target": (fix_target or "").strip()[:500],
-            "reason": (fix_reason or "").strip()[:2000],
-        }
-        ws_ok_val = "suggested_elsewhere"
-    else:
-        request.session.pop(elsewhere_sess_key, None)
-        ws_ok_val = "suggested"
+    ws_ok_val = "suggested_elsewhere" if deferred else "suggested"
+    try:
+        set_pending_suggestion(
+            db,
+            row,
+            norm,
+            idx,
+            suggested_source=suggested,
+            se38_error=se38_error,
+            fix_elsewhere_target=fix_target if deferred else None,
+            fix_elsewhere_reason=fix_reason if deferred else None,
+            peer_count=peer_count,
+        )
+        db.commit()
+    except ValueError:
+        db.rollback()
+        return RedirectResponse(
+            url=_workspace_redirect(
+                norm, int(row.id), return_to=return_to, slot=idx, ws_err="no_package"
+            ),
+            status_code=303,
+        )
     return RedirectResponse(
         url=_workspace_redirect(
             norm, int(row.id), return_to=return_to, slot=idx, ws_ok=ws_ok_val
@@ -398,6 +407,7 @@ def delivery_workspace_apply_suggestion(
         )
     try:
         apply_slot_source(db, row, norm, int(slot_index), suggested_source)
+        clear_pending_suggestion(db, row, norm)
         db.commit()
     except (IndexError, ValueError):
         db.rollback()
@@ -407,9 +417,6 @@ def delivery_workspace_apply_suggestion(
             ),
             status_code=303,
         )
-    sess_key = f"dw_suggested_{norm}_{int(row.id)}"
-    request.session.pop(sess_key, None)
-    request.session.pop(f"dw_elsewhere_{norm}_{int(row.id)}", None)
     return RedirectResponse(
         url=_workspace_redirect(
             norm, int(row.id), return_to=return_to, slot=int(slot_index), ws_ok="applied"
