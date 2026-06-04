@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.orm import joinedload
 
@@ -76,89 +77,127 @@ def _delivered_heartbeat(
         )
 
 
-def run_fs_generation_job(rfp_id: int, billing_user_id: int) -> None:
+def _load_rfp_fs_codegen_context(db, rfp_id: int) -> dict[str, Any] | None:
     from .routers import interview_router as interview_router_module
 
-    db = SessionLocal()
-    hb_thr: threading.Thread | None = None
-    hb_stop = threading.Event()
-
-    try:
-        rfp = (
-            db.query(models.RFP)
-            .options(joinedload(models.RFP.messages))
-            .filter(models.RFP.id == rfp_id)
-            .first()
-        )
-        if not rfp:
-            append_delivery_job_log_line(rfp_id, "fs_job_log", "오류: RFP를 찾을 수 없어 작업 종료")
-            return
-
-        append_delivery_job_log_line(rfp_id, "fs_job_log", "FS 생성 백그라운드 워커 시작")
-        n_hold = {"count": 0}
-        hb_thr = threading.Thread(
-            target=_fs_heartbeat,
-            args=(rfp_id, hb_stop, n_hold),
-            daemon=True,
-        )
-        hb_thr.start()
-
-        append_delivery_job_log_line(rfp_id, "fs_job_log", "RFP·메시지 로드 완료, 컨텍스트 빌드 중")
-        rfp_dict = interview_router_module._rfp_to_dict(rfp)
-        conv = interview_router_module._conversation_list_for_llm(rfp)
-        ms = interview_router_module._member_safe_for_rfp(db, rfp)
-        code_ctx = get_code_library_context(
+    rfp = (
+        db.query(models.RFP)
+        .options(joinedload(models.RFP.messages))
+        .filter(models.RFP.id == rfp_id)
+        .first()
+    )
+    if not rfp:
+        return None
+    ms = interview_router_module._member_safe_for_rfp(db, rfp)
+    rfp_dict = interview_router_module._rfp_to_dict(rfp)
+    return {
+        "rfp_dict": rfp_dict,
+        "conv": interview_router_module._conversation_list_for_llm(rfp),
+        "member_safe": ms,
+        "code_ctx": get_code_library_context(
             db,
             rfp_dict.get("sap_modules", []),
             rfp_dict.get("dev_types", []),
             member_safe_output=ms,
         )
-        append_delivery_job_log_line(
-            rfp_id,
-            "fs_job_log",
-            f"{agent_label_ko('p_architect')}(Gemini) 호출 직전 · 수 분 걸릴 수 있음",
-        )
-        wo = (getattr(rfp, "workflow_origin", None) or "direct").strip()
-        pb_fs = build_playbook_addon(db, PlaybookContext(entity="rfp", stage=STAGE_FS_ABAP, workflow_origin=wo))
-        try:
-            prop_merged = resolved_delivery_proposal_for_downstream(
-                db,
-                request_kind=_KIND_RFP,
-                request_id=int(rfp.id),
-                agent_proposal_text=rfp.proposal_text,
+        or "",
+        "playbook_fs": build_playbook_addon(
+            db,
+            PlaybookContext(
+                entity="rfp",
+                stage=STAGE_FS_ABAP,
+                workflow_origin=(getattr(rfp, "workflow_origin", None) or "direct").strip(),
+            ),
+        ),
+        "playbook_delivered": build_playbook_addon(
+            db,
+            PlaybookContext(
+                entity="rfp",
+                stage=STAGE_DELIVERED_ABAP,
+                workflow_origin=(getattr(rfp, "workflow_origin", None) or "direct").strip(),
+            ),
+        ),
+        "prop_merged": resolved_delivery_proposal_for_downstream(
+            db,
+            request_kind=_KIND_RFP,
+            request_id=int(rfp.id),
+            agent_proposal_text=rfp.proposal_text,
+        ),
+    }
+
+
+def run_fs_generation_job(rfp_id: int, billing_user_id: int) -> None:
+    append_delivery_job_log_line(rfp_id, "fs_job_log", "FS 생성 백그라운드 워커 시작")
+
+    db = SessionLocal()
+    try:
+        ctx = _load_rfp_fs_codegen_context(db, rfp_id)
+    finally:
+        db.close()
+
+    if not ctx:
+        append_delivery_job_log_line(rfp_id, "fs_job_log", "오류: RFP를 찾을 수 없어 작업 종료")
+        return
+
+    append_delivery_job_log_line(rfp_id, "fs_job_log", "RFP·메시지 로드 완료, 컨텍스트 빌드 중")
+    append_delivery_job_log_line(
+        rfp_id,
+        "fs_job_log",
+        f"{agent_label_ko('p_architect')}(Gemini) 호출 직전 · 수 분 걸릴 수 있음",
+    )
+
+    hb_stop = threading.Event()
+    n_hold = {"count": 0}
+    hb_thr = threading.Thread(target=_fs_heartbeat, args=(rfp_id, hb_stop, n_hold), daemon=True)
+    hb_thr.start()
+
+    fs_text: str | None = None
+    fs_status = "failed"
+    fs_error: str | None = None
+    try:
+        with ai_usage_scope(
+            ai_usage_context_for_delivery_job(
+                billing_user_id=billing_user_id,
+                request_kind="rfp",
+                request_id=int(rfp_id),
             )
-            with ai_usage_scope(
-                ai_usage_context_for_delivery_job(
-                    billing_user_id=billing_user_id,
-                    request_kind="rfp",
-                    request_id=int(rfp.id),
-                )
-            ):
-                rfp.fs_text = generate_fs_markdown(
-                    rfp_dict,
-                    conv,
-                    prop_merged,
-                    code_library_context=code_ctx or "",
-                    member_safe_output=ms,
-                    playbook_addon=pb_fs,
-                )
+        ):
+            fs_text = generate_fs_markdown(
+                ctx["rfp_dict"],
+                ctx["conv"],
+                ctx["prop_merged"],
+                code_library_context=ctx["code_ctx"],
+                member_safe_output=ctx["member_safe"],
+                playbook_addon=ctx["playbook_fs"],
+            )
+        fs_status = "ready"
+        append_delivery_job_log_line(rfp_id, "fs_job_log", f"{agent_label_ko('p_architect')} 완료 · fs_text 저장")
+    except Exception as ex:
+        fs_error = str(ex)
+        append_delivery_job_log_line(rfp_id, "fs_job_log", f"실패: {type(ex).__name__}: {ex}")
+    finally:
+        hb_stop.set()
+        hb_thr.join(timeout=2)
+
+    db = SessionLocal()
+    try:
+        rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
+        if not rfp:
+            return
+        if fs_status == "ready":
+            rfp.fs_text = fs_text
             rfp.fs_status = "ready"
             rfp.fs_generated_at = datetime.utcnow()
             rfp.fs_error = None
-            append_delivery_job_log_line(rfp_id, "fs_job_log", f"{agent_label_ko('p_architect')} 완료 · fs_text 저장")
-        except Exception as ex:
+        else:
             rfp.fs_status = "failed"
-            rfp.fs_error = str(ex)
-            append_delivery_job_log_line(rfp_id, "fs_job_log", f"실패: {type(ex).__name__}: {ex}")
+            rfp.fs_error = fs_error
         db.commit()
         if (rfp.fs_status or "").strip() == "ready":
             from .kb_request_flow import schedule_request_kb_flow
 
             schedule_request_kb_flow("rfp", rfp_id, "functional_spec")
     finally:
-        hb_stop.set()
-        if hb_thr is not None:
-            hb_thr.join(timeout=2)
         db.close()
 
 
@@ -173,12 +212,10 @@ def resolved_fs_markdown_for_codegen(db, rfp: models.RFP) -> tuple[str | None, s
 
 
 def run_delivered_code_job(rfp_id: int, billing_user_id: int) -> None:
-    from .routers import interview_router as interview_router_module
+    append_delivery_job_log_line(rfp_id, "delivered_job_log", "납품 ABAP 생성 백그라운드 워커 시작")
 
+    ctx: dict[str, Any] | None = None
     db = SessionLocal()
-    hb_thr: threading.Thread | None = None
-    hb_stop = threading.Event()
-
     try:
         rfp = (
             db.query(models.RFP)
@@ -190,7 +227,6 @@ def run_delivered_code_job(rfp_id: int, billing_user_id: int) -> None:
             append_delivery_job_log_line(rfp_id, "delivered_job_log", "오류: RFP를 찾을 수 없어 작업 종료")
             return
 
-        append_delivery_job_log_line(rfp_id, "delivered_job_log", "납품 ABAP 생성 백그라운드 워커 시작")
         append_delivery_job_log_line(rfp_id, "delivered_job_log", "RFP·메시지 로드, 코드 생성용 FS 해석 중")
         fs_body, fs_err = resolved_fs_markdown_for_codegen(db, rfp)
         if fs_err or not (fs_body or "").strip():
@@ -209,83 +245,89 @@ def run_delivered_code_job(rfp_id: int, billing_user_id: int) -> None:
             "delivered_job_log",
             f"코드 생성용 FS 본문 준비 완료 (약 {len(fs_body.strip())}자, 컨설턴트 첨부 {n_sup}건)",
         )
+        base = _load_rfp_fs_codegen_context(db, rfp_id)
+        if not base:
+            append_delivery_job_log_line(rfp_id, "delivered_job_log", "오류: RFP를 찾을 수 없어 작업 종료")
+            return
+        ctx = {**base, "fs_body": fs_body}
+    finally:
+        db.close()
 
-        n_hold = {"count": 0}
-        phase_hint = {"text": ""}
+    if not ctx:
+        return
 
-        def _phase_log_delivery(m: str) -> None:
-            phase_hint["text"] = (m or "").strip()
-            append_delivery_job_log_line(rfp_id, "delivered_job_log", m)
+    n_hold = {"count": 0}
+    phase_hint: dict[str, str] = {"text": ""}
 
-        hb_thr = threading.Thread(
-            target=_delivered_heartbeat,
-            args=(rfp_id, hb_stop, n_hold, phase_hint),
-            daemon=True,
-        )
-        hb_thr.start()
+    def _phase_log_delivery(m: str) -> None:
+        phase_hint["text"] = (m or "").strip()
+        append_delivery_job_log_line(rfp_id, "delivered_job_log", m)
 
-        rfp_dict = interview_router_module._rfp_to_dict(rfp)
-        conv = interview_router_module._conversation_list_for_llm(rfp)
-        ms = interview_router_module._member_safe_for_rfp(db, rfp)
-        code_ctx = get_code_library_context(
-            db,
-            rfp_dict.get("sap_modules", []),
-            rfp_dict.get("dev_types", []),
-            member_safe_output=ms,
-        )
-        wo_d = (getattr(rfp, "workflow_origin", None) or "direct").strip()
-        pb_del = build_playbook_addon(
-            db, PlaybookContext(entity="rfp", stage=STAGE_DELIVERED_ABAP, workflow_origin=wo_d)
-        )
-        try:
-            prop_merged = resolved_delivery_proposal_for_downstream(
-                db,
-                request_kind=_KIND_RFP,
-                request_id=int(rfp.id),
-                agent_proposal_text=rfp.proposal_text,
+    hb_stop = threading.Event()
+    hb_thr = threading.Thread(
+        target=_delivered_heartbeat,
+        args=(rfp_id, hb_stop, n_hold, phase_hint),
+        daemon=True,
+    )
+    hb_thr.start()
+
+    pkg = None
+    legacy_md = ""
+    gen_ok = False
+    gen_error: str | None = None
+    try:
+        with ai_usage_scope(
+            ai_usage_context_for_delivery_job(
+                billing_user_id=billing_user_id,
+                request_kind="rfp",
+                request_id=int(rfp_id),
             )
-            with ai_usage_scope(
-                ai_usage_context_for_delivery_job(
-                    billing_user_id=billing_user_id,
-                    request_kind="rfp",
-                    request_id=int(rfp.id),
-                )
-            ):
-                pkg, legacy_md = generate_delivered_abap_artifact(
-                    rfp_dict,
-                    fs_body or "",
-                    prop_merged,
-                    conv,
-                    code_library_context=code_ctx or "",
-                    member_safe_output=ms,
-                    phase_log=_phase_log_delivery,
-                    playbook_addon=pb_del,
-                )
+        ):
+            pkg, legacy_md = generate_delivered_abap_artifact(
+                ctx["rfp_dict"],
+                ctx["fs_body"] or "",
+                ctx["prop_merged"],
+                ctx["conv"],
+                code_library_context=ctx["code_ctx"],
+                member_safe_output=ctx["member_safe"],
+                phase_log=_phase_log_delivery,
+                playbook_addon=ctx["playbook_delivered"],
+            )
+        gen_ok = True
+        append_delivery_job_log_line(
+            rfp_id,
+            "delivered_job_log",
+            "납품 코드 생성 완료 · 결과 저장",
+        )
+    except Exception as ex:
+        gen_error = str(ex)
+        append_delivery_job_log_line(
+            rfp_id,
+            "delivered_job_log",
+            f"실패: {type(ex).__name__}: {ex}",
+        )
+    finally:
+        hb_stop.set()
+        hb_thr.join(timeout=2)
+
+    db = SessionLocal()
+    try:
+        rfp = db.query(models.RFP).filter(models.RFP.id == rfp_id).first()
+        if not rfp:
+            return
+        if gen_ok:
             rfp.delivered_code_text = legacy_md
             rfp.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None
             rfp.delivered_code_status = "ready"
             rfp.delivered_code_generated_at = datetime.utcnow()
             rfp.delivered_code_error = None
-            append_delivery_job_log_line(
-                rfp_id,
-                "delivered_job_log",
-                "납품 코드 생성 완료 · 결과 저장",
-            )
-        except Exception as ex:
+        else:
             rfp.delivered_code_status = "failed"
-            rfp.delivered_code_error = str(ex)
-            append_delivery_job_log_line(
-                rfp_id,
-                "delivered_job_log",
-                f"실패: {type(ex).__name__}: {ex}",
-            )
+            rfp.delivered_code_error = gen_error
         db.commit()
         if (rfp.delivered_code_status or "").strip() == "ready":
             from .kb_request_flow import schedule_request_kb_flow
 
             schedule_request_kb_flow("rfp", rfp_id, "delivery")
     finally:
-        hb_stop.set()
-        if hb_thr is not None:
-            hb_thr.join(timeout=2)
         db.close()

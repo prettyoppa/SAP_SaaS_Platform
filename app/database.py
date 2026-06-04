@@ -132,6 +132,9 @@ else:
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
+        pool_size=int(os.environ.get("DB_POOL_SIZE", "5")),
+        max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "10")),
+        pool_timeout=int(os.environ.get("DB_POOL_TIMEOUT", "30")),
         connect_args=_postgres_connect_args(),
     )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

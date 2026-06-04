@@ -6,6 +6,7 @@ import json
 import re
 import threading
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -178,11 +179,46 @@ def resolved_abap_analysis_fs_for_codegen(
     )
 
 
-def run_abap_analysis_fs_job(analysis_id: int, billing_user_id: int) -> None:
-    db = SessionLocal()
-    hb_thr: threading.Thread | None = None
-    hb_stop = threading.Event()
+def _load_abap_analysis_codegen_context(
+    db: Session,
+    row: models.AbapAnalysisRequest,
+) -> dict[str, Any]:
+    rfp_dict = abap_analysis_request_to_crew_rfp_dict(db, row)
+    conv = abap_analysis_synthetic_conversation(row)
+    ms = _member_safe_for_abap_analysis(db, row)
+    return {
+        "rfp_dict": rfp_dict,
+        "conv": conv,
+        "member_safe": ms,
+        "code_ctx": get_code_library_context(
+            db,
+            rfp_dict.get("sap_modules", []),
+            rfp_dict.get("dev_types", []),
+            member_safe_output=ms,
+        )
+        or "",
+        "playbook_fs": build_playbook_addon(
+            db,
+            PlaybookContext(entity="abap_analysis", stage=STAGE_FS_ABAP, workflow_origin="abap_analysis"),
+        ),
+        "playbook_delivered": build_playbook_addon(
+            db,
+            PlaybookContext(entity="abap_analysis", stage=STAGE_DELIVERED_ABAP, workflow_origin="abap_analysis"),
+        ),
+        "prop_merged": resolved_delivery_proposal_for_downstream(
+            db,
+            request_kind=KIND_ANALYSIS,
+            request_id=int(row.id),
+            agent_proposal_text=row.proposal_text,
+        ),
+    }
 
+
+def run_abap_analysis_fs_job(analysis_id: int, billing_user_id: int) -> None:
+    append_abap_analysis_job_log(analysis_id, "fs_job_log", "FS 생성 백그라운드 워커 시작")
+
+    ctx: dict[str, Any] | None = None
+    db = SessionLocal()
     try:
         row = (
             db.query(models.AbapAnalysisRequest)
@@ -193,81 +229,83 @@ def run_abap_analysis_fs_job(analysis_id: int, billing_user_id: int) -> None:
         if not row:
             append_abap_analysis_job_log(analysis_id, "fs_job_log", "오류: 분석 요청을 찾을 수 없어 작업 종료")
             return
+        ctx = _load_abap_analysis_codegen_context(db, row)
+    finally:
+        db.close()
 
-        append_abap_analysis_job_log(analysis_id, "fs_job_log", "FS 생성 백그라운드 워커 시작")
-        n_hold = {"count": 0}
-        hb_thr = threading.Thread(
-            target=_fs_heartbeat_abap,
-            args=(analysis_id, hb_stop, n_hold),
-            daemon=True,
-        )
-        hb_thr.start()
+    if not ctx:
+        return
 
-        rfp_dict = abap_analysis_request_to_crew_rfp_dict(db, row)
-        conv = abap_analysis_synthetic_conversation(row)
-        ms = _member_safe_for_abap_analysis(db, row)
-        code_ctx = get_code_library_context(
-            db,
-            rfp_dict.get("sap_modules", []),
-            rfp_dict.get("dev_types", []),
-            member_safe_output=ms,
-        )
-        append_abap_analysis_job_log(
-            analysis_id,
-            "fs_job_log",
-            f"{agent_label_ko('p_architect')}(Gemini) 호출 직전 · 수 분 걸릴 수 있음",
-        )
-        pb_fs = build_playbook_addon(
-            db,
-            PlaybookContext(entity="abap_analysis", stage=STAGE_FS_ABAP, workflow_origin="abap_analysis"),
-        )
-        try:
-            prop_merged = resolved_delivery_proposal_for_downstream(
-                db,
-                request_kind=KIND_ANALYSIS,
-                request_id=int(row.id),
-                agent_proposal_text=row.proposal_text,
+    append_abap_analysis_job_log(
+        analysis_id,
+        "fs_job_log",
+        f"{agent_label_ko('p_architect')}(Gemini) 호출 직전 · 수 분 걸릴 수 있음",
+    )
+
+    hb_stop = threading.Event()
+    n_hold = {"count": 0}
+    hb_thr = threading.Thread(
+        target=_fs_heartbeat_abap,
+        args=(analysis_id, hb_stop, n_hold),
+        daemon=True,
+    )
+    hb_thr.start()
+
+    fs_text: str | None = None
+    fs_status = "failed"
+    fs_error: str | None = None
+    try:
+        with ai_usage_scope(
+            ai_usage_context_for_delivery_job(
+                billing_user_id=billing_user_id,
+                request_kind="analysis",
+                request_id=int(analysis_id),
             )
-            with ai_usage_scope(
-                ai_usage_context_for_delivery_job(
-                    billing_user_id=billing_user_id,
-                    request_kind="analysis",
-                    request_id=int(row.id),
-                )
-            ):
-                row.fs_text = generate_fs_markdown(
-                    rfp_dict,
-                    conv,
-                    prop_merged,
-                    code_library_context=code_ctx or "",
-                    member_safe_output=ms,
-                    playbook_addon=pb_fs,
-                )
+        ):
+            fs_text = generate_fs_markdown(
+                ctx["rfp_dict"],
+                ctx["conv"],
+                ctx["prop_merged"],
+                code_library_context=ctx["code_ctx"],
+                member_safe_output=ctx["member_safe"],
+                playbook_addon=ctx["playbook_fs"],
+            )
+        fs_status = "ready"
+        append_abap_analysis_job_log(analysis_id, "fs_job_log", f"{agent_label_ko('p_architect')} 완료 · fs_text 저장")
+    except Exception as ex:
+        fs_error = str(ex)
+        append_abap_analysis_job_log(analysis_id, "fs_job_log", f"실패: {type(ex).__name__}: {ex}")
+    finally:
+        hb_stop.set()
+        hb_thr.join(timeout=2)
+
+    db = SessionLocal()
+    try:
+        row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == analysis_id).first()
+        if not row:
+            return
+        if fs_status == "ready":
+            row.fs_text = fs_text
             row.fs_status = "ready"
             row.fs_generated_at = datetime.utcnow()
             row.fs_error = None
-            append_abap_analysis_job_log(analysis_id, "fs_job_log", f"{agent_label_ko('p_architect')} 완료 · fs_text 저장")
-        except Exception as ex:
+        else:
             row.fs_status = "failed"
-            row.fs_error = str(ex)
-            append_abap_analysis_job_log(analysis_id, "fs_job_log", f"실패: {type(ex).__name__}: {ex}")
+            row.fs_error = fs_error
         db.commit()
-        if row and (row.fs_status or "").strip() == "ready":
+        if (row.fs_status or "").strip() == "ready":
             from .kb_request_flow import schedule_request_kb_flow
 
             schedule_request_kb_flow("analysis", analysis_id, "functional_spec")
     finally:
-        hb_stop.set()
-        if hb_thr is not None:
-            hb_thr.join(timeout=2)
         db.close()
 
 
 def run_abap_analysis_delivered_code_job(analysis_id: int, billing_user_id: int) -> None:
-    db = SessionLocal()
-    hb_thr: threading.Thread | None = None
-    hb_stop = threading.Event()
+    append_abap_analysis_job_log(analysis_id, "delivered_job_log", "납품 ABAP 생성 백그라운드 워커 시작")
 
+    ctx: dict[str, Any] | None = None
+    db = SessionLocal()
     try:
         row = (
             db.query(models.AbapAnalysisRequest)
@@ -279,7 +317,7 @@ def run_abap_analysis_delivered_code_job(analysis_id: int, billing_user_id: int)
             append_abap_analysis_job_log(analysis_id, "delivered_job_log", "오류: 분석 요청을 찾을 수 없어 작업 종료")
             return
 
-        append_abap_analysis_job_log(analysis_id, "delivered_job_log", "납품 ABAP 생성 백그라운드 워커 시작")
+        append_abap_analysis_job_log(analysis_id, "delivered_job_log", "코드 생성용 FS 해석 중")
         fs_body, fs_err = resolved_abap_analysis_fs_for_codegen(db, row)
         if fs_err or not (fs_body or "").strip():
             msg = fs_err or "FS 본문이 없습니다."
@@ -289,78 +327,81 @@ def run_abap_analysis_delivered_code_job(analysis_id: int, billing_user_id: int)
             db.commit()
             return
 
-        n_hold = {"count": 0}
-        phase_hint = {"text": ""}
+        ctx = {**_load_abap_analysis_codegen_context(db, row), "fs_body": fs_body}
+    finally:
+        db.close()
 
-        def _phase_log_delivery(m: str) -> None:
-            phase_hint["text"] = (m or "").strip()
-            append_abap_analysis_job_log(analysis_id, "delivered_job_log", m)
+    if not ctx:
+        return
 
-        hb_thr = threading.Thread(
-            target=_delivered_heartbeat_abap,
-            args=(analysis_id, hb_stop, n_hold, phase_hint),
-            daemon=True,
-        )
-        hb_thr.start()
+    n_hold = {"count": 0}
+    phase_hint: dict[str, str] = {"text": ""}
 
-        rfp_dict = abap_analysis_request_to_crew_rfp_dict(db, row)
-        conv = abap_analysis_synthetic_conversation(row)
-        ms = _member_safe_for_abap_analysis(db, row)
-        code_ctx = get_code_library_context(
-            db,
-            rfp_dict.get("sap_modules", []),
-            rfp_dict.get("dev_types", []),
-            member_safe_output=ms,
-        )
-        pb_del = build_playbook_addon(
-            db,
-            PlaybookContext(entity="abap_analysis", stage=STAGE_DELIVERED_ABAP, workflow_origin="abap_analysis"),
-        )
-        try:
-            prop_merged = resolved_delivery_proposal_for_downstream(
-                db,
-                request_kind=KIND_ANALYSIS,
-                request_id=int(row.id),
-                agent_proposal_text=row.proposal_text,
+    def _phase_log_delivery(m: str) -> None:
+        phase_hint["text"] = (m or "").strip()
+        append_abap_analysis_job_log(analysis_id, "delivered_job_log", m)
+
+    hb_stop = threading.Event()
+    hb_thr = threading.Thread(
+        target=_delivered_heartbeat_abap,
+        args=(analysis_id, hb_stop, n_hold, phase_hint),
+        daemon=True,
+    )
+    hb_thr.start()
+
+    pkg = None
+    legacy_md = ""
+    gen_ok = False
+    gen_error: str | None = None
+    try:
+        with ai_usage_scope(
+            ai_usage_context_for_delivery_job(
+                billing_user_id=billing_user_id,
+                request_kind="analysis",
+                request_id=int(analysis_id),
             )
-            with ai_usage_scope(
-                ai_usage_context_for_delivery_job(
-                    billing_user_id=billing_user_id,
-                    request_kind="analysis",
-                    request_id=int(row.id),
-                )
-            ):
-                pkg, legacy_md = generate_delivered_abap_artifact(
-                    rfp_dict,
-                    fs_body or "",
-                    prop_merged,
-                    conv,
-                    code_library_context=code_ctx or "",
-                    member_safe_output=ms,
-                    phase_log=_phase_log_delivery,
-                    playbook_addon=pb_del,
-                )
+        ):
+            pkg, legacy_md = generate_delivered_abap_artifact(
+                ctx["rfp_dict"],
+                ctx["fs_body"] or "",
+                ctx["prop_merged"],
+                ctx["conv"],
+                code_library_context=ctx["code_ctx"],
+                member_safe_output=ctx["member_safe"],
+                phase_log=_phase_log_delivery,
+                playbook_addon=ctx["playbook_delivered"],
+            )
+        gen_ok = True
+        append_abap_analysis_job_log(analysis_id, "delivered_job_log", "납품 코드 생성 완료 · 결과 저장")
+    except Exception as ex:
+        gen_error = str(ex)
+        append_abap_analysis_job_log(
+            analysis_id,
+            "delivered_job_log",
+            f"실패: {type(ex).__name__}: {ex}",
+        )
+    finally:
+        hb_stop.set()
+        hb_thr.join(timeout=2)
+
+    db = SessionLocal()
+    try:
+        row = db.query(models.AbapAnalysisRequest).filter(models.AbapAnalysisRequest.id == analysis_id).first()
+        if not row:
+            return
+        if gen_ok:
             row.delivered_code_text = legacy_md
             row.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None
             row.delivered_code_status = "ready"
             row.delivered_code_generated_at = datetime.utcnow()
             row.delivered_code_error = None
-            append_abap_analysis_job_log(analysis_id, "delivered_job_log", "납품 코드 생성 완료 · 결과 저장")
-        except Exception as ex:
+        else:
             row.delivered_code_status = "failed"
-            row.delivered_code_error = str(ex)
-            append_abap_analysis_job_log(
-                analysis_id,
-                "delivered_job_log",
-                f"실패: {type(ex).__name__}: {ex}",
-            )
+            row.delivered_code_error = gen_error
         db.commit()
-        if row and (row.delivered_code_status or "").strip() == "ready":
+        if (row.delivered_code_status or "").strip() == "ready":
             from .kb_request_flow import schedule_request_kb_flow
 
             schedule_request_kb_flow("analysis", analysis_id, "delivery")
     finally:
-        hb_stop.set()
-        if hb_thr is not None:
-            hb_thr.join(timeout=2)
         db.close()
