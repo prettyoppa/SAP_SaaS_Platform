@@ -66,6 +66,9 @@ def normalize_slot_source_text(source: str) -> str:
         return s
     if "\n" not in s and ("\\n" in s or "\\t" in s):
         s = s.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    from .delivered_abap_quality import harden_slot_source
+
+    s, _ = harden_slot_source(s)
     return s
 
 

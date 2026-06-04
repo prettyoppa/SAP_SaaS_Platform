@@ -25,6 +25,12 @@ from .free_crew import (
     _parse_code_library_context,
 )
 from ..agent_display import agent_label_ko
+from ..delivered_abap_quality import (
+    format_lint_for_reviewer,
+    harden_delivered_package_dict,
+    lint_delivered_package,
+    package_needs_second_review,
+)
 from ..delivered_code_package import (
     extract_json_object_from_llm_text,
     legacy_markdown_from_package,
@@ -484,6 +490,7 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
 - INCLUDE·TOP·PBO/PAI·서브루틴은 **별도 슬롯**으로 나누는 것을 우선한다(단일 거대 파일 지양).
 - `filename`: 영문·숫자·언더스코어·점만, 확장자 `.abap` 권장.
 - ABAP 문자열 내 따옴표는 JSON 이스케이프를 반드시 지킨다.
+- **SELECT~ENDSELECT, LOOP~ENDLOOP, IF~ENDIF, FORM~ENDFORM** 등 블록 짝·들여쓰기(2칸)·REPORT 1열을 맞춰 **SE38 Pretty Printer 통과** 가능한 소스만 출력한다.
 - **테스트 시나리오·구현 가이드는 JSON에 넣지 않는다.**
 {_pb_del}""",
         agent=json_coder,
@@ -506,12 +513,19 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
             + _tail_for_followup_prompt(out_slots, max_chars=118_000)
             + """
 
-### 검수
+### 검수 (코드검수 에이전트 — SE38 활성화 전 품질)
 1. `json.loads`로 파싱 가능한 **순수 JSON 객체 하나**만 출력한다 (설명 문장 없음).
-2. 스키마: program_id, slots[], coder_notes(선택).
-3. 각 slot: role, filename, title_ko, source (문자열).
-4. main_report 슬롯이 있고 source에 REPORT/프로그램 본문이 있어야 한다.
-5. ABAP 내 줄바꿈은 JSON 문자열 안에서 \\n 이스케이프로 표현한다.
+2. 스키마: program_id, slots[], coder_notes(선택). 각 slot: role, filename, title_ko, source.
+3. main_report 슬롯이 있고 source에 REPORT/프로그램 본문이 있어야 한다.
+4. ABAP 줄바꿈은 JSON 문자열 안에서 \\n 이스케이프. **Windows 경로는 반드시 `C:\\\\temp` 처럼 백슬래시 이중 이스케이프** — `\\t` 는 탭 문자로 깨져 `C:\\emp` 오류를 만든다.
+5. **Pretty Printer / SE38 구문check 선행 품질 (로직 검증보다 우선):**
+   - REPORT/PROGRAM 은 **1열(앞 공백 없음)**.
+   - 들여쓰기 **공백 2칸 단위**만 (탭 금지).
+   - **SELECT~ENDSELECT, LOOP~ENDLOOP, IF~ENDIF, FORM~ENDFORM, CASE~ENDCASE, DO~ENDDO** 등 블록 **짝·개수 일치**.
+   - Pretty Printer가 실패하면 구문check가 엉뚱한 줄을 가리켜 로직이 망가질 수 있으므로 **블록·포맷을 먼저 완성**한다.
+   - Windows 경로 JSON: `C:\\\\temp` (단일 `\\t` 금지).
+   - CALL METHOD/FUNCTION 파라미터 종류·이름 표준 API 일치.
+6. 논리·FS 불일치·누락 INCLUDE 외 **무관한 대규모 재작성 금지** — 오류·품질 결함만 최소 수정.
 """
         ),
         agent=json_reviewer,
@@ -539,6 +553,46 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
             member_safe_output=member_safe_output,
             phase_log=phase_log,
         )
+
+    data, _auto = harden_delivered_package_dict(data)
+    lint_issues = lint_delivered_package(data)
+    if package_needs_second_review(lint_issues):
+        _ph(
+            f"{agent_label_ko('p_inspector')} — 정적 품질 이슈 {len(lint_issues)}건 · 2차 검수 Gemini 호출"
+        )
+        lint_block = format_lint_for_reviewer(lint_issues)
+        fix_task = Task(
+            description=(
+                "### 1차 검수 JSON\n\n"
+                + _tail_for_followup_prompt(json.dumps(data, ensure_ascii=False), max_chars=118_000)
+                + "\n\n### 정적 품질 검사 결과 (반드시 해소)\n"
+                + lint_block
+                + """
+
+### 2차 검수 지시
+- 위 **모든** 정적 검사 항목을 해소한 **순수 JSON 하나**만 출력.
+- **블록 짝**(SELECT/ENDSELECT, LOOP/ENDLOOP, IF/ENDIF, FORM/ENDFORM 등)을 먼저 맞춘 뒤 세부 로직을 검토한다.
+- Windows 경로: JSON에서 `C:\\\\temp`. REPORT 1열, 공백 2칸, 탭 제거.
+- FS·기능 변경 없이 **포맷·블록 구조·표면 구문**만 고친다 (엉뚱한 로직 수정 금지).
+"""
+            ),
+            agent=json_reviewer,
+            expected_output="파싱 가능한 JSON 한 덩어리",
+        )
+        crew_fix = Crew(
+            agents=[json_reviewer],
+            tasks=[fix_task],
+            process=Process.sequential,
+            verbose=False,
+        )
+        out_fix = str(
+            logged_crew_kickoff(crew_fix, stage="delivered_code", agent_key="p_inspector")
+        ).strip()
+        data_fix = extract_json_object_from_llm_text(out_fix)
+        if data_fix:
+            data = data_fix
+        data, _ = harden_delivered_package_dict(data)
+        _ph(f"{agent_label_ko('p_inspector')} 2차 검수 완료")
 
     if cust_pid and not (str(data.get("program_id") or "").strip()):
         data["program_id"] = cust_pid
