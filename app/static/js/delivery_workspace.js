@@ -47,12 +47,27 @@
     sugTa.addEventListener("input", debounce(refresh, 400));
   }
 
+  function initSourcePanels(root) {
+    root.querySelectorAll("[data-dw-source-panel]").forEach(function (panel) {
+      panel.addEventListener("toggle", function () {
+        if (!panel.open) return;
+        panel.querySelectorAll("[data-dw-line-editor]").forEach(function (el) {
+          delete el.dataset.dwLineEditorBound;
+        });
+        if (typeof window.initAbapLineEditors === "function") {
+          window.initAbapLineEditors(panel);
+        }
+      });
+    });
+  }
+
   function init() {
     var root = document.getElementById("delivery-workspace");
     if (!root) return;
     if (typeof window.initAbapLineEditors === "function") {
       window.initAbapLineEditors(root);
     }
+    initSourcePanels(root);
     root.querySelectorAll("[data-dw-diff-panel]").forEach(bindDiffPanel);
   }
 

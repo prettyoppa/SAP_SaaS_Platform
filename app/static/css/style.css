@@ -3346,27 +3346,75 @@ html[data-theme="light"] .delivery-workspace-tabs .nav-link.active {
   border-radius: 0.375rem;
   background: var(--surface);
   overflow: hidden;
+  --dw-source-pane-max-h: 20rem;
 }
 .dw-source-editor .dw-line-nums {
+  flex: 0 0 auto;
   margin: 0;
   padding: 0.375rem 0.5rem;
   min-width: 3rem;
+  max-height: var(--dw-source-pane-max-h);
   text-align: right;
   color: var(--text-muted, #6c757d);
   background: var(--surface2);
   border-right: 1px solid var(--border);
-  overflow: hidden;
+  overflow: auto;
   user-select: none;
   line-height: 1.42857143;
   white-space: pre;
+  scrollbar-width: none;
+}
+.dw-source-editor .dw-line-nums::-webkit-scrollbar {
+  display: none;
 }
 .dw-source-editor .dw-source-input {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: var(--dw-source-pane-max-h);
   border: 0;
   border-radius: 0;
-  resize: vertical;
+  resize: none;
+  overflow: auto;
   line-height: 1.42857143;
+  padding: 0.375rem 0.75rem;
   tab-size: 2;
+}
+.dw-source-editor--expanded {
+  --dw-source-pane-max-h: min(36rem, 70vh);
+}
+.dw-slot-source-panel {
+  border-color: var(--border) !important;
+  background: var(--surface2);
+}
+.dw-slot-source-panel > summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--text);
+}
+.dw-slot-source-panel > summary::-webkit-details-marker {
+  display: none;
+}
+.dw-slot-source-panel > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.35rem;
+  transition: transform 0.15s ease;
+  color: var(--muted);
+}
+.dw-slot-source-panel[open] > summary::before {
+  transform: rotate(90deg);
+}
+.dw-slot-source-panel-body {
+  padding: 0 0.75rem 0.75rem;
+}
+.dw-slot-source-panel:not([open]) .dw-source-summary-open {
+  display: none !important;
+}
+.dw-slot-source-panel[open] .dw-source-summary-closed {
+  display: none !important;
+}
+html[data-theme="dark"] .dw-slot-source-panel > summary {
+  color: var(--text);
 }
 .dw-source-editor .dw-source-input:focus {
   box-shadow: none;
@@ -3381,15 +3429,17 @@ html[data-theme="light"] .delivery-workspace-tabs .nav-link.active {
   padding-top: 1.25rem;
   padding-bottom: 1.25rem;
   line-height: 1.65;
-  max-height: 28rem;
-  overflow: hidden;
+  max-height: var(--dw-source-pane-max-h, 28rem);
+  overflow: auto;
+  scrollbar-width: none;
 }
 .dw-source-editor--readonly .dw-source-view {
   flex: 1;
   margin: 0;
-  max-height: 28rem;
+  max-height: var(--dw-source-pane-max-h, 28rem);
   padding: 1.25rem;
   line-height: 1.65;
+  overflow: auto;
   border: none;
   border-radius: 0;
   background: var(--surface2);

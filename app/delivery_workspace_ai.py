@@ -11,6 +11,7 @@ from .ai_inquiry_guard import ai_inquiry_model_policy_footer
 from .ai_usage_billing import ai_usage_context_for_delivery_job
 from .ai_usage_recorder import ai_usage_scope, log_gemini_generate_content
 from .delivery_workspace_context import build_peer_sources_context
+from .delivery_workspace_se38_focus import build_se38_focus_section
 from .gemini_model import get_gemini_model_id
 
 STAGE_DELIVERY_WORKSPACE_FIX = "delivery_workspace_fix"
@@ -94,9 +95,12 @@ def suggest_slot_fix(
         else "다른 ABAP 탭 소스는 비어 있거나 포함되지 않았습니다."
     )
 
+    focus_block = build_se38_focus_section(err, src)
+
     prompt = f"""당신은 SAP ABAP 납품 코드 수정 전문가입니다.
 컨설턴트가 SE38에서 본 오류를 해결하려 합니다. **오류가 현재 파일에서 보고되었어도, 원인·수정 위치는 메인(REPORT) 또는 다른 INCLUDE일 수 있습니다.**
 
+{focus_block}
 ## 판단 (가장 중요)
 1. **[패키지 다른 슬롯 소스]**와 **[현재 슬롯 소스]**·SE38 메시지를 함께 보고 **실제로 고쳐야 할 파일**을 판단하세요. ({peer_note})
 2. 예: INCLUDE A에서 syntax error가 났지만, **[패키지 다른 슬롯]**의 메인에 INCLUDE 문·선언 오류가 보이면 **INCLUDE A를 억지로 고치지 마세요.**
@@ -105,9 +109,9 @@ def suggest_slot_fix(
 ## 응답 형식 (둘 중 하나만)
 
 ### A) 수정이 **현재 슬롯**에 있을 때만
-- 수정된 ABAP **전체 소스**를 ```abap``` 블록으로 출력.
-- INCLUDE·FORM 구조 유지, 오류 원인에 대한 **최소 변경**만.
-- 소스 길이를 임의로 대폭 줄이지 마세요.
+- 수정된 ABAP **전체 소스**를 ```abap``` 블록으로 출력 (diff 표시용 — 화면에 전체를 다시 보여주지 않음).
+- **[SE38 오류·징후]와 컨설턴트가 붙인 구문**이 가리키는 위치만 **최소 변경**. 무관한 다른 행은 원문 그대로.
+- INCLUDE·FORM 구조 유지. 소스 길이를 임의로 대폭 줄이지 마세요.
 
 ### B) 수정이 **메인 또는 다른 슬롯**에 있을 때 (현재 슬롯을 억지로 고치지 말 것)
 - ```abap``` 블록 안에 **현재 슬롯 소스를 거의 그대로** 두고, 최상단에만 아래 주석 1~3줄 추가:

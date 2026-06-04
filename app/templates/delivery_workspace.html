@@ -64,8 +64,8 @@
     <span class="nav-ko">AI가 이 탭이 아닌 다른 파일에서 수정할 것을 권고했습니다. 아래 안내를 확인하세요.</span>
     <span class="nav-en" style="display:none">AI recommends fixing another file, not this tab. See the notice below.</span>
     {% elif ws_ok == 'suggested' %}
-    <span class="nav-ko">AI 수정 제안을 생성했습니다. 아래에서 검토 후 반영하세요.</span>
-    <span class="nav-en" style="display:none">AI fix suggestion generated. Review and apply below.</span>
+    <span class="nav-ko">AI 수정 제안(diff)을 생성했습니다. 아래 변경 내용을 보고 위 작업본 소스에서 직접 수정하세요.</span>
+    <span class="nav-en" style="display:none">AI fix diff generated. Review the changes below and edit the working source above.</span>
     {% elif ws_ok == 'applied' %}
     <span class="nav-ko">작업본 슬롯에 반영했습니다.</span>
     <span class="nav-en" style="display:none">Applied to the working copy slot.</span>
@@ -109,20 +109,35 @@
        data-dw-panel="{{ sl.index }}" role="tabpanel">
     <div class="card-header small fw-semibold">{{ sl.filename }} · {{ sl.role }}</div>
     <div class="card-body">
-      <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/save" class="mb-4 dw-slot-form">
-        <input type="hidden" name="return_to" value="{{ return_url }}">
-        <label class="form-label small fw-semibold">
+      {% set dw_src_line_count = (sl.source or '').split('\n')|length %}
+      <details class="dw-slot-source-panel border rounded mb-4" data-dw-source-panel
+               {% if dw_src_line_count <= 20 %}open{% endif %}>
+        <summary class="px-3 py-2 small fw-semibold">
           <span class="nav-ko">작업본 슬롯 소스</span>
           <span class="nav-en" style="display:none">Working slot source</span>
-        </label>
-        {% with field_name='source', source_text=sl.source, rows=14 %}
-        {% include 'partials/delivery_workspace_source_editor.html' %}
-        {% endwith %}
-        <button type="submit" class="btn btn-outline-primary btn-sm mt-2">
-          <span class="nav-ko">소스 저장</span>
-          <span class="nav-en" style="display:none">Save source</span>
-        </button>
-      </form>
+          <span class="text-muted fw-normal">({{ dw_src_line_count }} <span class="nav-ko">행</span><span class="nav-en" style="display:none">lines</span>)</span>
+          <span class="text-muted fw-normal ms-1 dw-source-summary-open">
+            <span class="nav-ko">— 접기</span>
+            <span class="nav-en" style="display:none">— collapse</span>
+          </span>
+          <span class="text-muted fw-normal ms-1 dw-source-summary-closed">
+            <span class="nav-ko">— 펼치기</span>
+            <span class="nav-en" style="display:none">— expand</span>
+          </span>
+        </summary>
+        <div class="dw-slot-source-panel-body">
+          <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/save" class="mb-0 dw-slot-form">
+            <input type="hidden" name="return_to" value="{{ return_url }}">
+            {% with field_name='source', source_text=sl.source, rows=12 %}
+            {% include 'partials/delivery_workspace_source_editor.html' %}
+            {% endwith %}
+            <button type="submit" class="btn btn-outline-primary btn-sm mt-2">
+              <span class="nav-ko">소스 저장</span>
+              <span class="nav-en" style="display:none">Save source</span>
+            </button>
+          </form>
+        </div>
+      </details>
 
       <form method="post" action="{{ workspace_base }}/suggest-fix" class="mb-4 border-top pt-3 dw-slot-form"
             data-busy-agents='[{"agentKo":"「ABAP」","doingKo":"SE38 오류를 분석해 수정안 ABAP을 작성하고 있습니다","agentEn":"「ABAP」","doingEn":"analyzing the SE38 error and drafting a fix"}]'>
@@ -164,49 +179,26 @@
         <span class="nav-en" style="display:none">AI says the fix belongs in <strong>{{ fix_elsewhere_target or 'another slot (e.g. main)' }}</strong>.{% if fix_elsewhere_reason %} ({{ fix_elsewhere_reason }}){% endif %} Do not apply here—open that tab and request a new suggestion.</span>
       </div>
       {% endif %}
-      <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/apply" class="border-top pt-3 dw-slot-form" id="dw-apply-form" data-dw-suggestion-block>
-        <input type="hidden" name="return_to" value="{{ return_url }}">
-        <label class="form-label small fw-semibold">
-          <span class="nav-ko">AI 제안 (검토 후 반영)</span>
-          <span class="nav-en" style="display:none">AI suggestion (review then apply)</span>
+      <div class="border-top pt-3 mb-3" data-dw-suggestion-block>
+        <label class="form-label small fw-semibold mb-1">
+          <span class="nav-ko">AI 수정 제안 (변경 diff)</span>
+          <span class="nav-en" style="display:none">AI fix suggestion (change diff)</span>
         </label>
+        <p class="small text-muted mb-2">
+          <span class="nav-ko">아래 diff만 참고하세요. 전체 소스는 표시하지 않습니다. 반영은 위 <strong>작업본 슬롯 소스</strong>에서 직접 수정하세요.</span>
+          <span class="nav-en" style="display:none">Use the diff below only; full source is not shown. Apply changes manually in <strong>Working slot source</strong> above.</span>
+        </p>
         {% with original_source=sl.source, suggested_source=suggested_source, diff_preview_url=workspace_base ~ '/diff-preview' %}
         {% include 'partials/delivery_workspace_diff_panel.html' %}
         {% endwith %}
-        {% with field_name='suggested_source', source_text=suggested_source, rows=14 %}
-        {% include 'partials/delivery_workspace_source_editor.html' %}
-        {% endwith %}
-        <div class="d-flex flex-wrap gap-2 mt-2">
-          {% if not fix_elsewhere_target and ws_ok != 'suggested_elsewhere' %}
-          <button type="submit" class="btn btn-success btn-sm"
-                  data-app-confirm-i18n="deliveryWorkspace.applyConfirm">
-            <span class="nav-ko">작업본에 반영</span>
-            <span class="nav-en" style="display:none">Apply to working copy</span>
-          </button>
-          {% else %}
-          <button type="submit" class="btn btn-outline-secondary btn-sm" name="force_apply" value="1"
-                  data-app-confirm-i18n="deliveryWorkspace.applyDespiteElsewhere">
-            <span class="nav-ko">그래도 이 탭에 반영 (비권장)</span>
-            <span class="nav-en" style="display:none">Apply to this tab anyway (not recommended)</span>
-          </button>
-          {% endif %}
-          {% if ws_warn and ws_warn != 'fix_elsewhere' %}
-          <button type="submit" class="btn btn-outline-warning btn-sm" name="force_apply" value="1"
-                  form="dw-apply-form"
-                  data-app-confirm-i18n="deliveryWorkspace.applyForceConfirm">
-            <span class="nav-ko">그래도 반영</span>
-            <span class="nav-en" style="display:none">Apply anyway</span>
-          </button>
-          {% endif %}
-        </div>
-      </form>
+      </div>
       {% endif %}
     </div>
   </div>
   {% endfor %}
   {% endif %}
 </div>
-<script src="/static/js/delivery_workspace.js?v=20260521"></script>
+<script src="/static/js/delivery_workspace.js?v=20260604dwlines"></script>
 <script>
 (function () {
   var root = document.getElementById('delivery-workspace');
