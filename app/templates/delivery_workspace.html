@@ -73,8 +73,8 @@
     <span class="nav-ko">AI가 이 탭이 아닌 다른 파일에서 수정할 것을 권고했습니다. 아래 안내를 확인하세요.</span>
     <span class="nav-en" style="display:none">AI recommends fixing another file, not this tab. See the notice below.</span>
     {% elif ws_ok == 'suggested' %}
-    <span class="nav-ko">AI 수정 제안(diff)을 생성했습니다. 아래 변경 내용을 보고 위 작업본 소스에서 직접 수정하세요.</span>
-    <span class="nav-en" style="display:none">AI fix diff generated. Review the changes below and edit the working source above.</span>
+    <span class="nav-ko">AI 수정 제안을 생성했습니다. 아래 diff·전체 제안 소스를 검토한 뒤 「작업본에 반영」하거나 작업본 소스에서 직접 수정하세요.</span>
+    <span class="nav-en" style="display:none">AI fix generated. Review the diff and full suggested source below, then apply or edit the working copy manually.</span>
     {% elif ws_ok == 'applied' %}
     <span class="nav-ko">작업본 슬롯에 반영했습니다.</span>
     <span class="nav-en" style="display:none">Applied to the working copy slot.</span>
@@ -208,17 +208,65 @@
       </div>
       {% endif %}
       <div class="border-top pt-3 mb-3" data-dw-suggestion-block>
-        <label class="form-label small fw-semibold mb-1">
-          <span class="nav-ko">AI 수정 제안 (변경 diff)</span>
-          <span class="nav-en" style="display:none">AI fix suggestion (change diff)</span>
-        </label>
-        <p class="small text-muted mb-2">
-          <span class="nav-ko">아래 diff만 참고하세요. 전체 소스는 표시하지 않습니다. 반영은 위 <strong>작업본 슬롯 소스</strong>에서 직접 수정하세요.</span>
-          <span class="nav-en" style="display:none">Use the diff below only; full source is not shown. Apply changes manually in <strong>Working slot source</strong> above.</span>
-        </p>
-        {% with original_source=pending_source_before|default(sl.source, true), suggested_source=suggested_source, diff_preview_url=workspace_base ~ '/diff-preview' %}
-        {% include 'partials/delivery_workspace_diff_panel.html' %}
-        {% endwith %}
+        <form method="post" action="{{ workspace_base }}/slots/{{ sl.index }}/apply" class="dw-slot-form" id="dw-apply-form-{{ sl.index }}">
+          <input type="hidden" name="return_to" value="{{ return_url }}">
+          <label class="form-label small fw-semibold mb-1">
+            <span class="nav-ko">AI 수정 제안</span>
+            <span class="nav-en" style="display:none">AI fix suggestion</span>
+          </label>
+          <p class="small text-muted mb-2">
+            <span class="nav-ko">변경 diff와 <strong>전체 제안 소스</strong>를 함께 확인하세요. 검토 후 「작업본에 반영」하거나, 제안 소스를 참고해 위 작업본에서 직접 수정할 수 있습니다.</span>
+            <span class="nav-en" style="display:none">Review the change diff and <strong>full suggested source</strong>. Apply to the working copy or edit manually using the suggestion as reference.</span>
+          </p>
+          {% with original_source=pending_source_before|default(sl.source, true), suggested_source=suggested_source, diff_preview_url=workspace_base ~ '/diff-preview' %}
+          {% include 'partials/delivery_workspace_diff_panel.html' %}
+          {% endwith %}
+          {% set dw_sug_line_count = (suggested_source or '').split('\n')|length %}
+          <details class="dw-slot-source-panel dw-suggestion-source-panel border rounded mb-0 mt-3" data-dw-source-panel
+                   {% if dw_sug_line_count <= 20 %}open{% endif %}>
+            <summary class="px-3 py-2 small fw-semibold">
+              <span class="nav-ko">AI 제안 전체 소스</span>
+              <span class="nav-en" style="display:none">Full AI suggested source</span>
+              <span class="text-muted fw-normal">({{ dw_sug_line_count }} <span class="nav-ko">행</span><span class="nav-en" style="display:none">lines</span>)</span>
+              <span class="text-muted fw-normal ms-1 dw-source-summary-open">
+                <span class="nav-ko">— 접기</span>
+                <span class="nav-en" style="display:none">— collapse</span>
+              </span>
+              <span class="text-muted fw-normal ms-1 dw-source-summary-closed">
+                <span class="nav-ko">— 펼치기</span>
+                <span class="nav-en" style="display:none">— expand</span>
+              </span>
+            </summary>
+            <div class="dw-slot-source-panel-body">
+              {% with field_name='suggested_source', source_text=suggested_source, rows=14 %}
+              {% include 'partials/delivery_workspace_source_editor.html' %}
+              {% endwith %}
+            </div>
+          </details>
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            {% if not fix_elsewhere_target and ws_ok != 'suggested_elsewhere' %}
+            <button type="submit" class="btn btn-success btn-sm"
+                    data-app-confirm-i18n="deliveryWorkspace.applyConfirm">
+              <span class="nav-ko">작업본에 반영</span>
+              <span class="nav-en" style="display:none">Apply to working copy</span>
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm" name="force_apply" value="1"
+                    data-app-confirm-i18n="deliveryWorkspace.applyDespiteElsewhere">
+              <span class="nav-ko">그래도 이 탭에 반영 (비권장)</span>
+              <span class="nav-en" style="display:none">Apply to this tab anyway (not recommended)</span>
+            </button>
+            {% endif %}
+            {% if ws_warn and ws_warn != 'fix_elsewhere' %}
+            <button type="submit" class="btn btn-outline-warning btn-sm" name="force_apply" value="1"
+                    form="dw-apply-form-{{ sl.index }}"
+                    data-app-confirm-i18n="deliveryWorkspace.applyForceConfirm">
+              <span class="nav-ko">그래도 반영</span>
+              <span class="nav-en" style="display:none">Apply anyway</span>
+            </button>
+            {% endif %}
+          </div>
+        </form>
       </div>
       {% endif %}
     </div>
@@ -226,7 +274,7 @@
   {% endfor %}
   {% endif %}
 </div>
-<script src="/static/js/delivery_workspace.js?v=20260529dwfix"></script>
+<script src="/static/js/delivery_workspace.js?v=20260529dwsug"></script>
 <script>
 (function () {
   var root = document.getElementById('delivery-workspace');
@@ -264,7 +312,11 @@
     var ok = params.get('ws_ok');
     if (ok === 'suggested' || ok === 'suggested_elsewhere') {
       var block = root.querySelector('[data-dw-suggestion-block]');
-      if (block) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (block) {
+        var sugPanel = block.querySelector('.dw-suggestion-source-panel');
+        if (sugPanel) sugPanel.open = true;
+        block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
   } catch (e) { /* ignore */ }
 })();

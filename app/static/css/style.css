@@ -3461,6 +3461,12 @@ html[data-theme="light"] .btn-dw-reset-working:hover,
 html[data-theme="light"] .btn-dw-reset-working:focus {
   color: #fff;
 }
+.dw-suggestion-source-panel > summary {
+  color: var(--primary-light, var(--primary));
+}
+html[data-theme="light"] .dw-suggestion-source-panel > summary {
+  color: var(--primary);
+}
 .dw-source-editor .dw-source-input:focus {
   box-shadow: none;
 }
