@@ -53,6 +53,10 @@ def format_parsed_step_answer(o: dict) -> str:
     return free
 
 
-def step_payload_valid(o: dict) -> bool:
+def step_payload_valid(o: dict, suggestion_groups: list | None = None) -> bool:
+    from .interview_suggestions import validate_step_payload_with_groups
+
+    if validate_step_payload_with_groups(o, suggestion_groups) is not None:
+        return False
     t = format_parsed_step_answer(o).strip()
     return len(t.replace(" ", "").replace("\n", "")) >= 2

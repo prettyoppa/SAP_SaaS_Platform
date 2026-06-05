@@ -94,17 +94,25 @@ def run_interview_qa_enhancement(
     question: str,
     suggested_answers: list,
     interview_lang: str = "ko",
-) -> tuple[str, list[str]]:
+) -> tuple[str, list[str], list[dict]]:
     """
     B: 요구분석 합불 → 불합이면 질의 1회 재작성 → A: 제안검수 최종(질문·선지 전면 대체 가능).
     """
+    from ..interview_suggestions import finalize_suggestion_payload
+
     q0 = (question or "").strip()
     sa0 = _normalize_suggested_answers(list(suggested_answers or []))
+    ilang = normalize_interview_lang(interview_lang)
+
+    def _pack(flat: list[str], groups: list[dict] | None) -> tuple[str, list[str], list[dict]]:
+        p = finalize_suggestion_payload(flat, groups, lang=ilang)
+        return q0 if not flat and not groups else (q0), p["suggested_answers"], p["suggestion_groups"]
+
     if not _interview_qa_enhance_enabled() or not q0:
-        return q0, sa0
+        p = finalize_suggestion_payload(sa0, None, lang=ilang)
+        return q0, p["suggested_answers"], p["suggestion_groups"]
 
     f_analyst, f_questioner, _, f_reviewer = _make_agents(llm)
-    ilang = normalize_interview_lang(interview_lang)
     rfp_ctx = _fmt_rfp(rfp_data)
     conv_ctx = _fmt_conv(conversation)
     if len(conv_ctx) > 6000:
@@ -121,6 +129,7 @@ def run_interview_qa_enhancement(
             lib_snip = f"\n[유사 코드 요약 일부]\n{summ[:1500]}\n"
 
     q, sa = q0, sa0
+    groups: list[dict] = []
     sa_lines = "\n".join(f"- {x}" for x in sa[:MAX_SUGGESTED_ANSWERS]) or "(없음)"
 
     gate_task = Task(
@@ -148,7 +157,8 @@ def run_interview_qa_enhancement(
 판정 (하나라도 심각하면 pass=false):
 - **한 질문=한 가지**인가? (또는 질문·선에 **둘 이상 주제**가 섞이면 불합. 한 선지에 둘 이상 끼인 경우도 마찬가지)
 - RFP·이전 Q&A에 **이미 확답**한 취지를 **다시 묻는가**? (그렇다면 불합)
-- RFP에 애매한 **한국어/업말**이 있을 때 임의로 "Delivery category" 등 **틀릴 수 있는** 영어/SAP 풀어쓰기로 덮지 않고 **뜻을 묻는**가? (아니라면 불합. Schedule line category 와 'Delivery category' 를 혼동·동치하지 말라.)
+- **상호배타 정책**(한다/하지 않는다, 무조건 변경/변경 안 함)이 suggested_answers에 **나란히** 있으면 불합 — suggestion_groups exclusive 로 재작성 필요.
+- RFP에 애매한 **한국어/업말**이 있을 때 임의로 "Delivery category" 등 **틀릴 수 있는** 영어/SAP 풀어쓰기로 덮지 않고 **뜻을 묻는**가? (아니라면 불합.)
 - 2~{MAX_SUGGESTED_ANSWERS}개, 각 **한 요지**의 완성 답
 
 출력 JSON 한 블록만:
@@ -169,7 +179,7 @@ def run_interview_qa_enhancement(
 
     if not ok and issues.strip():
         retry_task = Task(
-            description=f"""아래 **검토 사유**를 반드시 반영해 인터뷰 질문 1개와 suggested_answers 를 **다시** 작성하라.
+            description=f"""아래 **검토 사유**를 반드시 반영해 인터뷰 질문 1개와 선지를 **다시** 작성하라.
 
 [검토 사유]
 {issues}
@@ -187,8 +197,8 @@ def run_interview_qa_enhancement(
 
 {_mia_prompt(ilang)}
 
-출력 JSON 한 블록만:
-{{"question": "...", "suggested_answers": ["...", "..."]}} (2~{MAX_SUGGESTED_ANSWERS}개)""",
+출력 JSON (suggestion_groups 권장):
+{{"question": "...", "suggestion_groups": [{{"id": "main", "mode": "exclusive", "options": ["...", "..."]}}]}}""",
             agent=f_questioner,
             expected_output="JSON",
         )
@@ -199,9 +209,14 @@ def run_interview_qa_enhancement(
                 process=Process.sequential,
                 verbose=False,
             )
-            rq, rsa = _parse_question_and_suggestions(str(_kickoff_logged(rc, stage="interview", agent_key="f_questioner")))
+            rq, rsa, rgroups = _parse_question_and_suggestions(
+                str(_kickoff_logged(rc, stage="interview", agent_key="f_questioner")),
+                interview_lang=ilang,
+            )
             if rq:
-                q, sa = rq, _normalize_suggested_answers(rsa)
+                q = rq
+                sa = _normalize_suggested_answers(rsa)
+                groups = rgroups
                 if len(sa) < 2:
                     more = generate_suggested_answers_for_question(
                         rfp_data, q, round_num, 1, interview_lang=ilang
@@ -233,10 +248,10 @@ def run_interview_qa_enhancement(
 {_mia_prompt(ilang)}
 
 {interview_reviewer_language_line(ilang)}
-- suggested_answers 는 2~{MAX_SUGGESTED_ANSWERS}개, 복수 선택 가능한 완성 답
+- 택1 정책은 **suggestion_groups exclusive**. 상호배타를 suggested_answers 두 줄로 나란히 두지 마라.
 
-출력 JSON 한 블록만:
-{{"question": "...", "suggested_answers": ["...", "..."]}}""",
+출력 JSON (suggestion_groups 권장):
+{{"question": "...", "suggestion_groups": [{{"id": "main", "mode": "exclusive", "options": ["...", "..."]}}]}}""",
         agent=f_reviewer,
         expected_output="JSON",
     )
@@ -247,14 +262,18 @@ def run_interview_qa_enhancement(
             process=Process.sequential,
             verbose=False,
         )
-        fq, fsa = _parse_question_and_suggestions(str(_kickoff_logged(rev_crew, stage="interview", agent_key="f_reviewer")))
+        fq, fsa, fgroups = _parse_question_and_suggestions(
+            str(_kickoff_logged(rev_crew, stage="interview", agent_key="f_reviewer")),
+            interview_lang=ilang,
+        )
         if fq:
             if len(fsa) < 2:
                 more = generate_suggested_answers_for_question(
                     rfp_data, fq, round_num, 1, interview_lang=ilang
                 )
                 fsa = _normalize_suggested_answers(list(fsa) + list(more))
-            return fq[:2000], fsa
+            p = finalize_suggestion_payload(fsa, fgroups or None, lang=ilang)
+            return fq[:2000], p["suggested_answers"], p["suggestion_groups"]
     except Exception:
         pass
     if len(sa) < 2 and q:
@@ -262,7 +281,8 @@ def run_interview_qa_enhancement(
             rfp_data, q, round_num, 1, interview_lang=ilang
         )
         sa = _normalize_suggested_answers(list(sa) + list(more))
-    return q, sa
+    p = finalize_suggestion_payload(sa, groups or None, lang=ilang)
+    return q[:2000], p["suggested_answers"], p["suggestion_groups"]
 
 
 def _interview_source_after_enhance() -> str:
@@ -534,17 +554,20 @@ def _normalize_suggested_answers(items) -> list[str]:
     return out
 
 
-def _parse_one_question(raw: str) -> str:
-    q, _ = _parse_question_and_suggestions(raw)
+def _parse_one_question(raw: str, *, interview_lang: str = "ko") -> str:
+    q, _, _ = _parse_question_and_suggestions(raw, interview_lang=interview_lang)
     return q
 
 
-def _parse_question_and_suggestions(raw: str) -> tuple[str, list[str]]:
-    """크루 출력에서 question + suggested_answers(있으면) 추출."""
+def _parse_question_and_suggestions(raw: str, *, interview_lang: str = "ko") -> tuple[str, list[str], list[dict]]:
+    """크루 출력에서 question + suggested_answers + suggestion_groups 추출."""
+    from ..interview_suggestions import parse_suggestions_from_llm_json
+
     s = (raw or "").strip()
     sugg: list[str] = []
+    groups: list[dict] = []
     if not s:
-        return "", []
+        return "", [], []
     src = s
     if "```" in s:
         m = re.search(r"```(?:json)?\s*([\s\S]*?)```", s)
@@ -554,24 +577,29 @@ def _parse_question_and_suggestions(raw: str) -> tuple[str, list[str]]:
         j = json.loads(src)
         if isinstance(j, dict):
             q = (j.get("question") or "").strip()
-            sa = j.get("suggested_answers")
-            if isinstance(sa, list):
-                sugg = _normalize_suggested_answers(sa)
+            packed = parse_suggestions_from_llm_json(j, lang=interview_lang)
+            sugg = list(packed.get("suggested_answers") or [])
+            groups = list(packed.get("suggestion_groups") or [])
             if q:
-                return q[:2000], sugg
+                return q[:2000], sugg, groups
     except Exception:
         pass
-    # 폴백: 질문만
     qonly = _parse_one_question_legacy_block(s)
-    return qonly, sugg
+    return qonly, sugg, groups
 
 
-def _parse_followup_result(raw: str) -> dict:
+def _parse_followup_result(raw: str, *, interview_lang: str = "ko") -> dict:
     """
-    Mia 후속: round_complete, next_question, suggested_answers.
-    하위호환: question 키만 있으면 next_question으로 승급, round_complete는 False.
+    Mia 후속: round_complete, next_question, suggested_answers, suggestion_groups.
     """
-    out: dict = {"round_complete": False, "next_question": "", "suggested_answers": []}
+    from ..interview_suggestions import parse_suggestions_from_llm_json
+
+    out: dict = {
+        "round_complete": False,
+        "next_question": "",
+        "suggested_answers": [],
+        "suggestion_groups": [],
+    }
     s = (raw or "").strip()
     if not s:
         return out
@@ -591,19 +619,19 @@ def _parse_followup_result(raw: str) -> dict:
             if not nq and not out["round_complete"]:
                 nq = (j.get("question") or "").strip()
             out["next_question"] = nq[:2000] if nq else ""
-            sa = j.get("suggested_answers")
-            if isinstance(sa, list):
-                out["suggested_answers"] = _normalize_suggested_answers(sa)
+            packed = parse_suggestions_from_llm_json(j, lang=interview_lang)
+            out["suggested_answers"] = list(packed.get("suggested_answers") or [])
+            out["suggestion_groups"] = list(packed.get("suggestion_groups") or [])
             if out["round_complete"]:
                 out["next_question"] = ""
             return out
     except Exception:
         pass
-    # 레거시: question + suggested_answers
-    nq, sugg = _parse_question_and_suggestions(raw)
+    nq, sugg, groups = _parse_question_and_suggestions(raw, interview_lang=interview_lang)
     if nq:
         out["next_question"] = nq
     out["suggested_answers"] = sugg
+    out["suggestion_groups"] = groups
     return out
 
 
@@ -724,7 +752,7 @@ def generate_sequential_start(
                 su = generate_suggested_answers_for_question(
                     rfp_data, qs[0], round_num, 1, interview_lang=ilang
                 )
-                q_out, su_out = qs[0], su
+                q_out, su_out, groups_out = qs[0], su, []
                 out_src = ctx.get(
                     "source",
                     "내부 유사 사례 기반" if member_safe_output else "코드 라이브러리 기반",
@@ -732,7 +760,7 @@ def generate_sequential_start(
                 if _interview_qa_enhance_enabled() and (q_out or "").strip():
                     try:
                         llm_lib = _get_llm()
-                        q2, a2 = run_interview_qa_enhancement(
+                        q2, a2, g2 = run_interview_qa_enhancement(
                             llm_lib,
                             rfp_data,
                             conversation,
@@ -745,18 +773,23 @@ def generate_sequential_start(
                             interview_lang=ilang,
                         )
                         if q2 and str(q2).strip():
-                            q_out, su_out, out_src = (
+                            q_out, su_out, groups_out = (
                                 str(q2).strip(),
                                 a2,
-                                _interview_source_after_enhance(),
+                                g2,
                             )
+                            out_src = _interview_source_after_enhance()
                     except Exception:
                         pass
+                from ..interview_suggestions import finalize_suggestion_payload
+
+                packed = finalize_suggestion_payload(su_out, groups_out or None, lang=ilang)
                 return {
                     "questions": [q_out],
                     "library_pool": rest,
                     "source": out_src,
-                    "suggested_answers": su_out,
+                    "suggested_answers": packed["suggested_answers"],
+                    "suggestion_groups": packed["suggestion_groups"],
                 }
         except Exception:
             pass
@@ -813,10 +846,10 @@ def generate_sequential_start(
 
 질문은 한 가지 결정만 담는다. 고객(비전문가)이 이해할 수 있는 말로, 이전 라운드에서 끝난 주제는 반복하지 않는다.
 
-또한 같은 JSON에 suggested_answers: 2~{MAX_SUGGESTED_ANSWERS}개(최대 {MAX_SUGGESTED_ANSWERS}개), 위 [답안 버튼] 규칙 준수.
+또한 같은 JSON에 **suggestion_groups** (exclusive 택1 권장) 또는 suggested_answers(하위호환).
 
 출력(반드시 JSON, 한 블록):
-{{"question": "...", "suggested_answers": ["...", "..."]}}""",
+{{"question": "...", "suggestion_groups": [{{"id": "main", "mode": "exclusive", "options": ["...", "..."]}}]}}""",
         agent=f_questioner,
         expected_output='{"question": "...", "suggested_answers": []}',
         context=[analyze_task],
@@ -829,9 +862,9 @@ def generate_sequential_start(
     )
     try:
         result = _kickoff_logged(crew, stage="proposal", agent_key="f_writer")
-        q1, sugg = _parse_question_and_suggestions(str(result))
+        q1, sugg, groups = _parse_question_and_suggestions(str(result), interview_lang=ilang)
     except Exception:
-        q1, sugg = "", []
+        q1, sugg, groups = "", [], []
     if not q1:
         q1 = default_interview_question(ilang, 0)
     if len(sugg) < 2:
@@ -842,7 +875,7 @@ def generate_sequential_start(
     src_out = agents_ai_source_ko("f_analyst", "f_questioner")
     if _interview_qa_enhance_enabled() and (q1 or "").strip():
         try:
-            q1, sugg = run_interview_qa_enhancement(
+            q1, sugg, groups = run_interview_qa_enhancement(
                 llm,
                 rfp_data,
                 conversation,
@@ -857,10 +890,14 @@ def generate_sequential_start(
             src_out = _interview_source_after_enhance()
         except Exception:
             pass
+    from ..interview_suggestions import finalize_suggestion_payload
+
+    packed = finalize_suggestion_payload(sugg, groups or None, lang=ilang)
     return {
         "questions": [q1],
         "library_pool": [],
-        "suggested_answers": sugg,
+        "suggested_answers": packed["suggested_answers"],
+        "suggestion_groups": packed["suggestion_groups"],
         "source": src_out,
     }
 
@@ -965,13 +1002,12 @@ RFP: {rfp_ctx}
 
 {_mia_prompt(ilang)}
 
-- round_complete 가 true이면 next_question 은 null 또는 "" 이고, suggested_answers 는 빈 배열이어도 된다.
-- round_complete 가 false이면 next_question: 15자 이상, **한 가지만**. 질문에 '또한/그리고'로 **두 주제**를 섞지 마라(선지에만 나열할 수 있는 **긴 시나리오**를 질문에 사전에 복붙하지 말라).
-- suggested_answers: 2~{MAX_SUGGESTED_ANSWERS}개(위 [답안 버튼] 규칙). **각 항목은 next_question에 대한 응답만**, 한 항목에 **두 가지를 합쳐 쓰지 마라.**
+- round_complete 가 false이면 next_question: 15자 이상, **한 가지만**. 질문에 '또한/그리고'로 **두 주제**를 섞지 마라.
+- **suggestion_groups** (exclusive 택1 권장) 또는 suggested_answers(하위호환). 상호배타 정책을 suggested_answers 두 줄로 나란히 두지 마라.
 
-출력 예시(형식만 참고, 내용은 RFP·답에 맞게):
-{{"round_complete": false, "next_question": "...", "suggested_answers": ["...", "..."]}}
-{{"round_complete": true, "next_question": null, "suggested_answers": []}}""",
+출력 예시(형식만 참고):
+{{"round_complete": false, "next_question": "...", "suggestion_groups": [{{"id": "main", "mode": "exclusive", "options": ["...", "..."]}}]}}
+{{"round_complete": true, "next_question": null, "suggestion_groups": []}}""",
         agent=f_questioner,
         expected_output='{"round_complete": true/false, "next_question": "...", "suggested_answers": []}',
         context=[analyze_task],
@@ -984,41 +1020,38 @@ RFP: {rfp_ctx}
     )
     try:
         out = str(_kickoff_logged(crew, stage="proposal", agent_key="f_analyst"))
-        parsed = _parse_followup_result(out)
+        parsed = _parse_followup_result(out, interview_lang=ilang)
     except Exception:
-        parsed = {"round_complete": False, "next_question": "", "suggested_answers": []}
+        parsed = {
+            "round_complete": False,
+            "next_question": "",
+            "suggested_answers": [],
+            "suggestion_groups": [],
+        }
 
     rc = bool(parsed.get("round_complete"))
     nq = (parsed.get("next_question") or "").strip()
     sugg = list(parsed.get("suggested_answers") or [])
+    groups = list(parsed.get("suggestion_groups") or [])
+
+    empty_ret = {
+        "round_complete": True,
+        "next_question": "",
+        "library_pool": library_pool,
+        "suggested_answers": [],
+        "suggestion_groups": [],
+        "source": agents_ai_source_ko("f_analyst", "f_questioner"),
+    }
 
     if n_done >= hard_cap:
-        return {
-            "round_complete": True,
-            "next_question": "",
-            "library_pool": library_pool,
-            "suggested_answers": [],
-            "source": agents_ai_source_ko("f_analyst", "f_questioner"),
-        }
+        return empty_ret
 
     if rc:
-        return {
-            "round_complete": True,
-            "next_question": "",
-            "library_pool": library_pool,
-            "suggested_answers": [],
-            "source": agents_ai_source_ko("f_analyst", "f_questioner"),
-        }
+        return empty_ret
 
     if not nq or len(nq) < 15:
         if n_done >= 2:
-            return {
-                "round_complete": True,
-                "next_question": "",
-                "library_pool": library_pool,
-                "suggested_answers": [],
-                "source": agents_ai_source_ko("f_analyst", "f_questioner"),
-            }
+            return empty_ret
         i = min(n_done, len(defaults) - 1)
         nq = defaults[min(i + 1, len(defaults) - 1)]
     if len(sugg) < 2 and nq:
@@ -1029,7 +1062,7 @@ RFP: {rfp_ctx}
     src_fu = agents_ai_source_ko("f_analyst", "f_questioner")
     if nq and _interview_qa_enhance_enabled():
         try:
-            nq, sugg = run_interview_qa_enhancement(
+            nq, sugg, groups = run_interview_qa_enhancement(
                 llm,
                 rfp_data,
                 conversation,
@@ -1044,11 +1077,15 @@ RFP: {rfp_ctx}
             src_fu = _interview_source_after_enhance()
         except Exception:
             pass
+    from ..interview_suggestions import finalize_suggestion_payload
+
+    packed = finalize_suggestion_payload(sugg, groups or None, lang=ilang)
     return {
         "round_complete": False,
         "next_question": nq,
         "library_pool": library_pool,
-        "suggested_answers": sugg,
+        "suggested_answers": packed["suggested_answers"],
+        "suggestion_groups": packed["suggestion_groups"],
         "source": src_fu,
     }
 

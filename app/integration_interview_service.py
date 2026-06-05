@@ -15,6 +15,7 @@ from .integration_crew_adapter import integration_request_to_crew_rfp_dict, _mem
 from .integration_hub import integration_hub_url
 from .ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
 from .interview_locale import interview_lang_for_user
+from .interview_suggestions import apply_suggestions_to_intra, wizard_suggestion_context
 from .subscription_catalog import METRIC_DEV_PROPOSAL
 from .subscription_quota import try_consume_monthly
 from .agent_playbook import (
@@ -25,7 +26,6 @@ from .agent_playbook import (
 )
 from .routers.interview_router import (
     _answer_block_for_export,
-    _cap_suggestions,
     _conversation_list_for_llm,
     _draft_wip_as_dict,
     _draft_wip_free_text,
@@ -36,6 +36,10 @@ from .routers.interview_router import (
     _messages_to_list,
     _parse_intra,
 )
+
+
+def _wizard_suggest_ctx(intra: dict | None, user) -> dict[str, Any]:
+    return wizard_suggestion_context(intra, lang=interview_lang_for_user(user))
 
 
 def _playbook_addon_integration(db: Session, stage: str) -> str:
@@ -203,7 +207,7 @@ def serve_integration_interview_workspace(
             "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
             "interview_draft_wip": "",
             "interview_draft_payload": {"v": 1, "like": [], "dislike": [], "free": ""},
-            "answer_suggestions": [],
+            **_wizard_suggest_ctx(None, user),
         }
         if seq and intra is not None:
             ctx_extra["interview_draft_wip"] = _draft_wip_free_text((intra or {}).get("draft_wip", "") or "")
@@ -221,7 +225,7 @@ def serve_integration_interview_workspace(
                 {"q": current_questions[i], "a": _answer_block_for_export(ans[i])}
                 for i in range(min(qi, len(current_questions)))
             ]
-            ctx_extra["answer_suggestions"] = _cap_suggestions((intra or {}).get("current_suggestions"))
+            ctx_extra.update(_wizard_suggest_ctx(intra, user))
         wizard_ctx = {
             "request": request,
             "user": user,
@@ -323,16 +327,22 @@ def serve_integration_interview_workspace(
             "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
             "interview_draft_wip": "",
             "interview_draft_payload": {"v": 1, "like": [], "dislike": [], "free": ""},
-            "answer_suggestions": [],
+            **_wizard_suggest_ctx(None, user),
         }
         return IntegrationInterviewWorkspaceOutcome(kind="wizard", wizard_ctx=wizard_ctx)
 
-    intra_new = {
+    intra_new: dict[str, Any] = {
         "v": 2,
         "answers_so_far": [],
         "library_pool": list(result.get("library_pool") or []),
-        "current_suggestions": _cap_suggestions(result.get("suggested_answers")),
     }
+    apply_suggestions_to_intra(
+        intra_new,
+        {
+            "suggested_answers": result.get("suggested_answers"),
+            "suggestion_groups": result.get("suggestion_groups"),
+        },
+    )
     new_msg = models.IntegrationInterviewMessage(
         integration_request_id=ir.id,
         round_number=next_round,
@@ -370,6 +380,6 @@ def serve_integration_interview_workspace(
         "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
         "interview_draft_wip": _draft_wip_free_text(intra_r.get("draft_wip", "") or ""),
         "interview_draft_payload": _draft_wip_as_dict(intra_r.get("draft_wip", "") or ""),
-        "answer_suggestions": intra_r.get("current_suggestions") or [],
+        **_wizard_suggest_ctx(intra_r, user),
     }
     return IntegrationInterviewWorkspaceOutcome(kind="wizard", wizard_ctx=wizard_ctx)

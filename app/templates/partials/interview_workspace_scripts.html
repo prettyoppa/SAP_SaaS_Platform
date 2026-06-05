@@ -1,33 +1,47 @@
+<script src="/static/js/interview_suggestion_ui.js?v=20260529suggest"></script>
 <script>
 (function () {
+  var UI = window.InterviewSuggestionUI;
   function buildPayload() {
-    var rows = document.querySelectorAll('.interview-suggestion-row');
-    var like = [];
-    var dislike = [];
-    for (var i = 0; i < rows.length; i++) {
-      var row = rows[i];
-      var t = row.getAttribute('data-suggestion') || '';
-      t = t.trim();
-      if (!t) continue;
-      var v = row.dataset.vote || 'none';
-      if (v === 'like') like.push(t);
-      else if (v === 'dislike') dislike.push(t);
-    }
     var ta = document.getElementById('seq-answer-input');
     var free = ta ? (ta.value || '').trim() : '';
-    return { v: 1, like: like, dislike: dislike, free: free };
+    if (UI) {
+      var p = UI.buildPayloadFromRows(document.querySelectorAll('.interview-suggestion-row'));
+      p.free = free;
+      return p;
+    }
+    return { v: 1, like: [], dislike: [], free: free };
   }
   function isPayloadValid(p) {
-    if (!p) return false;
-    var text = '';
-    if (p.like && p.like.length) text += p.like.join(' ');
-    if (p.dislike && p.dislike.length) text += p.dislike.join(' ');
-    if (p.free) text += p.free;
-    return text.replace(/\s/g, '').length >= 2;
+    if (!UI) {
+      if (!p) return false;
+      var text = '';
+      if (p.like && p.like.length) text += p.like.join(' ');
+      if (p.dislike && p.dislike.length) text += p.dislike.join(' ');
+      if (p.free) text += p.free;
+      return text.replace(/\s/g, '').length >= 2;
+    }
+    var groups = UI.parseJsonEl('answer-suggestion-groups-data') || [];
+    var enabledEl = UI.parseJsonEl('interview-suggestion-groups-enabled');
+    var groupsEnabled = enabledEl === true || enabledEl === 'true';
+    return !UI.validatePayload(p, groupsEnabled ? groups : null, (document.getElementById('seq-answer-input') || {}).value || '');
   }
   function syncHiddenPayload() {
     var hid = document.getElementById('answer-payload-json');
     if (hid) hid.value = JSON.stringify(buildPayload());
+  }
+  function alertForValidation() {
+    if (!UI) {
+      alert('좋아요·싫어요로 선택하거나, 보충/추가 란에 답을 입력해 주세요. (임시저장은 AI에게 문의 버튼 바로 위)');
+      return;
+    }
+    var p = buildPayload();
+    var groups = UI.parseJsonEl('answer-suggestion-groups-data') || [];
+    var enabledEl = UI.parseJsonEl('interview-suggestion-groups-enabled');
+    var groupsEnabled = enabledEl === true || enabledEl === 'true';
+    var ta = document.getElementById('seq-answer-input');
+    var code = UI.validatePayload(p, groupsEnabled ? groups : null, ta ? ta.value : '');
+    alert(UI.alertForCode(code || 'empty'));
   }
 
   const form = document.getElementById('iv-answer-form');
@@ -70,88 +84,52 @@
 
   const seqForm = document.getElementById('iv-seq-form');
   const seqBtn = document.getElementById('seq-next-btn');
-  var suggData = document.getElementById('answer-suggestions-data');
   var suggHost = document.getElementById('answer-suggestion-rows');
-  if (suggData && suggHost && seqIn) {
-    try {
-      var items = JSON.parse(suggData.textContent || '[]');
-      var draftEl = document.getElementById('interview-draft-payload');
-      var draft = { v: 1, like: [], dislike: [], free: '' };
-      if (draftEl) {
-        try { draft = JSON.parse(draftEl.textContent || '{}'); } catch (e1) {}
-      }
-      if (Array.isArray(items)) {
-        var likeSet = {};
-        (draft.like || []).forEach(function (x) { if (x) likeSet[String(x).trim()] = true; });
-        var dislikeSet = {};
-        (draft.dislike || []).forEach(function (x) { if (x) dislikeSet[String(x).trim()] = true; });
-        items.forEach(function (txt) {
-          if (!txt || String(txt).trim().length < 1) return;
-          var t = String(txt).trim();
-          var row = document.createElement('div');
-          row.className = 'interview-suggestion-row';
-          row.setAttribute('data-suggestion', t);
-          if (likeSet[t]) { row.classList.add('is-like'); }
-          else if (dislikeSet[t]) { row.classList.add('is-dislike'); }
-          var span = document.createElement('span');
-          span.className = 'sug-text';
-          span.textContent = t;
-          var vote = document.createElement('div');
-          vote.className = 'sug-vote';
-          var btnL = document.createElement('button');
-          btnL.type = 'button';
-          btnL.className = 'btn interview-svote-btn svote-like btn-outline-success';
-          btnL.title = '이 답·방향 (복수 가능)';
-          btnL.setAttribute('aria-pressed', row.classList.contains('is-like') ? 'true' : 'false');
-          btnL.innerHTML = '<i class="fa-solid fa-thumbs-up" aria-hidden="true"></i>';
-          var btnD = document.createElement('button');
-          btnD.type = 'button';
-          btnD.className = 'btn interview-svote-btn svote-dislike btn-outline-danger';
-          btnD.title = '이 행은 맞지 않음';
-          btnD.setAttribute('aria-pressed', row.classList.contains('is-dislike') ? 'true' : 'false');
-          btnD.innerHTML = '<i class="fa-solid fa-thumbs-down" aria-hidden="true"></i>';
-          function syncRowStyle() {
-            row.classList.remove('is-like', 'is-dislike');
-            if (row.dataset.vote === 'like') row.classList.add('is-like');
-            if (row.dataset.vote === 'dislike') row.classList.add('is-dislike');
-            btnL.classList.toggle('active', row.dataset.vote === 'like');
-            btnD.classList.toggle('active', row.dataset.vote === 'dislike');
-            syncHiddenPayload();
-          }
-          row.dataset.vote = 'none';
-          if (row.classList.contains('is-like')) row.dataset.vote = 'like';
-          if (row.classList.contains('is-dislike')) row.dataset.vote = 'dislike';
-          syncRowStyle();
-          btnL.addEventListener('click', function () {
-            if (row.dataset.vote === 'like') { row.dataset.vote = 'none'; }
-            else { row.dataset.vote = 'like'; }
-            syncRowStyle();
-          });
-          btnD.addEventListener('click', function () {
-            if (row.dataset.vote === 'dislike') { row.dataset.vote = 'none'; }
-            else { row.dataset.vote = 'dislike'; }
-            syncRowStyle();
-          });
-          vote.appendChild(btnL);
-          vote.appendChild(btnD);
-          row.appendChild(span);
-          row.appendChild(vote);
-          suggHost.appendChild(row);
-        });
-      }
-    } catch (e) {}
+  if (UI && suggHost && seqIn) {
+    var flatItems = UI.parseJsonEl('answer-suggestions-data') || [];
+    var groups = UI.parseJsonEl('answer-suggestion-groups-data') || [];
+    var enabledEl = UI.parseJsonEl('interview-suggestion-groups-enabled');
+    var groupsEnabled = enabledEl === true || enabledEl === 'true';
+    var draft = UI.parseJsonEl('interview-draft-payload') || { v: 1, like: [], dislike: [], free: '' };
+    if ((groupsEnabled && groups.length) || (flatItems && flatItems.length)) {
+      UI.mount({
+        hostId: 'answer-suggestion-rows',
+        groupsEnabled: groupsEnabled,
+        groups: groups,
+        flatItems: flatItems,
+        draft: draft,
+        onSync: syncHiddenPayload,
+      });
+    }
   }
   if (seqIn) {
     seqIn.addEventListener('input', function () { syncHiddenPayload(); });
   }
   syncHiddenPayload();
+
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var ansCode = params.get('ans');
+    if (ansCode && UI) {
+      alert(UI.alertForCode(ansCode));
+      params.delete('ans');
+      var qs = params.toString();
+      var next = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+      window.history.replaceState({}, '', next);
+    } else if (ansCode === 'empty') {
+      alertForValidation();
+      params.delete('ans');
+      var qs2 = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs2 ? '?' + qs2 : '') + window.location.hash);
+    }
+  } catch (eAns) {}
+
   if (seqForm && seqBtn) {
     seqForm.addEventListener('submit', function (e) {
       syncHiddenPayload();
-      var p = buildPayload();
-      if (!isPayloadValid(p)) {
+      if (!isPayloadValid(buildPayload())) {
         e.preventDefault();
-        alert('좋아요·싫어요로 선택하거나, 보충/추가 란에 답을 입력해 주세요. (임시저장은 AI에게 문의 버튼 바로 위)');
+        alertForValidation();
         return;
       }
       seqBtn.disabled = true;
