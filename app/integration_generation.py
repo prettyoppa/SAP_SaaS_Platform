@@ -18,6 +18,7 @@ from .agent_playbook import (
     playbook_prompt_wrap,
 )
 from .database import SessionLocal
+from .delivery_workspace import clear_delivered_code_working_copy
 from .ai_usage_billing import ai_usage_context_for_delivery_job
 from .ai_usage_recorder import ai_usage_scope, logged_crew_kickoff
 from .delivered_code_package import (
@@ -323,6 +324,7 @@ def run_integration_deliverable_job(ir_id: int, billing_user_id: int) -> None:
         ir.delivered_code_status = "ready"
         ir.delivered_code_generated_at = datetime.utcnow()
         ir.delivered_code_error = None
+        clear_delivered_code_working_copy(ir)
         db.commit()
         append_integration_job_log(ir_id, "delivered_job_log", "구현 산출물 저장 완료")
         from .kb_request_flow import schedule_request_kb_flow

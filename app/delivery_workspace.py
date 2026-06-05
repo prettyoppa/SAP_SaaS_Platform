@@ -142,6 +142,19 @@ def get_official_package(row: Any, request_kind: str) -> dict[str, Any] | None:
     return parse_package(getattr(row, "delivered_code_payload", None), request_kind)
 
 
+def has_delivered_code_working_copy(row: Any) -> bool:
+    """DB에 SE38 작업본 JSON이 저장되어 있는지."""
+    return bool((getattr(row, "delivered_code_working_payload", None) or "").strip())
+
+
+def clear_delivered_code_working_copy(row: Any) -> bool:
+    """SE38 작업본만 삭제. 공식 delivered_code_payload·상태는 유지."""
+    if not has_delivered_code_working_copy(row):
+        return False
+    row.delivered_code_working_payload = None
+    return True
+
+
 def get_working_package(db: Session, row: Any, request_kind: str) -> dict[str, Any] | None:
     """작업 복사본 반환. 없으면 공식 납품에서 fork(공식 payload는 변경하지 않음)."""
     kind = normalize_request_kind(request_kind)

@@ -21,6 +21,7 @@ from .database import SessionLocal
 from .ai_usage_billing import ai_usage_context_for_delivery_job
 from .ai_usage_recorder import ai_usage_scope
 from .delivery_fs_supplements import KIND_ANALYSIS, resolved_delivery_fs_for_codegen
+from .delivery_workspace import clear_delivered_code_working_copy
 from .delivery_proposal_supplements import resolved_delivery_proposal_for_downstream
 from .delivered_code_package import (
     delivered_package_has_body,
@@ -395,6 +396,7 @@ def run_abap_analysis_delivered_code_job(analysis_id: int, billing_user_id: int)
             row.delivered_code_status = "ready"
             row.delivered_code_generated_at = datetime.utcnow()
             row.delivered_code_error = None
+            clear_delivered_code_working_copy(row)
         else:
             row.delivered_code_status = "failed"
             row.delivered_code_error = gen_error

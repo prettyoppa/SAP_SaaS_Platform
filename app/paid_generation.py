@@ -17,6 +17,7 @@ from .agent_display import agent_label_ko
 from .agents.agent_tools import get_code_library_context
 from .agents.paid_crew import generate_delivered_abap_artifact, generate_fs_markdown
 from .database import SessionLocal
+from .delivery_workspace import clear_delivered_code_working_copy
 from .ai_usage_billing import ai_usage_context_for_delivery_job
 from .ai_usage_recorder import ai_usage_scope
 
@@ -321,6 +322,7 @@ def run_delivered_code_job(rfp_id: int, billing_user_id: int) -> None:
             rfp.delivered_code_status = "ready"
             rfp.delivered_code_generated_at = datetime.utcnow()
             rfp.delivered_code_error = None
+            clear_delivered_code_working_copy(rfp)
         else:
             rfp.delivered_code_status = "failed"
             rfp.delivered_code_error = gen_error

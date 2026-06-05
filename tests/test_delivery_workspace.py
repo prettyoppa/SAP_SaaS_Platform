@@ -8,12 +8,15 @@ import unittest
 from app import models
 from app.database import Base, SessionLocal, engine
 from app.delivery_fs_supplements import KIND_RFP
+from app.delivery_fs_clear import clear_delivered_code_deliverable
 from app.delivery_workspace import (
     apply_slot_source,
+    clear_delivered_code_working_copy,
     clear_pending_suggestion,
     get_official_package,
     get_pending_suggestion,
     get_working_package,
+    has_delivered_code_working_copy,
     normalize_request_kind,
     parse_package,
     set_pending_suggestion,
@@ -204,6 +207,67 @@ class DeliveryWorkspaceTests(unittest.TestCase):
         self.db.commit()
         pkg2 = get_working_package(self.db, rfp, KIND_RFP)
         self.assertIsNone(get_pending_suggestion(pkg2, 0))
+
+    def test_clear_working_copy_only(self):
+        consultant = models.User(
+            email="c4@example.com",
+            full_name="C4",
+            hashed_password="x",
+            is_consultant=True,
+        )
+        self.db.add(consultant)
+        self.db.commit()
+        rfp = models.RFP(
+            user_id=int(consultant.id),
+            title="t",
+            delivered_code_status="ready",
+            delivered_code_payload=_normalized_sample_json(),
+        )
+        self.db.add(rfp)
+        self.db.commit()
+        self.db.refresh(rfp)
+
+        get_working_package(self.db, rfp, KIND_RFP)
+        self.db.commit()
+        self.db.refresh(rfp)
+        self.assertTrue(has_delivered_code_working_copy(rfp))
+
+        self.assertTrue(clear_delivered_code_working_copy(rfp))
+        self.db.commit()
+        self.db.refresh(rfp)
+        self.assertFalse(has_delivered_code_working_copy(rfp))
+        off = get_official_package(rfp, KIND_RFP)
+        self.assertIsNotNone(off)
+
+    def test_clear_devcode_also_clears_working_copy(self):
+        consultant = models.User(
+            email="c5@example.com",
+            full_name="C5",
+            hashed_password="x",
+            is_consultant=True,
+        )
+        self.db.add(consultant)
+        self.db.commit()
+        rfp = models.RFP(
+            user_id=int(consultant.id),
+            title="t",
+            delivered_code_status="ready",
+            delivered_code_payload=_normalized_sample_json(),
+        )
+        self.db.add(rfp)
+        self.db.commit()
+        self.db.refresh(rfp)
+        get_working_package(self.db, rfp, KIND_RFP)
+        self.db.commit()
+        self.db.refresh(rfp)
+        self.assertTrue(has_delivered_code_working_copy(rfp))
+
+        ok, err = clear_delivered_code_deliverable(self.db, KIND_RFP, int(rfp.id))
+        self.assertTrue(ok)
+        self.assertIsNone(err)
+        self.db.refresh(rfp)
+        self.assertFalse(has_delivered_code_working_copy(rfp))
+        self.assertEqual((rfp.delivered_code_status or "").strip(), "none")
 
 
 if __name__ == "__main__":

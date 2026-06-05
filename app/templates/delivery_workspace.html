@@ -29,6 +29,12 @@
     {% elif ws_err == 'missing_source' %}
     <span class="nav-ko">슬롯 소스가 비어 있습니다.</span>
     <span class="nav-en" style="display:none">Slot source is empty.</span>
+    {% elif ws_err == 'no_working_copy' %}
+    <span class="nav-ko">삭제할 SE38 작업본이 없습니다. (이미 공식 개발코드와 동일한 상태)</span>
+    <span class="nav-en" style="display:none">No SE38 working copy to reset — already synced with the official dev code.</span>
+    {% elif ws_err == 'devcode_generating' %}
+    <span class="nav-ko">개발코드 생성 중에는 작업본을 초기화할 수 없습니다.</span>
+    <span class="nav-en" style="display:none">Cannot reset the working copy while dev code is generating.</span>
     {% elif ws_err == 'suggestion_lost' %}
     <span class="nav-ko">AI 수정 제안을 화면에 불러오지 못했습니다. 같은 오류 내용으로 「AI 수정 제안」을 다시 실행해 주세요.</span>
     <span class="nav-en" style="display:none">Could not load the AI fix suggestion. Run “Suggest AI fix” again with the same error text.</span>
@@ -69,6 +75,9 @@
     {% elif ws_ok == 'applied' %}
     <span class="nav-ko">작업본 슬롯에 반영했습니다.</span>
     <span class="nav-en" style="display:none">Applied to the working copy slot.</span>
+    {% elif ws_ok == 'working_reset' %}
+    <span class="nav-ko">SE38 작업본을 삭제했습니다. 아래 소스는 공식 개발코드에서 다시 불러온 내용입니다.</span>
+    <span class="nav-en" style="display:none">Working copy cleared. Sources below were reloaded from the official dev code.</span>
     {% endif %}
     {% if suggest_peer_slot_count and (ws_ok == 'suggested' or ws_ok == 'suggested_elsewhere') %}
     <span class="nav-ko d-block mt-1">참고: 이번 제안에 다른 ABAP 탭 {{ suggest_peer_slot_count }}개 소스를 함께 분석했습니다.</span>
@@ -77,12 +86,27 @@
   </div>
   {% endif %}
 
-  <div class="d-flex flex-wrap gap-2 mb-3">
+  <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
     <a href="{{ workspace_base }}/build-zip" class="btn btn-primary btn-sm" download data-no-busy="true">
       <i class="fa-solid fa-file-zipper me-1"></i>
       <span class="nav-ko">ZIP 파일 생성 (작업본)</span>
       <span class="nav-en" style="display:none">Build ZIP (working copy)</span>
     </a>
+    {% if has_working_copy|default(false) %}
+    <form method="post" action="{{ workspace_base }}/reset-working" class="d-inline mb-0"
+          data-app-confirm-i18n="deliveryWorkspace.resetWorkingConfirm">
+      <input type="hidden" name="return_to" value="{{ return_url }}">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">
+        <i class="fa-solid fa-rotate-left me-1"></i>
+        <span class="nav-ko">작업본 초기화</span>
+        <span class="nav-en" style="display:none">Reset working copy</span>
+      </button>
+    </form>
+    <span class="small text-muted">
+      <span class="nav-ko">공식 개발코드와 다를 수 있는 SE38 작업본을 지우고, 공식본에서 다시 복사합니다.</span>
+      <span class="nav-en" style="display:none">Discard the SE38 working copy and reload from the official dev code.</span>
+    </span>
+    {% endif %}
     {% if program_id %}
     <span class="badge bg-secondary align-self-center">program: {{ program_id }}</span>
     {% endif %}

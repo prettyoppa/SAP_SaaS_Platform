@@ -175,9 +175,12 @@ def admin_start_delivered_code(
         return RedirectResponse(url=f"{back}{sep}err=fs_not_ready", status_code=302)
     if (rfp.delivered_code_status or "").strip() == "generating":
         return RedirectResponse(url=back, status_code=302)
+    from .delivery_workspace import clear_delivered_code_working_copy
+
     werr = wallet_preflight_for_delivery_stage(db, actor, stage="delivered_code")
     if werr:
         return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
+    clear_delivered_code_working_copy(rfp)
     rfp.delivered_code_status = "generating"
     rfp.delivered_code_error = None
     rfp.delivered_job_log = None
@@ -505,6 +508,9 @@ def admin_integration_code_start(
     werr = wallet_preflight_for_delivery_stage(db, actor, stage="integration_deliverable")
     if werr:
         return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
+    from ..delivery_workspace import clear_delivered_code_working_copy
+
+    clear_delivered_code_working_copy(ir)
     ir.delivered_code_status = "generating"
     ir.delivered_code_error = None
     db.commit()
@@ -658,6 +664,9 @@ def admin_abap_analysis_start_delivered_code(
     werr = wallet_preflight_for_delivery_stage(db, actor, stage="delivered_code")
     if werr:
         return RedirectResponse(url=_delivery_redirect_with_err(back, werr), status_code=302)
+    from ..delivery_workspace import clear_delivered_code_working_copy
+
+    clear_delivered_code_working_copy(row)
     row.delivered_code_status = "generating"
     row.delivered_code_error = None
     row.delivered_job_log = None

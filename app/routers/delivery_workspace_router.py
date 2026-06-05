@@ -16,9 +16,11 @@ from ..delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
 from ..delivery_workspace import (
     apply_slot_source,
     build_workspace_zip_bytes,
+    clear_delivered_code_working_copy,
     clear_pending_suggestion,
     get_pending_suggestion,
     get_working_package,
+    has_delivered_code_working_copy,
     load_request_row,
     normalize_request_kind,
     package_has_slots,
@@ -186,9 +188,57 @@ def delivery_workspace_page(
         "fix_elsewhere_reason": fix_elsewhere_reason,
         "suggest_peer_slot_count": peer_count_sess,
         "sap_version": (getattr(row, "sap_system_version", None) or "").strip(),
+        "has_working_copy": has_delivered_code_working_copy(row),
         **workspace_page_header(row, norm),
     }
     return templates.TemplateResponse(request, "delivery_workspace.html", ctx)
+
+
+@router.post("/delivery/{kind}/{request_id}/workspace/reset-working")
+def delivery_workspace_reset_working(
+    kind: str,
+    request_id: int,
+    request: Request,
+    return_to: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user=Depends(auth.get_current_user),
+):
+    """SE38 작업본만 삭제. 다음 진입 시 공식 개발코드에서 다시 fork."""
+    norm = normalize_request_kind(kind)
+    if not norm:
+        raise HTTPException(status_code=404, detail="not_found")
+    row = load_request_row(db, request_kind=norm, request_id=request_id)
+    _require_access(db, user, row, norm)
+    if (getattr(row, "delivered_code_status", None) or "").strip() == "generating":
+        return RedirectResponse(
+            url=_workspace_redirect(
+                norm,
+                int(row.id),
+                return_to=return_to,
+                ws_err="devcode_generating",
+            ),
+            status_code=303,
+        )
+    if not clear_delivered_code_working_copy(row):
+        return RedirectResponse(
+            url=_workspace_redirect(
+                norm,
+                int(row.id),
+                return_to=return_to,
+                ws_err="no_working_copy",
+            ),
+            status_code=303,
+        )
+    db.commit()
+    return RedirectResponse(
+        url=_workspace_redirect(
+            norm,
+            int(row.id),
+            return_to=return_to,
+            ws_ok="working_reset",
+        ),
+        status_code=303,
+    )
 
 
 @router.post("/delivery/{kind}/{request_id}/workspace/diff-preview")

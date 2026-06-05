@@ -58,6 +58,9 @@ def clear_delivered_code_deliverable(
         return False, "not_found"
     if (getattr(row, "delivered_code_status", None) or "").strip() == "generating":
         return False, "devcode_generating"
+    from .delivery_workspace import clear_delivered_code_working_copy
+
+    clear_delivered_code_working_copy(row)
     row.delivered_code_status = "none"
     row.delivered_code_text = None
     row.delivered_code_payload = None
