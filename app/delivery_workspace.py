@@ -20,6 +20,7 @@ from .delivered_code_package import (
     parse_integration_delivered_payload,
 )
 from .delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
+from .delivery_workspace_fix_history import WORKSPACE_FIX_HISTORY_KEY, append_fix_history
 
 KIND_ALIASES = {
     "rfp": KIND_RFP,
@@ -34,15 +35,28 @@ KIND_ALIASES = {
 WORKSPACE_PENDING_KEY = "_workspace_pending"
 
 
-def _read_pending_from_raw(raw: str | None) -> dict[str, Any] | None:
+def _read_meta_from_raw(raw: str | None, key: str) -> Any | None:
     if not raw or not str(raw).strip():
         return None
     try:
         data = json.loads(raw)
     except Exception:
         return None
-    pending = data.get(WORKSPACE_PENDING_KEY) if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        return None
+    return data.get(key)
+
+
+def _read_pending_from_raw(raw: str | None) -> dict[str, Any] | None:
+    pending = _read_meta_from_raw(raw, WORKSPACE_PENDING_KEY)
     return pending if isinstance(pending, dict) else None
+
+
+def _read_fix_history_from_raw(raw: str | None) -> list[dict[str, Any]] | None:
+    hist = _read_meta_from_raw(raw, WORKSPACE_FIX_HISTORY_KEY)
+    if hist is None:
+        return None
+    return hist if isinstance(hist, list) else None
 
 
 def get_pending_suggestion(pkg: dict[str, Any] | None, slot_index: int) -> dict[str, Any] | None:
@@ -67,17 +81,28 @@ def set_pending_suggestion(
     slot_index: int,
     *,
     suggested_source: str,
+    source_before: str = "",
     se38_error: str = "",
     fix_elsewhere_target: str | None = None,
     fix_elsewhere_reason: str | None = None,
     peer_count: int = 0,
+    record_history: bool = True,
 ) -> None:
     pkg = get_working_package(db, row, request_kind)
     if not pkg:
         raise ValueError("no_package")
+    if record_history and (source_before or "").strip():
+        append_fix_history(
+            pkg,
+            slot_index=int(slot_index),
+            se38_error=se38_error,
+            source_before=source_before,
+            suggested=suggested_source,
+        )
     pkg[WORKSPACE_PENDING_KEY] = {
         "slot_index": int(slot_index),
         "suggested_source": (suggested_source or "")[:200_000],
+        "source_before": (source_before or "")[:200_000],
         "se38_error": (se38_error or "")[:8_000],
         "fix_elsewhere_target": (fix_elsewhere_target or "").strip()[:500],
         "fix_elsewhere_reason": (fix_elsewhere_reason or "").strip()[:2_000],
@@ -162,10 +187,13 @@ def get_working_package(db: Session, row: Any, request_kind: str) -> dict[str, A
         return None
     raw_work = getattr(row, "delivered_code_working_payload", None)
     pending = _read_pending_from_raw(raw_work)
+    fix_hist = _read_fix_history_from_raw(raw_work)
     pkg = parse_package(raw_work, kind)
     if pkg and package_has_slots(pkg, kind):
         if pending is not None:
             pkg[WORKSPACE_PENDING_KEY] = pending
+        if fix_hist is not None:
+            pkg[WORKSPACE_FIX_HISTORY_KEY] = fix_hist
         return pkg
     official = get_official_package(row, kind)
     if not official:
@@ -183,12 +211,19 @@ def save_working_package(
 ) -> None:
     kind = normalize_request_kind(request_kind) or ""
     pending = pkg.get(WORKSPACE_PENDING_KEY) if isinstance(pkg.get(WORKSPACE_PENDING_KEY), dict) else None
-    pkg_for_norm = {k: v for k, v in pkg.items() if k != WORKSPACE_PENDING_KEY}
+    fix_hist = pkg.get(WORKSPACE_FIX_HISTORY_KEY) if isinstance(pkg.get(WORKSPACE_FIX_HISTORY_KEY), list) else None
+    pkg_for_norm = {
+        k: v
+        for k, v in pkg.items()
+        if k not in (WORKSPACE_PENDING_KEY, WORKSPACE_FIX_HISTORY_KEY)
+    }
     normalized = normalize_package(pkg_for_norm, kind)
     if not normalized:
         raise ValueError("invalid_package")
     if pending is not None:
         normalized[WORKSPACE_PENDING_KEY] = pending
+    if fix_hist is not None:
+        normalized[WORKSPACE_FIX_HISTORY_KEY] = fix_hist
     row.delivered_code_working_payload = json.dumps(normalized, ensure_ascii=False)
     db.add(row)
     db.flush()

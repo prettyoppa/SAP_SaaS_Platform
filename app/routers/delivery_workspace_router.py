@@ -32,6 +32,11 @@ from ..delivery_workspace_display import workspace_page_header
 from ..delivery_workspace_ai import STAGE_DELIVERY_WORKSPACE_FIX, suggest_slot_fix
 from ..delivery_workspace_context import build_peer_sources_context
 from ..delivery_workspace_diff import diff_panel_html
+from ..delivery_workspace_fix_history import (
+    format_fix_history_for_prompt,
+    get_fix_history,
+    suggestion_already_attempted,
+)
 from ..delivery_workspace_validation import (
     cross_slot_fix_hints,
     main_slot_filenames,
@@ -153,6 +158,7 @@ def delivery_workspace_page(
     peer_count_sess = int((pending or {}).get("peer_count") or 0)
     fix_elsewhere_target = ((pending or {}).get("fix_elsewhere_target") or "").strip() or None
     fix_elsewhere_reason = ((pending or {}).get("fix_elsewhere_reason") or "").strip() or None
+    pending_source_before = ((pending or {}).get("source_before") or "").strip() or None
 
     ws_ok_val = (ws_ok or "").strip()
     if ws_ok_val in ("suggested", "suggested_elsewhere") and not suggested_source:
@@ -186,6 +192,7 @@ def delivery_workspace_page(
         "main_slot_filenames": main_names,
         "fix_elsewhere_target": fix_elsewhere_target,
         "fix_elsewhere_reason": fix_elsewhere_reason,
+        "pending_source_before": pending_source_before,
         "suggest_peer_slot_count": peer_count_sess,
         "sap_version": (getattr(row, "sap_system_version", None) or "").strip(),
         "has_working_copy": has_delivered_code_working_copy(row),
@@ -276,6 +283,7 @@ def delivery_workspace_save_slot(
     _require_access(db, user, row, norm)
     try:
         apply_slot_source(db, row, norm, int(slot_index), source or "")
+        clear_pending_suggestion(db, row, norm)
         db.commit()
     except (IndexError, ValueError):
         db.rollback()
@@ -294,6 +302,7 @@ def delivery_workspace_suggest_fix(
     request_id: int,
     slot_index: int = Form(0),
     se38_error: str = Form(""),
+    working_source: str = Form(""),
     return_to: str | None = Form(None),
     db: Session = Depends(get_db),
     user=Depends(auth.get_current_user),
@@ -331,23 +340,61 @@ def delivery_workspace_suggest_fix(
         )
     sl = slots[idx]
     slot_role = (sl.get("role") or "other").strip()
-    current_src = _slot_source(pkg, idx)
-    _, peer_count = build_peer_sources_context(slots, active_index=idx)
-    suggested, err = suggest_slot_fix(
-        billing_user_id=billing_uid,
-        request_kind=norm,
-        request_id=int(row.id),
-        slot_filename=(sl.get("filename") or f"slot_{idx + 1}.abap").strip(),
-        slot_role=slot_role,
-        current_source=current_src,
-        se38_error=se38_error,
-        sap_version_hint=(getattr(row, "sap_system_version", None) or "").strip(),
-        program_id=(pkg.get("program_id") or "").strip(),
-        package_slots=slots,
-        active_slot_index=idx,
-        main_slot_filenames=list(main_slot_filenames(slots)),
-        active_slot_is_include_like=slot_is_include_like(slot_role),
+    db_src = _slot_source(pkg, idx)
+    form_src = (working_source or "").strip()
+    if form_src:
+        current_src = form_src
+        if form_src != db_src:
+            try:
+                apply_slot_source(db, row, norm, idx, form_src)
+                db.commit()
+                pkg = get_working_package(db, row, norm)
+                if not pkg:
+                    return RedirectResponse(
+                        url=_workspace_redirect(
+                            norm, int(row.id), return_to=return_to, ws_err="no_package"
+                        ),
+                        status_code=303,
+                    )
+            except (IndexError, ValueError):
+                db.rollback()
+                return RedirectResponse(
+                    url=_workspace_redirect(
+                        norm, int(row.id), return_to=return_to, slot=idx, ws_err="invalid_slot"
+                    ),
+                    status_code=303,
+                )
+    else:
+        current_src = db_src
+
+    history = get_fix_history(pkg)
+    fix_history_block = format_fix_history_for_prompt(
+        history, slot_index=idx, se38_error=se38_error
     )
+    _, peer_count = build_peer_sources_context(slots, active_index=idx)
+
+    def _call_suggest(extra_history: str = "") -> tuple[str, str | None]:
+        block = fix_history_block
+        if extra_history:
+            block = (block + "\n" + extra_history).strip() if block else extra_history
+        return suggest_slot_fix(
+            billing_user_id=billing_uid,
+            request_kind=norm,
+            request_id=int(row.id),
+            slot_filename=(sl.get("filename") or f"slot_{idx + 1}.abap").strip(),
+            slot_role=slot_role,
+            current_source=current_src,
+            se38_error=se38_error,
+            sap_version_hint=(getattr(row, "sap_system_version", None) or "").strip(),
+            program_id=(pkg.get("program_id") or "").strip(),
+            package_slots=slots,
+            active_slot_index=idx,
+            main_slot_filenames=list(main_slot_filenames(slots)),
+            active_slot_is_include_like=slot_is_include_like(slot_role),
+            fix_history_block=block,
+        )
+
+    suggested, err = _call_suggest()
     if err:
         return RedirectResponse(
             url=_workspace_redirect(
@@ -355,6 +402,28 @@ def delivery_workspace_suggest_fix(
             ),
             status_code=303,
         )
+    if suggestion_already_attempted(
+        history, slot_index=idx, suggested=suggested, se38_error=se38_error
+    ):
+        retry_note = (
+            "## 재시도 (필수)\n"
+            "이전과 **동일하거나 거의 같은** 수정안은 이미 시도되었습니다. "
+            "**다른 원인·다른 패치**만 제시하세요. 동일 패치 재출력 금지.\n"
+        )
+        suggested_retry, err_retry = _call_suggest(extra_history=retry_note)
+        if not err_retry and suggested_retry and not suggestion_already_attempted(
+            history, slot_index=idx, suggested=suggested_retry, se38_error=se38_error
+        ):
+            suggested = suggested_retry
+        else:
+            db.commit()
+            return RedirectResponse(
+                url=_workspace_redirect(
+                    norm, int(row.id), return_to=return_to, slot=idx, ws_err="suggestion_repeat"
+                ),
+                status_code=303,
+            )
+
     db.commit()
     deferred, fix_target, fix_reason = suggestion_defers_fix_elsewhere(
         suggested, current_src
@@ -367,6 +436,7 @@ def delivery_workspace_suggest_fix(
             norm,
             idx,
             suggested_source=suggested,
+            source_before=current_src,
             se38_error=se38_error,
             fix_elsewhere_target=fix_target if deferred else None,
             fix_elsewhere_reason=fix_reason if deferred else None,

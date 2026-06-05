@@ -63,6 +63,7 @@ def suggest_slot_fix(
     active_slot_index: int = 0,
     main_slot_filenames: list[str] | None = None,
     active_slot_is_include_like: bool = False,
+    fix_history_block: str = "",
 ) -> tuple[str, str | None]:
     """
     Returns (suggested_abap, error_code).
@@ -96,11 +97,13 @@ def suggest_slot_fix(
     )
 
     focus_block = build_se38_focus_section(err, src)
+    history_block = (fix_history_block or "").strip()
 
     prompt = f"""당신은 SAP ABAP 납품 코드 수정 전문가입니다.
 컨설턴트가 SE38에서 본 오류를 해결하려 합니다. **오류가 현재 파일에서 보고되었어도, 원인·수정 위치는 메인(REPORT) 또는 다른 INCLUDE일 수 있습니다.**
 
 {focus_block}
+{history_block}
 ## 판단 (가장 중요)
 1. **[패키지 다른 슬롯 소스]**와 **[현재 슬롯 소스]**·SE38 메시지를 함께 보고 **실제로 고쳐야 할 파일**을 판단하세요. ({peer_note})
 2. 예: INCLUDE A에서 syntax error가 났지만, **[패키지 다른 슬롯]**의 메인에 INCLUDE 문·선언 오류가 보이면 **INCLUDE A를 억지로 고치지 마세요.**

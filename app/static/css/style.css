@@ -3443,6 +3443,24 @@ html[data-theme="light"] .delivery-workspace-tabs .nav-link.active {
 html[data-theme="dark"] .dw-slot-source-panel > summary {
   color: var(--text);
 }
+.btn-dw-reset-working {
+  background: color-mix(in srgb, var(--primary) 55%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 70%, transparent);
+  color: var(--text);
+}
+.btn-dw-reset-working:hover,
+.btn-dw-reset-working:focus {
+  background: color-mix(in srgb, var(--primary) 72%, transparent);
+  border-color: var(--primary);
+  color: var(--text);
+}
+html[data-theme="light"] .btn-dw-reset-working {
+  color: #fff;
+}
+html[data-theme="light"] .btn-dw-reset-working:hover,
+html[data-theme="light"] .btn-dw-reset-working:focus {
+  color: #fff;
+}
 .dw-source-editor .dw-source-input:focus {
   box-shadow: none;
 }

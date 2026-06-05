@@ -61,6 +61,22 @@
     });
   }
 
+  function bindSuggestSourceSync(root) {
+    root.querySelectorAll("form.dw-suggest-form").forEach(function (form) {
+      form.addEventListener("submit", function () {
+        var panel = form.closest("[data-dw-panel]");
+        if (!panel) return;
+        var srcTa = panel.querySelector(
+          'form[action*="/slots/"] textarea[name="source"]'
+        );
+        var hidden = form.querySelector("[data-dw-working-source]");
+        if (srcTa && hidden) {
+          hidden.value = srcTa.value || "";
+        }
+      });
+    });
+  }
+
   function init() {
     var root = document.getElementById("delivery-workspace");
     if (!root) return;
@@ -68,6 +84,7 @@
       window.initAbapLineEditors(root);
     }
     initSourcePanels(root);
+    bindSuggestSourceSync(root);
     root.querySelectorAll("[data-dw-diff-panel]").forEach(bindDiffPanel);
   }
 
