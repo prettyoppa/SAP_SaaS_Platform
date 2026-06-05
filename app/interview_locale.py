@@ -43,8 +43,18 @@ MIA_INTERVIEW_SCOPE_KO = """
 
 [suggested_answers]
 - 2~5개. **각 항목은 위 질문 하나에 대한 응답만.** 한 행에 두 주제를 합치지 마라. 실무 톤으로 짧게.
+- **상호배타(택1) 정책**은 suggested_answers에 나란히 넣지 말고 **suggestion_groups** 의 **exclusive** 그룹으로 낸다.
+- “~한다” vs “~하지 않는다”, “무조건 변경” vs “변경 안 함”처럼 **같은 결정의 찬반**을 서로 다른 좋아요 후보 두 줄로 두지 마라.
+- **multi** 그룹만 복수 선택 의미(동시에 참일 수 있는 서로 다른 측면).
 
-[출력 형식]
+[suggestion_groups]
+- 1~2개 권장. **mode=exclusive**: options 2~4개, **하나만** 고르게(택1). **mode=multi**: 복수 OK.
+- 질문 전제가 하나면 exclusive options도 **그 전제 안**에서만. 다른 전제(Old Value 있음/없음)는 **질문을 나눈다**.
+
+[출력 JSON — suggestion_groups 사용 시]
+{{"question": "...", "suggestion_groups": [{{"id": "main", "mode": "exclusive", "options": ["...", "..."]}}]}}
+또는 multi 보조 그룹: {{"id": "extras", "mode": "multi", "options": ["..."]}}
+(suggested_answers 단독 출력은 하위호환용 — 가능하면 suggestion_groups 우선)
 - JSON에서 ** … ** 별표 감싸기 금지.
 """
 
@@ -60,6 +70,16 @@ MIA_INTERVIEW_SCOPE_EN = """
 
 [suggested_answers]
 - 2–5 items. **Each line answers only the question above.** One idea per line. Practical tone.
+- Do **not** put mutually exclusive policies side by side in suggested_answers — use **suggestion_groups** with **mode=exclusive**.
+- Never offer “do X” and “do not X” as two separate like candidates for the same decision.
+- Only **multi** groups allow multiple selections (independent facets).
+
+[suggestion_groups]
+- Prefer 1–2 groups. **exclusive**: 2–4 options, pick exactly one. **multi**: optional extras.
+- One question premise → exclusive options must match that premise only.
+
+[JSON with suggestion_groups]
+{{"question": "...", "suggestion_groups": [{{"id": "main", "mode": "exclusive", "options": ["...", "..."]}}]}}
 
 [Output format]
 - No markdown bold (** … **) inside JSON strings.
@@ -230,12 +250,13 @@ Rules:
 - Question: **1–2 sentences**, direct. No long preamble or training text.
 - Avoid meta phrases like "time and effort". If trade-offs exist, mention **performance/speed** only briefly.
 - Ask about include/exclude or analysis depth from the §6 text. SAP/ABAP terms: parenthetical gloss **once** if needed.
-- suggested_answers: 2–4 **one-line decisions** the requester can pick immediately (multi-select OK). No step-by-step scenarios.
+- suggested_answers: 2–4 **one-line decisions** (legacy — prefer **suggestion_groups**).
+- Use **suggestion_groups** with **mode=exclusive** for pick-one policies; **multi** only for independent add-ons.
 - No markdown bold (**) inside JSON strings.
 {interview_output_language_block(lg)}
 
-Output JSON only:
-{{"question": "...", "suggested_answers": ["...", "..."]}}"""
+Output JSON only (prefer suggestion_groups):
+{{"question": "...", "suggestion_groups": [{{"id": "main", "mode": "exclusive", "options": ["...", "..."]}}]}}"""
     return f"""개발 제안서 §6(확인 필요 사항) 중 **한 항목**에 대해 고객 인터뷰 질문을 만드세요.
 
 [요청 제목] {title}
@@ -250,10 +271,10 @@ Output JSON only:
 - 질문은 **1~2문장**, 짧고 직접적으로. 배경·교육 설명·장황한 서두 금지.
 - "시간과 노력", "협의가 필요" 같은 메타 표현 금지. 부담이 있으면 **성능·처리 속도**만 짧게(예: 분석 범위를 넓히면 프로그램 실행·화면 응답이 느려질 수 있음).
 - §6 원문의 핵심(포함/제외, 분석 깊이)을 묻는다. SAP·ABAP 용어는 괄호로 **한 번만** 짧게 풀어도 된다.
-- suggested_answers 2~4개: 요청자가 **즉시 고를 수 있는** 한 줄 **결정문**(복수 선택 가능). 기술 나열·단계별 시나리오 금지.
-  예(동적 FM/메소드 내부 테이블): 「동적 호출 내부까지 테이블 사용을 분석한다」「동적 호출 내부 테이블 사용은 분석에서 제외한다」「컨설턴트 권장안을 따른다」
+- suggested_answers 2~4개(하위호환) — 가능하면 **suggestion_groups** 사용.
+- **exclusive**: 택1 정책. **multi**: 동시에 참일 수 있는 보조 항목만.
 - JSON 출력에 별표 강조(**) 사용 금지.
 {interview_output_language_block(lg)}
 
-반드시 JSON 한 블록만:
-{{"question": "...", "suggested_answers": ["...", "..."]}}"""
+반드시 JSON 한 블록만 (suggestion_groups 권장):
+{{"question": "...", "suggestion_groups": [{{"id": "main", "mode": "exclusive", "options": ["...", "..."]}}]}}"""
