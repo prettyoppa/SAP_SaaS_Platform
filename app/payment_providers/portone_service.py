@@ -177,6 +177,15 @@ def sync_payment(db: Session, payment_id: str) -> models.PaymentTransaction | No
         txn.paid_at = datetime.utcnow()
     db.commit()
     db.refresh(txn)
+    if not err and (txn.purpose or "").strip() == PURPOSE_PROJECT_SETTLEMENT and txn.purpose_ref_id:
+        from ..project_settlement_notifications import (
+            job_notify_settlement_funded,
+            schedule_settlement_notification,
+        )
+
+        schedule_settlement_notification(
+            job_notify_settlement_funded, int(txn.purpose_ref_id), "portone"
+        )
     return txn
 
 

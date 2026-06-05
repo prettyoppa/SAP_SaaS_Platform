@@ -177,6 +177,12 @@ def create_project_settlement_bank_claim(
     db.add(row)
     db.commit()
     db.refresh(row)
+    from .project_settlement_notifications import (
+        job_notify_settlement_bank_submitted,
+        schedule_settlement_notification,
+    )
+
+    schedule_settlement_notification(job_notify_settlement_bank_submitted, int(row.id))
     return row, None
 
 
@@ -317,6 +323,17 @@ def confirm_payment_claim(
     row.admin_note = (admin_note or "").strip()[:2000] or row.admin_note
     row.updated_at = now
     db.commit()
+    if is_project_settlement_plan_code(row.plan_code) and row.project_settlement_id:
+        from .project_settlement_notifications import (
+            job_notify_member_settlement_bank_confirmed,
+            job_notify_settlement_funded,
+            schedule_settlement_notification,
+        )
+
+        schedule_settlement_notification(
+            job_notify_settlement_funded, int(row.project_settlement_id), "bank"
+        )
+        schedule_settlement_notification(job_notify_member_settlement_bank_confirmed, int(row.id))
     if is_wallet_topup_plan_code(row.plan_code):
         from .wallet_topup_notifications import job_notify_member_wallet_topup_reviewed, schedule_wallet_notification
 
