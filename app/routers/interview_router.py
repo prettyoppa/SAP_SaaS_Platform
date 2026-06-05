@@ -33,6 +33,12 @@ from ..rfp_hub import rfp_hub_url
 from ..ai_usage_recorder import AiUsageContext, ai_usage_scope
 from ..ai_wallet_gates import wallet_insufficient_url, wallet_preflight_for_ai
 from ..interview_locale import interview_lang_for_user
+from ..interview_suggestions import (
+    apply_suggestions_to_intra,
+    resolve_groups_for_display,
+    validate_step_payload_with_groups,
+    wizard_suggestion_context,
+)
 from ..subscription_catalog import METRIC_DEV_PROPOSAL, METRIC_DEV_PROPOSAL_REGEN
 from ..subscription_quota import try_consume_monthly, try_consume_per_request
 from ..agent_playbook import (
@@ -282,8 +288,15 @@ def _parse_answer_payload_form(
     return {"v": 1, "like": [], "dislike": [], "free": fr}
 
 
-def _step_payload_valid(o: dict) -> bool:
-    return _answer_valid(_format_parsed_step_answer(o))
+def _step_payload_valid(o: dict, intra: dict | None = None, *, lang: str | None = "ko") -> bool:
+    from ..interview_answer_payload import step_payload_valid
+
+    groups = resolve_groups_for_display(intra, lang=lang) if intra else None
+    return step_payload_valid(o, groups if groups else None)
+
+
+def _wizard_suggest_ctx(intra: dict | None, user) -> dict[str, Any]:
+    return wizard_suggestion_context(intra, lang=interview_lang_for_user(user))
 
 
 def _draft_wip_free_text(draft: str) -> str:
@@ -445,7 +458,7 @@ def serve_interview_workspace(
             "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
             "interview_draft_wip": "",
             "interview_draft_payload": {"v": 1, "like": [], "dislike": [], "free": ""},
-            "answer_suggestions": [],
+            **_wizard_suggest_ctx(None, user),
         }
         if seq and intra is not None:
             ctx_extra["interview_draft_wip"] = _draft_wip_free_text(
@@ -470,9 +483,7 @@ def serve_interview_workspace(
                 }
                 for i in range(min(qi, len(current_questions)))
             ]
-            ctx_extra["answer_suggestions"] = _cap_suggestions(
-                (intra or {}).get("current_suggestions")
-            )
+            ctx_extra.update(_wizard_suggest_ctx(intra, user))
         wizard_ctx = {
             "request": request,
             "user": user,
@@ -566,16 +577,22 @@ def serve_interview_workspace(
             "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
             "interview_draft_wip": "",
             "interview_draft_payload": {"v": 1, "like": [], "dislike": [], "free": ""},
-            "answer_suggestions": [],
+            **_wizard_suggest_ctx(None, user),
         }
         return InterviewWorkspaceOutcome(kind="wizard", wizard_ctx=wizard_ctx)
 
-    intra_new = {
+    intra_new: dict[str, Any] = {
         "v": 2,
         "answers_so_far": [],
         "library_pool": list(result.get("library_pool") or []),
-        "current_suggestions": _cap_suggestions(result.get("suggested_answers")),
     }
+    apply_suggestions_to_intra(
+        intra_new,
+        {
+            "suggested_answers": result.get("suggested_answers"),
+            "suggestion_groups": result.get("suggestion_groups"),
+        },
+    )
     new_msg = models.RFPMessage(
         rfp_id=rfp.id,
         round_number=next_round,
@@ -613,7 +630,7 @@ def serve_interview_workspace(
         "interview_max_questions": _fc().MAX_QUESTIONS_PER_ROUND,
         "interview_draft_wip": _draft_wip_free_text(intra_r.get("draft_wip", "") or ""),
         "interview_draft_payload": _draft_wip_as_dict(intra_r.get("draft_wip", "") or ""),
-        "answer_suggestions": intra_r.get("current_suggestions") or [],
+        **_wizard_suggest_ctx(intra_r, user),
     }
     return InterviewWorkspaceOutcome(kind="wizard", wizard_ctx=wizard_ctx)
 
@@ -861,8 +878,15 @@ def interview_answer_step(
         return RedirectResponse(url=rfp_hub_url(rfp_id, "interview"), status_code=302)
 
     o = _parse_answer_payload_form(answer_payload, current_answer)
-    if not _step_payload_valid(o):
-        return RedirectResponse(url=f"{rfp_hub_url(rfp_id, 'interview')}&ans=empty", status_code=302)
+    ilang = interview_lang_for_user(user)
+    ans_err = validate_step_payload_with_groups(
+        o, resolve_groups_for_display(intra, lang=ilang)
+    )
+    if ans_err:
+        return RedirectResponse(
+            url=f"{rfp_hub_url(rfp_id, 'interview')}&ans={ans_err}",
+            status_code=302,
+        )
     ans = json.dumps(o, ensure_ascii=False)
 
     answers_so = answers_so + [ans]
@@ -937,13 +961,13 @@ def interview_answer_step(
     msg.questions_json = json.dumps(all_q, ensure_ascii=False)
     intra["answers_so_far"] = answers_so
     intra["library_pool"] = lib_pool
-    su = fol.get("suggested_answers")
-    if isinstance(su, list):
-        intra["current_suggestions"] = [
-            str(x).strip() for x in su if str(x).strip()
-        ][:5]
-    else:
-        intra["current_suggestions"] = []
+    apply_suggestions_to_intra(
+        intra,
+        {
+            "suggested_answers": fol.get("suggested_answers"),
+            "suggestion_groups": fol.get("suggestion_groups"),
+        },
+    )
     intra["v"] = 2
     msg.intra_state_json = json.dumps(intra, ensure_ascii=False)
     from datetime import datetime as _dt2

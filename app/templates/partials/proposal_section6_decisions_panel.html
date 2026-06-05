@@ -94,19 +94,24 @@
         </div>
         <form method="post" action="{{ proposal_section6_interview_answer_url }}" id="s6-iv-seq-form">
           <input type="hidden" name="return_to" value="{{ proposal_section6_return_to|default('') }}">
-          {% if turn.suggestions and turn.suggestions|length > 0 %}
+          {% set _s6_has_suggest = (turn.suggestions and turn.suggestions|length > 0) or (turn.suggestion_groups and turn.suggestion_groups|length > 0) %}
+          {% if _s6_has_suggest %}
           <div class="mb-3">
             <div id="s6-answer-suggestion-rows" class="mb-1" role="list" aria-label="제안 답안"></div>
-            <script type="application/json" id="s6-answer-suggestions-data">{{ turn.suggestions|tojson }}</script>
+            <script type="application/json" id="s6-answer-suggestions-data">{{ (turn.suggestions|default([]))|tojson }}</script>
+            <script type="application/json" id="s6-answer-suggestion-groups-data">{{ (turn.suggestion_groups|default([]))|tojson }}</script>
+            <script type="application/json" id="s6-interview-suggestion-groups-enabled">true</script>
             <script type="application/json" id="s6-interview-draft-payload">{"v":1,"like":[],"dislike":[],"free":""}</script>
           </div>
           {% endif %}
           <label class="form-label small text-muted">
-            <span class="nav-ko">{% if turn.suggestions and turn.suggestions|length > 0 %}보충·추가 (선택){% else %}답변{% endif %}</span>
-            <span class="nav-en" style="display:none">{% if turn.suggestions and turn.suggestions|length > 0 %}Additional notes (optional){% else %}Your answer{% endif %}</span>
+            <span class="nav-ko">{% if _s6_has_suggest %}보충·추가 (선택){% else %}답변{% endif %}</span>
+            <span class="nav-en" style="display:none">{% if _s6_has_suggest %}Additional notes (optional){% else %}Your answer{% endif %}</span>
           </label>
           <textarea class="form-control form-control-sm" rows="3" name="current_answer" id="s6-seq-answer-input"
-            placeholder="{% if turn.suggestions and turn.suggestions|length > 0 %}선택에 덧붙일 내용. 모를 때: 잘 모르겠습니다{% else %}답을 입력하세요{% endif %}"></textarea>
+            placeholder="{% if _s6_has_suggest %}선택에 덧붙일 내용. 모를 때: 잘 모르겠습니다{% else %}답을 입력하세요{% endif %}"
+            data-placeholder-ko="{% if _s6_has_suggest %}선택에 덧붙일 내용. 모를 때: 잘 모르겠습니다{% else %}답을 입력하세요{% endif %}"
+            data-placeholder-en="{% if _s6_has_suggest %}Add notes to your selection. If unsure: not sure yet{% else %}Enter your answer{% endif %}"></textarea>
           <input type="hidden" name="answer_payload" id="s6-answer-payload-json" value=""/>
           <div class="d-flex justify-content-end mt-3">
             <button type="submit" class="btn btn-primary btn-sm" id="s6-seq-next-btn"
@@ -138,5 +143,6 @@
     {% endif %}
   </details>
 </div>
-<script src="/static/js/proposal_section6_interview.js?v=20260522s6scroll"></script>
+<script src="/static/js/interview_suggestion_ui.js?v=20260529suggest"></script>
+<script src="/static/js/proposal_section6_interview.js?v=20260529s6suggest"></script>
 {% endif %}

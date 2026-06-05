@@ -25,6 +25,7 @@ from ..templates_config import templates
 from ..agents.agent_tools import get_code_library_context
 from ..agent_playbook import PlaybookContext, STAGE_INTERVIEW, build_playbook_addon
 from ..interview_locale import interview_lang_for_user
+from ..interview_suggestions import apply_suggestions_to_intra, resolve_groups_for_display, validate_step_payload_with_groups
 from .interview_router import (
     _answer_block_for_export,
     _fc,
@@ -34,7 +35,6 @@ from .interview_router import (
     _messages_to_list,
     _parse_answer_payload_form,
     _parse_intra,
-    _step_payload_valid,
 )
 
 router = APIRouter()
@@ -264,8 +264,15 @@ def integration_interview_answer_step(
         return RedirectResponse(url=integration_hub_url(req_id, "interview"), status_code=302)
 
     o = _parse_answer_payload_form(answer_payload, current_answer)
-    if not _step_payload_valid(o):
-        return RedirectResponse(url=f"{integration_hub_url(req_id, 'interview')}&ans=empty", status_code=302)
+    ilang = interview_lang_for_user(user)
+    ans_err = validate_step_payload_with_groups(
+        o, resolve_groups_for_display(intra, lang=ilang)
+    )
+    if ans_err:
+        return RedirectResponse(
+            url=f"{integration_hub_url(req_id, 'interview')}&ans={ans_err}",
+            status_code=302,
+        )
     ans = json.dumps(o, ensure_ascii=False)
     answers_so = answers_so + [ans]
     rfp_dict = integration_request_to_crew_rfp_dict(db, ir)
@@ -344,11 +351,13 @@ def integration_interview_answer_step(
     msg.questions_json = json.dumps(all_q, ensure_ascii=False)
     intra["answers_so_far"] = answers_so
     intra["library_pool"] = lib_pool
-    su = fol.get("suggested_answers")
-    if isinstance(su, list):
-        intra["current_suggestions"] = [str(x).strip() for x in su if str(x).strip()][:5]
-    else:
-        intra["current_suggestions"] = []
+    apply_suggestions_to_intra(
+        intra,
+        {
+            "suggested_answers": fol.get("suggested_answers"),
+            "suggestion_groups": fol.get("suggestion_groups"),
+        },
+    )
     intra["v"] = 2
     msg.intra_state_json = json.dumps(intra, ensure_ascii=False)
     msg.updated_at = datetime.utcnow()

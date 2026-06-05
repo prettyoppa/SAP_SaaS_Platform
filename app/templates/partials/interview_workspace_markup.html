@@ -255,16 +255,21 @@
               <div class="question-num">Q{{ interview_step_index|default(1) }}</div>
               <div class="question-text">{{ current_question|interview_bold }}</div>
             </div>
-            {% if answer_suggestions is defined and answer_suggestions|length > 0 %}
+            {% set _has_suggest = (answer_suggestions is defined and answer_suggestions|length > 0) or (answer_suggestion_groups is defined and answer_suggestion_groups|length > 0) %}
+            {% if _has_suggest %}
             <div class="mb-3">
               <div id="answer-suggestion-rows" class="mb-1" role="list" aria-label="제안 답안"></div>
-              <script type="application/json" id="answer-suggestions-data">{{ answer_suggestions|tojson }}</script>
+              <script type="application/json" id="answer-suggestions-data">{{ (answer_suggestions|default([]))|tojson }}</script>
+              <script type="application/json" id="answer-suggestion-groups-data">{{ (answer_suggestion_groups|default([]))|tojson }}</script>
+              <script type="application/json" id="interview-suggestion-groups-enabled">{{ (interview_suggestion_groups_enabled|default(false))|tojson }}</script>
               <script type="application/json" id="interview-draft-payload">{{ (interview_draft_payload|default({}))|tojson|safe }}</script>
             </div>
             {% endif %}
-            <label class="form-label small text-muted">{% if answer_suggestions is defined and answer_suggestions|length > 0 %}보충·추가 (선택){% else %}답변{% endif %} <span class="fw-normal">{% if answer_suggestions is defined and answer_suggestions|length > 0 %}(선택한 답을 덧붙이거나, 직접만 써도 됩니다){% else %}(필수){% endif %}</span></label>
-            <textarea class="form-control rfp-textarea" rows="5" name="current_answer" id="seq-answer-input" {% if not (answer_suggestions is defined and answer_suggestions|length > 0) %}required{% endif %}
-              placeholder="{% if answer_suggestions is defined and answer_suggestions|length > 0 %}선택한 답에 덧붙일 내용(없으면 비워도 됨). 모를 때: 잘 모르겠다 등.{% else %}답을 입력하세요. (모를 때: 잘 모르겠다/표준에 맡긴다 등){% endif %}">{% if interview_draft_wip is defined and interview_draft_wip %}{{ interview_draft_wip }}{% endif %}</textarea>
+            <label class="form-label small text-muted">{% if _has_suggest %}<span class="nav-ko">보충·추가 (선택)</span><span class="nav-en" style="display:none">Additional notes (optional)</span>{% else %}<span class="nav-ko">답변</span><span class="nav-en" style="display:none">Your answer</span>{% endif %} <span class="fw-normal">{% if _has_suggest %}<span class="nav-ko">(선택한 답을 덧붙이거나, 직접만 써도 됩니다)</span><span class="nav-en" style="display:none">(add notes or answer in text only)</span>{% else %}<span class="nav-ko">(필수)</span><span class="nav-en" style="display:none">(required)</span>{% endif %}</span></label>
+            <textarea class="form-control rfp-textarea" rows="5" name="current_answer" id="seq-answer-input" {% if not _has_suggest %}required{% endif %}
+              placeholder="{% if _has_suggest %}선택한 답에 덧붙일 내용(없으면 비워도 됨). 모를 때: 잘 모르겠다 등.{% else %}답을 입력하세요. (모를 때: 잘 모르겠다/표준에 맡긴다 등){% endif %}"
+              data-placeholder-ko="{% if _has_suggest %}선택한 답에 덧붙일 내용(없으면 비워도 됨). 모를 때: 잘 모르겠다 등.{% else %}답을 입력하세요. (모를 때: 잘 모르겠다/표준에 맡긴다 등){% endif %}"
+              data-placeholder-en="{% if _has_suggest %}Add notes to your selection (optional). If unsure: not sure yet, etc.{% else %}Enter your answer. If unsure: not sure yet / follow SAP standard, etc.{% endif %}">{% if interview_draft_wip is defined and interview_draft_wip %}{{ interview_draft_wip }}{% endif %}</textarea>
             <input type="hidden" name="answer_payload" id="answer-payload-json" value=""/>
             <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
               <button type="submit" class="btn btn-primary btn-lg px-4" id="seq-next-btn"

@@ -15,6 +15,7 @@ from .agents.free_crew import (
     _parse_question_and_suggestions,
     generate_suggested_answers_for_question,
 )
+from .interview_suggestions import finalize_suggestion_payload, resolve_groups_for_display
 from .interview_answer_payload import (
     format_parsed_step_answer,
     parse_answer_payload_form,
@@ -214,10 +215,10 @@ def generate_section6_interview_turn(
     try:
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
         raw = str(crew.kickoff())
-        q, su = _parse_question_and_suggestions(raw)
+        q, flat_raw, groups_raw = _parse_question_and_suggestions(raw, interview_lang=ilang)
         if not q:
             q = section6_fallback_question(ilang)
-        su = _normalize_suggested_answers(su)
+        su = _normalize_suggested_answers(flat_raw)
         if len(su) < 2:
             more = generate_suggested_answers_for_question(
                 {"title": request_title, "description": open_item},
@@ -227,7 +228,12 @@ def generate_section6_interview_turn(
                 interview_lang=ilang,
             )
             su = _normalize_suggested_answers(list(su) + list(more))
-        return {"question": q[:2000], "suggested_answers": su[:5]}
+        packed = finalize_suggestion_payload(su, groups_raw or None, lang=ilang)
+        return {
+            "question": q[:2000],
+            "suggested_answers": packed.get("suggested_answers") or [],
+            "suggestion_groups": packed.get("suggestion_groups") or [],
+        }
     except Exception:
         return {
             "question": section6_fallback_question_alt(ilang),
@@ -262,6 +268,7 @@ def start_section6_interview(
             "open_item": open_items[0],
             "question": turn["question"],
             "suggestions": turn.get("suggested_answers") or [],
+            "suggestion_groups": turn.get("suggestion_groups") or [],
             "answer_payload": None,
             "decision_text": "",
         }
@@ -291,7 +298,14 @@ def advance_section6_interview(
             json.dumps(answer_payload) if answer_payload else str(answer_payload or ""),
             current_answer,
         )
-    if not step_payload_valid(o):
+    groups = resolve_groups_for_display(
+        {
+            "current_suggestions": turns[idx].get("suggestions") or [],
+            "current_suggestion_groups": turns[idx].get("suggestion_groups") or [],
+        },
+        lang=interview_lang,
+    )
+    if not step_payload_valid(o, groups if groups else None):
         raise ValueError("answer_invalid")
 
     decision_text = format_parsed_step_answer(o)
@@ -322,6 +336,7 @@ def advance_section6_interview(
             "open_item": open_items[next_idx],
             "question": turn["question"],
             "suggestions": turn.get("suggested_answers") or [],
+            "suggestion_groups": turn.get("suggestion_groups") or [],
             "answer_payload": None,
             "decision_text": "",
         }
