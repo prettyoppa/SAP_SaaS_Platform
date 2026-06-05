@@ -1499,6 +1499,7 @@ def _form_bool(val: str) -> bool:
 
 
 def _kb_admin_page_context(request: Request, db: Session, user: models.User) -> dict:
+    from ..kb_admin_list import kb_admin_list_rows
     from ..kb_gallery_batch import STATUS_RUNNING
     from ..kb_workflow import (
         STATUS_LABEL_EN,
@@ -1518,6 +1519,7 @@ def _kb_admin_page_context(request: Request, db: Session, user: models.User) -> 
         )
         .all()
     )
+    kb_list_rows = kb_admin_list_rows(db, articles)
     batch_job = None
     batch_job_id_raw = (qp.get("batch_job_id") or "").strip()
     if batch_job_id_raw.isdigit():
@@ -1540,6 +1542,7 @@ def _kb_admin_page_context(request: Request, db: Session, user: models.User) -> 
         "request": request,
         "user": user,
         "all_articles": articles,
+        "kb_list_rows": kb_list_rows,
         "kb_categories": KB_CATEGORIES,
         "status_labels_ko": STATUS_LABEL_KO,
         "status_labels_en": STATUS_LABEL_EN,
@@ -1647,6 +1650,7 @@ def admin_kb_add(
         published_at=now if published else None,
         source_kind=(source_kind or "").strip() or None,
         source_note=(source_note or "").strip() or None,
+        author_user_id=int(user.id),
     )
     sync_publish_flags(row)
     db.add(row)
@@ -1941,6 +1945,7 @@ async def admin_kb_add_bulk(request: Request, db: Session = Depends(get_db)):
             is_published=published,
             published_at=now if published else None,
             source_kind="manual",
+            author_user_id=int(user.id),
         )
         db.add(row)
         n_saved += 1

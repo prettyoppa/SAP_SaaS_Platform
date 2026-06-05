@@ -93,6 +93,7 @@ def _save_draft_article(
             research_summary=(payload.get("research_summary") or "").strip() or None,
             source_kind="ai_gallery",
             source_note=source_note,
+            author_user_id=int(job.admin_user_id),
         )
     )
     db.commit()

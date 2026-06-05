@@ -485,6 +485,8 @@ def run_request_kb_flow(request_kind: str, request_id: int, stage: str, *, force
             return False
 
         if article:
+            if not getattr(article, "author_user_id", None):
+                article.author_user_id = int(ctx["owner_user_id"])
             _apply_article_fields(article, payload, stage=st)
             db.add(article)
         else:
@@ -506,6 +508,7 @@ def run_request_kb_flow(request_kind: str, request_id: int, stage: str, *, force
                 source_kind=SOURCE_KIND,
                 source_note=json.dumps(note, ensure_ascii=False),
                 request_flow_key=fkey,
+                author_user_id=int(ctx["owner_user_id"]),
                 seed_keyword=_truncate(ctx.get("topic_hint"), 200),
                 workflow_status=STATUS_PENDING_REVIEW,
                 is_published=False,

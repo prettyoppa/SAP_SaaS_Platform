@@ -1,4 +1,4 @@
-{# expects all_articles; status_labels_ko; status_labels_en; wf_pending; wf_published; kb_categories #}
+{# expects kb_list_rows; status_labels_ko; status_labels_en; wf_pending; wf_published; kb_categories #}
 <div class="admin-content-card p-0 overflow-hidden">
   <div class="table-responsive">
     <table class="table table-sm table-hover mb-0 align-middle">
@@ -6,6 +6,8 @@
         <tr>
           <th scope="col">ID</th>
           <th scope="col"><span class="nav-ko">제목</span><span class="nav-en" style="display:none">Title</span></th>
+          <th scope="col"><span class="nav-ko">작성자</span><span class="nav-en" style="display:none">Author</span></th>
+          <th scope="col"><span class="nav-ko">작성 시각</span><span class="nav-en" style="display:none">Created</span></th>
           <th scope="col">slug</th>
           <th scope="col"><span class="nav-ko">상태</span><span class="nav-en" style="display:none">Status</span></th>
           <th scope="col"><span class="nav-ko">사이트 공개</span><span class="nav-en" style="display:none">On site</span></th>
@@ -13,11 +15,20 @@
         </tr>
       </thead>
       <tbody>
-        {% for a in all_articles %}
+        {% for row in kb_list_rows %}
+        {% set a = row.article %}
         {% set kb_live = (a.workflow_status == wf_published and a.is_published) %}
         <tr>
           <td class="text-muted">{{ a.id }}</td>
           <td class="text-break" style="min-width:12rem">{{ a.title }}</td>
+          <td class="small text-break" style="min-width:10rem">
+            {% if row.author_email %}
+            <span class="font-monospace">{{ row.author_email }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="small text-muted text-nowrap">{{ a.created_at|local_dt_span }}</td>
           <td class="font-monospace small text-break"><code>/kb/{{ a.slug }}</code></td>
           <td>
             <span class="badge bg-secondary">
@@ -47,7 +58,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="6" class="text-muted small p-3">
+          <td colspan="8" class="text-muted small p-3">
             <span class="nav-ko">등록된 글이 없습니다.</span>
             <span class="nav-en" style="display:none">No articles yet.</span>
           </td>
