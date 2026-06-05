@@ -1,6 +1,7 @@
 /**
  * ABAP 소스 + 행 번호 열 (SE38 작업실·납품 개발코드 공통).
- * 행 번호·소스는 동일한 max-height 안에서 scrollTop을 맞춘다.
+ * 읽기 전용: 단일 스크롤 컨테이너(행 번호·소스가 함께 움직임).
+ * 편집: 동일 타이포 + scrollTop 동기화(줄바꿈 없음).
  */
 (function () {
   function bindLineEditor(editor) {
@@ -10,22 +11,22 @@
     var nums = editor.querySelector(".dw-line-nums");
     var ta = editor.querySelector(".dw-source-input");
     var view = editor.querySelector(".dw-source-view");
+    var scrollOuter = editor.querySelector(".dw-source-scroll");
+
+    if (scrollOuter) {
+      if (ta) {
+        ta.addEventListener("input", function () {
+          refreshNums(ta, nums);
+        });
+        refreshNums(ta, nums);
+      }
+      return;
+    }
+
     var scrollEl = ta || view;
     if (!nums || !scrollEl) return;
 
     var syncing = false;
-
-    function refreshNums() {
-      if (!ta) return;
-      var lines = (ta.value || "").split("\n");
-      var n = Math.max(1, lines.length);
-      var width = String(n).length;
-      var buf = [];
-      for (var i = 1; i <= n; i++) {
-        buf.push(String(i).padStart(width, " "));
-      }
-      nums.textContent = buf.join("\n");
-    }
 
     function syncScroll(fromNums) {
       if (syncing) return;
@@ -41,8 +42,10 @@
     }
 
     if (ta) {
-      ta.addEventListener("input", refreshNums);
-      refreshNums();
+      ta.addEventListener("input", function () {
+        refreshNums(ta, nums);
+      });
+      refreshNums(ta, nums);
     }
     scrollEl.addEventListener("scroll", function () {
       syncScroll(false);
@@ -57,6 +60,18 @@
       });
       ro.observe(scrollEl);
     }
+  }
+
+  function refreshNums(ta, nums) {
+    if (!ta || !nums) return;
+    var lines = (ta.value || "").split("\n");
+    var n = Math.max(1, lines.length);
+    var width = String(n).length;
+    var buf = [];
+    for (var i = 1; i <= n; i++) {
+      buf.push(String(i).padStart(width, " "));
+    }
+    nums.textContent = buf.join("\n");
   }
 
   function init(root) {

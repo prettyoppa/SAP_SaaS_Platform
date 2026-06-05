@@ -3347,11 +3347,27 @@ html[data-theme="light"] .delivery-workspace-tabs .nav-link.active {
   background: var(--surface);
   overflow: hidden;
   --dw-source-pane-max-h: 20rem;
+  --dw-source-font-size: 0.82rem;
+  --dw-source-line-height: 1.65;
+  --dw-source-pad-y: 0.375rem;
+  --dw-source-pad-x-code: 0.75rem;
+  --dw-source-pad-x-nums: 0.5rem;
+}
+.dw-source-editor .dw-source-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: auto;
+  max-height: var(--dw-source-pane-max-h);
+}
+.dw-source-editor .dw-source-scroll-inner {
+  display: flex;
+  align-items: flex-start;
+  min-width: min-content;
 }
 .dw-source-editor .dw-line-nums {
   flex: 0 0 auto;
   margin: 0;
-  padding: 0.375rem 0.5rem;
+  padding: var(--dw-source-pad-y) var(--dw-source-pad-x-nums);
   min-width: 3rem;
   max-height: var(--dw-source-pane-max-h);
   text-align: right;
@@ -3360,9 +3376,15 @@ html[data-theme="light"] .delivery-workspace-tabs .nav-link.active {
   border-right: 1px solid var(--border);
   overflow: auto;
   user-select: none;
-  line-height: 1.42857143;
+  font-size: var(--dw-source-font-size);
+  line-height: var(--dw-source-line-height);
+  font-family: ui-monospace, Consolas, "Segoe UI Mono", monospace;
   white-space: pre;
   scrollbar-width: none;
+}
+.dw-source-editor .dw-source-scroll .dw-line-nums {
+  max-height: none;
+  overflow: visible;
 }
 .dw-source-editor .dw-line-nums::-webkit-scrollbar {
   display: none;
@@ -3375,8 +3397,13 @@ html[data-theme="light"] .delivery-workspace-tabs .nav-link.active {
   border-radius: 0;
   resize: none;
   overflow: auto;
-  line-height: 1.42857143;
-  padding: 0.375rem 0.75rem;
+  font-size: var(--dw-source-font-size);
+  line-height: var(--dw-source-line-height);
+  padding: var(--dw-source-pad-y) var(--dw-source-pad-x-code);
+  font-family: ui-monospace, Consolas, "Segoe UI Mono", monospace;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
   tab-size: 2;
 }
 .dw-source-editor--expanded {
@@ -3424,34 +3451,54 @@ html[data-theme="dark"] .dw-slot-source-panel > summary {
   border: none;
   border-radius: 0;
   background: transparent;
+  --dw-source-pad-y: 1.25rem;
+}
+.dw-source-editor--readonly .dw-source-scroll {
+  max-height: var(--dw-source-pane-max-h, 28rem);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface2);
 }
 .dw-source-editor--readonly .dw-line-nums {
-  padding-top: 1.25rem;
-  padding-bottom: 1.25rem;
-  line-height: 1.65;
-  max-height: var(--dw-source-pane-max-h, 28rem);
-  overflow: auto;
-  scrollbar-width: none;
+  padding: var(--dw-source-pad-y) var(--dw-source-pad-x-nums) var(--dw-source-pad-y) 0.75rem;
+  background: var(--surface2);
+  border-right: 1px solid var(--border);
 }
 .dw-source-editor--readonly .dw-source-view {
   flex: 1;
   margin: 0;
-  max-height: var(--dw-source-pane-max-h, 28rem);
-  padding: 1.25rem;
-  line-height: 1.65;
-  overflow: auto;
+  padding: var(--dw-source-pad-y) var(--dw-source-pad-x-code) var(--dw-source-pad-y) 0.75rem;
+  font-size: var(--dw-source-font-size);
+  line-height: var(--dw-source-line-height);
+  overflow: visible;
+  max-height: none;
   border: none;
   border-radius: 0;
-  background: var(--surface2);
+  background: transparent;
   color: var(--code-text);
+  white-space: pre;
+}
+.dw-source-editor--readonly .codelib-source-pre.dw-source-view {
+  max-height: none;
+  overflow: visible;
+  border: none;
+  background: transparent;
 }
 .dw-source-editor--readonly .dw-source-view code {
   color: inherit;
-  font-family: ui-monospace, Consolas, "Segoe UI Mono", monospace;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: inherit;
+}
+html[data-theme="light"] .dw-source-editor--readonly .dw-source-scroll {
+  background: #f1f5f9;
 }
 html[data-theme="light"] .dw-source-editor--readonly .dw-source-view {
-  background: #f1f5f9;
   color: #0f172a;
+}
+html[data-theme="light"] .dw-source-editor--readonly .dw-line-nums {
+  background: #f1f5f9;
 }
 
 .dw-diff-panel .dw-diff-legend-sep {
