@@ -130,6 +130,16 @@ def create_wallet_topup_claim(
     from .wallet_topup_notifications import job_notify_admins_wallet_topup_submitted, schedule_wallet_notification
 
     schedule_wallet_notification(job_notify_admins_wallet_topup_submitted, int(row.id))
+    from .platform_audit import EVENT_WALLET_TOPUP_SUBMITTED, record_event
+
+    record_event(
+        db,
+        user,
+        EVENT_WALLET_TOPUP_SUBMITTED,
+        target_kind="payment_claim",
+        target_id=int(row.id),
+        detail=f"₩{amt:,}",
+    )
     return row, None
 
 
@@ -183,6 +193,16 @@ def create_project_settlement_bank_claim(
     )
 
     schedule_settlement_notification(job_notify_settlement_bank_submitted, int(row.id))
+    from .platform_audit import EVENT_SETTLEMENT_BANK_SUBMITTED, record_event
+
+    record_event(
+        db,
+        user,
+        EVENT_SETTLEMENT_BANK_SUBMITTED,
+        target_kind="project_settlement",
+        target_id=int(settlement.id),
+        detail=f"₩{int(settlement.gross_amount_krw):,}",
+    )
     return row, None
 
 
@@ -324,6 +344,16 @@ def confirm_payment_claim(
     row.updated_at = now
     db.commit()
     if is_project_settlement_plan_code(row.plan_code) and row.project_settlement_id:
+        from .platform_audit import EVENT_SETTLEMENT_FUNDED, record_event_for_user_id
+
+        record_event_for_user_id(
+            db,
+            int(user.id),
+            EVENT_SETTLEMENT_FUNDED,
+            target_kind="project_settlement",
+            target_id=int(row.project_settlement_id),
+            detail="bank",
+        )
         from .project_settlement_notifications import (
             job_notify_member_settlement_bank_confirmed,
             job_notify_settlement_funded,

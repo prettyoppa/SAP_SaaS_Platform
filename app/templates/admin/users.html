@@ -15,6 +15,13 @@
   </div>
 
   <div class="container">
+    <div class="mb-3">
+      <a href="/admin/users/audit-digest-notifications" class="btn btn-sm btn-outline-warning">
+        <i class="fa-solid fa-bell me-1"></i>
+        <span class="nav-ko">회원 주요 이벤트 로그 알림 전송</span>
+        <span class="nav-en" style="display:none">Member event log digest alerts</span>
+      </a>
+    </div>
     {% if deleted %}
     <div class="alert alert-success mb-3">
       <i class="fa-solid fa-check me-2"></i>사용자와 연관 데이터를 삭제했습니다.
@@ -149,7 +156,10 @@
               <th style="width:90px">인증</th>
               <th class="admin-users-actions-col" style="min-width:140px">휴대폰·번호공유</th>
               <th style="width:120px">가입일</th>
-              <th class="admin-users-actions-col">구독·한도</th>
+              <th class="admin-users-actions-col">
+                <span class="nav-ko">크레딧</span>
+                <span class="nav-en" style="display:none">Credits</span>
+              </th>
               <th class="admin-users-actions-col">탈퇴</th>
               <th class="admin-users-actions-col">삭제</th>
               <th class="admin-users-actions-col">유예 즉시</th>
@@ -251,7 +261,10 @@
               </td>
               <td class="small text-muted">{% if u.created_at %}{{ u.created_at|local_dt_span('date') }}{% else %}—{% endif %}</td>
               <td class="admin-users-actions-col">
-                <a class="btn btn-sm btn-outline-secondary" href="/admin/users/{{ u.id }}/subscription">구독</a>
+                <a class="btn btn-sm btn-outline-secondary font-monospace text-nowrap"
+                   href="/admin/users/{{ u.id }}/subscription">
+                  ₩{{ "{:,}".format(row.cum_topup_krw|default(0)) }}
+                </a>
               </td>
               <td class="admin-users-actions-col">
                 {% if u.pending_account_deletion %}

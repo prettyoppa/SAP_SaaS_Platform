@@ -582,6 +582,16 @@ def apply_request_offer_match_action(
             request_id=rid,
             request_title=title,
         )
+    from .platform_audit import EVENT_OFFER_MATCHED, record_event
+
+    record_event(
+        db,
+        actor,
+        EVENT_OFFER_MATCHED,
+        target_kind=kind,
+        target_id=rid,
+        detail=title[:200] if title else None,
+    )
     return None
 
 

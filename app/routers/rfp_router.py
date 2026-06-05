@@ -844,6 +844,16 @@ async def submit_rfp(
     db.refresh(rfp)
     if is_draft:
         return RedirectResponse(url=f"/rfp/{rfp.id}/edit?draft_saved=1", status_code=302)
+    from ..platform_audit import EVENT_REQUEST_SUBMITTED_RFP, record_event
+
+    record_event(
+        db,
+        user,
+        EVENT_REQUEST_SUBMITTED_RFP,
+        target_kind="rfp",
+        target_id=int(rfp.id),
+        detail=(title or "").strip()[:200] or None,
+    )
     return RedirectResponse(url=f"/rfp/{rfp.id}/success", status_code=302)
 
 

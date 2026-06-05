@@ -1332,6 +1332,15 @@ def request_console_offer_submit(
 
     notify_warn: str | None = None
     if created_new:
+        from ..platform_audit import EVENT_OFFER_CREATED, record_event
+
+        record_event(
+            db,
+            user,
+            EVENT_OFFER_CREATED,
+            target_kind=req_kind,
+            target_id=req_id,
+        )
         owner, title = _console_request_title_and_owner(db, req_kind, req_id)
         if owner:
             notify_warn = notify_request_owner_new_console_offer(
@@ -1707,6 +1716,16 @@ async def integration_new_submit(
     db.refresh(ir)
     if is_draft_save:
         return RedirectResponse(url=f"/integration/{ir.id}/edit", status_code=302)
+    from ..platform_audit import EVENT_REQUEST_SUBMITTED_INTEGRATION, record_event
+
+    record_event(
+        db,
+        user,
+        EVENT_REQUEST_SUBMITTED_INTEGRATION,
+        target_kind="integration",
+        target_id=int(ir.id),
+        detail=title_clean[:200] if title_clean else None,
+    )
     return RedirectResponse(url=integration_hub_url(ir.id, "interview"), status_code=302)
 
 

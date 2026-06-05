@@ -860,6 +860,23 @@ class PaymentClaim(Base):
     confirmed_by = relationship("User", foreign_keys=[confirmed_by_user_id])
 
 
+class PlatformAuditEvent(Base):
+    """회원 주요 운영 이벤트(관리자·테스트 계정 제외, 시간별 digest 알림용)."""
+
+    __tablename__ = "platform_audit_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    actor_email = Column(String(320), nullable=False, index=True)
+    event_type = Column(String(64), nullable=False, index=True)
+    target_kind = Column(String(32), nullable=True)
+    target_id = Column(Integer, nullable=True)
+    detail = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    actor = relationship("User", foreign_keys=[actor_user_id])
+
+
 class AiUsageEvent(Base):
     """추정 AI 추론 비용 원장(환불·운영 모니터링용, 회원 비공개)."""
 

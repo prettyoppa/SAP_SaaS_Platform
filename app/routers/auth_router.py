@@ -1319,6 +1319,10 @@ async def register(
 
     schedule_wallet_notification(job_notify_admins_new_registration, int(new_user.id))
 
+    from ..platform_audit import EVENT_MEMBER_REGISTERED, record_event
+
+    record_event(db, new_user, EVENT_MEMBER_REGISTERED)
+
     if account_type_norm == "consultant":
         _schedule_bg(send_consultant_application_received_email, new_user.email)
 

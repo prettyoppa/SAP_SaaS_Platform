@@ -34,7 +34,7 @@ from ..bank_transfer_settings import (
     ALL_BANK_BILLING_SETTING_KEYS,
     BANK_TRANSFER_SETTING_KEYS,
 )
-from ..ai_wallet import WALLET_TOPUP_PLAN_CODE, is_wallet_topup_plan_code
+from ..ai_wallet import aggregate_topup_krw_totals_for_users, WALLET_TOPUP_PLAN_CODE, is_wallet_topup_plan_code
 from ..payment_claim_service import (
     CLAIM_STATUS_PENDING,
     confirm_payment_claim,
@@ -450,11 +450,18 @@ def _admin_users_rows_and_summary(
 
     activity_by_user = _admin_user_activity_stats(db, user_ids)
 
+    raw_settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    try:
+        usd_krw = float((raw_settings.get("usd_krw_rate") or "1350").strip().replace(",", ""))
+    except ValueError:
+        usd_krw = 1350.0
+    topup_krw_by_user = aggregate_topup_krw_totals_for_users(db, user_ids, usd_krw_rate=usd_krw)
+
     rows: list[dict] = []
     activity_rows: list[dict] = []
     for u in users:
         uid = int(u.id)
-        rows.append({"user": u})
+        rows.append({"user": u, "cum_topup_krw": int(topup_krw_by_user.get(uid, 0))})
         st = activity_by_user.get(uid, {})
         activity_rows.append({"user": u, **st})
 
@@ -500,6 +507,44 @@ def _admin_users_rows_and_summary(
         "visible_users": len(users),
     }
     return rows, activity_rows, summary
+
+
+@router.get("/users/audit-digest-notifications", response_class=HTMLResponse)
+def admin_audit_digest_notifications_get(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    from ..platform_audit_digest import digest_email_enabled, digest_sms_enabled
+
+    raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
+    return templates.TemplateResponse(
+        request,
+        "admin/audit_digest_notifications.html",
+        {
+            "request": request,
+            "user": user,
+            "email_enabled": digest_email_enabled(db),
+            "sms_enabled": digest_sms_enabled(db),
+            "last_sent_at": raw.get("audit_digest_last_sent_at", ""),
+        },
+    )
+
+
+@router.post("/users/audit-digest-notifications")
+async def admin_audit_digest_notifications_save(request: Request, db: Session = Depends(get_db)):
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    form = await request.form()
+    from ..platform_audit_digest import SETTING_EMAIL, SETTING_SMS, _set_setting
+
+    _set_setting(db, SETTING_EMAIL, "1" if _form_bool(str(form.get("audit_digest_email") or "")) else "0")
+    _set_setting(db, SETTING_SMS, "1" if _form_bool(str(form.get("audit_digest_sms") or "")) else "0")
+    db.commit()
+    return RedirectResponse(url="/admin/users/audit-digest-notifications?saved=1", status_code=302)
 
 
 @router.get("/users", response_class=HTMLResponse)

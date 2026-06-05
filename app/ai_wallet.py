@@ -207,6 +207,48 @@ def display_confirmed_amount_minor(claim) -> int:
     return int(getattr(claim, "amount_minor", 0) or 0)
 
 
+def aggregate_topup_krw_totals_for_users(
+    db,
+    user_ids: list[int],
+    *,
+    usd_krw_rate: float,
+) -> dict[int, int]:
+    """회원 목록 등 — user_id별 누적 충전(KRW). 계좌이체 + PortOne 카드."""
+    ids = [int(x) for x in user_ids if x is not None]
+    if not ids:
+        return {}
+    from . import models
+    from .payment_purpose import PURPOSE_AI_WALLET_TOPUP
+
+    out = {uid: 0 for uid in ids}
+    claims = (
+        db.query(models.PaymentClaim)
+        .filter(
+            models.PaymentClaim.user_id.in_(ids),
+            models.PaymentClaim.plan_code == WALLET_TOPUP_PLAN_CODE,
+        )
+        .all()
+    )
+    for claim in claims:
+        uid = int(claim.user_id)
+        out[uid] = out.get(uid, 0) + topup_contribution_krw(claim)
+
+    txns = (
+        db.query(models.PaymentTransaction)
+        .filter(
+            models.PaymentTransaction.user_id.in_(ids),
+            models.PaymentTransaction.purpose == PURPOSE_AI_WALLET_TOPUP,
+            models.PaymentTransaction.status == "paid",
+        )
+        .all()
+    )
+    rate = float(usd_krw_rate or 1350.0)
+    for txn in txns:
+        uid = int(txn.user_id)
+        out[uid] = out.get(uid, 0) + portone_txn_credit_krw(txn, rate)
+    return out
+
+
 def build_wallet_topup_history_rows(
     db,
     user_id: int,

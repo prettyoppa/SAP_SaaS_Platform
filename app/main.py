@@ -302,6 +302,7 @@ def _run_migrations():
     try:
         models.PaymentClaim.__table__.create(bind=engine, checkfirst=True)
         models.AiUsageEvent.__table__.create(bind=engine, checkfirst=True)
+        models.PlatformAuditEvent.__table__.create(bind=engine, checkfirst=True)
     except Exception:
         pass
 
@@ -419,6 +420,9 @@ def _seed_home_tile_settings():
         ("service_abap_intro_md_ko", DEFAULT_SERVICE_ABAP_INTRO_MD_KO),
         ("service_analysis_intro_md_ko", DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO),
         ("service_integration_intro_md_ko", DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO),
+        ("audit_digest_email_enabled", "1"),
+        ("audit_digest_sms_enabled", "0"),
+        ("audit_digest_last_sent_at", ""),
     ]
     db: Session = SessionLocal()
     try:
@@ -730,7 +734,24 @@ async def lifespan(app: FastAPI):
                 db_loop.close()
             await asyncio.sleep(3600)
 
+    async def _audit_digest_loop():
+        await asyncio.sleep(180)
+        while True:
+            db_loop = SessionLocal()
+            try:
+                from .platform_audit_digest import run_audit_digest
+
+                n = run_audit_digest(db_loop)
+                if n:
+                    _log.info("[Audit] digest sent for %s event(s)", n)
+            except Exception:
+                _log.exception("[Audit] periodic digest failed")
+            finally:
+                db_loop.close()
+            await asyncio.sleep(3600)
+
     purge_task = asyncio.create_task(_purge_loop())
+    audit_digest_task = asyncio.create_task(_audit_digest_loop())
     try:
         yield
     finally:
@@ -738,6 +759,12 @@ async def lifespan(app: FastAPI):
             purge_task.cancel()
             try:
                 await purge_task
+            except asyncio.CancelledError:
+                pass
+        if audit_digest_task:
+            audit_digest_task.cancel()
+            try:
+                await audit_digest_task
             except asyncio.CancelledError:
                 pass
 

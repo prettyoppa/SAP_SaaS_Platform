@@ -186,6 +186,22 @@ def sync_payment(db: Session, payment_id: str) -> models.PaymentTransaction | No
         schedule_settlement_notification(
             job_notify_settlement_funded, int(txn.purpose_ref_id), "portone"
         )
+        settlement = (
+            db.query(models.ProjectSettlement)
+            .filter(models.ProjectSettlement.id == int(txn.purpose_ref_id))
+            .first()
+        )
+        if settlement:
+            from ..platform_audit import EVENT_SETTLEMENT_FUNDED, record_event_for_user_id
+
+            record_event_for_user_id(
+                db,
+                int(settlement.owner_user_id),
+                EVENT_SETTLEMENT_FUNDED,
+                target_kind="project_settlement",
+                target_id=int(settlement.id),
+                detail="portone",
+            )
     return txn
 
 

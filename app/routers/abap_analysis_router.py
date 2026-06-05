@@ -1096,6 +1096,16 @@ async def abap_analysis_create(
             url=f"/abap-analysis/{row.id}/edit?draft_saved=1",
             status_code=302,
         )
+    from ..platform_audit import EVENT_REQUEST_SUBMITTED_ABAP, record_event
+
+    record_event(
+        db,
+        user,
+        EVENT_REQUEST_SUBMITTED_ABAP,
+        target_kind="abap_analysis",
+        target_id=int(row.id),
+        detail=(title_clean or "")[:200] or None,
+    )
     return RedirectResponse(url=f"/abap-analysis/{row.id}", status_code=302)
 
 

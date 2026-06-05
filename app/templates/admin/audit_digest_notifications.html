@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}회원 주요 이벤트 로그 알림 – Admin{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="admin-page-header mb-4">
+    <div class="container">
+      <div class="d-flex align-items-center gap-3">
+        {% include 'partials/nav_prev_screen.html' %}
+        <div>
+          <h4 class="mb-0"><i class="fa-solid fa-bell me-2 text-warning"></i>
+            <span class="nav-ko">회원 주요 이벤트 로그 알림 전송</span>
+            <span class="nav-en" style="display:none">Member event log digest alerts</span>
+          </h4>
+          <small class="text-muted">
+            <span class="nav-ko">회원·컨설턴트의 주요 활동(가입, 요청 제출, 오퍼, 충전·납품 대금 등)을 <strong>1시간마다</strong> 묶어 관리자에게 알립니다. 관리자·테스트 계정 활동은 제외됩니다.</span>
+            <span class="nav-en" style="display:none">Summarize key member/consultant actions (registration, requests, offers, top-ups, settlements) and notify admins <strong>every hour</strong>. Admin and test accounts are excluded.</span>
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    {% if request.query_params.get('saved') %}
+    <div class="alert alert-success d-flex align-items-center mb-4">
+      <i class="fa-solid fa-circle-check me-2"></i>
+      <span class="nav-ko">저장되었습니다.</span>
+      <span class="nav-en" style="display:none">Saved.</span>
+    </div>
+    {% endif %}
+
+    <div class="admin-content-card mb-4">
+      <form method="post" action="/admin/users/audit-digest-notifications">
+        <div class="mb-4">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="audit_digest_email" id="audit_digest_email" value="1"
+              {% if email_enabled %}checked{% endif %}>
+            <label class="form-check-label" for="audit_digest_email">
+              <span class="nav-ko">이메일 알림</span>
+              <span class="nav-en" style="display:none">Email alerts</span>
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="audit_digest_sms" id="audit_digest_sms" value="1"
+              {% if sms_enabled %}checked{% endif %}>
+            <label class="form-check-label" for="audit_digest_sms">
+              <span class="nav-ko">SMS 알림</span>
+              <span class="nav-en" style="display:none">SMS alerts</span>
+            </label>
+          </div>
+          <p class="text-muted small mt-3 mb-0">
+            <span class="nav-ko">둘 다 선택하거나 하나만 선택할 수 있습니다. 알림에는 계정 이메일과 수행한 이벤트 종류만 간단히 포함됩니다.</span>
+            <span class="nav-en" style="display:none">Select one or both channels. Each digest lists account emails and event types only.</span>
+          </p>
+        </div>
+
+        {% if last_sent_at %}
+        <p class="small text-muted mb-3">
+          <span class="nav-ko">마지막 digest 전송 기준 시각 (UTC):</span>
+          <span class="nav-en" style="display:none">Last digest watermark (UTC):</span>
+          <code>{{ last_sent_at }}</code>
+        </p>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk me-1"></i>
+          <span class="nav-ko">저장</span>
+          <span class="nav-en" style="display:none">Save</span>
+        </button>
+        <a href="/admin/users" class="btn btn-outline-secondary ms-2">
+          <span class="nav-ko">회원 목록</span>
+          <span class="nav-en" style="display:none">User list</span>
+        </a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
