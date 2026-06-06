@@ -36,6 +36,20 @@ _ABAP_KEYWORD_LINE = re.compile(
 )
 _STRING_LITERAL = re.compile(r"'(?:''|[^'])*'")
 
+# SE38 활성화·구문check에서 자주 터지는 패턴 (정적 힌트 — codegen·2차 검수에 사용)
+SE38_SEMANTIC_REVIEW_RULES_KO = """
+### SE38 활성화 전 필수 점검 (표면 구문·API 오용)
+- Selection Screen `PARAMETERS`/`SELECT-OPTIONS`에 **TYPE string** 사용 금지 → `TYPE c LENGTH n` 또는 텍스트 요소.
+- **`TYPE boolean`** 금지 → `TYPE xfeld` / `TYPE abap_bool` / `TYPE c LENGTH 1` 등 표준 타입.
+- 동일 **TEXT-xxx** 를 COMMENT와 PUSHBUTTON(또는 다른 UI)에 **중복** 사용 금지.
+- `cl_abap_char_utilities=>dir_sep` **없음** → `CL_GUI_FRONTEND_SERVICES` 또는 OS별 리터럴/`/` 조합.
+- `GUI_DOWNLOAD`: **`xstring` 파라미터 없음** → `DATA_TAB` + `CHANGING`/`TABLES` 방식.
+- `CL_GUI_FRONTEND_SERVICES` 등 **classic FM**에 `TRY/CATCH cx_frontend_services` **불필요·오류** — 레거시 FM은 sy-subrc.
+- `SET_SCREEN_STATUS`/`PF-STATUS`: 소스에 **정의되지 않은** `STANDARD_FULLSCREEN` 등 임의 PF-STATUS 금지.
+- ALV: `if_salv_c_cell_type=>checkbox` **클릭 불가** → `checkbox_hotspot`; checkbox 이벤트 핸들러 필요 시 구현.
+- `CALL METHOD`/`CALL FUNCTION` **파라미터 이름·종류**(IMPORTING/EXPORTING/CHANGING) 표준 API와 일치.
+"""
+
 
 @dataclass(frozen=True)
 class AbapLintIssue:
@@ -153,6 +167,156 @@ def lint_block_balance(
     return issues
 
 
+def _lint_text_element_duplicates(
+    lines: list[str],
+    *,
+    slot_index: int,
+    filename: str,
+) -> list[AbapLintIssue]:
+    """COMMENT·PUSHBUTTON 등에서 동일 TEXT-xxx 중복."""
+    comment_ids: set[str] = set()
+    push_ids: set[str] = set()
+    text_re = re.compile(r"(?i)\bTEXT-(\d+)\b")
+    for line in lines:
+        low = line.lower()
+        ids = text_re.findall(line)
+        if not ids:
+            continue
+        if "comment" in low or "selection-screen comment" in low:
+            comment_ids.update(ids)
+        if "pushbutton" in low or "user-command" in low:
+            push_ids.update(ids)
+    issues: list[AbapLintIssue] = []
+    for tid in sorted(comment_ids & push_ids):
+        issues.append(
+            AbapLintIssue(
+                severity="error",
+                slot_index=slot_index,
+                filename=filename,
+                line_no=None,
+                code="text_element_duplicate",
+                message_ko=(
+                    f"TEXT-{tid} 가 COMMENT와 PUSHBUTTON(또는 유사 UI)에 중복 — "
+                    "SE38 Selection Screen 식별자 충돌."
+                ),
+            )
+        )
+    return issues
+
+
+def lint_se38_semantic_patterns(
+    source: str,
+    *,
+    slot_index: int = 0,
+    filename: str = "",
+) -> list[AbapLintIssue]:
+    """SE38 활성화·구문check에서 흔한 API/타입 오류 (정적 패턴)."""
+    issues: list[AbapLintIssue] = []
+    if not (source or "").strip():
+        return issues
+    lines = source.splitlines()
+    issues.extend(
+        _lint_text_element_duplicates(lines, slot_index=slot_index, filename=filename)
+    )
+    for i, line in enumerate(lines, 1):
+        if re.search(r"(?i)PARAMETERS\s+\w+.*TYPE\s+string\b", line):
+            issues.append(
+                AbapLintIssue(
+                    severity="error",
+                    slot_index=slot_index,
+                    filename=filename,
+                    line_no=i,
+                    code="param_type_string",
+                    message_ko=(
+                        f"{i}행: Selection Screen PARAMETERS에 TYPE string 불가 — "
+                        "TYPE c LENGTH n 또는 텍스트 요소."
+                    ),
+                )
+            )
+        if re.search(r"(?i)\bTYPE\s+boolean\b", line):
+            issues.append(
+                AbapLintIssue(
+                    severity="error",
+                    slot_index=slot_index,
+                    filename=filename,
+                    line_no=i,
+                    code="type_boolean",
+                    message_ko=f"{i}행: TYPE boolean 은 표준 ABAP 타입 아님 — xfeld/abap_bool 등 사용.",
+                )
+            )
+        if re.search(r"(?i)cl_abap_char_utilities=>\s*dir_sep\b", line):
+            issues.append(
+                AbapLintIssue(
+                    severity="error",
+                    slot_index=slot_index,
+                    filename=filename,
+                    line_no=i,
+                    code="dir_sep_invalid",
+                    message_ko=(
+                        f"{i}행: cl_abap_char_utilities=>dir_sep 속성 없음 — "
+                        "경로 구분은 CL_GUI_FRONTEND_SERVICES 등 표준 API 사용."
+                    ),
+                )
+            )
+        if re.search(r"(?i)\bgui_download\b", line) and re.search(r"(?i)\bxstring\s*=", line):
+            issues.append(
+                AbapLintIssue(
+                    severity="error",
+                    slot_index=slot_index,
+                    filename=filename,
+                    line_no=i,
+                    code="gui_download_xstring",
+                    message_ko=(
+                        f"{i}행: GUI_DOWNLOAD에 xstring 파라미터 없음 — "
+                        "DATA_TAB + CHANGING/TABLES 방식."
+                    ),
+                )
+            )
+        if re.search(r"(?i)\bcx_frontend_service", line):
+            issues.append(
+                AbapLintIssue(
+                    severity="warning",
+                    slot_index=slot_index,
+                    filename=filename,
+                    line_no=i,
+                    code="cx_frontend_services",
+                    message_ko=(
+                        f"{i}행: cx_frontend_services 계열 — "
+                        "CL_GUI_FRONTEND_SERVICES 등 classic FM은 sy-subrc 확인."
+                    ),
+                )
+            )
+        if re.search(r"(?i)if_salv_c_cell_type=>\s*checkbox\b", line):
+            issues.append(
+                AbapLintIssue(
+                    severity="error",
+                    slot_index=slot_index,
+                    filename=filename,
+                    line_no=i,
+                    code="salv_checkbox_type",
+                    message_ko=(
+                        f"{i}행: if_salv_c_cell_type=>checkbox 클릭 불가 — "
+                        "checkbox_hotspot 사용."
+                    ),
+                )
+            )
+        if re.search(r"(?i)pfstatus\s*=\s*['\"]standard_fullscreen['\"]", line):
+            issues.append(
+                AbapLintIssue(
+                    severity="warning",
+                    slot_index=slot_index,
+                    filename=filename,
+                    line_no=i,
+                    code="pf_status_undefined",
+                    message_ko=(
+                        f"{i}행: PF-STATUS 'STANDARD_FULLSCREEN' — "
+                        "MODULE STATUS에서 정의되지 않았을 수 있음."
+                    ),
+                )
+            )
+    return issues
+
+
 def lint_slot_source(
     source: str,
     *,
@@ -164,6 +328,9 @@ def lint_slot_source(
         return issues
     lines = source.splitlines()
     issues.extend(lint_block_balance(source, slot_index=slot_index, filename=filename))
+    issues.extend(
+        lint_se38_semantic_patterns(source, slot_index=slot_index, filename=filename)
+    )
     for i, line in enumerate(lines, 1):
         if _PATH_TAB_CORRUPT.search(line) or _PATH_SPACE_CORRUPT.search(line):
             issues.append(
@@ -248,6 +415,22 @@ def harden_delivered_package_dict(data: dict[str, Any]) -> tuple[dict[str, Any],
     return out, all_notes
 
 
+def append_lint_coder_notes(data: dict[str, Any], issues: list[AbapLintIssue]) -> dict[str, Any]:
+    """잔여 린트를 coder_notes에 기록 — ZIP·로컬 IDE(Cursor)에서 우선 수정."""
+    if not issues or not isinstance(data, dict):
+        return data
+    out = dict(data)
+    block = format_lint_for_reviewer(issues, max_items=14)
+    note = (
+        "### 정적 품질 검사 잔여 (로컬 IDE에서 우선 수정)\n"
+        "SE38 활성화 전 아래 항목을 Cursor 등에서 먼저 해소하세요.\n\n"
+        + block
+    )
+    prev = (str(out.get("coder_notes") or "")).strip()
+    out["coder_notes"] = (prev + "\n\n" + note).strip() if prev else note
+    return out
+
+
 def lint_delivered_package(data: dict[str, Any]) -> list[AbapLintIssue]:
     issues: list[AbapLintIssue] = []
     if not isinstance(data, dict):
@@ -286,3 +469,28 @@ def package_has_blocking_lint(issues: list[AbapLintIssue]) -> bool:
 def package_needs_second_review(issues: list[AbapLintIssue]) -> bool:
     """자동 보정 후에도 린트 이슈가 하나라도 남으면 2차 검수 (포맷·블록 구조 우선)."""
     return len(issues) > 0
+
+
+def needs_third_lint_pass(issues: list[AbapLintIssue]) -> bool:
+    """2차 검수·보정 후에도 린트가 남으면 3차(최종) 자동 수정."""
+    return len(issues) > 0
+
+
+def lint_fix_pass_instructions(pass_no: int) -> str:
+    """코드생성 파이프라인 2·3차 검수 지시문."""
+    if pass_no >= 3:
+        return """
+### 3차 검수 (최종 자동 수정)
+- 이번이 **마지막** 자동 수정입니다. **순수 JSON 하나**만 출력.
+- **error severity 항목은 0건**이 되도록 반드시 해소하세요.
+- warning도 가능한 한 해소. FS·기능·로직 **대규모 변경 금지**.
+- **블록 짝**(SELECT/ENDSELECT, LOOP/ENDLOOP, IF/ENDIF, FORM/ENDFORM 등)을 먼저 맞춘 뒤 SE38 표면 구문·API 오용만 고칩니다.
+- Windows 경로: JSON에서 `C:\\\\temp`. REPORT 1열, 공백 2칸, 탭 제거.
+"""
+    return """
+### 2차 검수 지시
+- 위 **모든** 정적 검사 항목을 해소한 **순수 JSON 하나**만 출력.
+- **블록 짝**(SELECT/ENDSELECT, LOOP/ENDLOOP, IF/ENDIF, FORM/ENDFORM 등)을 먼저 맞춘 뒤 세부 로직을 검토한다.
+- Windows 경로: JSON에서 `C:\\\\temp`. REPORT 1열, 공백 2칸, 탭 제거.
+- FS·기능 변경 없이 **포맷·블록 구조·표면 구문·SE38 활성화 오류 패턴**만 고친다 (엉뚱한 로직 수정 금지).
+"""

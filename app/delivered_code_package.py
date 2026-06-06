@@ -283,9 +283,69 @@ def merge_slots_json_with_extras(
     return normalize_delivered_package(base)
 
 
+def build_cursor_workspace_md(pkg: dict[str, Any]) -> str:
+    """ZIP에 포함 — Cursor/로컬 AI IDE 작업 안내."""
+    pid = (str(pkg.get("program_id") or "")).strip() or "(program_id in package)"
+    slots = pkg.get("slots") or []
+    names: list[str] = []
+    for idx, sl in enumerate(slots):
+        if isinstance(sl, dict):
+            fn = (str(sl.get("filename") or f"slot_{idx + 1}.abap")).strip()
+            role = (str(sl.get("role") or "")).strip()
+            names.append(f"- `{fn}` ({role or 'slot'})")
+    slot_list = "\n".join(names) if names else "- (no slots)"
+    notes = (str(pkg.get("coder_notes") or "")).strip()
+    notes_block = f"\n\n## Coder notes (from generation)\n\n{notes}\n" if notes else ""
+    return f"""# CURSOR_WORKSPACE.md — Local AI IDE workflow
+
+## English
+
+1. Unzip this package into a dedicated folder.
+2. **Copy your FS** (functional spec PDF/Markdown from the platform hub) into the **same folder** — FS is not included in this ZIP.
+3. Open the folder in **Cursor**, VS Code, or another AI-capable editor.
+4. Add to chat context: all `*.abap` files, guide markdown files below, and your **FS file(s)**.
+5. Fix remaining items in **coder notes** and static lint warnings before SE38 activation.
+6. Use SE38 only for final syntax check, activation, and transport — not as the primary edit surface.
+
+### In this ZIP (no FS)
+
+{slot_list}
+- `IMPLEMENTATION_GUIDE.md` — ops & cutover
+- `SE38_IMPLEMENTATION_GUIDE.md` — GUI steps for SAP
+- `TEST_SCENARIOS.md` — test cases
+- Program ID: `{pid}`
+
+**You add separately:** FS document(s) from the request hub.
+
+---
+
+## 한국어
+
+1. 이 ZIP을 전용 폴더에 풉니다.
+2. 플랫폼 허브의 **기능명세서(FS)** 를 PDF/MD 등으로 **같은 폴더에 직접 복사**합니다 (ZIP에 FS는 포함되지 않음).
+3. **Cursor**, VS Code 등 AI IDE에서 **폴더 전체**를 엽니다.
+4. 채팅 컨텍스트에 모든 `*.abap`, 아래 가이드 MD, **FS 파일**을 함께 넣습니다.
+5. **coder notes** 및 정적 품질 경고를 SE38 활성화 전에 로컬에서 우선 수정합니다.
+6. SE38는 최종 구문 check·활성화·전송용으로만 사용합니다.
+
+### ZIP 포함 (FS 제외)
+
+{slot_list}
+- `IMPLEMENTATION_GUIDE.md` — 운영·이행
+- `SE38_IMPLEMENTATION_GUIDE.md` — SAP GUI 이행
+- `TEST_SCENARIOS.md` — 테스트 시나리오
+- 프로그램 ID: `{pid}`
+
+**별도로 추가:** 허브에서 받은 FS 원본.
+{notes_block}"""
+
+
 def iter_abap_delivered_zip_members(pkg: dict[str, Any]) -> list[tuple[str, bytes]]:
-    """ABAP 납품 ZIP: 가이드·SE38 가이드·테스트·슬롯 소스."""
+    """ABAP 납품 ZIP: Cursor 안내·가이드·SE38 가이드·테스트·슬롯 소스."""
     out: list[tuple[str, bytes]] = []
+    cursor_md = build_cursor_workspace_md(pkg).encode("utf-8")
+    if cursor_md:
+        out.append(("CURSOR_WORKSPACE.md", cursor_md))
     ig = (pkg.get("implementation_guide_md") or "").encode("utf-8")
     if ig:
         out.append(("IMPLEMENTATION_GUIDE.md", ig))

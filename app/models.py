@@ -530,6 +530,29 @@ class KnowledgeArticle(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class AbapApiKbEntry(Base):
+    """SE38·개발코드 API/syntax 패턴 KB — 지식갤러리(KnowledgeArticle)와 별도."""
+
+    __tablename__ = "abap_api_kb_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dedupe_key = Column(String(160), unique=True, nullable=False, index=True)
+    entry_status = Column(String(16), nullable=False, default="candidate", index=True)
+    source_kind = Column(String(32), nullable=False, default="se38")
+    error_code = Column(String(64), nullable=True, index=True)
+    api_kind = Column(String(32), nullable=True)
+    api_name = Column(String(256), nullable=True, index=True)
+    title_ko = Column(String(512), nullable=False)
+    body_md = Column(Text, nullable=False, default="")
+    sample_context = Column(Text, nullable=True)
+    occurrence_count = Column(Integer, default=1, nullable=False)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
+    approved_at = Column(DateTime, nullable=True)
+    approved_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class KbGalleryBatchJob(Base):
     """지식갤러리 키워드·키노트 일괄 초안 생성(백그라운드)."""
 

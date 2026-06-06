@@ -44,7 +44,6 @@ from .routers import (
     billing_router,
     ai_wallet_router,
     as_built_router,
-    delivery_workspace_router,
 )
 from .templates_config import templates
 
@@ -660,8 +659,23 @@ def _bootstrap_database():
     _migrate_wallet_deduct_historical_ai_usage()
     _clamp_member_negative_ai_wallets()
     _migrate_kb_workflow_statuses()
+    _bootstrap_abap_api_kb()
     _sync_admins()
     _log.info("[DB] bootstrap complete")
+
+
+def _bootstrap_abap_api_kb():
+    from .abap_api_kb import bootstrap_lint_kb_entries
+
+    db = SessionLocal()
+    try:
+        n = bootstrap_lint_kb_entries(db)
+        if n:
+            _log.info("[AbapApiKb] bootstrapped %s lint pattern(s)", n)
+    except Exception:
+        _log.exception("[AbapApiKb] lint bootstrap skipped")
+    finally:
+        db.close()
 
 
 def _migrate_kb_workflow_statuses():
@@ -1024,8 +1038,6 @@ app.include_router(proposal_decisions_router.router)
 app.include_router(billing_router.router)
 app.include_router(ai_wallet_router.router)
 app.include_router(as_built_router.router)
-app.include_router(delivery_workspace_router.router)
-
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):

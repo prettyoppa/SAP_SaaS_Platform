@@ -18,9 +18,8 @@
   {% endif %}
 
   {% if delivered_package and delivered_package.slots %}
-  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <h5 class="mb-0 me-auto small text-uppercase text-muted">납품 ABAP · 슬롯별 소스</h5>
-    {% include 'partials/hub_delivery_workspace_link.html' %}
     {% if code_asset_unlocked|default(false) %}
     <a href="/abap-analysis/{{ row.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">
@@ -30,7 +29,11 @@
     <span class="btn btn-sm btn-outline-secondary disabled" style="pointer-events:none;opacity:.55" aria-disabled="true"><i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)</span>
     {% endif %}
   </div>
-  <p class="small text-muted mb-3">파일별 탭에서 ABAP 소스를 확인하세요. 에디터에 옮길 때 슬롯 파일명을 INCLUDE / 서브루틴 구조에 맞게 사용하세요.</p>
+  {% include 'partials/hub_local_ide_workflow_hint.html' %}
+  <p class="small text-muted mb-3">
+    <span class="nav-ko">파일별 탭에서 ABAP 소스를 확인하세요. ZIP에는 <strong>CURSOR_WORKSPACE.md</strong>·가이드·테스트가 포함됩니다. SE38 수정은 로컬 IDE(Cursor 등)에서 진행하세요.</span>
+    <span class="nav-en" style="display:none">Review ABAP per file tab. ZIP includes <strong>CURSOR_WORKSPACE.md</strong>, guides, and tests. Edit in a local IDE (Cursor, etc.).</span>
+  </p>
 
   {% with delivered_slots=delivered_package.slots, tabs_id='delivered-dc-ana-' ~ (row.id|string), panel_title='납품 ABAP' %}
   {% include 'partials/delivered_code_slots_tabs.html' %}

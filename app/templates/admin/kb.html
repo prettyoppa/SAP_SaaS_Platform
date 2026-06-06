@@ -5,7 +5,12 @@
   <div class="container">
     {% include 'admin/partials/kb_admin_nav.html' %}
 
-    {% if kb_tab == 'new' %}
+    {% if kb_tab == 'se38_api' %}
+    <p class="small text-muted mb-3">
+      <span class="nav-ko">SE38 오류·API 호출 패턴 KB입니다. <strong>지식갤러리 글과 별도</strong>이며, <strong>개발코드 생성</strong> 린트에서만 자동 축적됩니다. (SE38 납품 작업실은 폐쇄 — ZIP을 로컬 IDE에서 작업)</span>
+      <span class="nav-en" style="display:none">Dev-code API/syntax KB — <strong>separate from gallery articles</strong>, fed only by codegen lint. (SE38 delivery studio closed — use the ZIP in a local IDE.)</span>
+    </p>
+    {% elif kb_tab == 'new' %}
     <p class="small text-muted mb-3">
       <span class="nav-ko">AI 초안 또는 수동 작성으로 글을 추가합니다. 검수·발행은 <strong>목록 → 편집</strong>에서 합니다.</span>
       <span class="nav-en" style="display:none">Add via AI drafts or manual form. Review and publish from <strong>List → Edit</strong>.</span>
@@ -19,7 +24,9 @@
 
     {% include 'admin/partials/kb_admin_alerts.html' %}
 
-    {% if kb_tab == 'new' %}
+    {% if kb_tab == 'se38_api' %}
+    {% include 'admin/partials/kb_abap_api_list.html' %}
+    {% elif kb_tab == 'new' %}
     {% include 'admin/partials/kb_new_panel.html' %}
     {% else %}
     {% include 'admin/partials/kb_request_flow_backfill_panel.html' %}

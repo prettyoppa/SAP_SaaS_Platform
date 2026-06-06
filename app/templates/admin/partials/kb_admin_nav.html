@@ -1,16 +1,27 @@
-{# expects kb_tab: 'list' | 'new' #}
+{# expects kb_tab: 'list' | 'new' | 'se38_api' #}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
   <h4 class="mb-0">
     <i class="fa-solid fa-book me-2 text-primary"></i>
+    {% if kb_tab == 'se38_api' %}
+    <span class="nav-ko">개발코드 API KB</span>
+    <span class="nav-en" style="display:none">Dev code API KB</span>
+    {% else %}
     <span class="nav-ko">지식갤러리</span>
     <span class="nav-en" style="display:none">Knowledge gallery</span>
+    {% endif %}
   </h4>
   <div class="btn-group" role="group" aria-label="KB admin tabs">
     <a href="/admin/kb?view=list" class="btn btn-sm {% if kb_tab == 'list' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-      <span class="nav-ko">목록</span><span class="nav-en" style="display:none">List</span>
+      <span class="nav-ko">갤러리 목록</span><span class="nav-en" style="display:none">Gallery list</span>
     </a>
     <a href="/admin/kb?view=new" class="btn btn-sm {% if kb_tab == 'new' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-      <span class="nav-ko">신규</span><span class="nav-en" style="display:none">New</span>
+      <span class="nav-ko">갤러리 신규</span><span class="nav-en" style="display:none">Gallery new</span>
+    </a>
+    <a href="/admin/kb?view=se38_api&amp;api_status=candidate" class="btn btn-sm {% if kb_tab == 'se38_api' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+      <span class="nav-ko">개발코드 API KB</span><span class="nav-en" style="display:none">Dev code API KB</span>
+      {% if abap_api_candidate_count %}
+      <span class="badge bg-warning text-dark ms-1">{{ abap_api_candidate_count }}</span>
+      {% endif %}
     </a>
   </div>
 </div>
