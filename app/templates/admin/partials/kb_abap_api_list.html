@@ -1,0 +1,118 @@
+{# expects abap_api_entries, api_status_filter, abap_api_source_labels_ko, abap_api_source_labels_en #}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <div class="btn-group btn-group-sm" role="group" aria-label="SE38 API KB status filter">
+    <a href="/admin/kb?view=se38_api&amp;api_status=candidate" class="btn {% if api_status_filter == 'candidate' %}btn-warning{% else %}btn-outline-secondary{% endif %}">
+      <span class="nav-ko">후보</span><span class="nav-en" style="display:none">Candidates</span>
+      {% if abap_api_candidate_count %}<span class="badge bg-dark ms-1">{{ abap_api_candidate_count }}</span>{% endif %}
+    </a>
+    <a href="/admin/kb?view=se38_api&amp;api_status=approved" class="btn {% if api_status_filter == 'approved' %}btn-success{% else %}btn-outline-secondary{% endif %}">
+      <span class="nav-ko">승인됨</span><span class="nav-en" style="display:none">Approved</span>
+    </a>
+    <a href="/admin/kb?view=se38_api&amp;api_status=all" class="btn {% if api_status_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+      <span class="nav-ko">전체</span><span class="nav-en" style="display:none">All</span>
+    </a>
+  </div>
+  <span class="small text-muted">
+      <span class="nav-ko">지식갤러리(<code>/kb</code>)와 별도 · 개발코드 생성 린트에서 자동 축적</span>
+      <span class="nav-en" style="display:none">Separate from public gallery (<code>/kb</code>) · auto-collected from dev-code lint</span>
+  </span>
+</div>
+
+{% if request.query_params.get('api_ok') == 'approved' %}
+<div class="alert alert-success small py-2">
+  <span class="nav-ko">KB 항목을 승인했습니다. 코드생성 RAG에 반영됩니다.</span>
+  <span class="nav-en" style="display:none">Entry approved — included in dev-code RAG.</span>
+</div>
+{% elif request.query_params.get('api_ok') == 'dismissed' %}
+<div class="alert alert-warning small py-2">
+  <span class="nav-ko">후보를 반려했습니다.</span>
+  <span class="nav-en" style="display:none">Candidate dismissed.</span>
+</div>
+{% endif %}
+
+<div class="admin-content-card p-0 overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col"><span class="nav-ko">제목</span><span class="nav-en" style="display:none">Title</span></th>
+          <th scope="col">API</th>
+          <th scope="col"><span class="nav-ko">출처</span><span class="nav-en" style="display:none">Source</span></th>
+          <th scope="col"><span class="nav-ko">상태</span><span class="nav-en" style="display:none">Status</span></th>
+          <th scope="col"><span class="nav-ko">관측</span><span class="nav-en" style="display:none">Hits</span></th>
+          <th scope="col"><span class="nav-ko">최근</span><span class="nav-en" style="display:none">Last seen</span></th>
+          <th scope="col"><span class="nav-ko">동작</span><span class="nav-en" style="display:none">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in abap_api_entries %}
+        <tr>
+          <td class="text-muted">{{ e.id }}</td>
+          <td class="text-break" style="min-width:12rem">
+            <div class="fw-semibold">{{ e.title_ko }}</div>
+            {% if e.error_code %}
+            <code class="small">{{ e.error_code }}</code>
+            {% endif %}
+          </td>
+          <td class="small font-monospace text-break" style="max-width:14rem">
+            {% if e.api_name %}{{ e.api_name }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="small">
+            <span class="nav-ko">{{ abap_api_source_labels_ko.get(e.source_kind, e.source_kind) }}</span>
+            <span class="nav-en" style="display:none">{{ abap_api_source_labels_en.get(e.source_kind, e.source_kind) }}</span>
+          </td>
+          <td>
+            {% if e.entry_status == 'candidate' %}
+            <span class="badge bg-warning text-dark"><span class="nav-ko">후보</span><span class="nav-en" style="display:none">Candidate</span></span>
+            {% elif e.entry_status == 'approved' %}
+            <span class="badge bg-success"><span class="nav-ko">승인</span><span class="nav-en" style="display:none">Approved</span></span>
+            {% else %}
+            <span class="badge bg-secondary">{{ e.entry_status }}</span>
+            {% endif %}
+          </td>
+          <td class="text-muted">{{ e.occurrence_count or 0 }}</td>
+          <td class="small text-muted text-nowrap">{{ e.last_seen_at|local_dt_span }}</td>
+          <td class="text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#abap-api-body-{{ e.id }}" data-no-busy="true">
+              <span class="nav-ko">본문</span><span class="nav-en" style="display:none">Body</span>
+            </button>
+            {% if e.entry_status == 'candidate' %}
+            <form method="post" action="/admin/kb/abap-api/{{ e.id }}/approve" class="d-inline" data-app-confirm-i18n="admin.kb.abapApiApprove">
+              <input type="hidden" name="api_status" value="{{ api_status_filter }}">
+              <button type="submit" class="btn btn-sm btn-success">
+                <span class="nav-ko">승인</span><span class="nav-en" style="display:none">Approve</span>
+              </button>
+            </form>
+            <form method="post" action="/admin/kb/abap-api/{{ e.id }}/dismiss" class="d-inline" data-app-confirm-i18n="admin.kb.abapApiDismiss">
+              <input type="hidden" name="api_status" value="{{ api_status_filter }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">
+                <span class="nav-ko">반려</span><span class="nav-en" style="display:none">Dismiss</span>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        <tr class="collapse" id="abap-api-body-{{ e.id }}">
+          <td colspan="8" class="bg-light small">
+            <div class="p-2 font-monospace" style="white-space:pre-wrap">{{ e.body_md }}</div>
+            {% if e.sample_context %}
+            <div class="p-2 border-top">
+              <strong><span class="nav-ko">샘플 컨텍스트</span><span class="nav-en" style="display:none">Sample context</span></strong>
+              <pre class="mb-0 small">{{ e.sample_context }}</pre>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">
+            <span class="nav-ko">표시할 항목이 없습니다.</span>
+            <span class="nav-en" style="display:none">No entries to show.</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

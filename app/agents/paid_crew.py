@@ -25,10 +25,20 @@ from .free_crew import (
     _parse_code_library_context,
 )
 from ..agent_display import agent_label_ko
+from ..abap_api_kb import (
+    combined_source_from_package,
+    lookup_rag_block_for_sources,
+    schedule_accumulate_from_lint_issues,
+)
 from ..delivered_abap_quality import (
+    SE38_SEMANTIC_REVIEW_RULES_KO,
+    AbapLintIssue,
+    append_lint_coder_notes,
     format_lint_for_reviewer,
     harden_delivered_package_dict,
     lint_delivered_package,
+    lint_fix_pass_instructions,
+    needs_third_lint_pass,
     package_needs_second_review,
 )
 from ..delivered_code_package import (
@@ -438,6 +448,10 @@ SE38 붙여넣기·Include 생성 등 GUI 단계는 `SE38_IMPLEMENTATION_GUIDE.m
     )
     tcode_rule = f"T-Code 고객 지정: `{tcode or '(없음)'}` — 없으면 임의 T-Code를 만들지 말 것."
     _pb_del = playbook_prompt_wrap(playbook_addon)
+    _rag_pre = lookup_rag_block_for_sources(
+        source=f"{ref_for_prompt}\n{fs_block[:48000]}"
+    )
+    _rag_pre_block = f"\n\n{_rag_pre}" if _rag_pre else ""
 
     slot_task = Task(
         description=f"""기능명세서(FS)를 구현 근거로 삼아 **납품 ABAP 패키지**를 JSON으로만 출력하라.
@@ -492,6 +506,8 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
 - ABAP 문자열 내 따옴표는 JSON 이스케이프를 반드시 지킨다.
 - **SELECT~ENDSELECT, LOOP~ENDLOOP, IF~ENDIF, FORM~ENDFORM** 등 블록 짝·들여쓰기(2칸)·REPORT 1열을 맞춰 **SE38 Pretty Printer 통과** 가능한 소스만 출력한다.
 - **테스트 시나리오·구현 가이드는 JSON에 넣지 않는다.**
+{SE38_SEMANTIC_REVIEW_RULES_KO}
+{_rag_pre_block}
 {_pb_del}""",
         agent=json_coder,
         expected_output="유효한 JSON 한 덩어리",
@@ -506,6 +522,9 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
     )
     out_slots = str(logged_crew_kickoff(crew_slots, stage="delivered_code", agent_key="p_coder")).strip()
     _ph(f"{agent_label_ko('p_coder')} JSON 초안 완료 · 약 {len(out_slots)}자")
+
+    _rag_draft = lookup_rag_block_for_sources(source=out_slots[:120000])
+    _rag_draft_block = f"\n\n{_rag_draft}" if _rag_draft else ""
 
     review_task = Task(
         description=(
@@ -525,6 +544,8 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
    - Pretty Printer가 실패하면 구문check가 엉뚱한 줄을 가리켜 로직이 망가질 수 있으므로 **블록·포맷을 먼저 완성**한다.
    - Windows 경로 JSON: `C:\\\\temp` (단일 `\\t` 금지).
    - CALL METHOD/FUNCTION 파라미터 종류·이름 표준 API 일치.
+{SE38_SEMANTIC_REVIEW_RULES_KO}
+{_rag_draft_block}
 6. 논리·FS 불일치·누락 INCLUDE 외 **무관한 대규모 재작성 금지** — 오류·품질 결함만 최소 수정.
 """
         ),
@@ -554,27 +575,27 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
             phase_log=phase_log,
         )
 
-    data, _auto = harden_delivered_package_dict(data)
-    lint_issues = lint_delivered_package(data)
-    if package_needs_second_review(lint_issues):
+    def _run_lint_fix_pass(data_in: dict[str, Any], issues: list[AbapLintIssue], pass_no: int) -> dict[str, Any]:
         _ph(
-            f"{agent_label_ko('p_inspector')} — 정적 품질 이슈 {len(lint_issues)}건 · 2차 검수 Gemini 호출"
+            f"{agent_label_ko('p_inspector')} — 정적 품질 이슈 {len(issues)}건 · "
+            f"{pass_no}차 검수 Gemini 호출"
         )
-        lint_block = format_lint_for_reviewer(lint_issues)
+        lint_block = format_lint_for_reviewer(issues)
+        lint_hint = " ".join((i.code or "") for i in issues)
+        rag_fix = lookup_rag_block_for_sources(
+            se38_error=lint_hint,
+            source=combined_source_from_package(data_in),
+        )
+        rag_fix_block = f"\n\n{rag_fix}" if rag_fix else ""
         fix_task = Task(
             description=(
-                "### 1차 검수 JSON\n\n"
-                + _tail_for_followup_prompt(json.dumps(data, ensure_ascii=False), max_chars=118_000)
+                "### 검수 대상 JSON\n\n"
+                + _tail_for_followup_prompt(json.dumps(data_in, ensure_ascii=False), max_chars=118_000)
                 + "\n\n### 정적 품질 검사 결과 (반드시 해소)\n"
                 + lint_block
-                + """
-
-### 2차 검수 지시
-- 위 **모든** 정적 검사 항목을 해소한 **순수 JSON 하나**만 출력.
-- **블록 짝**(SELECT/ENDSELECT, LOOP/ENDLOOP, IF/ENDIF, FORM/ENDFORM 등)을 먼저 맞춘 뒤 세부 로직을 검토한다.
-- Windows 경로: JSON에서 `C:\\\\temp`. REPORT 1열, 공백 2칸, 탭 제거.
-- FS·기능 변경 없이 **포맷·블록 구조·표면 구문**만 고친다 (엉뚱한 로직 수정 금지).
-"""
+                + lint_fix_pass_instructions(pass_no)
+                + SE38_SEMANTIC_REVIEW_RULES_KO
+                + rag_fix_block
             ),
             agent=json_reviewer,
             expected_output="파싱 가능한 JSON 한 덩어리",
@@ -590,9 +611,28 @@ RFP·인터뷰·제안서는 FS와 충돌 시 **FS 우선**이다.
         ).strip()
         data_fix = extract_json_object_from_llm_text(out_fix)
         if data_fix:
-            data = data_fix
+            _ph(f"{agent_label_ko('p_inspector')} {pass_no}차 검수 완료")
+            return data_fix
+        _ph(f"{agent_label_ko('p_inspector')} {pass_no}차 검수 — JSON 파싱 실패, 이전 패키지 유지")
+        return data_in
+
+    data, _auto = harden_delivered_package_dict(data)
+    lint_issues = lint_delivered_package(data)
+    if package_needs_second_review(lint_issues):
+        data = _run_lint_fix_pass(data, lint_issues, 2)
         data, _ = harden_delivered_package_dict(data)
-        _ph(f"{agent_label_ko('p_inspector')} 2차 검수 완료")
+
+    lint_after_second = lint_delivered_package(data)
+    if needs_third_lint_pass(lint_after_second):
+        data = _run_lint_fix_pass(data, lint_after_second, 3)
+        data, _ = harden_delivered_package_dict(data)
+
+    final_lint = lint_delivered_package(data)
+    schedule_accumulate_from_lint_issues(final_lint)
+    if final_lint:
+        data = append_lint_coder_notes(data, final_lint)
+        n_err = sum(1 for i in final_lint if i.severity == "error")
+        _ph(f"정적 품질 검사 잔여 {len(final_lint)}건 (error {n_err}) — coder_notes·KB 반영")
 
     if cust_pid and not (str(data.get("program_id") or "").strip()):
         data["program_id"] = cust_pid

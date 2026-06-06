@@ -66,9 +66,9 @@ class DeliveryWorkspaceTests(unittest.TestCase):
         raw = "설명\n```abap\nREPORT zfix.\n```\n"
         self.assertEqual(extract_suggested_abap(raw), "REPORT zfix.")
 
-    def test_workspace_not_enabled_for_integration(self):
-        self.assertTrue(workspace_enabled_for_kind("rfp"))
-        self.assertTrue(workspace_enabled_for_kind("analysis"))
+    def test_workspace_closed_for_all_kinds(self):
+        self.assertFalse(workspace_enabled_for_kind("rfp"))
+        self.assertFalse(workspace_enabled_for_kind("analysis"))
         self.assertFalse(workspace_enabled_for_kind("integration"))
 
     def test_workspace_page_header_uses_title(self):
@@ -111,7 +111,7 @@ class DeliveryWorkspaceTests(unittest.TestCase):
         self.db.add(rfp)
         self.db.commit()
         self.db.refresh(rfp)
-        self.assertTrue(
+        self.assertFalse(
             user_can_use_delivery_workspace(
                 self.db,
                 consultant,

@@ -1543,6 +1543,35 @@ def _form_bool(val: str) -> bool:
     return (val or "").strip().lower() in ("1", "on", "true", "yes")
 
 
+def _kb_abap_api_admin_context(db: Session, request: Request) -> dict:
+    from ..abap_api_kb import ENTRY_CANDIDATE, list_admin_entries
+
+    qp = request.query_params
+    api_status = (qp.get("api_status") or "candidate").strip().lower()
+    if api_status not in ("candidate", "approved", "all"):
+        api_status = "candidate"
+    status_filter = None if api_status == "all" else api_status
+    entries = list_admin_entries(db, status=status_filter)
+    candidate_count = (
+        db.query(models.AbapApiKbEntry)
+        .filter(models.AbapApiKbEntry.entry_status == ENTRY_CANDIDATE)
+        .count()
+    )
+    return {
+        "abap_api_entries": entries,
+        "api_status_filter": api_status,
+        "abap_api_candidate_count": candidate_count,
+        "abap_api_source_labels_ko": {
+            "lint_auto": "린트 bootstrap",
+            "codegen": "코드생성",
+        },
+        "abap_api_source_labels_en": {
+            "lint_auto": "Lint bootstrap",
+            "codegen": "Codegen",
+        },
+    }
+
+
 def _kb_admin_page_context(request: Request, db: Session, user: models.User) -> dict:
     from ..kb_admin_list import kb_admin_list_rows
     from ..kb_gallery_batch import STATUS_RUNNING
@@ -1613,9 +1642,10 @@ def admin_kb(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     kb_tab = (request.query_params.get("view") or "list").strip().lower()
-    if kb_tab not in ("list", "new"):
+    if kb_tab not in ("list", "new", "se38_api"):
         kb_tab = "list"
     ctx = _kb_admin_page_context(request, db, user)
+    ctx.update(_kb_abap_api_admin_context(db, request))
     ctx["kb_tab"] = kb_tab
     return templates.TemplateResponse(request, "admin/kb.html", ctx)
 
@@ -1633,9 +1663,58 @@ def admin_kb_edit(article_id: int, request: Request, db: Session = Depends(get_d
     if not a:
         return RedirectResponse(url="/admin/kb?view=list", status_code=302)
     ctx = _kb_admin_page_context(request, db, user)
+    ctx.update(_kb_abap_api_admin_context(db, request))
     ctx["kb_tab"] = "list"
     ctx["a"] = a
     return templates.TemplateResponse(request, "admin/kb_edit.html", ctx)
+
+
+@router.post("/kb/abap-api/{entry_id}/approve")
+def admin_kb_abap_api_approve(
+    entry_id: int,
+    request: Request,
+    api_status: str = Form("candidate"),
+    db: Session = Depends(get_db),
+):
+    from ..abap_api_kb import approve_entry
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    api_status = (api_status or "candidate").strip().lower()
+    if api_status not in ("candidate", "approved", "all"):
+        api_status = "candidate"
+    if approve_entry(db, entry_id, int(user.id)):
+        return RedirectResponse(
+            url=f"/admin/kb?view=se38_api&api_status={api_status}&api_ok=approved",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"/admin/kb?view=se38_api&api_status={api_status}",
+        status_code=303,
+    )
+
+
+@router.post("/kb/abap-api/{entry_id}/dismiss")
+def admin_kb_abap_api_dismiss(
+    entry_id: int,
+    request: Request,
+    api_status: str = Form("candidate"),
+    db: Session = Depends(get_db),
+):
+    from ..abap_api_kb import dismiss_entry
+
+    user = _require_admin(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+    api_status = (api_status or "candidate").strip().lower()
+    if api_status not in ("candidate", "approved", "all"):
+        api_status = "candidate"
+    dismiss_entry(db, entry_id)
+    return RedirectResponse(
+        url=f"/admin/kb?view=se38_api&api_status={api_status}&api_ok=dismissed",
+        status_code=303,
+    )
 
 
 @router.post("/kb/add")

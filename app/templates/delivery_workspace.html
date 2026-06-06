@@ -176,8 +176,8 @@
           <span class="nav-en" style="display:none">SE38 syntax error, activation error, dump short text, etc.</span>
         </label>
         <p class="small text-muted mb-2">
-          <span class="nav-ko">AI 제안은 <strong>한 번의 호출</strong>에 메인·다른 ABAP 탭 소스를 <strong>읽기만</strong> 하고, <strong>수정 출력·반영은 현재 탭만</strong> 합니다. INCLUDE 탭에서 오류만 넣었을 때 메인이 원인이면 AI가 (B)로 다른 파일 수정을 권고할 수 있습니다.</span>
-          <span class="nav-en" style="display:none">Each suggestion <strong>reads</strong> main and other ABAP tabs in one call, but <strong>only the active tab</strong> can be edited and applied. On an include tab, AI may recommend fixing main instead.</span>
+          <span class="nav-ko">선택한 탭은 SE38에서 <strong>오류가 표시된 파일(위치)</strong>입니다. AI는 <strong>FS·패키지 ABAP 전체</strong>를 읽고 분석하며, <strong>수정 반영은 현재 탭만</strong> 가능합니다. 원인이 메인·다른 INCLUDE면 (B)로 안내합니다.</span>
+          <span class="nav-en" style="display:none">The selected tab is where SE38 <strong>reported</strong> the error. AI reads the <strong>full FS and package ABAP</strong>; only the <strong>active tab</strong> can be applied. It may recommend fixing main or another include.</span>
         </p>
         {% if sl.role|lower not in ['main_report', 'main', 'report'] %}
         <div class="alert alert-warning small py-2 mb-2" role="note">

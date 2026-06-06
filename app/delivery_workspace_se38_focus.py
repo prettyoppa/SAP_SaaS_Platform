@@ -55,7 +55,8 @@ def build_se38_focus_section(se38_error: str, source: str) -> str:
     err = (se38_error or "").strip()
     parts: list[str] = [
         "## 이번 SE38 오류에 집중 (필수)",
-        "- 컨설턴트가 [SE38 오류·징후]에 적은 **메시지·붙인 구문**만 1순위로 수정하세요.",
+        "- 컨설턴트가 선택한 탭은 **SE38에서 오류가 표시된 위치**입니다. **그 탭만** 보라는 뜻이 아닙니다.",
+        "- FS·패키지 ABAP 전체와 대조한 뒤, [SE38 오류·징후]의 **메시지·구문**만 1순위로 수정하세요.",
         "- 다른 행의 잠재 오타·경로 문자열·스타일은 **이번 응답에서 수정하지 마세요** (활성화에 필수일 때만 예외).",
     ]
     m = re.search(r'formal parameter\s+"([^"]+)"\s+does not exist', err, re.I)

@@ -8,9 +8,9 @@ from .delivery_fs_supplements import KIND_ANALYSIS, KIND_INTEGRATION, KIND_RFP
 
 
 def workspace_enabled_for_kind(request_kind: str) -> bool:
-    """신규 개발·분석·개선만. 연동 개발 제외."""
-    k = (request_kind or "").strip().lower()
-    return k in (KIND_RFP, KIND_ANALYSIS)
+    """SE38 납품 작업실 — 폐쇄. 로컬 IDE(Cursor 등)에서 ZIP으로 작업."""
+    _ = request_kind
+    return False
 
 
 def workspace_page_header(entity: Any, request_kind: str) -> dict[str, str]:

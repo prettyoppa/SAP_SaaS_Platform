@@ -30,7 +30,16 @@ from ..delivery_workspace import (
 from ..delivery_workspace_access import user_can_use_delivery_workspace
 from ..delivery_workspace_display import workspace_page_header
 from ..delivery_workspace_ai import STAGE_DELIVERY_WORKSPACE_FIX, suggest_slot_fix
-from ..delivery_workspace_context import build_peer_sources_context
+from ..delivery_workspace_fix_context import (
+    build_full_package_abap_context,
+    build_package_guides_block,
+    resolved_fs_for_workspace_fix,
+)
+from ..abap_api_kb import (
+    format_rag_block,
+    lookup_rag_entries,
+    schedule_accumulate_from_se38,
+)
 from ..delivery_workspace_diff import diff_panel_html
 from ..delivery_workspace_fix_history import (
     format_fix_history_for_prompt,
@@ -371,7 +380,15 @@ def delivery_workspace_suggest_fix(
     fix_history_block = format_fix_history_for_prompt(
         history, slot_index=idx, se38_error=se38_error
     )
-    _, peer_count = build_peer_sources_context(slots, active_index=idx)
+    fs_text = resolved_fs_for_workspace_fix(db, row, norm)
+    guides_block = build_package_guides_block(pkg)
+    _, pkg_slot_count = build_full_package_abap_context(
+        slots, active_index=idx, active_filename=(sl.get("filename") or "").strip()
+    )
+
+    rag_kb_block = format_rag_block(
+        lookup_rag_entries(db, se38_error=se38_error, source=current_src)
+    )
 
     def _call_suggest(extra_history: str = "") -> tuple[str, str | None]:
         block = fix_history_block
@@ -392,6 +409,9 @@ def delivery_workspace_suggest_fix(
             main_slot_filenames=list(main_slot_filenames(slots)),
             active_slot_is_include_like=slot_is_include_like(slot_role),
             fix_history_block=block,
+            fs_text=fs_text,
+            package_guides_block=guides_block,
+            rag_kb_block=rag_kb_block,
         )
 
     suggested, err = _call_suggest()
@@ -440,7 +460,7 @@ def delivery_workspace_suggest_fix(
             se38_error=se38_error,
             fix_elsewhere_target=fix_target if deferred else None,
             fix_elsewhere_reason=fix_reason if deferred else None,
-            peer_count=peer_count,
+            peer_count=pkg_slot_count,
         )
         db.commit()
     except ValueError:
@@ -451,6 +471,11 @@ def delivery_workspace_suggest_fix(
             ),
             status_code=303,
         )
+    schedule_accumulate_from_se38(
+        se38_error=se38_error,
+        source_snippet=current_src[:2000],
+        slot_filename=(sl.get("filename") or "").strip(),
+    )
     return RedirectResponse(
         url=_workspace_redirect(
             norm, int(row.id), return_to=return_to, slot=idx, ws_ok=ws_ok_val
