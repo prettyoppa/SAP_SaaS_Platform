@@ -137,6 +137,7 @@ from ..offer_inquiry_service import (
     apply_request_offer_match_action,
     inquiries_by_offer_id,
     public_request_url,
+    sanitize_console_readonly_return_url,
     send_consultant_offer_inquiry_reply,
     send_offer_inquiry_from_owner,
     withdraw_request_offer,
