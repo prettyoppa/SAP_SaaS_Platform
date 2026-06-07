@@ -4082,14 +4082,15 @@ html[data-theme="light"] .abap-chat-log .abap-msg-bubble--them.chat-md-body pre 
 .offer-member-inquiry-launcher {
   border-color: color-mix(in srgb, var(--bucket-proposal-fg) 38%, transparent);
   background: var(--bucket-proposal-bg);
-  color: var(--bucket-proposal-fg) !important;
+  color: var(--bucket-analysis-fg) !important;
 }
 .offer-member-inquiry-launcher:hover {
   background: color-mix(in srgb, var(--bucket-proposal-bg) 70%, var(--bucket-proposal-fg));
   border-color: color-mix(in srgb, var(--bucket-proposal-fg) 50%, transparent);
+  color: var(--bucket-analysis-fg) !important;
 }
 .offer-member-inquiry-launcher:focus {
-  outline-color: color-mix(in srgb, var(--bucket-proposal-fg) 55%, transparent);
+  outline-color: color-mix(in srgb, var(--bucket-analysis-fg) 55%, transparent);
 }
 .offer-member-inquiry-header {
   flex-direction: column;
