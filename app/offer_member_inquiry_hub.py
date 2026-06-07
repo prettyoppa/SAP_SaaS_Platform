@@ -59,7 +59,7 @@ def build_offer_member_inquiry_ctx(
     query_params: Any,
 ) -> dict[str, Any] | None:
     """Template ctx for `offer_member_inquiry` float, or None when hidden."""
-    if not user or readonly_console:
+    if not user:
         return None
 
     is_owner = int(user.id) == int(owner_user_id)
@@ -78,7 +78,10 @@ def build_offer_member_inquiry_ctx(
     selectable: list = []
     can_compose = False
 
-    if is_owner and can_inquire and active_offers:
+    # 요청 Console 읽기 전용: 요청자 발송만 막고, 매칭 컨·관리자는 플로팅 유지.
+    owner_may_compose = is_owner and can_inquire and not readonly_console
+
+    if owner_may_compose and active_offers:
         mode = "owner"
         selectable = list(active_offers)
         can_compose = True

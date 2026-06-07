@@ -1,44 +1,45 @@
 {% if offer_member_inquiry is defined and offer_member_inquiry and offer_member_inquiry.enabled %}
 <script>
 (function () {
+  var fid = {{ offer_member_inquiry.float_id | tojson }};
+
   function stackOfferMemberInquiryFloat() {
-    var memberRoot = document.getElementById({{ offer_member_inquiry.float_id | tojson }});
-    if (!memberRoot || memberRoot.dataset.memberInquiryStacked === '1') return;
+    var memberRoot = document.getElementById(fid);
+    if (!memberRoot || memberRoot.dataset.memberInquiryStacked === '1') return memberRoot;
     var aiRoot = null;
     document.querySelectorAll('.abap-float-chat').forEach(function (el) {
       if (el !== memberRoot && !aiRoot) aiRoot = el;
     });
-    if (!aiRoot) return;
+    if (!aiRoot) return memberRoot;
     memberRoot.dataset.memberInquiryStacked = '1';
-    var panel = memberRoot.querySelector('.offer-member-inquiry-panel');
-    var launcher = memberRoot.querySelector('.offer-member-inquiry-launcher');
+    var panel = document.getElementById(fid + 'Panel');
+    var launcher = document.getElementById(fid + 'Launcher');
     var aiLauncher = aiRoot.querySelector('.abap-float-chat-launcher');
     if (panel) aiRoot.insertBefore(panel, aiRoot.firstChild);
     if (launcher && aiLauncher) aiRoot.insertBefore(launcher, aiLauncher);
     memberRoot.remove();
+    return aiRoot;
   }
 
   function bootOfferMemberInquiryFloat() {
     stackOfferMemberInquiryFloat();
-    var fid = {{ offer_member_inquiry.float_id | tojson }};
-    var root = document.getElementById(fid);
-    if (!root || root.dataset.memberInquiryBooted === '1') return;
-    root.dataset.memberInquiryBooted = '1';
     var panel = document.getElementById(fid + 'Panel');
     var launcher = document.getElementById(fid + 'Launcher');
     var closeBtn = document.getElementById(fid + 'Close');
     if (!panel || !launcher) return;
+    if (launcher.dataset.memberInquiryBooted === '1') return;
+    launcher.dataset.memberInquiryBooted = '1';
 
-    var selectEl = root.querySelector('[data-offer-member-inquiry-select]');
+    var selectEl = panel.querySelector('[data-offer-member-inquiry-select]');
     var activeOfferId = {{ offer_member_inquiry.default_offer_id | tojson }};
 
     function showOfferThread(offerId) {
       activeOfferId = String(offerId);
-      root.querySelectorAll('[data-offer-member-inquiry-thread]').forEach(function (el) {
+      panel.querySelectorAll('[data-offer-member-inquiry-thread]').forEach(function (el) {
         if (el.getAttribute('data-offer-member-inquiry-thread') === activeOfferId) el.removeAttribute('hidden');
         else el.setAttribute('hidden', '');
       });
-      root.querySelectorAll('[data-offer-member-inquiry-compose]').forEach(function (el) {
+      panel.querySelectorAll('[data-offer-member-inquiry-compose]').forEach(function (el) {
         if (el.getAttribute('data-offer-member-inquiry-compose') === activeOfferId) el.removeAttribute('hidden');
         else el.setAttribute('hidden', '');
       });
@@ -46,19 +47,19 @@
 
     if (selectEl) {
       selectEl.addEventListener('change', function () { showOfferThread(selectEl.value); });
-    } else {
+    } else if (activeOfferId != null) {
       showOfferThread(activeOfferId);
     }
 
-    var defaultTa = root.querySelector('.offer-member-inquiry-compose:not([hidden]) .offer-member-inquiry-msg')
-      || root.querySelector('.offer-member-inquiry-msg');
+    var defaultTa = panel.querySelector('.offer-member-inquiry-compose:not([hidden]) .offer-member-inquiry-msg')
+      || panel.querySelector('.offer-member-inquiry-msg');
     var resizeApi = typeof window.initAbapFloatChatResize === 'function'
       ? window.initAbapFloatChatResize({
           panel: panel,
           sizeKey: {{ offer_member_inquiry.size_key | tojson }},
           panelGrip: document.getElementById(fid + 'Resize'),
           textarea: defaultTa,
-          taGrip: root.querySelector('.offer-member-inquiry-ta-resize'),
+          taGrip: panel.querySelector('.offer-member-inquiry-ta-resize'),
         })
       : null;
     if (resizeApi) resizeApi.loadStoredSizeIfAny();

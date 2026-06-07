@@ -63,7 +63,7 @@ def test_build_ctx_consultant_matched_only():
     assert ctx["show_offer_picker"] is False
 
 
-def test_build_ctx_hidden_readonly_console():
+def test_build_ctx_owner_hidden_on_readonly_console():
     owner = SimpleNamespace(id=1, is_admin=False, is_consultant=False)
     assert (
         build_offer_member_inquiry_ctx(
@@ -80,6 +80,26 @@ def test_build_ctx_hidden_readonly_console():
         )
         is None
     )
+
+
+def test_build_ctx_consultant_shown_on_readonly_console():
+    consultant = SimpleNamespace(id=10, is_admin=False, is_consultant=True)
+    offers = [_offer(1, status="matched", consultant_id=10)]
+    ctx = build_offer_member_inquiry_ctx(
+        MagicMock(),
+        user=consultant,
+        owner_user_id=1,
+        offers=offers,
+        inquiries_by_offer_id={},
+        can_inquire=False,
+        readonly_console=True,
+        hub_phase="fs",
+        hub_readonly_return_url="/rfp/1/console-readonly?phase=fs",
+        query_params={},
+    )
+    assert ctx is not None
+    assert ctx["mode"] == "consultant"
+    assert ctx["can_compose"] is True
 
 
 def test_member_inquiry_redirect_preserves_hub_phase():
