@@ -2821,6 +2821,13 @@ html[data-theme="light"] .rfp-unified-hub .wf-abap-mirror-phase .rfp-workflow-ab
 .rfp-unified-hub .interview-summary-toggle.rfp-hub-phase.mb-3 {
   margin-bottom: 0.6rem !important;
 }
+.hub-settlement-phase-icon {
+  font-size: 1.5em;
+  color: var(--primary);
+}
+html[data-theme="dark"] .hub-settlement-phase-icon {
+  color: #c7d2fe;
+}
 .proposal-page.py-5 {
   padding-top: 1.75rem !important;
   padding-bottom: 1.75rem !important;

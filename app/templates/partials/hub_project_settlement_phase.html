@@ -2,7 +2,7 @@
 <details class="interview-summary-toggle rfp-hub-phase mb-3" id="{{ settlement_phase_anchor }}"
   {% if hub_phase_open|default('') == 'settlement' %}open{% endif %}>
   <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
-    <i class="fa-solid fa-hand-holding-dollar me-1 text-primary" aria-hidden="true"></i>
+    <i class="fa-solid fa-hand-holding-dollar hub-settlement-phase-icon me-1" aria-hidden="true"></i>
     <span class="fw-semibold"><span data-i18n="hub.phaseSettlement">납품·대금</span></span>
     {% if settlement_status == 'payable' %}
     <span class="badge bg-warning text-dark ms-1" data-i18n="settlement.badgePayable">지급 대기</span>
