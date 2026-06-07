@@ -68,6 +68,10 @@
       <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
         <div class="flex-grow-1" style="min-width: 0;">
           <div class="fw-semibold">
+            {% if c and c.email %}
+            <span class="text-muted font-monospace small fw-normal">{{ c.email }}</span>
+            <span class="text-muted mx-1" aria-hidden="true">·</span>
+            {% endif %}
             {{ c.full_name if c else '' }}{% if not c %}<span class="nav-ko">컨설턴트</span><span class="nav-en" style="display:none">Consultant</span>{% endif %}
             {% if c and c.company %}<span class="text-muted small"> · {{ c.company }}</span>{% endif %}
             {% if of.status == 'matched' %}

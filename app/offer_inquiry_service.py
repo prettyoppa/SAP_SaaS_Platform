@@ -657,6 +657,24 @@ def clear_match_notice_pending_for_consultant(db: Session, consultant_user_id: i
     )
 
 
+def inquiry_sender_account_line(user: models.User, *, role_label: str) -> str:
+    """이메일·SMS 본문용 발신 회원 계정(로그인 이메일) 표시."""
+    email = (getattr(user, "email", None) or "").strip()
+    name = (getattr(user, "full_name", None) or "").strip()
+    if email and name:
+        return f"{role_label}: {email} ({name})"
+    if email:
+        return f"{role_label}: {email}"
+    if name:
+        return f"{role_label}: {name}"
+    return f"{role_label}: (계정 정보 없음)"
+
+
+def inquiry_sender_sms_prefix(user: models.User) -> str:
+    email = (getattr(user, "email", None) or "").strip()
+    return f"발신 {email}\n" if email else ""
+
+
 def phone_e164_for_sms(raw: str | None) -> str | None:
     """DB에 저장된 번호를 E.164(+...)로 맞춘다. 이미 +로 시작하면 검증만."""
     s = (raw or "").strip()
@@ -786,7 +804,9 @@ def send_offer_inquiry_from_owner(
 
     subject = inquiry_notification_subject(request_title)
     console_line = format_reply_via_console_ko(request)
+    sender_line = inquiry_sender_account_line(author, role_label="발신(요청자)")
     body_email = (
+        f"{sender_line}\n"
         f"요청 ID: {inquiry_request_label(offer)}\n"
         f"요청: {request_title}\n\n"
         f"{body}\n\n"
@@ -796,6 +816,7 @@ def send_offer_inquiry_from_owner(
     phone_e164 = phone_e164_for_sms(getattr(consultant, "phone_number", None)) if sms_ok else None
     sms_body = (
         f"[SAP Dev Hub]\n"
+        f"{inquiry_sender_sms_prefix(author)}"
         f"{request_title[:40]}\n"
         f"{body[:300]}{'…' if len(body) > 300 else ''}\n"
         f"{site_public_origin(request)}"
@@ -893,7 +914,9 @@ def send_inquiry_from_consultant_to_owner(
 
     subject = inquiry_notification_subject(request_title)
     follow_line = format_owner_reply_followup_ko(request)
+    sender_line = inquiry_sender_account_line(consultant, role_label="발신(컨설턴트)")
     body_email = (
+        f"{sender_line}\n"
         f"요청 ID: {inquiry_request_label(offer)}\n"
         f"요청: {request_title}\n\n"
         f"{body}\n\n"
@@ -918,6 +941,7 @@ def send_inquiry_from_consultant_to_owner(
         if sms_ok and phone_e164:
             sms_body = (
                 f"[SAP Dev Hub]\n"
+                f"{inquiry_sender_sms_prefix(consultant)}"
                 f"{request_title[:40]}\n"
                 f"{body[:200]}{'…' if len(body) > 200 else ''}\n"
                 f"{site_public_origin(request)}"

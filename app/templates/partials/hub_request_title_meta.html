@@ -1,0 +1,6 @@
+{# hub_meta_id, hub_meta_kind (RFP|ANA|INT), hub_meta_created, hub_meta_tag_i18n, hub_meta_tag_ko, owner #}
+{{ hub_meta_id|request_no(hub_meta_kind) }} · {{ hub_meta_created|local_dt_span }}
+{% if owner is defined and owner and owner.email %}
+ · <span class="font-monospace">{{ owner.email }}</span>
+{% endif %}
+ · <span data-i18n="{{ hub_meta_tag_i18n }}">{{ hub_meta_tag_ko }}</span>

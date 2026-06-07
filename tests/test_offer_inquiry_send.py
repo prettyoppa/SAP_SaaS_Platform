@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from app import models
-from app.offer_inquiry_service import send_offer_inquiry_from_owner
+from app.offer_inquiry_service import inquiry_sender_account_line, send_offer_inquiry_from_owner
 
 
 def _consultant(*, email_opt: bool = True, sms_opt: bool = False) -> models.User:
@@ -40,7 +40,7 @@ def test_owner_inquiry_saved_when_email_fails(mock_email, mock_sms):
     err, row = send_offer_inquiry_from_owner(
         db,
         request=SimpleNamespace(base_url="http://test/"),
-        author=SimpleNamespace(id=1),
+        author=SimpleNamespace(id=1, email="owner@test.com", full_name="Owner"),
         offer=offer,
         consultant=_consultant(),
         request_title="Test RFP",
@@ -69,7 +69,7 @@ def test_owner_inquiry_ok_when_email_succeeds(mock_email, mock_sms):
     err, row = send_offer_inquiry_from_owner(
         db,
         request=SimpleNamespace(base_url="http://test/"),
-        author=SimpleNamespace(id=1),
+        author=SimpleNamespace(id=1, email="owner@test.com", full_name="Owner"),
         offer=offer,
         consultant=_consultant(),
         request_title="Test RFP",
@@ -79,3 +79,10 @@ def test_owner_inquiry_ok_when_email_succeeds(mock_email, mock_sms):
     assert err is None
     assert row is not None
     mock_email.assert_called_once()
+
+
+def test_inquiry_sender_account_line_includes_email():
+    user = SimpleNamespace(email="user@test.com", full_name="홍길동")
+    line = inquiry_sender_account_line(user, role_label="발신(요청자)")
+    assert "user@test.com" in line
+    assert "홍길동" in line

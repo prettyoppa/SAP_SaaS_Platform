@@ -18,7 +18,12 @@
         <div class="proposal-icon" style="background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.3);color:#22c55e"><i class="fa-solid fa-code"></i></div>
         <div>
           <h2 class="mb-1">{{ rfp.title }}</h2>
-          <div class="small text-muted">{{ rfp.id|request_no('RFP') }} · {{ rfp.created_at|local_dt_span }} · <span data-i18n="detail.newDevTag">신규 개발</span></div>
+          {% set hub_meta_id = rfp.id %}
+          {% set hub_meta_kind = 'RFP' %}
+          {% set hub_meta_created = rfp.created_at %}
+          {% set hub_meta_tag_i18n = 'detail.newDevTag' %}
+          {% set hub_meta_tag_ko = '신규 개발' %}
+          <div class="small text-muted">{% include 'partials/hub_request_title_meta.html' %}</div>
           {% if user.is_admin and owner %}
           <div class="mt-2 small rounded px-2 py-1" style="background:var(--surface2);border:1px solid var(--border);">
             <i class="fa-solid fa-user-shield me-1 text-warning"></i>
