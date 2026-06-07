@@ -801,28 +801,53 @@ def send_offer_inquiry_from_owner(
         f"{site_public_origin(request)}"
     )
 
-    email_sent = False
-    sms_sent = False
-    try:
-        if email_ok:
-            send_plain_notification_email(to_email, subject, body_email)
-            email_sent = True
-        if sms_ok and phone_e164:
-            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="offer_inquiry")
-            sms_sent = True
-    except Exception as ex:
-        return (str(ex) or "전송에 실패했습니다."), None
-
     row = models.RequestOfferInquiry(
         request_offer_id=offer.id,
         author_user_id=author.id,
         body=body,
-        email_sent=email_sent,
-        sms_sent=sms_sent,
+        email_sent=False,
+        sms_sent=False,
     )
     db.add(row)
     db.commit()
     db.refresh(row)
+
+    notify_errors: list[str] = []
+    if email_ok:
+        try:
+            send_plain_notification_email(to_email, subject, body_email)
+            row.email_sent = True
+        except Exception as ex:
+            logger.exception(
+                "offer inquiry email failed offer_id=%s author_id=%s",
+                getattr(offer, "id", None),
+                getattr(author, "id", None),
+            )
+            notify_errors.append(f"이메일({_notify_delivery_err_short(ex)})")
+    if sms_ok and phone_e164:
+        try:
+            send_offer_inquiry_sms(phone_e164, sms_body, sms_type="offer_inquiry")
+            row.sms_sent = True
+        except Exception as ex:
+            logger.exception(
+                "offer inquiry sms failed offer_id=%s author_id=%s",
+                getattr(offer, "id", None),
+                getattr(author, "id", None),
+            )
+            notify_errors.append(f"SMS({_notify_delivery_err_short(ex)})")
+
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    if row.email_sent or row.sms_sent:
+        return None, row
+    if notify_errors:
+        return (
+            "문의 내용은 저장되었으나 알림(이메일·SMS) 발송에 실패했습니다. "
+            + " · ".join(notify_errors),
+            row,
+        )
     return None, row
 
 

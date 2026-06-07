@@ -12,7 +12,7 @@ import os
 import zipfile
 from datetime import datetime
 from typing import Any, List, Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -170,6 +170,23 @@ from .rfp_router import (
 )
 
 router = APIRouter(prefix="/abap-analysis", tags=["abap_analysis"])
+
+_ABAP_PROPOSAL_PHASE_FRAG = "abap-phase-proposal"
+
+
+def _abap_proposal_hub_redirect(req_id: int, *, console_readonly: bool = False, **query: str) -> str:
+    """Query string must precede #fragment or FastAPI never sees offer_inquiry_* flash params."""
+    path = f"/abap-analysis/{req_id}/console-readonly" if console_readonly else f"/abap-analysis/{req_id}"
+    if query:
+        return f"{path}?{urlencode(query)}#{_ABAP_PROPOSAL_PHASE_FRAG}"
+    return f"{path}#{_ABAP_PROPOSAL_PHASE_FRAG}"
+
+
+def _append_query_to_hub_path(path: str, **query: str) -> str:
+    if not query:
+        return path
+    sep = "&" if "?" in path else "?"
+    return f"{path}{sep}{urlencode(query)}"
 
 
 def _analysis_offer_rows(db: Session, analysis_id: int) -> list[models.RequestOffer]:
@@ -2338,11 +2355,15 @@ def abap_analysis_offer_inquiry_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    base = f"/abap-analysis/{req_id}#abap-phase-proposal"
-    sep = "&" if "?" in base else "?"
     if err:
-        return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}", status_code=303)
-    return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1", status_code=303)
+        return RedirectResponse(
+            url=_abap_proposal_hub_redirect(req_id, offer_inquiry_err=err),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_abap_proposal_hub_redirect(req_id, offer_inquiry_ok="1"),
+        status_code=303,
+    )
 
 
 @router.post("/{req_id}/offers/{offer_id}/inquiry-reply")
@@ -2387,13 +2408,26 @@ def abap_analysis_offer_inquiry_reply_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    base = f"/abap-analysis/{req_id}#abap-phase-proposal"
-    sep = "&" if "?" in base else "?"
+    safe = sanitize_console_readonly_return_url(return_hub)
     if err:
+        if safe:
+            return RedirectResponse(
+                url=_append_query_to_hub_path(safe, offer_inquiry_reply_err=err),
+                status_code=303,
+            )
         return RedirectResponse(
-            url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}", status_code=303
+            url=_abap_proposal_hub_redirect(req_id, offer_inquiry_reply_err=err),
+            status_code=303,
         )
-    return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_ok=1", status_code=303)
+    if safe:
+        return RedirectResponse(
+            url=_append_query_to_hub_path(safe, offer_inquiry_reply_ok="1"),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_abap_proposal_hub_redirect(req_id, offer_inquiry_reply_ok="1"),
+        status_code=303,
+    )
 
 
 @router.get("/{req_id}/offers/{offer_id}/profile")
