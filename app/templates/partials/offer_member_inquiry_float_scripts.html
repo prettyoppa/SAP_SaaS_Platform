@@ -33,6 +33,35 @@
     var selectEl = panel.querySelector('[data-offer-member-inquiry-select]');
     var activeOfferId = {{ offer_member_inquiry.default_offer_id | tojson }};
 
+    function memberInquiryPlaceholderTemplate() {
+      if (typeof window.t === 'function') {
+        var translated = window.t('memberInquiry.composePlaceholderTo');
+        if (translated) return translated;
+      }
+      var lang = 'ko';
+      try { lang = localStorage.getItem('lang') || lang; } catch (e) {}
+      return lang === 'en' ? 'Message for {email}…' : '{email} 에게 전달할 내용을 입력하세요.';
+    }
+
+    function memberInquiryMsgPlaceholder(ta) {
+      if (!ta) return;
+      var email = (ta.getAttribute('data-recipient-email') || '').trim();
+      var fallbackKey = ta.getAttribute('data-i18n-placeholder');
+      if (email) {
+        ta.placeholder = memberInquiryPlaceholderTemplate().replace(/\{email\}/g, email);
+        return;
+      }
+      if (fallbackKey && typeof window.t === 'function') {
+        var fallback = window.t(fallbackKey);
+        if (fallback) ta.placeholder = fallback;
+      }
+    }
+
+    function updateMemberInquiryMsgPlaceholders(root) {
+      if (!root) return;
+      root.querySelectorAll('.offer-member-inquiry-msg').forEach(memberInquiryMsgPlaceholder);
+    }
+
     function showOfferThread(offerId) {
       activeOfferId = String(offerId);
       panel.querySelectorAll('[data-offer-member-inquiry-thread]').forEach(function (el) {
@@ -50,6 +79,11 @@
     } else if (activeOfferId != null) {
       showOfferThread(activeOfferId);
     }
+    updateMemberInquiryMsgPlaceholders(panel);
+    document.addEventListener('app:langchange', function () {
+      var p = document.getElementById(fid + 'Panel');
+      if (p) updateMemberInquiryMsgPlaceholders(p);
+    });
 
     var defaultTa = panel.querySelector('.offer-member-inquiry-compose:not([hidden]) .offer-member-inquiry-msg')
       || panel.querySelector('.offer-member-inquiry-msg');

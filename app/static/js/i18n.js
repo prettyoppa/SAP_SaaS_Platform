@@ -583,6 +583,7 @@ const TRANSLATIONS = {
     "memberInquiry.noMessagesYet": "No messages yet. Send one below.",
     "memberInquiry.ownerPlaceholder": "Message for the consultant…",
     "memberInquiry.consultantPlaceholder": "Message for the requester…",
+    "memberInquiry.composePlaceholderTo": "Message for {email}…",
     "memberInquiry.viewerHint": "Admin view only. You cannot send messages.",
     "offers.consultantFallback": "Consultant",
     "offers.emailOptIn": "Email",
@@ -1185,6 +1186,7 @@ const TRANSLATIONS = {
     "memberInquiry.noMessagesYet": "아직 대화가 없습니다. 아래에서 메시지를 보내 보세요.",
     "memberInquiry.ownerPlaceholder": "컨설턴트에게 전달할 내용을 입력하세요.",
     "memberInquiry.consultantPlaceholder": "요청자에게 전달할 내용을 입력하세요.",
+    "memberInquiry.composePlaceholderTo": "{email} 에게 전달할 내용을 입력하세요.",
     "memberInquiry.viewerHint": "관리자 보기 전용입니다. 메시지를 보낼 수 없습니다.",
     "offers.consultantFallback": "컨설턴트",
     "offers.emailOptIn": "이메일 수신",
@@ -1356,6 +1358,7 @@ function confirmI18n(key) {
   return window.confirm(v != null ? v : key);
 }
 window.confirmI18n = confirmI18n;
+window.t = t;
 
 if (document.documentElement.getAttribute('data-effective-lang') !== currentLang) {
   setLang(currentLang, { persist: false });

@@ -25,14 +25,17 @@
         </button>
       </div>
       {% if omi.show_offer_picker %}
-      <select id="{{ fid }}OfferSelect" class="form-select form-select-sm offer-member-inquiry-offer-select" data-offer-member-inquiry-select data-i18n-aria-label="memberInquiry.offerSelectLabel" aria-label="대상 컨설턴트">
-        {% for of in omi.selectable_offers %}
-        {% set c = of.consultant %}
-        <option value="{{ of.id }}" {% if of.id == omi.default_offer_id %}selected{% endif %}>
-          {% if omi.mode == 'consultant' and owner is defined and owner and owner.email %}{{ owner.email }}{% elif c and c.email %}{{ c.email }} · {% endif %}{% if omi.mode != 'consultant' %}{{ c.full_name if c else 'Consultant' }}{% elif owner is defined and owner %}{{ owner.full_name or owner.email }}{% endif %}{% if of.status == 'matched' %} · matched{% elif of.status == 'offered' %} · offer{% endif %}
-        </option>
-        {% endfor %}
-      </select>
+      <div class="offer-member-inquiry-offer-select-wrap">
+        <select id="{{ fid }}OfferSelect" class="form-select form-select-sm offer-member-inquiry-offer-select" data-offer-member-inquiry-select data-i18n-aria-label="memberInquiry.offerSelectLabel" aria-label="대상 컨설턴트">
+          {% for of in omi.selectable_offers %}
+          {% set c = of.consultant %}
+          <option value="{{ of.id }}" {% if of.id == omi.default_offer_id %}selected{% endif %}>
+            {% if omi.mode == 'consultant' and owner is defined and owner and owner.email %}{{ owner.email }}{% elif c and c.email %}{{ c.email }} · {% endif %}{% if omi.mode != 'consultant' %}{{ c.full_name if c else 'Consultant' }}{% elif owner is defined and owner %}{{ owner.full_name or owner.email }}{% endif %}{% if of.status == 'matched' %} · matched{% elif of.status == 'offered' %} · offer{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <i class="fa-solid fa-chevron-down offer-member-inquiry-offer-select-chevron" aria-hidden="true"></i>
+      </div>
       {% elif omi.selectable_offers|length == 1 %}
       {% set of1 = omi.selectable_offers[0] %}
       {% set c1 = of1.consultant %}
@@ -103,7 +106,7 @@
           </p>
           <label class="form-label small text-muted mb-1" for="{{ fid }}Msg{{ of.id }}" data-i18n="memberInquiry.composeLabel">메시지</label>
           <div class="abap-followup-ta-wrap">
-            <textarea id="{{ fid }}Msg{{ of.id }}" name="body" class="form-control form-control-sm abap-followup-msg-input offer-member-inquiry-msg" rows="3" maxlength="1000" required data-i18n-placeholder="memberInquiry.ownerPlaceholder" placeholder="컨설턴트에게 전달할 내용을 입력하세요."></textarea>
+            <textarea id="{{ fid }}Msg{{ of.id }}" name="body" class="form-control form-control-sm abap-followup-msg-input offer-member-inquiry-msg" rows="3" maxlength="1000" required data-i18n-placeholder="memberInquiry.ownerPlaceholder" data-member-inquiry-placeholder-template="memberInquiry.composePlaceholderTo" data-recipient-email="{{ c.email if c and c.email else '' }}" placeholder="컨설턴트에게 전달할 내용을 입력하세요."></textarea>
             <button type="button" class="abap-followup-ta-resize offer-member-inquiry-ta-resize" data-ta-for="{{ fid }}Msg{{ of.id }}" data-i18n-aria-label="chat.taResizeAria" data-i18n-title="chat.taResizeTitle" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
               <i class="fa-solid fa-up-right-and-down-left-from-center abap-resize-fa abap-resize-fa--ta" aria-hidden="true"></i>
             </button>
@@ -135,7 +138,7 @@
           </p>
           <label class="form-label small text-muted mb-1" for="{{ fid }}Reply{{ of.id }}" data-i18n="memberInquiry.composeLabel">메시지</label>
           <div class="abap-followup-ta-wrap">
-            <textarea id="{{ fid }}Reply{{ of.id }}" name="body" class="form-control form-control-sm abap-followup-msg-input offer-member-inquiry-msg" rows="3" maxlength="1000" required data-i18n-placeholder="memberInquiry.consultantPlaceholder" placeholder="요청자에게 전달할 내용을 입력하세요."></textarea>
+            <textarea id="{{ fid }}Reply{{ of.id }}" name="body" class="form-control form-control-sm abap-followup-msg-input offer-member-inquiry-msg" rows="3" maxlength="1000" required data-i18n-placeholder="memberInquiry.consultantPlaceholder" data-member-inquiry-placeholder-template="memberInquiry.composePlaceholderTo" data-recipient-email="{% if owner is defined and owner and owner.email %}{{ owner.email }}{% endif %}" placeholder="요청자에게 전달할 내용을 입력하세요."></textarea>
             <button type="button" class="abap-followup-ta-resize offer-member-inquiry-ta-resize" data-ta-for="{{ fid }}Reply{{ of.id }}" data-i18n-aria-label="chat.taResizeAria" data-i18n-title="chat.taResizeTitle" aria-label="입력 영역 크기 조절" title="오른쪽 위를 드래그하여 입력 창 크기 조절">
               <i class="fa-solid fa-up-right-and-down-left-from-center abap-resize-fa abap-resize-fa--ta" aria-hidden="true"></i>
             </button>

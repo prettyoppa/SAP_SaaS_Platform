@@ -4103,7 +4103,7 @@ html[data-theme="light"] .abap-chat-log .abap-msg-bubble--them.chat-md-body pre 
   gap: 0.5rem;
   width: 100%;
 }
-.offer-member-inquiry-header .offer-member-inquiry-offer-select {
+.offer-member-inquiry-header .offer-member-inquiry-offer-select-wrap {
   width: 100%;
 }
 .offer-member-inquiry-header .offer-member-inquiry-single-target {
@@ -4116,8 +4116,29 @@ html[data-theme="light"] .abap-chat-log .abap-msg-bubble--them.chat-md-body pre 
 .offer-member-inquiry-flash-wrap .alert:last-child {
   margin-bottom: 0.35rem;
 }
+.offer-member-inquiry-offer-select-wrap {
+  position: relative;
+  width: 100%;
+}
 .offer-member-inquiry-offer-select {
   font-size: 0.8125rem;
+  width: 100%;
+  padding-right: 2rem;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: none;
+}
+.offer-member-inquiry-offer-select-chevron {
+  position: absolute;
+  right: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.62rem;
+  color: var(--muted);
+  opacity: 0.9;
 }
 .offer-member-inquiry-panel .offer-inquiry-privacy-note {
   font-size: 0.75rem;
