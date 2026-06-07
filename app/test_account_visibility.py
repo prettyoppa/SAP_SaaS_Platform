@@ -102,6 +102,31 @@ def set_published_to_consultants(
             row.updated_by_user_id = int(updated_by_user_id)
 
 
+def consultant_has_active_offer_on_request(
+    db: Session,
+    viewer,
+    request_kind: str,
+    request_id: int,
+) -> bool:
+    """이 컨설턴트가 해당 요청에 offered/matched 오퍼가 있으면 True."""
+    if not viewer or not getattr(viewer, "is_consultant", False):
+        return False
+    vid = int(getattr(viewer, "id", 0) or 0)
+    if not vid:
+        return False
+    return (
+        db.query(models.RequestOffer.id)
+        .filter(
+            models.RequestOffer.request_kind == (request_kind or "").strip(),
+            models.RequestOffer.request_id == int(request_id),
+            models.RequestOffer.consultant_user_id == vid,
+            models.RequestOffer.status.in_(("offered", "matched")),
+        )
+        .first()
+        is not None
+    )
+
+
 def block_test_owned_for_viewer(
     db: Session,
     viewer,
@@ -116,6 +141,8 @@ def block_test_owned_for_viewer(
         return False
     if request_kind is not None and request_id is not None:
         if is_published_to_consultants(db, request_kind, int(request_id)):
+            return False
+        if consultant_has_active_offer_on_request(db, viewer, request_kind, int(request_id)):
             return False
     return True
 
@@ -140,7 +167,16 @@ def filter_query_exclude_test_owners(
             models.RequestConsultantVisibility.request_id == request_id_column,
             models.RequestConsultantVisibility.visible_to_consultants.is_(True),
         )
-        return q.filter(or_(~test_owner, published))
+        clauses = [~test_owner, published]
+        if getattr(viewer, "is_consultant", False) and getattr(viewer, "id", None):
+            engaged = exists().where(
+                models.RequestOffer.request_kind == request_kind,
+                models.RequestOffer.request_id == request_id_column,
+                models.RequestOffer.consultant_user_id == int(viewer.id),
+                models.RequestOffer.status.in_(("offered", "matched")),
+            )
+            clauses.append(engaged)
+        return q.filter(or_(*clauses))
     return q.filter(~test_owner)
 
 

@@ -27,9 +27,22 @@ def test_admin_and_test_viewers_see_test_requests():
 def test_regular_consultant_blocked_from_test_owner():
     db = MagicMock()
     db.query.return_value.filter.return_value.first.return_value = (1,)
-    viewer = _user(is_admin=False, is_test_account=False, is_consultant=True)
+    viewer = _user(is_admin=False, is_test_account=False, is_consultant=True, id=7)
     assert viewer_hides_test_owned_requests(viewer) is True
     assert block_test_owned_for_viewer(db, viewer, 42) is True
+
+
+def test_consultant_with_offer_sees_test_owner_request():
+    db = MagicMock()
+    # test owner, not published, but consultant has offer
+    db.query.return_value.filter.return_value.first.side_effect = [(1,), (99,)]
+    viewer = _user(is_admin=False, is_test_account=False, is_consultant=True, id=7)
+    assert (
+        block_test_owned_for_viewer(
+            db, viewer, 42, request_kind="rfp", request_id=3
+        )
+        is False
+    )
 
 
 def test_regular_consultant_sees_non_test_owner():

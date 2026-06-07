@@ -883,11 +883,12 @@ def send_inquiry_from_consultant_to_owner(
     request_detail_url: str,
     body_raw: str,
 ) -> tuple[str | None, models.RequestOfferInquiry | None]:
-    """매칭된 오퍼의 담당 컨설턴트 → 요청자 메시지(저장 + 이메일·SMS). 연속 발송 허용."""
+    """오퍼(제안)·매칭 오퍼의 담당 컨설턴트 → 요청자 메시지(저장 + 이메일·SMS). 연속 발송 허용."""
     if int(offer.consultant_user_id) != int(consultant.id):
         return "이 오퍼에 대한 권한이 없습니다.", None
-    if (offer.status or "").strip() != OFFER_STATUS_MATCHED:
-        return "매칭된 요청에서만 메시지를 보낼 수 있습니다.", None
+    st = (offer.status or "").strip()
+    if st not in (OFFER_STATUS_MATCHED, OFFER_STATUS_OFFERED):
+        return "오퍼가 있는 요청에서만 메시지를 보낼 수 있습니다.", None
 
     body = (body_raw or "").strip()
     if len(body) < 1:

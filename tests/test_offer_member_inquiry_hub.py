@@ -63,6 +63,26 @@ def test_build_ctx_consultant_matched_only():
     assert ctx["show_offer_picker"] is False
 
 
+def test_build_ctx_consultant_offered_not_matched():
+    consultant = SimpleNamespace(id=10, is_admin=False, is_consultant=True)
+    offers = [_offer(1, status="offered", consultant_id=10)]
+    ctx = build_offer_member_inquiry_ctx(
+        MagicMock(),
+        user=consultant,
+        owner_user_id=1,
+        offers=offers,
+        inquiries_by_offer_id={1: [SimpleNamespace()]},
+        can_inquire=False,
+        readonly_console=False,
+        hub_phase="proposal",
+        hub_readonly_return_url=None,
+        query_params={},
+    )
+    assert ctx is not None
+    assert ctx["mode"] == "consultant"
+    assert ctx["can_compose"] is True
+
+
 def test_build_ctx_owner_hidden_on_readonly_console():
     owner = SimpleNamespace(id=1, is_admin=False, is_consultant=False)
     assert (

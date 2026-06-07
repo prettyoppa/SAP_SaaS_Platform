@@ -9,61 +9,67 @@
     <button type="button" class="abap-float-chat-resize" id="{{ fid }}Resize" data-i18n-aria-label="chat.panelResizeAria" data-i18n-title="chat.panelResizeHint" aria-label="패널 크기 조절" title="왼쪽 위 모서리를 드래그하여 크기 조절">
       <i class="fa-solid fa-up-right-and-down-left-from-center abap-resize-fa abap-resize-fa--panel" aria-hidden="true"></i>
     </button>
-    <div class="abap-float-chat-header">
-      <span class="abap-float-chat-header-title">
-        {% if omi.mode == 'consultant' %}
-        <span data-i18n="memberInquiry.headerToOwner">요청자에게 문의</span>
-        {% elif omi.mode == 'owner' %}
-        <span data-i18n="memberInquiry.headerToConsultant">컨설턴트에게 문의</span>
-        {% else %}
-        <span data-i18n="memberInquiry.headerViewer">회원 문의 내역</span>
-        {% endif %}
-      </span>
-      <button type="button" class="abap-float-chat-close" id="{{ fid }}Close" data-i18n-title="chat.closeTitle" data-i18n-aria-label="chat.closeAria" title="닫기" aria-label="패널 닫기">
-        <i class="fa-solid fa-xmark fa-lg"></i>
-      </button>
+    <div class="abap-float-chat-header offer-member-inquiry-header">
+      <div class="offer-member-inquiry-header-main">
+        <span class="abap-float-chat-header-title">
+          {% if omi.mode == 'consultant' %}
+          <span data-i18n="memberInquiry.headerToOwner">요청자에게 문의</span>
+          {% elif omi.mode == 'owner' %}
+          <span data-i18n="memberInquiry.headerToConsultant">컨설턴트에게 문의</span>
+          {% else %}
+          <span data-i18n="memberInquiry.headerViewer">회원 문의 내역</span>
+          {% endif %}
+        </span>
+        <button type="button" class="abap-float-chat-close" id="{{ fid }}Close" data-i18n-title="chat.closeTitle" data-i18n-aria-label="chat.closeAria" title="닫기" aria-label="패널 닫기">
+          <i class="fa-solid fa-xmark fa-lg"></i>
+        </button>
+      </div>
+      {% if omi.show_offer_picker %}
+      <div class="offer-member-inquiry-header-picker">
+        <label class="form-label small text-muted mb-1" for="{{ fid }}OfferSelect" data-i18n="memberInquiry.offerSelectLabel">{% if omi.mode == 'consultant' %}<span class="nav-ko">내 오퍼</span><span class="nav-en" style="display:none">My offer</span>{% else %}<span data-i18n="memberInquiry.offerSelectLabel">대상 컨설턴트</span>{% endif %}</label>
+        <select id="{{ fid }}OfferSelect" class="form-select form-select-sm offer-member-inquiry-offer-select" data-offer-member-inquiry-select>
+          {% for of in omi.selectable_offers %}
+          {% set c = of.consultant %}
+          <option value="{{ of.id }}" {% if of.id == omi.default_offer_id %}selected{% endif %}>
+            {% if omi.mode == 'consultant' and owner is defined and owner and owner.email %}{{ owner.email }}{% elif c and c.email %}{{ c.email }} · {% endif %}{% if omi.mode != 'consultant' %}{{ c.full_name if c else 'Consultant' }}{% elif owner is defined and owner %}{{ owner.full_name or owner.email }}{% endif %}{% if of.status == 'matched' %} · matched{% elif of.status == 'offered' %} · offer{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% elif omi.selectable_offers|length == 1 %}
+      {% set of1 = omi.selectable_offers[0] %}
+      {% set c1 = of1.consultant %}
+      <div class="offer-member-inquiry-header-picker">
+        <p class="small text-muted mb-0 offer-member-inquiry-single-target">
+          {% if omi.mode == 'consultant' and owner is defined and owner and owner.email %}
+          <span class="font-monospace">{{ owner.email }}</span>
+          {% if owner.full_name %}<span class="mx-1" aria-hidden="true">·</span>{{ owner.full_name }}{% endif %}
+          {% elif c1 %}
+          {% if c1.email %}<span class="font-monospace">{{ c1.email }}</span><span class="mx-1" aria-hidden="true">·</span>{% endif %}{{ c1.full_name }}
+          {% endif %}
+        </p>
+      </div>
+      {% endif %}
     </div>
-    <div class="abap-float-chat-body">
+    <div class="offer-member-inquiry-flash-wrap">
       {% if omi.err %}
-      <div class="alert alert-danger py-2 small mb-2">{{ omi.err }}</div>
+      <div class="alert alert-danger py-2 small mb-0">{{ omi.err }}</div>
       {% endif %}
       {% if omi.ok %}
-      <div class="alert alert-success py-2 small mb-2">
+      <div class="alert alert-success py-2 small mb-0">
         <span class="nav-ko">문의를 전송했습니다.</span><span class="nav-en" style="display:none">Your message was sent.</span>
       </div>
       {% endif %}
       {% if omi.reply_err %}
-      <div class="alert alert-danger py-2 small mb-2">{{ omi.reply_err }}</div>
+      <div class="alert alert-danger py-2 small mb-0">{{ omi.reply_err }}</div>
       {% endif %}
       {% if omi.reply_ok %}
-      <div class="alert alert-success py-2 small mb-2">
+      <div class="alert alert-success py-2 small mb-0">
         <span class="nav-ko">메시지를 전송했습니다.</span><span class="nav-en" style="display:none">Your message was sent.</span>
       </div>
       {% endif %}
-
-      {% if omi.show_offer_picker %}
-      <label class="form-label small text-muted mb-1" for="{{ fid }}OfferSelect" data-i18n="memberInquiry.offerSelectLabel">대상 컨설턴트</label>
-      <select id="{{ fid }}OfferSelect" class="form-select form-select-sm mb-2 offer-member-inquiry-offer-select" data-offer-member-inquiry-select>
-        {% for of in omi.selectable_offers %}
-        {% set c = of.consultant %}
-        <option value="{{ of.id }}" {% if of.id == omi.default_offer_id %}selected{% endif %}>
-          {% if c and c.email %}{{ c.email }} · {% endif %}{{ c.full_name if c else 'Consultant' }}{% if of.status == 'matched' %} · matched{% elif of.status == 'offered' %} · offer{% endif %}
-        </option>
-        {% endfor %}
-      </select>
-      {% elif omi.selectable_offers|length == 1 %}
-      {% set of1 = omi.selectable_offers[0] %}
-      {% set c1 = of1.consultant %}
-      <p class="small text-muted mb-2 offer-member-inquiry-single-target">
-        {% if omi.mode == 'consultant' and owner is defined and owner and owner.email %}
-        <span class="font-monospace">{{ owner.email }}</span>
-        {% if owner.full_name %}<span class="mx-1" aria-hidden="true">·</span>{{ owner.full_name }}{% endif %}
-        {% elif c1 %}
-        {% if c1.email %}<span class="font-monospace">{{ c1.email }}</span><span class="mx-1" aria-hidden="true">·</span>{% endif %}{{ c1.full_name }}
-        {% endif %}
-      </p>
-      {% endif %}
-
+    </div>
+    <div class="abap-float-chat-body">
       {% for of in omi.selectable_offers %}
       {% set inq_list = inq_map.get(of.id, []) %}
       <div class="offer-member-inquiry-thread{% if inq_list|length > 0 %} abap-chat-log abap-chat-log-panel mb-0{% endif %}"

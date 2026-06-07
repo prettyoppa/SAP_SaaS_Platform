@@ -67,11 +67,11 @@ def build_offer_member_inquiry_ctx(
     is_consultant = bool(getattr(user, "is_consultant", False))
 
     active_offers = [o for o in offers if (getattr(o, "status", None) or "").strip() != "withdrawn"]
-    matched_for_viewer = [
+    consultant_offers = [
         o
         for o in offers
-        if (getattr(o, "status", None) or "").strip() == "matched"
-        and int(getattr(o, "consultant_user_id", 0) or 0) == int(user.id)
+        if int(getattr(o, "consultant_user_id", 0) or 0) == int(user.id)
+        and (getattr(o, "status", None) or "").strip() in ("offered", "matched")
     ]
 
     mode: str | None = None
@@ -85,9 +85,9 @@ def build_offer_member_inquiry_ctx(
         mode = "owner"
         selectable = list(active_offers)
         can_compose = True
-    elif is_consultant and matched_for_viewer:
+    elif is_consultant and consultant_offers:
         mode = "consultant"
-        selectable = list(matched_for_viewer)
+        selectable = list(consultant_offers)
         can_compose = True
     elif is_admin and offers:
         mode = "viewer"
@@ -131,7 +131,7 @@ def build_offer_member_inquiry_ctx(
         "total_messages": total_messages,
         "hub_phase": hub_phase,
         "hub_readonly_return_url": hub_readonly_return_url,
-        "show_offer_picker": mode in ("owner", "viewer") and len(selectable) > 1,
+        "show_offer_picker": len(selectable) > 1 and mode in ("owner", "viewer", "consultant"),
         "err": err,
         "ok": ok,
         "reply_err": reply_err,
