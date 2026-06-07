@@ -290,14 +290,14 @@ def user_may_use_request_ai_inquiry(
     request_kind: str,
     request_id: int,
 ) -> bool:
-    """요청자·관리자·해당 건 매칭 컨설턴트만 AI에게 문의 패널 사용."""
+    """요청자·관리자·해당 건 오퍼/매칭 컨설턴트 AI에게 문의 패널 사용."""
     if not user:
         return False
     if getattr(user, "is_admin", False):
         return True
     if int(user.id) == int(request_owner_id):
         return True
-    if getattr(user, "is_consultant", False) and consultant_is_matched_on_request(
+    if getattr(user, "is_consultant", False) and consultant_has_request_offer(
         db,
         consultant_user_id=int(user.id),
         request_kind=request_kind,
