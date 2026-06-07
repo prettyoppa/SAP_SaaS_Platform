@@ -216,13 +216,15 @@
       </div>
     </details>
 
-    {% if has_delivered_preview|default(false) or (dc_stat|default('none') != 'none') or (as_built_entry_dict and as_built_entry_dict.path) %}
+    {% if has_delivered_preview|default(false) or (dc_stat|default('none') != 'none') or (as_built_entry_dict and as_built_entry_dict.path) or as_built_section_visible|default(false) %}
     <details class="interview-summary-toggle rfp-hub-phase mb-3" id="int-phase-asbuilt"
       {% if hub_phase_open == 'asbuilt' %}open{% endif %}>
       <summary class="interview-summary-header w-100 d-flex flex-wrap align-items-center gap-2">
         <span class="fw-semibold">6. <span data-i18n="hub.phaseAsBuilt">최종 구현 산출물</span></span>
-        {% if as_built_entry_dict and as_built_entry_dict.path %}
+        {% if can_view_deliverables|default(true) and as_built_entry_dict and as_built_entry_dict.path %}
         <span class="badge bg-success ms-1" data-i18n="hub.asBuiltReady">파일 등록됨</span>
+        {% elif not can_view_deliverables|default(true) and as_built_section_visible|default(false) %}
+        <span class="badge bg-secondary ms-1" data-i18n="hub.fsWait">대기</span>
         {% else %}
         <span class="badge bg-secondary ms-1" data-i18n="hub.asBuiltOptional">선택</span>
         {% endif %}

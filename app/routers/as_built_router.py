@@ -142,6 +142,14 @@ def _download_response(entity: Any) -> Response:
     )
 
 
+def _request_kind_for_model(model) -> str:
+    if model is models.RFP:
+        return "rfp"
+    if model is models.IntegrationRequest:
+        return "integration"
+    return "analysis"
+
+
 def _load_entity(db: Session, model, entity_id: int, user) -> Any | None:
     row = db.query(model).filter(model.id == entity_id).first()
     if not row:
@@ -150,16 +158,37 @@ def _load_entity(db: Session, model, entity_id: int, user) -> Any | None:
         return row
     if int(row.user_id) == int(user.id):
         return row
-    rk = "rfp" if model is models.RFP else ("integration" if model is models.IntegrationRequest else "analysis")
+    rk = _request_kind_for_model(model)
     if getattr(user, "is_consultant", False) and consultant_is_matched_on_request(
         db, consultant_user_id=user.id, request_kind=rk, request_id=entity_id
     ):
         return row
-    if user_can_view_request_deliverables(
-        db, user, request_kind=rk, request_id=entity_id, owner_user_id=int(row.user_id), paid_entity=row
-    ):
-        return row
     return None
+
+
+def _user_may_download_as_built(db: Session, user, *, kind: str, entity: Any) -> bool:
+    if not user or not entity:
+        return False
+    if getattr(user, "is_admin", False):
+        return True
+    return user_can_view_request_deliverables(
+        db,
+        user,
+        request_kind=kind,
+        request_id=int(entity.id),
+        owner_user_id=int(entity.user_id),
+        paid_entity=entity,
+    )
+
+
+def _load_entity_for_download(db: Session, model, entity_id: int, user) -> Any | None:
+    row = db.query(model).filter(model.id == entity_id).first()
+    if not row:
+        return None
+    rk = _request_kind_for_model(model)
+    if not _user_may_download_as_built(db, user, kind=rk, entity=row):
+        return None
+    return row
 
 
 @router.post("/rfp/{rfp_id}/as-built-upload")
@@ -195,7 +224,7 @@ async def rfp_as_built_download(
     user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
-    rfp = _load_entity(db, models.RFP, rfp_id, user)
+    rfp = _load_entity_for_download(db, models.RFP, rfp_id, user)
     if not rfp:
         raise HTTPException(status_code=404, detail="not_found")
     return _download_response(rfp)
@@ -236,7 +265,7 @@ async def integration_as_built_download(
     user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
-    ir = _load_entity(db, models.IntegrationRequest, req_id, user)
+    ir = _load_entity_for_download(db, models.IntegrationRequest, req_id, user)
     if not ir:
         raise HTTPException(status_code=404, detail="not_found")
     return _download_response(ir)
@@ -277,7 +306,7 @@ async def analysis_as_built_download(
     user=Depends(auth.require_login),
     db: Session = Depends(get_db),
 ):
-    row = _load_entity(db, models.AbapAnalysisRequest, analysis_id, user)
+    row = _load_entity_for_download(db, models.AbapAnalysisRequest, analysis_id, user)
     if not row:
         raise HTTPException(status_code=404, detail="not_found")
     return _download_response(row)

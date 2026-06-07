@@ -4,6 +4,13 @@
 {% set download_url = '/rfp/' ~ as_built_entity.id ~ '/as-built-download' if as_built_request_kind == 'rfp' else ('/integration/' ~ as_built_entity.id ~ '/as-built-download' if as_built_request_kind == 'integration' else '/abap-analysis/' ~ as_built_entity.id ~ '/as-built-download') %}
 
 <div class="hub-as-built-panel">
+  {% if not can_view_deliverables|default(true) %}
+    {% if user and user.is_consultant and not user.is_admin %}
+    {% include 'partials/hub_deliverables_no_access.html' %}
+    {% else %}
+    <p class="small text-muted mb-0" data-i18n="hub.asBuiltNone">등록된 파일이 없습니다.</p>
+    {% endif %}
+  {% else %}
   {% if request.query_params.get('as_built_ok') %}
   <div class="alert alert-success py-2 small mb-3">
     <span class="nav-ko">파일이 등록되었습니다.</span>
@@ -80,5 +87,6 @@
   </form>
   <script src="/static/js/file_preview.js?v=2"></script>
   <script src="/static/js/hub_as_built_upload.js?v=3"></script>
+  {% endif %}
   {% endif %}
 </div>

@@ -220,8 +220,12 @@ def apply_hub_deliverables_visibility(
     )
     ctx["can_view_deliverables"] = can_view
     ctx["can_operate_delivery"] = can_operate
+    ent = ctx.get("as_built_entry_dict") or {}
+    ctx["as_built_section_visible"] = bool(ent.get("path"))
     if can_view:
         return
+    ctx["as_built_entry_dict"] = {}
+    ctx["as_built_can_upload"] = False
     for key in _DELIVERABLES_MASK_KEYS:
         if key not in ctx:
             continue
