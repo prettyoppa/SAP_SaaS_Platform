@@ -63,6 +63,7 @@ from ..devtype_catalog import (
     integration_impl_allowed_codes,
     integration_impl_labels_map,
 )
+from ..offer_member_inquiry_hub import build_offer_member_inquiry_ctx, member_inquiry_redirect_url
 from ..offer_inquiry_service import (
     CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
     CONSOLE_OFFER_CONFIRM_MESSAGE_EN,
@@ -2422,6 +2423,19 @@ def _collect_integration_unified_hub_ctx(
         ),
     }
 
+    ctx["offer_member_inquiry"] = build_offer_member_inquiry_ctx(
+        db,
+        user=user,
+        owner_user_id=int(ir.user_id),
+        offers=vis_int_offers,
+        inquiries_by_offer_id=ctx["request_offer_inquiries_by_offer_id"],
+        can_inquire=bool(ctx["request_offer_can_inquire"]),
+        readonly_console=readonly_console,
+        hub_phase=display_phase,
+        hub_readonly_return_url=ctx["hub_readonly_return_url"],
+        query_params=request.query_params,
+    )
+
     if hub_embedded and ws_out is not None and ws_out.kind == "wizard" and ws_out.wizard_ctx:
         ctx.update(ws_out.wizard_ctx)
 
@@ -2908,6 +2922,8 @@ def integration_offer_inquiry_post(
     offer_id: int,
     request: Request,
     body: str = Form(""),
+    hub_phase: str = Form(""),
+    return_hub: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = auth.get_current_user(request, db)
@@ -2944,11 +2960,18 @@ def integration_offer_inquiry_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    base = integration_hub_url(req_id, "proposal")
-    sep = "&" if "?" in base else "?"
-    if err:
-        return RedirectResponse(url=f"{base}{sep}offer_inquiry_err={quote(err)}", status_code=303)
-    return RedirectResponse(url=f"{base}{sep}offer_inquiry_ok=1", status_code=303)
+    flash = {"offer_inquiry_err": err} if err else {"offer_inquiry_ok": "1"}
+    return RedirectResponse(
+        url=member_inquiry_redirect_url(
+            request_kind="integration",
+            request_id=req_id,
+            hub_phase=hub_phase or None,
+            return_hub=return_hub or None,
+            offer_id=offer_id,
+            **flash,
+        ),
+        status_code=303,
+    )
 
 
 @router.post("/integration/{req_id}/offers/{offer_id}/inquiry-reply")
@@ -2957,6 +2980,7 @@ def integration_offer_inquiry_reply_post(
     offer_id: int,
     request: Request,
     body: str = Form(""),
+    hub_phase: str = Form(""),
     return_hub: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -2995,12 +3019,18 @@ def integration_offer_inquiry_reply_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    safe = sanitize_console_readonly_return_url(return_hub)
-    base = safe if safe else integration_hub_url(req_id, "proposal")
-    sep = "&" if "?" in base else "?"
-    if err:
-        return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_err={quote(err)}", status_code=303)
-    return RedirectResponse(url=f"{base}{sep}offer_inquiry_reply_ok=1", status_code=303)
+    flash = {"offer_inquiry_reply_err": err} if err else {"offer_inquiry_reply_ok": "1"}
+    return RedirectResponse(
+        url=member_inquiry_redirect_url(
+            request_kind="integration",
+            request_id=req_id,
+            hub_phase=hub_phase or None,
+            return_hub=return_hub or None,
+            offer_id=offer_id,
+            **flash,
+        ),
+        status_code=303,
+    )
 
 
 @router.get("/integration/{req_id}/offers/{offer_id}/profile")

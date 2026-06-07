@@ -401,6 +401,7 @@
   </div>
 </div>
 
+{% include 'partials/offer_member_inquiry_float.html' %}
 {% include 'partials/hub_abap_followup_chat.html' %}
 
 <script>
@@ -423,6 +424,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% include 'partials/offer_member_inquiry_float_scripts.html' %}
 {% include 'partials/hub_abap_followup_chat_scripts.html' %}
 {% if ana_hub_proposal_generating|default(false) %}
 <script>

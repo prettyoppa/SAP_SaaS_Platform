@@ -1,0 +1,106 @@
+{% if offer_member_inquiry is defined and offer_member_inquiry and offer_member_inquiry.enabled %}
+<script>
+(function () {
+  function stackOfferMemberInquiryFloat() {
+    var memberRoot = document.getElementById({{ offer_member_inquiry.float_id | tojson }});
+    if (!memberRoot || memberRoot.dataset.memberInquiryStacked === '1') return;
+    var aiRoot = null;
+    document.querySelectorAll('.abap-float-chat').forEach(function (el) {
+      if (el !== memberRoot && !aiRoot) aiRoot = el;
+    });
+    if (!aiRoot) return;
+    memberRoot.dataset.memberInquiryStacked = '1';
+    var panel = memberRoot.querySelector('.offer-member-inquiry-panel');
+    var launcher = memberRoot.querySelector('.offer-member-inquiry-launcher');
+    var aiLauncher = aiRoot.querySelector('.abap-float-chat-launcher');
+    if (panel) aiRoot.insertBefore(panel, aiRoot.firstChild);
+    if (launcher && aiLauncher) aiRoot.insertBefore(launcher, aiLauncher);
+    memberRoot.remove();
+  }
+
+  function bootOfferMemberInquiryFloat() {
+    stackOfferMemberInquiryFloat();
+    var fid = {{ offer_member_inquiry.float_id | tojson }};
+    var root = document.getElementById(fid);
+    if (!root || root.dataset.memberInquiryBooted === '1') return;
+    root.dataset.memberInquiryBooted = '1';
+    var panel = document.getElementById(fid + 'Panel');
+    var launcher = document.getElementById(fid + 'Launcher');
+    var closeBtn = document.getElementById(fid + 'Close');
+    if (!panel || !launcher) return;
+
+    var selectEl = root.querySelector('[data-offer-member-inquiry-select]');
+    var activeOfferId = {{ offer_member_inquiry.default_offer_id | tojson }};
+
+    function showOfferThread(offerId) {
+      activeOfferId = String(offerId);
+      root.querySelectorAll('[data-offer-member-inquiry-thread]').forEach(function (el) {
+        if (el.getAttribute('data-offer-member-inquiry-thread') === activeOfferId) el.removeAttribute('hidden');
+        else el.setAttribute('hidden', '');
+      });
+      root.querySelectorAll('[data-offer-member-inquiry-compose]').forEach(function (el) {
+        if (el.getAttribute('data-offer-member-inquiry-compose') === activeOfferId) el.removeAttribute('hidden');
+        else el.setAttribute('hidden', '');
+      });
+    }
+
+    if (selectEl) {
+      selectEl.addEventListener('change', function () { showOfferThread(selectEl.value); });
+    } else {
+      showOfferThread(activeOfferId);
+    }
+
+    var defaultTa = root.querySelector('.offer-member-inquiry-compose:not([hidden]) .offer-member-inquiry-msg')
+      || root.querySelector('.offer-member-inquiry-msg');
+    var resizeApi = typeof window.initAbapFloatChatResize === 'function'
+      ? window.initAbapFloatChatResize({
+          panel: panel,
+          sizeKey: {{ offer_member_inquiry.size_key | tojson }},
+          panelGrip: document.getElementById(fid + 'Resize'),
+          textarea: defaultTa,
+          taGrip: root.querySelector('.offer-member-inquiry-ta-resize'),
+        })
+      : null;
+    if (resizeApi) resizeApi.loadStoredSizeIfAny();
+
+    function openPanel() {
+      panel.removeAttribute('hidden');
+      launcher.setAttribute('aria-expanded', 'true');
+      if (resizeApi) {
+        resizeApi.loadStoredSizeIfAny();
+        resizeApi.clampPanelToViewport();
+      }
+      if (typeof window.scrollAiChatPanelToEnd === 'function') window.scrollAiChatPanelToEnd(panel);
+    }
+    function closePanel() {
+      panel.setAttribute('hidden', '');
+      launcher.setAttribute('aria-expanded', 'false');
+      if (resizeApi) resizeApi.scheduleSaveSize();
+    }
+    function togglePanel() {
+      if (panel.hasAttribute('hidden')) openPanel();
+      else closePanel();
+    }
+
+    launcher.addEventListener('click', function (e) { e.stopPropagation(); togglePanel(); });
+    if (closeBtn) closeBtn.addEventListener('click', function () { closePanel(); });
+
+    function shouldAutoOpen() {
+      if (window.location.hash === '#offer-member-inquiry') return true;
+      try {
+        var p = new URLSearchParams(window.location.search);
+        return p.has('offer_inquiry_ok') || p.has('offer_inquiry_err')
+          || p.has('offer_inquiry_reply_ok') || p.has('offer_inquiry_reply_err');
+      } catch (e) { return false; }
+    }
+    if (shouldAutoOpen()) openPanel();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootOfferMemberInquiryFloat);
+  } else {
+    bootOfferMemberInquiryFloat();
+  }
+})();
+</script>
+{% endif %}

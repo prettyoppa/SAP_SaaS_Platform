@@ -132,6 +132,7 @@ from ..proposal_export import (
     proposal_pdf_error_http_response,
 )
 from ..proposal_lifecycle import clear_agent_proposal, proposal_delete_block_reason
+from ..offer_member_inquiry_hub import build_offer_member_inquiry_ctx, member_inquiry_redirect_url
 from ..offer_inquiry_service import (
     apply_request_offer_match_action,
     inquiries_by_offer_id,
@@ -1797,6 +1798,19 @@ def _prepare_abap_analysis_detail_ctx(
         owner_user_id=int(row.user_id),
         paid_entity=row,
     )
+    _hub_phase_eff = _hub_phase or "proposal"
+    detail_ctx["offer_member_inquiry"] = build_offer_member_inquiry_ctx(
+        db,
+        user=user,
+        owner_user_id=int(row.user_id),
+        offers=detail_ctx.get("request_offers") or [],
+        inquiries_by_offer_id=detail_ctx.get("request_offer_inquiries_by_offer_id") or {},
+        can_inquire=bool(detail_ctx.get("request_offer_can_inquire")),
+        readonly_console=readonly_console,
+        hub_phase=_hub_phase_eff,
+        hub_readonly_return_url=hub_readonly_return_url,
+        query_params=request.query_params,
+    )
     from ..delivery_workspace_access import apply_hub_delivery_workspace_ctx
 
     apply_hub_delivery_workspace_ctx(
@@ -2322,6 +2336,8 @@ def abap_analysis_offer_inquiry_post(
     offer_id: int,
     request: Request,
     body: str = Form(""),
+    hub_phase: str = Form(""),
+    return_hub: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = _require_user(request, db)
@@ -2355,13 +2371,18 @@ def abap_analysis_offer_inquiry_post(
         request_detail_url=detail,
         body_raw=body,
     )
-    if err:
-        return RedirectResponse(
-            url=_abap_proposal_hub_redirect(req_id, offer_inquiry_err=err),
-            status_code=303,
-        )
+    flash = {"offer_inquiry_err": err} if err else {"offer_inquiry_ok": "1"}
+    safe = sanitize_console_readonly_return_url(return_hub)
     return RedirectResponse(
-        url=_abap_proposal_hub_redirect(req_id, offer_inquiry_ok="1"),
+        url=member_inquiry_redirect_url(
+            request_kind="analysis",
+            request_id=req_id,
+            hub_phase=hub_phase or None,
+            console_readonly=bool(safe and "/console-readonly" in safe),
+            return_hub=return_hub or None,
+            offer_id=offer_id,
+            **flash,
+        ),
         status_code=303,
     )
 
@@ -2372,6 +2393,7 @@ def abap_analysis_offer_inquiry_reply_post(
     offer_id: int,
     request: Request,
     body: str = Form(""),
+    hub_phase: str = Form(""),
     return_hub: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -2408,24 +2430,18 @@ def abap_analysis_offer_inquiry_reply_post(
         request_detail_url=detail,
         body_raw=body,
     )
+    flash = {"offer_inquiry_reply_err": err} if err else {"offer_inquiry_reply_ok": "1"}
     safe = sanitize_console_readonly_return_url(return_hub)
-    if err:
-        if safe:
-            return RedirectResponse(
-                url=_append_query_to_hub_path(safe, offer_inquiry_reply_err=err),
-                status_code=303,
-            )
-        return RedirectResponse(
-            url=_abap_proposal_hub_redirect(req_id, offer_inquiry_reply_err=err),
-            status_code=303,
-        )
-    if safe:
-        return RedirectResponse(
-            url=_append_query_to_hub_path(safe, offer_inquiry_reply_ok="1"),
-            status_code=303,
-        )
     return RedirectResponse(
-        url=_abap_proposal_hub_redirect(req_id, offer_inquiry_reply_ok="1"),
+        url=member_inquiry_redirect_url(
+            request_kind="analysis",
+            request_id=req_id,
+            hub_phase=hub_phase or None,
+            console_readonly=bool(safe and "/console-readonly" in safe),
+            return_hub=return_hub or None,
+            offer_id=offer_id,
+            **flash,
+        ),
         status_code=303,
     )
 

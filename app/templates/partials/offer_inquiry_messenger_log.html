@@ -9,9 +9,9 @@
     <div class="abap-msg-stack">
       <div class="abap-msg-meta text-muted small {% if is_me %}text-end{% endif %}">
         {% if from_consultant %}
-        <span class="fw-semibold">컨설턴트</span>
+        <span class="fw-semibold"><span class="nav-ko">컨설턴트</span><span class="nav-en" style="display:none">Consultant</span></span>
         {% else %}
-        <span class="fw-semibold">요청자</span>
+        <span class="fw-semibold"><span class="nav-ko">요청자</span><span class="nav-en" style="display:none">Requester</span></span>
         {% endif %}
         <span class="mx-1" aria-hidden="true">·</span>
         <time datetime="{{ inv.created_at.isoformat() if inv.created_at else '' }}">{{ inv.created_at|local_dt_span }}</time>
