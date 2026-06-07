@@ -32,6 +32,14 @@
 
     var selectEl = panel.querySelector('[data-offer-member-inquiry-select]');
     var activeOfferId = {{ offer_member_inquiry.default_offer_id | tojson }};
+    var resizeApi = typeof window.initAbapFloatChatResize === 'function'
+      ? window.initAbapFloatChatResize({
+          panel: panel,
+          sizeKey: {{ offer_member_inquiry.size_key | tojson }},
+          panelGrip: document.getElementById(fid + 'Resize'),
+        })
+      : null;
+    if (resizeApi) resizeApi.loadStoredSizeIfAny();
 
     function memberInquiryPlaceholderTemplate() {
       if (typeof window.t === 'function') {
@@ -72,6 +80,7 @@
         if (el.getAttribute('data-offer-member-inquiry-compose') === activeOfferId) el.removeAttribute('hidden');
         else el.setAttribute('hidden', '');
       });
+      if (resizeApi) resizeApi.clampPanelToViewport();
     }
 
     if (selectEl) {
@@ -84,19 +93,6 @@
       var p = document.getElementById(fid + 'Panel');
       if (p) updateMemberInquiryMsgPlaceholders(p);
     });
-
-    var defaultTa = panel.querySelector('.offer-member-inquiry-compose:not([hidden]) .offer-member-inquiry-msg')
-      || panel.querySelector('.offer-member-inquiry-msg');
-    var resizeApi = typeof window.initAbapFloatChatResize === 'function'
-      ? window.initAbapFloatChatResize({
-          panel: panel,
-          sizeKey: {{ offer_member_inquiry.size_key | tojson }},
-          panelGrip: document.getElementById(fid + 'Resize'),
-          textarea: defaultTa,
-          taGrip: panel.querySelector('.offer-member-inquiry-ta-resize'),
-        })
-      : null;
-    if (resizeApi) resizeApi.loadStoredSizeIfAny();
 
     function openPanel() {
       panel.removeAttribute('hidden');
