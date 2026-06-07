@@ -735,10 +735,9 @@ function lockOfferInquiryForm(form) {
     const spin = btn.querySelector('.offer-inquiry-submit-spinner');
     if (spin) spin.classList.remove('d-none');
   }
-  form.querySelectorAll('textarea, button, select, input').forEach((el) => {
-    if (el instanceof HTMLInputElement && el.type === 'hidden') return;
-    if (el === btn) return;
-    el.disabled = true;
+  // Do not disable textarea/inputs: disabled controls are omitted from POST body.
+  form.querySelectorAll('textarea').forEach((el) => {
+    el.readOnly = true;
   });
   const prog = form.querySelector('.offer-inquiry-progress');
   if (prog) {
