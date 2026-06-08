@@ -314,7 +314,26 @@ function showGlobalBusy(meta) {
 
 document.addEventListener('DOMContentLoaded', () => {
   initCurrencyAndEnterGuards(document);
+  initHubDeliverableVisibilityControls(document);
 });
+
+/** FS·개발코드 summary 내 요청자 공개 토글 — 클릭 시 단계 접기/펼치기 방지 */
+function initHubDeliverableVisibilityControls(root) {
+  const scope = root && root.querySelectorAll ? root : document;
+  scope.querySelectorAll('[data-hub-visibility-control]').forEach((el) => {
+    if (el.dataset.hubVisibilityBound === '1') return;
+    el.dataset.hubVisibilityBound = '1';
+    ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup'].forEach((type) => {
+      el.addEventListener(
+        type,
+        (e) => {
+          e.stopPropagation();
+        },
+        true
+      );
+    });
+  });
+}
 
 function hideGlobalBusy() {
   const el = _busyOverlay();

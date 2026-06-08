@@ -1,23 +1,23 @@
 {# visibility_stage: fs | devcode; visibility_checked: bool; visibility_locked optional; requester_visibility_post_url; hub_phase_open optional #}
 {% if visibility_locked|default(false) %}
-<div class="hub-deliverable-visibility-form d-inline-flex align-items-center gap-2 ms-auto me-1" onclick="event.stopPropagation();">
-  <div class="form-check form-switch mb-0 hub-deliverable-visibility-switch">
-    <input class="form-check-input" type="checkbox" role="switch" id="reqVis{{ visibility_stage }}{{ visibility_toggle_suffix|default('') }}" checked disabled data-i18n-aria-label="hub.requesterVisibilityToggleAria" aria-label="요청자 공개" />
-    <label class="form-check-label text-nowrap" for="reqVis{{ visibility_stage }}{{ visibility_toggle_suffix|default('') }}">
-      <span class="nav-ko">요청자 공개</span><span class="nav-en" style="display:none">Share with requester</span>
-    </label>
-  </div>
+<div class="hub-deliverable-visibility-form hub-deliverable-visibility-locked" data-hub-visibility-control role="group" aria-label="요청자 공개">
+  <span class="hub-deliverable-visibility-label text-nowrap">
+    <span class="nav-ko">요청자 공개</span><span class="nav-en" style="display:none">Share with requester</span>
+  </span>
+  <span class="hub-deliverable-visibility-switch-pad" aria-hidden="true">
+    <span class="hub-deliverable-visibility-switch-faux is-on is-locked"></span>
+  </span>
 </div>
 {% elif requester_visibility_post_url %}
-<form method="post" action="{{ requester_visibility_post_url }}" class="hub-deliverable-visibility-form d-inline-flex align-items-center gap-2 ms-auto me-1" data-no-busy="true" onclick="event.stopPropagation();">
+<form method="post" action="{{ requester_visibility_post_url }}" class="hub-deliverable-visibility-form" data-hub-visibility-control data-no-busy="true" role="group" aria-label="요청자 공개">
   <input type="hidden" name="hub_phase" value="{{ hub_phase_open|default('') }}" />
   <input type="hidden" name="stage" value="{{ visibility_stage }}" />
   <input type="hidden" name="visible" value="0" />
-  <div class="form-check form-switch mb-0 hub-deliverable-visibility-switch">
-    <input class="form-check-input" type="checkbox" role="switch" name="visible" value="1" id="reqVis{{ visibility_stage }}{{ visibility_toggle_suffix|default('') }}" {% if visibility_checked %}checked{% endif %} onchange="this.form.submit()" data-i18n-aria-label="hub.requesterVisibilityToggleAria" aria-label="요청자 공개" />
-    <label class="form-check-label text-nowrap" for="reqVis{{ visibility_stage }}{{ visibility_toggle_suffix|default('') }}">
-      <span class="nav-ko">요청자 공개</span><span class="nav-en" style="display:none">Share with requester</span>
-    </label>
-  </div>
+  <span class="hub-deliverable-visibility-label text-nowrap">
+    <span class="nav-ko">요청자 공개</span><span class="nav-en" style="display:none">Share with requester</span>
+  </span>
+  <label class="hub-deliverable-visibility-switch-pad mb-0" for="reqVis{{ visibility_stage }}{{ visibility_toggle_suffix|default('') }}">
+    <input class="form-check-input hub-deliverable-visibility-input" type="checkbox" role="switch" name="visible" value="1" id="reqVis{{ visibility_stage }}{{ visibility_toggle_suffix|default('') }}" {% if visibility_checked %}checked{% endif %} onchange="this.form.submit()" data-i18n-aria-label="hub.requesterVisibilityToggleAria" aria-label="요청자 공개" />
+  </label>
 </form>
 {% endif %}

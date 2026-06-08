@@ -4144,33 +4144,75 @@ html[data-theme="light"] .abap-chat-log .abap-msg-bubble--them.chat-md-body pre 
 .offer-member-inquiry-panel .offer-inquiry-privacy-note {
   font-size: 0.75rem;
 }
+.interview-summary-header:has(.hub-deliverable-visibility-form) .rfp-hub-phase-chevron {
+  margin-left: 0.35rem !important;
+}
 .interview-summary-header .hub-deliverable-visibility-form {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
   flex-shrink: 0;
-}
-.interview-summary-header .hub-deliverable-visibility-switch {
-  min-height: 0;
-  padding-left: 3.1rem;
+  margin-left: auto;
+  margin-right: 0;
+  min-width: 8.5rem;
   font-size: 0.875rem;
+  line-height: 1.2;
 }
-.interview-summary-header .hub-deliverable-visibility-switch .form-check-input {
-  cursor: pointer;
-  margin-top: 0.05rem;
-  width: 2.75em;
-  height: 1.4em;
-}
-.interview-summary-header .hub-deliverable-visibility-switch .form-check-input:disabled {
-  cursor: default;
-  opacity: 1;
-}
-.interview-summary-header .hub-deliverable-visibility-switch .form-check-label {
+.interview-summary-header .hub-deliverable-visibility-label {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text);
-  cursor: pointer;
+  user-select: none;
 }
-.interview-summary-header .hub-deliverable-visibility-switch .form-check-input:disabled ~ .form-check-label {
-  cursor: default;
-  color: var(--text);
+.interview-summary-header .hub-deliverable-visibility-switch-pad {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+.interview-summary-header .hub-deliverable-visibility-input {
+  cursor: pointer;
+  margin: 0;
+  float: none;
+  width: 2.75em;
+  height: 1.4em;
+}
+.interview-summary-header .hub-deliverable-visibility-locked .hub-deliverable-visibility-label {
+  color: var(--muted);
+}
+.interview-summary-header .hub-deliverable-visibility-switch-faux {
+  display: inline-block;
+  width: 2.75em;
+  height: 1.4em;
+  border-radius: 1.4em;
+  background: var(--border);
+  position: relative;
+  vertical-align: middle;
+}
+.interview-summary-header .hub-deliverable-visibility-switch-faux::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0.15em;
+  width: calc(1.4em - 0.3em);
+  height: calc(1.4em - 0.3em);
+  border-radius: 50%;
+  background: var(--surface);
+  transform: translateY(-50%);
+  transition: left 0.15s ease;
+}
+.interview-summary-header .hub-deliverable-visibility-switch-faux.is-on::after {
+  left: calc(100% - (1.4em - 0.3em) - 0.15em);
+}
+.interview-summary-header .hub-deliverable-visibility-switch-faux.is-locked {
+  opacity: 0.72;
+  background: color-mix(in srgb, var(--muted) 55%, var(--border));
+}
+.interview-summary-header .hub-deliverable-visibility-switch-faux.is-locked::after {
+  background: color-mix(in srgb, var(--surface) 88%, var(--muted));
 }
 .abap-float-chat-panel {
   position: relative;
