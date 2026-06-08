@@ -1,9 +1,11 @@
-{# 납품·대금 — 매칭된 요청자·컨설턴트만 (settlement_hub_ctx) #}
+{# 납품대금 결제 — 매칭된 요청자·컨설턴트만 (settlement_hub_ctx) #}
 {% set st = settlement %}
 {% set base = settlement_base_path %}
 {% set sk = settlement_request_kind %}
 {% set err = request.query_params.get('settlement_err') or '' %}
 {% set ok = request.query_params.get('settlement_ok') or '' %}
+{% set is_funded = st.funded_at or settlement_status in ('funded', 'payable', 'payout_completed') %}
+{% set show_owner_payment = settlement_is_owner and not is_funded and settlement_status != 'payout_completed' %}
 
 {% if ok == 'bank_submitted' %}
 <div class="alert alert-success py-2 small mb-3">
@@ -12,13 +14,8 @@
 </div>
 {% elif ok == 'portone' or ok == 'card' %}
 <div class="alert alert-success py-2 small mb-3">
-  <span class="nav-ko">카드·간편결제가 확인되었습니다.</span>
-  <span class="nav-en" style="display:none">Card payment confirmed.</span>
-</div>
-{% elif ok == 'profile_saved' %}
-<div class="alert alert-success py-2 small mb-3">
-  <span class="nav-ko">수취 계좌 정보를 저장했습니다.</span>
-  <span class="nav-en" style="display:none">Payout account details saved.</span>
+  <span class="nav-ko">결제가 확인되었습니다.</span>
+  <span class="nav-en" style="display:none">Payment confirmed.</span>
 </div>
 {% endif %}
 {% if err %}
@@ -29,6 +26,9 @@
   {% elif err == 'invalid_amount' %}
   <span class="nav-ko">금액을 올바르게 입력해 주세요.</span>
   <span class="nav-en" style="display:none">Enter a valid amount.</span>
+  {% elif err == 'already_funded' %}
+  <span class="nav-ko">이미 입금이 완료된 건입니다.</span>
+  <span class="nav-en" style="display:none">This project is already funded.</span>
   {% elif err == 'not_ready' %}
   <span class="nav-ko">아직 이 단계를 진행할 수 없습니다.</span>
   <span class="nav-en" style="display:none">This step is not available yet.</span>
@@ -39,8 +39,11 @@
   <span class="nav-ko">처리 대기 중인 입금 신청이 있습니다. 먼저 완료하거나 취소해 주세요.</span>
   <span class="nav-en" style="display:none">You already have a pending transfer claim. Complete or cancel it first.</span>
   {% elif err == 'portone_unconfigured' or err == 'stripe_unconfigured' %}
-  <span class="nav-ko">카드·간편결제(PortOne)가 아직 설정되지 않았습니다. 계좌이체를 이용해 주세요.</span>
-  <span class="nav-en" style="display:none">Card payments (PortOne) are not configured. Please use bank transfer.</span>
+  <span class="nav-ko">카드·간편결제(PortOne)가 아직 설정되지 않았습니다.{% if not settlement_payment_usd|default(false) %} 계좌이체를 이용해 주세요.{% endif %}</span>
+  <span class="nav-en" style="display:none">Card payments (PortOne) are not configured.{% if not settlement_payment_usd|default(false) %} Please use bank transfer.{% endif %}</span>
+  {% elif err == 'paypal_unconfigured' %}
+  <span class="nav-ko">PayPal(PortOne)이 설정되지 않았습니다. 관리자에게 문의해 주세요.</span>
+  <span class="nav-en" style="display:none">PayPal (PortOne) is not configured. Please contact support.</span>
   {% elif err == 'portone_cancelled' or err == 'card_cancelled' %}
   <span class="nav-ko">결제를 취소했습니다.</span>
   <span class="nav-en" style="display:none">Payment was cancelled.</span>
@@ -48,11 +51,14 @@
   <span class="nav-ko">결제 확인에 실패했습니다. 고객 지원에 문의해 주세요.</span>
   <span class="nav-en" style="display:none">Payment verification failed. Please contact support.</span>
   {% elif err == 'invalid_payment_method' %}
-  <span class="nav-ko">플랫폼 지급을 선택한 경우 계좌이체 또는 카드·간편결제 중 하나를 선택해 주세요.</span>
-  <span class="nav-en" style="display:none">Choose bank transfer or card payment when using platform payment.</span>
+  <span class="nav-ko">결제 수단을 선택해 주세요.</span>
+  <span class="nav-en" style="display:none">Choose a payment method.</span>
   {% elif err == 'wrong_payment_method' %}
-  <span class="nav-ko">합의된 결제 수단과 다릅니다.</span>
-  <span class="nav-en" style="display:none">This action does not match the agreed payment method.</span>
+  <span class="nav-ko">선택한 결제 수단과 다릅니다.</span>
+  <span class="nav-en" style="display:none">This action does not match the selected payment method.</span>
+  {% elif err == 'bad_date' %}
+  <span class="nav-ko">입금일 형식이 올바르지 않습니다.</span>
+  <span class="nav-en" style="display:none">Invalid transfer date.</span>
   {% else %}
   <span class="nav-ko">요청을 처리하지 못했습니다.</span>
   <span class="nav-en" style="display:none">Could not complete the request.</span>
@@ -63,16 +69,19 @@
 <div class="rfp-section p-3 mb-3 hub-settlement-intro">
   <ul class="mb-0 ps-3">
     <li class="mb-2">
-      <span class="nav-ko">회원 간 플랫폼 절차 없이 이루어진 직접 거래로 인해 발생하는 분쟁·손해에 대해 본 플랫폼은 책임을 지지 않습니다.</span>
-      <span class="nav-en" style="display:none">The platform accepts no liability for disputes or losses arising from direct payment or delivery arrangements between members outside platform procedures.</span>
+      <span class="nav-ko">회사는 회원 간 용역 계약 당사자가 아닙니다. 플랫폼은 입금 확인·납품 확인 기록과 결제 연동 도구를 제공하며, 컨설턴트 지급은 관리자가 사이트 밖에서 처리합니다.</span>
+      <span class="nav-en" style="display:none">The Company is not a party to the contract between members. The platform records funding and delivery confirmation and provides payment tools; consultant payout is handled by admins outside the site.</span>
     </li>
-    <li class="mb-2">
-      <span class="nav-ko">납품을 의뢰한 회원과 제공하는 회원이 납품 대금을 합의한 뒤, 아래 「플랫폼 기반 대금 지급」을 이용하면 정해진 절차에 따라 대금 수납·지급과 납품 확인을 지원합니다.</span>
-      <span class="nav-en" style="display:none">When the requester and consultant agree on delivery payment and use 「Platform payment」 below, we support secure funding, payout, and delivery confirmation through our defined process.</span>
+    <li class="mb-2 hub-settlement-intro-process">
+      <span class="nav-ko">회원 간 합의된 납품대금을 정산하기 위해 아래 플랫폼 결제를 이용하시면, 정해진 절차</span>
+      <span class="nav-en" style="display:none">Use platform payment below to collect funds, confirm delivery, and pay out the agreed delivery fee following our defined process</span>
+      {% include 'partials/hub_settlement_process_help.html' %}
+      <span class="nav-ko">에 따라 대금 수납·지급과 납품 확인을 지원합니다.</span>
+      <span class="nav-en" style="display:none">.</span>
     </li>
     <li>
-      <span class="nav-ko">대금 합의·지급 정보는 당사자와 관리자에게만 공개되며, 그 외에는 공개되지 않습니다.</span>
-      <span class="nav-en" style="display:none">Payment terms and payout details are visible only to the parties and administrators—not to the public.</span>
+      <span class="nav-ko">대금 정산 정보는 당사자와 관리자에게만 공개됩니다.</span>
+      <span class="nav-en" style="display:none">Settlement details are visible only to the parties and administrators.</span>
     </li>
   </ul>
 </div>
@@ -86,113 +95,8 @@
 </div>
 
 <div class="rfp-section p-3 mb-3">
-  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.agreementTitle">대금 합의 (선택)</h6>
-  <p class="small text-muted mb-3">
-    <span class="nav-ko">금액·지급 방식은 당사자 간 자유롭게 정할 수 있습니다. 이 사이트에서 입금·지급 절차를 쓰지 않으면 금액 입력 없이 납품 확인만 진행할 수 있습니다.</span>
-    <span class="nav-en" style="display:none">Amount and payment method are up to the parties. Without platform payment, you can confirm delivery without entering an amount here.</span>
-  </p>
-
-  {% if st.gross_amount_krw %}
-  <p class="mb-2 font-monospace">
-    <span data-i18n="settlement.grossLabel">합의 금액</span>:
-    <strong>{{ "{:,}".format(st.gross_amount_krw) }} KRW</strong>
-    {% if st.use_platform_payment %}
-    <span class="badge bg-primary ms-1" data-i18n="settlement.viaPlatform">플랫폼 지급</span>
-    {% if settlement_payment_method == 'bank_transfer' %}
-    <span class="badge bg-secondary ms-1" data-i18n="settlement.methodBank">계좌이체</span>
-    {% elif settlement_payment_method == 'portone' or settlement_payment_method == 'card' %}
-    <span class="badge bg-secondary ms-1" data-i18n="settlement.methodPortone">카드·간편결제</span>
-    {% endif %}
-    {% else %}
-    <span class="badge bg-secondary ms-1" data-i18n="settlement.offPlatform">당사자 간 직접 합의</span>
-    {% endif %}
-  </p>
-  {% if st.use_platform_payment and settlement_gross_display %}
-  <p class="small text-muted mb-2">
-    <span data-i18n="settlement.feeLine">플랫폼 수수료 {{ settlement_fee_percent }}%</span>
-    · <span data-i18n="settlement.feeAmount">수수료</span> {{ "{:,}".format(settlement_platform_fee_krw) }} KRW
-    · <span data-i18n="settlement.payoutAmount">컨설턴트 지급 예정</span> {{ "{:,}".format(settlement_consultant_payout_krw) }} KRW
-  </p>
-  {% endif %}
-  <p class="small text-muted mb-3">
-    {% if st.requester_amount_agreed_at %}<span class="nav-ko">요청자 금액 동의</span><span class="nav-en" style="display:none">Requester agreed</span> ✓{% else %}<span class="nav-ko">요청자 금액 동의 대기</span><span class="nav-en" style="display:none">Awaiting requester</span>{% endif %}
-    ·
-    {% if st.consultant_amount_agreed_at %}<span class="nav-ko">컨설턴트 금액 동의</span><span class="nav-en" style="display:none">Consultant agreed</span> ✓{% else %}<span class="nav-ko">컨설턴트 금액 동의 대기</span><span class="nav-en" style="display:none">Awaiting consultant</span>{% endif %}
-  </p>
-  {% endif %}
-
-  {% set awaiting_counterparty_accept = st.gross_amount_krw and st.use_platform_payment and ((settlement_is_owner and st.consultant_amount_agreed_at and not st.requester_amount_agreed_at) or (settlement_is_consultant and st.requester_amount_agreed_at and not st.consultant_amount_agreed_at)) %}
-
-  <form method="post" action="{{ base }}/propose" class="mb-2" id="settle-propose-{{ sk }}-{{ st.id }}" data-no-enter-submit="1">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label small mb-0" data-i18n="settlement.amountKrw">금액 (원)</label>
-        <input type="text" name="gross_amount_krw" class="form-control form-control-sm font-monospace js-currency-krw"
-               inputmode="numeric" autocomplete="off"
-               value="{% if st.gross_amount_krw %}{{ "{:,}".format(st.gross_amount_krw) }}{% endif %}" placeholder="0"/>
-      </div>
-      <div class="col-md-5">
-        <div class="form-check mt-4">
-          <input class="form-check-input settle-platform-toggle" type="checkbox" name="use_platform_payment" value="1"
-                 id="settle-platform-{{ sk }}-{{ st.id }}" {% if st.use_platform_payment %}checked{% endif %}/>
-          <label class="form-check-label small" for="settle-platform-{{ sk }}-{{ st.id }}" data-i18n="settlement.usePlatform">
-            이 사이트에서 대금 입금·지급 절차 이용
-          </label>
-        </div>
-      </div>
-      <div class="col-md-3">
-        {% if awaiting_counterparty_accept %}
-        <div class="d-grid gap-1">
-          <button type="submit" formaction="{{ base }}/accept-amount" class="btn btn-sm btn-primary" data-i18n="settlement.acceptAmount">상대방 제안에 동의</button>
-          <button type="submit" class="btn btn-sm btn-outline-primary" data-i18n="settlement.proposeBtn">조건 변경·제안</button>
-        </div>
-        {% else %}
-        <button type="submit" class="btn btn-sm btn-outline-primary w-100" data-i18n="settlement.proposeBtn">제안·동의</button>
-        {% endif %}
-      </div>
-    </div>
-    <div class="settle-payment-method-row mt-2 {% if not st.use_platform_payment %}d-none{% endif %}">
-      <span class="small text-muted me-2" data-i18n="settlement.paymentMethodLabel">결제 수단</span>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input" type="radio" name="payment_method" id="settle-pm-bank-{{ sk }}-{{ st.id }}"
-               value="bank_transfer" {% if settlement_payment_method == 'bank_transfer' or not settlement_payment_method %}checked{% endif %}/>
-        <label class="form-check-label small" for="settle-pm-bank-{{ sk }}-{{ st.id }}" data-i18n="settlement.methodBank">계좌이체</label>
-      </div>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input" type="radio" name="payment_method" id="settle-pm-portone-{{ sk }}-{{ st.id }}"
-               value="portone" {% if settlement_payment_method == 'portone' or settlement_payment_method == 'card' %}checked{% endif %}
-               {% if not settlement_portone_ready|default(false) %}disabled{% endif %}/>
-        <label class="form-check-label small {% if not settlement_portone_ready|default(false) %}text-muted{% endif %}"
-               for="settle-pm-portone-{{ sk }}-{{ st.id }}" data-i18n="settlement.methodPortone">카드·간편결제 (PortOne)</label>
-      </div>
-      {% if not settlement_portone_ready|default(false) %}
-      <span class="small text-muted ms-1" data-i18n="settlement.portoneUnavailable">PortOne 설정 후 선택 가능</span>
-      {% endif %}
-    </div>
-  </form>
-  <script>
-  (function () {
-    var form = document.getElementById('settle-propose-{{ sk }}-{{ st.id }}');
-    if (!form) return;
-    var cb = form.querySelector('.settle-platform-toggle');
-    var row = form.querySelector('.settle-payment-method-row');
-    if (!cb || !row) return;
-    function sync() { row.classList.toggle('d-none', !cb.checked); }
-    cb.addEventListener('change', sync);
-    sync();
-  })();
-  </script>
-  {% if awaiting_counterparty_accept %}
-  <p class="small text-muted mb-0 mt-2">
-    <span class="nav-ko">상대방이 제안한 금액·결제 수단과 같다면 「상대방 제안에 동의」를 눌러 주세요. 바꾸려면 금액 등을 수정한 뒤 「조건 변경·제안」을 사용하세요.</span>
-    <span class="nav-en" style="display:none">If you agree with the proposed amount and payment method, click 「Agree to counterparty proposal」. To change terms, edit the fields and click 「Propose new terms」.</span>
-  </p>
-  {% endif %}
-</div>
-
-<div class="rfp-section p-3 mb-3">
   <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.deliveryTitle">납품 확인</h6>
-  <p class="small text-muted mb-2" data-i18n="settlement.deliveryHint">플랫폼 지급 시 관리자 지급은 입금 완료 후 양측 납품 확인이 모두 있어야 합니다.</p>
+  <p class="small text-muted mb-2" data-i18n="settlement.deliveryHint">입금과 납품 확인 순서는 정해져 있지 않습니다. 양측 확인과 입금이 모두 갖춰지면 관리자가 컨설턴트에게 지급합니다.</p>
   <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     {% if st.requester_delivery_confirmed_at %}
     <span class="badge bg-success" data-i18n="settlement.requesterConfirmed">요청자 확인</span>
@@ -212,58 +116,172 @@
   {% endif %}
 </div>
 
-{% if st.use_platform_payment and st.gross_amount_krw and settlement_status == 'awaiting_payment' %}
+{% if is_funded and st.gross_amount_krw %}
 <div class="rfp-section p-3 mb-3">
-  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.paymentTitle">입금·결제</h6>
-  {% if settlement_payment_method == 'bank_transfer' %}
-  {% include 'partials/hub_settlement_bank_transfer_panel.html' %}
-  {% elif settlement_payment_method == 'portone' or settlement_payment_method == 'card' %}
-  <p class="small text-muted mb-2" data-i18n="settlement.portonePayHint">합의 금액을 PortOne 결제창으로 결제합니다. 완료 후 자동으로 입금 완료 처리됩니다.</p>
-  {% if settlement_is_owner %}
-  <a href="{{ base }}/pay-portone" class="btn btn-sm btn-primary" data-i18n="settlement.payPortone" {% if not settlement_portone_ready|default(false) %}aria-disabled="true" tabindex="-1" style="pointer-events:none;opacity:.6"{% endif %}>카드·간편결제</a>
-  {% if not settlement_portone_ready|default(false) %}
-  <p class="small text-warning mb-0 mt-2" data-i18n="settlement.portoneUnavailable">PortOne 환경 변수 설정 후 이용 가능합니다.</p>
-  {% endif %}
-  {% else %}
-  <p class="small text-muted mb-0" data-i18n="settlement.portoneAwaitingOwner">요청자가 결제를 완료하면 입금 완료로 표시됩니다.</p>
-  {% endif %}
+  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.paymentTitle">결제 내역</h6>
+  <p class="mb-2 font-monospace">
+    <span data-i18n="settlement.paidAmountLabel">결제 금액</span>:
+    {% if settlement_portone_paid and (settlement_portone_paid.currency or '')|upper == 'USD' %}
+    <strong>${{ '%.2f'|format((settlement_portone_paid.amount_minor|int) / 100.0) }}</strong>
+    <span class="text-muted small">(≈ {{ "{:,}".format(st.gross_amount_krw) }} KRW)</span>
+    {% else %}
+    <strong>{{ "{:,}".format(st.gross_amount_krw) }} KRW</strong>
+    {% endif %}
+    {% if settlement_payment_method == 'bank_transfer' %}
+    <span class="badge bg-secondary ms-1" data-i18n="settlement.methodBank">계좌이체</span>
+    {% elif settlement_payment_method == 'portone' or settlement_payment_method == 'card' %}
+      {% if settlement_portone_paid and (settlement_portone_paid.currency or '')|upper == 'USD' %}
+      <span class="badge bg-secondary ms-1" data-i18n="settlement.methodPaypal">PayPal</span>
+      {% else %}
+      <span class="badge bg-secondary ms-1" data-i18n="settlement.methodPortone">카드·간편결제</span>
+      {% endif %}
+    {% endif %}
+  </p>
+  {% if settlement_platform_fee_krw is not none %}
+  <p class="small text-muted mb-0">
+    <span data-i18n="settlement.feeLine">플랫폼 수수료 {{ settlement_fee_percent }}%</span>
+    · <span data-i18n="settlement.feeAmount">수수료</span> {{ "{:,}".format(settlement_platform_fee_krw) }} KRW
+    · <span data-i18n="settlement.payoutAmount">컨설턴트 지급 예정</span> {{ "{:,}".format(settlement_consultant_payout_krw) }} KRW
+  </p>
   {% endif %}
 </div>
-{% endif %}
+{% elif show_owner_payment %}
+<div class="rfp-section p-3 mb-3">
+  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.paymentTitle">결제</h6>
+  <p class="small text-muted mb-3" data-i18n="settlement.paymentRequesterHint">문의 등으로 합의한 금액을 입력하고 바로 결제하세요. 금액이 맞지 않으면 재합의 후 결제 취소·재결제하세요.</p>
 
-{% if settlement_is_consultant and settlement_status in ('awaiting_payment', 'funded', 'payable', 'payout_completed') %}
-<div class="rfp-section p-3 mb-0">
-  <h6 class="text-muted text-uppercase small mb-2" data-i18n="settlement.payoutProfileTitle">수취 계좌 (컨설턴트)</h6>
-  <p class="small text-muted mb-2" data-i18n="settlement.payoutProfileHint">관리자 지급 시 참고용입니다. 사이트에 저장되며 당사자·관리자만 볼 수 있습니다.</p>
-  <form method="post" action="{{ base }}/payout-profile" class="row g-2">
-    <div class="col-md-4">
-      <label class="form-label small mb-0" data-i18n="settlement.accountHolder">예금주</label>
-      <input type="text" name="account_holder_name" class="form-control form-control-sm" maxlength="200"
-             value="{{ settlement_profile.account_holder_name if settlement_profile else '' }}"/>
+  {% if settlement_pending_bank_claim %}
+  {% include 'partials/hub_settlement_bank_transfer_panel.html' %}
+  {% elif settlement_payment_usd|default(false) %}
+  <p class="small text-muted mb-2" data-i18n="settlement.paypalHint">회원 결제 통화(USD)에 따라 PayPal(PortOne)로 결제합니다. 합의 금액은 플랫폼 환율로 원화 기준 수수료·지급액에 반영됩니다.</p>
+  <form method="post" action="{{ base }}/pay-portone" class="mb-0" id="settle-pay-{{ sk }}-{{ st.id }}" data-no-enter-submit="1">
+    <div class="row g-2 align-items-end mb-2">
+      <div class="col-md-4">
+        <label class="form-label small mb-0" data-i18n="settlement.amountUsd">금액 (USD)</label>
+        <input type="text" name="gross_amount_krw" class="form-control form-control-sm font-monospace js-currency-usd settle-pay-amount"
+               inputmode="decimal" autocomplete="off" required placeholder=""/>
+      </div>
+      <div class="col-md-8">
+        <button type="submit" class="btn btn-sm btn-primary settle-pay-submit" {% if not settlement_portone_ready|default(false) %}disabled{% endif %}>
+          <span class="nav-ko">PayPal로 결제</span>
+          <span class="nav-en" style="display:none">Pay with PayPal</span>
+        </button>
+      </div>
     </div>
-    <div class="col-md-4">
-      <label class="form-label small mb-0" data-i18n="settlement.bankName">은행</label>
-      <input type="text" name="bank_name" class="form-control form-control-sm" maxlength="200"
-             value="{{ settlement_profile.bank_name if settlement_profile else '' }}"/>
-    </div>
-    <div class="col-md-4">
-      <label class="form-label small mb-0" data-i18n="settlement.accountNumber">계좌번호</label>
-      <input type="text" name="account_number" class="form-control form-control-sm" maxlength="64"
-             value="{{ settlement_profile.account_number if settlement_profile else '' }}"/>
-    </div>
-    <div class="col-md-3">
-      <label class="form-label small mb-0">SWIFT</label>
-      <input type="text" name="swift_bic" class="form-control form-control-sm" maxlength="32"
-             value="{{ settlement_profile.swift_bic if settlement_profile else '' }}"/>
-    </div>
-    <div class="col-md-9">
-      <label class="form-label small mb-0" data-i18n="settlement.wiseHint">해외 송금 메모 (선택)</label>
-      <input type="text" name="wise_recipient_hint" class="form-control form-control-sm" maxlength="256"
-             value="{{ settlement_profile.wise_recipient_hint if settlement_profile else '' }}"/>
-    </div>
-    <div class="col-12">
-      <button type="submit" class="btn btn-sm btn-outline-primary" data-i18n="common.save">저장</button>
-    </div>
+    {% if not settlement_portone_ready|default(false) %}
+    <p class="small text-muted mb-0 mt-2">
+      {% if not settlement_portone_paypal_configured|default(false) %}
+      <span class="nav-ko">PayPal 채널이 설정되지 않았습니다.</span>
+      <span class="nav-en" style="display:none">PayPal channel is not configured.</span>
+      {% else %}
+      <span class="nav-ko" data-i18n="settlement.portoneUnavailable">PortOne 설정 후 이용할 수 있습니다.</span>
+      <span class="nav-en" style="display:none" data-i18n="settlement.portoneUnavailable">Available after PortOne is configured.</span>
+      {% endif %}
+    </p>
+    {% endif %}
   </form>
+  {% else %}
+  <form method="post" action="{{ base }}/pay-portone" class="mb-0" id="settle-pay-{{ sk }}-{{ st.id }}" data-no-enter-submit="1">
+    <div class="row g-2 align-items-end mb-2">
+      <div class="col-md-4">
+        <label class="form-label small mb-0" data-i18n="settlement.amountKrw">금액 (원)</label>
+        <input type="text" name="gross_amount_krw" class="form-control form-control-sm font-monospace js-currency-krw settle-pay-amount"
+               inputmode="numeric" autocomplete="off" required placeholder="0"/>
+      </div>
+      <div class="col-md-8">
+        <span class="small text-muted d-block mb-1" data-i18n="settlement.paymentMethodLabel">결제 수단</span>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input settle-pay-method" type="radio" name="settle_pay_method_ui" id="settle-pm-bank-{{ sk }}-{{ st.id }}"
+                 value="bank_transfer" checked data-settle-form="{{ base }}/bank-claim"/>
+          <label class="form-check-label small" for="settle-pm-bank-{{ sk }}-{{ st.id }}" data-i18n="settlement.methodBank">계좌이체</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input settle-pay-method" type="radio" name="settle_pay_method_ui" id="settle-pm-portone-{{ sk }}-{{ st.id }}"
+                 value="portone" data-settle-form="{{ base }}/pay-portone"
+                 {% if not settlement_portone_ready|default(false) %}disabled{% endif %}/>
+          <label class="form-check-label small {% if not settlement_portone_ready|default(false) %}text-muted{% endif %}"
+                 for="settle-pm-portone-{{ sk }}-{{ st.id }}" data-i18n="settlement.methodPortone">카드·간편결제 (PortOne)</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="settle-bank-extra d-none">
+      {% set bs = settlement_bank_settings|default({}) %}
+      {% if bs.get('bank_transfer_notice_md_ko') or bs.get('bank_transfer_notice_md_en') %}
+      <p class="small fw-semibold mb-1" data-i18n="settlement.depositAccountTitle">입금 계좌 (이체 대상)</p>
+      <p class="small text-muted mb-2" data-i18n="settlement.depositAccountHint">아래 계좌로 입금한 뒤 입금 신청을 제출해 주세요. AI 크레딧 충전과 동일한 플랫폼 계좌입니다.</p>
+      <div class="account-ai-credits-bank-inline markdown-body small mb-3">
+        <div class="nav-ko">{{ (bs.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
+        <div class="nav-en" style="display:none">{{ (bs.get('bank_transfer_notice_md_en') or bs.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
+      </div>
+      {% endif %}
+      <div class="row g-2 align-items-start small mb-2">
+        <div class="col-md-4">
+          <label class="form-label small mb-0" data-i18n="billing.depositor">입금자명</label>
+          <input type="text" name="depositor_name" class="form-control form-control-sm settle-bank-field" maxlength="200"
+                 value="{{ user.full_name|e if user else '' }}"/>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-0" data-i18n="billing.transferDate">입금일</label>
+          <input type="date" name="transfer_date" class="form-control form-control-sm settle-bank-field"/>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label small mb-0" data-i18n="billing.memberNote">메모 (선택)</label>
+          <input type="text" name="member_note" class="form-control form-control-sm settle-bank-field" maxlength="500"/>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-sm btn-primary settle-pay-submit">
+      <span class="nav-ko settle-pay-label-bank" data-i18n="settlement.paySubmitBank">입금 신청</span>
+      <span class="nav-en settle-pay-label-bank" style="display:none" data-i18n="settlement.paySubmitBank">Submit transfer claim</span>
+      <span class="nav-ko settle-pay-label-portone d-none" data-i18n="settlement.paySubmitPortone">카드·간편결제</span>
+      <span class="nav-en settle-pay-label-portone d-none" style="display:none" data-i18n="settlement.paySubmitPortone">Pay with card</span>
+    </button>
+    {% if not settlement_portone_ready|default(false) %}
+    <p class="small text-muted mb-0 mt-2 settle-portone-unavail" data-i18n="settlement.portoneUnavailable">PortOne 설정 후 카드·간편결제를 이용할 수 있습니다.</p>
+    {% endif %}
+  </form>
+  <script>
+  (function () {
+    var form = document.getElementById('settle-pay-{{ sk }}-{{ st.id }}');
+    if (!form) return;
+    var bankExtra = form.querySelector('.settle-bank-extra');
+    var bankFields = form.querySelectorAll('.settle-bank-field');
+    var methods = form.querySelectorAll('.settle-pay-method');
+    var submitBtn = form.querySelector('.settle-pay-submit');
+    var portoneUnavail = form.querySelector('.settle-portone-unavail');
+    function selectedMethod() {
+      var checked = form.querySelector('.settle-pay-method:checked');
+      return checked ? checked.value : 'bank_transfer';
+    }
+    function sync() {
+      var isBank = selectedMethod() === 'bank_transfer';
+      var checked = form.querySelector('.settle-pay-method:checked');
+      if (checked) form.action = checked.getAttribute('data-settle-form') || form.action;
+      if (bankExtra) bankExtra.classList.toggle('d-none', !isBank);
+      bankFields.forEach(function (el) {
+        if (isBank) el.setAttribute('required', 'required');
+        else el.removeAttribute('required');
+      });
+      if (submitBtn) {
+        submitBtn.querySelectorAll('.settle-pay-label-bank').forEach(function (el) {
+          el.classList.toggle('d-none', !isBank);
+        });
+        submitBtn.querySelectorAll('.settle-pay-label-portone').forEach(function (el) {
+          el.classList.toggle('d-none', isBank);
+        });
+      }
+      if (portoneUnavail) portoneUnavail.classList.toggle('d-none', isBank);
+    }
+    methods.forEach(function (el) { el.addEventListener('change', sync); });
+    sync();
+  })();
+  </script>
+  {% endif %}
 </div>
+{% elif settlement_is_consultant and not is_funded %}
+<p class="small text-muted mb-3" data-i18n="settlement.paymentAwaitingOwner">요청자가 합의 금액으로 결제하면 입금 완료로 표시됩니다.</p>
+{% elif settlement_is_consultant and settlement_status in ('payable', 'payout_completed') %}
+<p class="small text-muted mb-0" data-i18n="settlement.consultantPayoutOffPlatform">컨설턴트 지급은 관리자가 사이트 밖에서 처리합니다. 지급 정보가 필요하면 이메일 등으로 회사에 문의해 주세요.</p>
 {% endif %}

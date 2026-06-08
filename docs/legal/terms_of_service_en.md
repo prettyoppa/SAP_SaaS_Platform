@@ -91,10 +91,12 @@ Scope, UI, fees, and AI credit rates follow on-screen notices and operational po
 ## Article 8 (Project settlement)
 
 1. Available for **matched** development requests only.
-2. Requester and consultant record agreed gross amount, platform payment use, and payment method.
-3. Platform payment may involve fees and payment-gateway processing; payout follows Service workflow.
-4. The Company is **not a party** to the underlying contract between members; fees, tax, defects, and IP remain between requester and consultant unless stated otherwise.
-5. Project settlement is separate from AI credits.
+2. The requester and consultant agree on the gross fee (e.g. via inquiry); the requester enters the amount and payment method in the Service.
+3. **Bank transfer** means depositing to the platform account shown in the Service and submitting a transfer claim. The Company does not integrate directly with banks; funding is confirmed by administrators (same pattern as AI credit top-up).
+4. **Online payment** (PortOne, etc.) is subject to the payment provider’s terms. If the requester’s **billing/payment currency** is USD, a USD path such as PayPal may be used.
+5. Platform payment may include a **platform fee** (as shown in the Service). After funding and delivery confirmation by both parties, **consultant payout** is handled by administrators **outside the site** (e.g. bank transfer). The Service may not collect consultant payout account details.
+6. The Company is **not a party** to the underlying contract between members; fees, tax, defects, and IP remain between requester and consultant unless stated otherwise. The Company provides settlement records and payment tools.
+7. Project settlement is separate from AI credits.
 
 
 ## Article 9 (Member content and license)

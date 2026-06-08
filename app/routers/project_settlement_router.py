@@ -11,23 +11,24 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import auth, models
+from ..ai_wallet import parse_usd_input_to_cents, usd_krw_rate_from_db
+from ..billing_currency import user_prefers_usd_payments
 from ..database import get_db
 from ..payment_claim_service import create_project_settlement_bank_claim
 from ..payment_claim_service import cancel_payment_claim
 from ..payment_purpose import PURPOSE_PROJECT_SETTLEMENT
 from ..payment_providers.portone_service import create_pending_transaction
-from ..payment_providers.portone_settings import portone_checkout_ready
+from ..payment_providers.portone_settings import portone_checkout_ready, portone_paypal_channel_key
 from ..project_settlement import (
     PAYMENT_METHOD_BANK,
     PAYMENT_METHOD_PORTONE,
     STATUS_AWAITING_PAYMENT,
-    accept_amount,
+    apply_requester_payment_terms,
     confirm_delivery,
     get_or_create_settlement,
     mark_payout_completed,
     normalize_payment_method,
     normalize_request_kind,
-    propose_amount,
     status_label_en,
     status_label_ko,
     user_can_view_settlement,
@@ -104,14 +105,22 @@ def HTTPException404():
     raise HTTPException(status_code=404, detail="not_found")
 
 
-@router.post("/settlement/{kind}/{request_id}/propose")
-def settlement_propose(
+def _parse_amount_krw(raw: str) -> int | None:
+    s = (raw or "").strip().replace(",", "")
+    if not s:
+        return 0
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
+@router.post("/settlement/{kind}/{request_id}/pay-portone")
+def settlement_pay_portone_post(
     kind: str,
     request_id: int,
     request: Request,
     gross_amount_krw: str = Form("0"),
-    use_platform_payment: str | None = Form(None),
-    payment_method: str = Form(""),
     db: Session = Depends(get_db),
     user=Depends(auth.get_current_user),
 ):
@@ -119,40 +128,85 @@ def settlement_propose(
     row = get_or_create_settlement(db, request_kind=norm, request_id=int(request_id))
     if not row or not user:
         return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
-    raw_amt = (gross_amount_krw or "").strip().replace(",", "")
-    try:
-        amt = int(raw_amt) if raw_amt else 0
-    except ValueError:
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="invalid_amount"), status_code=303)
-    err = propose_amount(
-        db,
-        user,
-        row,
-        gross_amount_krw=amt,
-        use_platform_payment=(use_platform_payment or "").strip().lower() in ("1", "true", "on", "yes"),
-        payment_method=(payment_method or "").strip(),
-    )
+    payment_usd = user_prefers_usd_payments(user)
+    usd_cents: int | None = None
+    if payment_usd:
+        usd_cents = parse_usd_input_to_cents(gross_amount_krw)
+        if usd_cents is None:
+            return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="invalid_amount"), status_code=303)
+        rate = float(usd_krw_rate_from_db(db) or 1350.0)
+        gross_krw = max(1, int(round((usd_cents / 100.0) * rate)))
+        err = apply_requester_payment_terms(
+            db,
+            user,
+            row,
+            gross_amount_krw=gross_krw,
+            payment_method=PAYMENT_METHOD_PORTONE,
+            payment_currency="USD",
+        )
+    else:
+        amt = _parse_amount_krw(gross_amount_krw)
+        if amt is None or amt <= 0:
+            return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="invalid_amount"), status_code=303)
+        err = apply_requester_payment_terms(
+            db,
+            user,
+            row,
+            gross_amount_krw=amt,
+            payment_method=PAYMENT_METHOD_PORTONE,
+            payment_currency="KRW",
+        )
+    if err:
+        db.commit()
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err=err), status_code=303)
+    if row.status != STATUS_AWAITING_PAYMENT:
+        db.commit()
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="not_ready"), status_code=303)
+    if not portone_checkout_ready():
+        db.commit()
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="portone_unconfigured"), status_code=303)
+    if payment_usd and not portone_paypal_channel_key():
+        db.commit()
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="paypal_unconfigured"), status_code=303)
+    return_url = _redirect_hub(norm, int(request_id), settlement_ok="portone")
+    if payment_usd:
+        txn = create_pending_transaction(
+            db,
+            user,
+            purpose=PURPOSE_PROJECT_SETTLEMENT,
+            purpose_ref_id=int(row.id),
+            amount_krw=int(usd_cents or 0),
+            return_url=return_url,
+            cancel_url=_redirect_hub(norm, int(request_id), settlement_err="portone_cancelled"),
+            currency="USD",
+        )
+    else:
+        txn = create_pending_transaction(
+            db,
+            user,
+            purpose=PURPOSE_PROJECT_SETTLEMENT,
+            purpose_ref_id=int(row.id),
+            amount_krw=int(row.gross_amount_krw),
+            return_url=return_url,
+            cancel_url=_redirect_hub(norm, int(request_id), settlement_err="portone_cancelled"),
+            currency="KRW",
+        )
+    if not txn:
+        db.commit()
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="portone_error"), status_code=303)
     db.commit()
-    return RedirectResponse(
-        url=_redirect_hub(norm, int(request_id), settlement_err=err or ""),
-        status_code=303,
-    )
+    return RedirectResponse(url=f"/payments/portone/checkout/{int(txn.id)}", status_code=303)
 
 
-@router.post("/settlement/{kind}/{request_id}/accept-amount")
-def settlement_accept_amount(
+@router.get("/settlement/{kind}/{request_id}/pay-portone")
+def settlement_pay_portone(
     kind: str,
     request_id: int,
     db: Session = Depends(get_db),
     user=Depends(auth.get_current_user),
 ):
     norm = normalize_request_kind(kind) or ""
-    row = get_or_create_settlement(db, request_kind=norm, request_id=int(request_id))
-    if not row or not user:
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
-    err = accept_amount(db, user, row)
-    db.commit()
-    return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err=err or ""), status_code=303)
+    return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="use_post"), status_code=303)
 
 
 @router.post("/settlement/{kind}/{request_id}/confirm-delivery")
@@ -171,44 +225,11 @@ def settlement_confirm_delivery(
     return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err=err or ""), status_code=303)
 
 
-@router.get("/settlement/{kind}/{request_id}/pay-portone")
-def settlement_pay_portone(
-    request: Request,
-    kind: str,
-    request_id: int,
-    db: Session = Depends(get_db),
-    user=Depends(auth.get_current_user),
-):
-    norm = normalize_request_kind(kind) or ""
-    row = get_or_create_settlement(db, request_kind=norm, request_id=int(request_id))
-    if not row or not user or int(user.id) != int(row.owner_user_id):
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
-    if row.status != STATUS_AWAITING_PAYMENT or not row.gross_amount_krw:
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="not_ready"), status_code=303)
-    if normalize_payment_method(row.payment_method) != PAYMENT_METHOD_PORTONE:
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="wrong_payment_method"), status_code=303)
-    if not portone_checkout_ready():
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="portone_unconfigured"), status_code=303)
-    return_url = _redirect_hub(norm, int(request_id), settlement_ok="portone")
-    txn = create_pending_transaction(
-        db,
-        user,
-        purpose=PURPOSE_PROJECT_SETTLEMENT,
-        purpose_ref_id=int(row.id),
-        amount_krw=int(row.gross_amount_krw),
-        return_url=return_url,
-        cancel_url=_redirect_hub(norm, int(request_id), settlement_err="portone_cancelled"),
-    )
-    if not txn:
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="portone_error"), status_code=303)
-    db.commit()
-    return RedirectResponse(url=f"/payments/portone/checkout/{int(txn.id)}", status_code=303)
-
-
 @router.post("/settlement/{kind}/{request_id}/bank-claim")
 def settlement_bank_claim(
     kind: str,
     request_id: int,
+    gross_amount_krw: str = Form("0"),
     depositor_name: str = Form(""),
     transfer_date: str = Form(""),
     member_note: str = Form(""),
@@ -219,8 +240,19 @@ def settlement_bank_claim(
     row = get_or_create_settlement(db, request_kind=norm, request_id=int(request_id))
     if not row or not user:
         return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
-    if normalize_payment_method(row.payment_method) != PAYMENT_METHOD_BANK:
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="wrong_payment_method"), status_code=303)
+    amt = _parse_amount_krw(gross_amount_krw)
+    if amt is None or amt <= 0:
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="invalid_amount"), status_code=303)
+    err = apply_requester_payment_terms(
+        db,
+        user,
+        row,
+        gross_amount_krw=amt,
+        payment_method=PAYMENT_METHOD_BANK,
+    )
+    if err:
+        db.commit()
+        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err=err), status_code=303)
     td = None
     if (transfer_date or "").strip():
         try:
@@ -252,44 +284,6 @@ def settlement_bank_claim_cancel(
     err = cancel_payment_claim(db, user, int(claim_id))
     db.commit()
     return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err=err or ""), status_code=303)
-
-
-@router.post("/settlement/{kind}/{request_id}/payout-profile")
-def settlement_save_payout_profile(
-    kind: str,
-    request_id: int,
-    account_holder_name: str = Form(""),
-    bank_name: str = Form(""),
-    account_number: str = Form(""),
-    country_code: str = Form("KR"),
-    swift_bic: str = Form(""),
-    wise_recipient_hint: str = Form(""),
-    db: Session = Depends(get_db),
-    user=Depends(auth.get_current_user),
-):
-    norm = normalize_request_kind(kind) or ""
-    row = get_or_create_settlement(db, request_kind=norm, request_id=int(request_id))
-    if not row or not user or int(user.id) != int(row.consultant_user_id):
-        return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_err="forbidden"), status_code=303)
-    prof = (
-        db.query(models.ConsultantPayoutProfile)
-        .filter(
-            models.ConsultantPayoutProfile.user_id == int(user.id),
-            models.ConsultantPayoutProfile.is_default.is_(True),
-        )
-        .first()
-    )
-    if not prof:
-        prof = models.ConsultantPayoutProfile(user_id=int(user.id), is_default=True)
-        db.add(prof)
-    prof.account_holder_name = (account_holder_name or "")[:200]
-    prof.bank_name = (bank_name or "")[:200]
-    prof.account_number = (account_number or "")[:64]
-    prof.country_code = (country_code or "KR").strip().upper()[:2] or "KR"
-    prof.swift_bic = (swift_bic or "").strip()[:32] or None
-    prof.wise_recipient_hint = (wise_recipient_hint or "").strip()[:256] or None
-    db.commit()
-    return RedirectResponse(url=_redirect_hub(norm, int(request_id), settlement_ok="profile_saved"), status_code=303)
 
 
 @router.post("/admin/settlement/{settlement_id}/mark-payout")

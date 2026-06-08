@@ -14,6 +14,7 @@ from .project_settlement_settings import (
     format_fee_percent,
     get_platform_fee_bps,
 )
+from .billing_currency import user_prefers_usd_payments
 from .request_hub_access import request_has_matched_offer
 from .request_offer_lifecycle import OFFER_STATUS_MATCHED
 
@@ -34,23 +35,6 @@ def normalize_payment_method(raw: str | None) -> str:
         return p
     return ""
 
-
-def _settlement_terms_match(
-    settlement: models.ProjectSettlement,
-    *,
-    gross_amount_krw: int,
-    use_platform_payment: bool,
-    payment_method: str,
-) -> bool:
-    gross = max(0, int(gross_amount_krw))
-    if int(settlement.gross_amount_krw or 0) != gross:
-        return False
-    if bool(settlement.use_platform_payment) != bool(use_platform_payment):
-        return False
-    if use_platform_payment:
-        if normalize_payment_method(settlement.payment_method) != normalize_payment_method(payment_method):
-            return False
-    return True
 
 STATUS_OPEN = "open"
 STATUS_AWAITING_PAYMENT = "awaiting_payment"
@@ -125,11 +109,8 @@ def recompute_status(settlement: models.ProjectSettlement) -> str:
     if funded:
         return STATUS_FUNDED
     amount_ok = bool(settlement.gross_amount_krw and settlement.gross_amount_krw > 0)
-    agreed = bool(
-        settlement.requester_amount_agreed_at and settlement.consultant_amount_agreed_at
-    )
     pm = normalize_payment_method(settlement.payment_method)
-    if settlement.use_platform_payment and amount_ok and agreed and pm in _VALID_PAYMENT_METHODS:
+    if settlement.use_platform_payment and amount_ok and pm in _VALID_PAYMENT_METHODS:
         return STATUS_AWAITING_PAYMENT
     return STATUS_OPEN
 
@@ -227,16 +208,30 @@ def settlement_hub_ctx(
             .order_by(models.PaymentClaim.id.desc())
             .first()
         )
-    from .payment_providers.portone_settings import portone_checkout_ready
+    from .ai_wallet import usd_krw_rate_from_db
+    from .payment_fulfillment import TXN_STATUS_PAID
+    from .payment_providers.portone_settings import (
+        portone_checkout_ready,
+        portone_paypal_channel_key,
+    )
+    from .payment_purpose import PURPOSE_PROJECT_SETTLEMENT
 
-    profile = None
-    if is_consultant and user:
-        profile = (
-            db.query(models.ConsultantPayoutProfile)
+    owner_user = (
+        db.query(models.User).filter(models.User.id == int(row.owner_user_id)).first()
+    )
+    payment_usd = bool(owner_user and user_prefers_usd_payments(owner_user))
+    paypal_channel = bool(portone_paypal_channel_key())
+    portone_ready = portone_checkout_ready() and (not payment_usd or paypal_channel)
+    portone_paid = None
+    if can_view and row.funded_at and normalize_payment_method(row.payment_method) == PAYMENT_METHOD_PORTONE:
+        portone_paid = (
+            db.query(models.PaymentTransaction)
             .filter(
-                models.ConsultantPayoutProfile.user_id == uid,
-                models.ConsultantPayoutProfile.is_default.is_(True),
+                models.PaymentTransaction.purpose == PURPOSE_PROJECT_SETTLEMENT,
+                models.PaymentTransaction.purpose_ref_id == int(row.id),
+                models.PaymentTransaction.status == TXN_STATUS_PAID,
             )
+            .order_by(models.PaymentTransaction.id.desc())
             .first()
         )
     return {
@@ -255,88 +250,69 @@ def settlement_hub_ctx(
         "settlement_platform_fee_krw": pf,
         "settlement_consultant_payout_krw": cp,
         "settlement_gross_display": gross,
-        "settlement_profile": profile,
         "settlement_base_path": f"/settlement/{kind}/{int(request_id)}",
         "settlement_request_kind": kind,
         "settlement_bank_settings": bank_settings,
         "settlement_pending_bank_claim": pending_bank_claim,
-        "settlement_portone_ready": portone_checkout_ready(),
+        "settlement_payment_usd": payment_usd,
+        "settlement_portone_ready": portone_ready,
+        "settlement_portone_paypal_configured": paypal_channel,
+        "settlement_usd_krw_rate": float(usd_krw_rate_from_db(db) or 1350.0),
+        "settlement_portone_paid": portone_paid,
         "settlement_payment_method": normalize_payment_method(row.payment_method),
     }
 
 
-def propose_amount(
+def apply_requester_payment_terms(
     db: Session,
     user: models.User,
     settlement: models.ProjectSettlement,
     *,
     gross_amount_krw: int,
-    use_platform_payment: bool,
-    payment_method: str | None = "",
+    payment_method: str,
+    payment_currency: str = "KRW",
 ) -> str | None:
+    """요청자 결제 직전 — 금액·수단 확정(양측 합의 UI 없음)."""
     if not user_can_view_settlement(db, user, settlement):
         return "forbidden"
-    uid = int(user.id)
-    if uid not in (int(settlement.owner_user_id), int(settlement.consultant_user_id)):
+    if int(user.id) != int(settlement.owner_user_id):
         return "forbidden"
+    if settlement.funded_at or (settlement.status or "") in (
+        STATUS_PAYABLE,
+        STATUS_PAYOUT_COMPLETED,
+    ):
+        return "already_funded"
     gross = max(0, int(gross_amount_krw))
-    if use_platform_payment and gross <= 0:
+    if gross <= 0:
         return "invalid_amount"
     pm = normalize_payment_method(payment_method)
-    if use_platform_payment:
-        if pm not in _VALID_PAYMENT_METHODS:
-            return "invalid_payment_method"
-        if pm == PAYMENT_METHOD_PORTONE:
-            from .payment_providers.portone_settings import portone_checkout_ready
+    if pm not in _VALID_PAYMENT_METHODS:
+        return "invalid_payment_method"
+    pc = (payment_currency or "KRW").strip().upper()
+    if pc not in ("KRW", "USD"):
+        pc = "KRW"
+    if pm == PAYMENT_METHOD_PORTONE:
+        from .payment_providers.portone_settings import (
+            portone_checkout_ready,
+            portone_paypal_channel_key,
+        )
 
-            if not portone_checkout_ready():
-                return "portone_unconfigured"
-    else:
-        pm = ""
-    terms_changed = not _settlement_terms_match(
-        settlement,
-        gross_amount_krw=gross,
-        use_platform_payment=use_platform_payment,
-        payment_method=pm,
-    )
+        if not portone_checkout_ready():
+            return "portone_unconfigured"
+        if pc == "USD" and not portone_paypal_channel_key():
+            return "paypal_unconfigured"
     bps = get_platform_fee_bps(db)
-    fee, payout = fee_amounts_krw(gross, bps) if gross else (0, 0)
-    settlement.gross_amount_krw = gross if gross else None
+    fee, payout = fee_amounts_krw(gross, bps)
+    settlement.gross_amount_krw = gross
     settlement.platform_fee_rate_bps = bps
-    settlement.platform_fee_krw = fee if gross else None
-    settlement.consultant_payout_krw = payout if gross else None
-    settlement.use_platform_payment = bool(use_platform_payment)
-    settlement.payment_method = pm if use_platform_payment else None
-    if terms_changed:
-        settlement.requester_amount_agreed_at = None
-        settlement.consultant_amount_agreed_at = None
-    if uid == int(settlement.owner_user_id):
-        settlement.requester_amount_agreed_at = datetime.utcnow()
-    else:
-        settlement.consultant_amount_agreed_at = datetime.utcnow()
-    apply_status(settlement)
-    db.add(settlement)
-    return None
-
-
-def accept_amount(
-    db: Session, user: models.User, settlement: models.ProjectSettlement
-) -> str | None:
-    if not user_can_view_settlement(db, user, settlement):
-        return "forbidden"
-    uid = int(user.id)
-    if uid == int(settlement.owner_user_id):
-        settlement.requester_amount_agreed_at = datetime.utcnow()
-    elif uid == int(settlement.consultant_user_id):
-        settlement.consultant_amount_agreed_at = datetime.utcnow()
-    else:
-        return "forbidden"
-    if (
-        not settlement.gross_amount_krw
-        or not settlement.use_platform_payment
-        or normalize_payment_method(settlement.payment_method) not in _VALID_PAYMENT_METHODS
-    ):
-        return "not_ready"
+    settlement.platform_fee_krw = fee
+    settlement.consultant_payout_krw = payout
+    settlement.use_platform_payment = True
+    settlement.payment_method = pm
+    settlement.currency = pc
+    now = datetime.utcnow()
+    settlement.requester_amount_agreed_at = now
+    settlement.consultant_amount_agreed_at = now
     apply_status(settlement)
     db.add(settlement)
     return None

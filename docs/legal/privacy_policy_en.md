@@ -35,7 +35,7 @@ Catchy Lab (“Company”) processes personal data to provide the SAP Developmen
 - Notification consent: operational/marketing email and SMS (with timestamps)
 - **AI credit top-up (bank transfer)**: depositor name, amount, date, refund account details as entered
 - **AI credit top-up (online payment)**: payment identifiers and status via PortOne or similar (the Company may not store full card numbers)
-- **Project settlement**: agreed amounts, payment method, funding/payout timestamps, bank transfer details as applicable
+- **Project settlement**: agreed amounts, payment method/currency, funding/payout timestamps, bank transfer claim details (no direct bank API). Online payments via payment provider. Consultant payout account details may not be collected in the Service
 
 ### Automatic
 

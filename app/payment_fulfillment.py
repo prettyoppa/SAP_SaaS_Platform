@@ -66,7 +66,17 @@ def _fulfill_project_settlement(db: Session, txn: models.PaymentTransaction) -> 
             return None
         return "not_awaiting_payment"
     expected = int(settlement.gross_amount_krw or 0)
-    if expected != int(txn.amount_minor or 0):
+    paid = int(txn.amount_minor or 0)
+    txn_cur = (txn.currency or "KRW").strip().upper()
+    if txn_cur == "USD":
+        from .ai_wallet import usd_krw_rate_from_db
+        from .payment_providers.portone_checkout import _krw_to_usd_cents
+
+        rate = float(usd_krw_rate_from_db(db) or 1350.0)
+        expected_usd = _krw_to_usd_cents(expected, rate)
+        if abs(paid - expected_usd) > 1:
+            return "amount_mismatch"
+    elif expected != paid:
         return "amount_mismatch"
     mark_funded(db, settlement, portone_payment_id=(txn.payment_id or "")[:256])
     txn.status = TXN_STATUS_PAID

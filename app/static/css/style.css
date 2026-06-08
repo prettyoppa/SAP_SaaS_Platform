@@ -2830,6 +2830,25 @@ html[data-theme="light"] .rfp-unified-hub .wf-abap-mirror-phase .rfp-workflow-ab
 html[data-theme="dark"] .hub-settlement-phase-icon {
   color: #c7d2fe;
 }
+.hub-settlement-process-help-btn {
+  line-height: 1;
+  vertical-align: -0.1em;
+  text-decoration: none !important;
+}
+.hub-settlement-process-help-btn:hover,
+.hub-settlement-process-help-btn:focus {
+  color: var(--text) !important;
+}
+.popover.hub-settlement-process-popover {
+  max-width: min(22rem, calc(100vw - 2rem));
+}
+.popover.hub-settlement-process-popover .popover-body {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.popover.hub-settlement-process-popover .popover-body ol {
+  margin-bottom: 0.5rem;
+}
 .proposal-page.py-5 {
   padding-top: 1.75rem !important;
   padding-bottom: 1.75rem !important;

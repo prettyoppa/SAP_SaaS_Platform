@@ -1,16 +1,10 @@
-{# 납품 대금 — 계좌이체 (AI 크레딧 충전과 동일 SiteSettings·신청 흐름, plan_code로 구분) #}
-{% set bs = settlement_bank_settings|default({}) %}
+{# 납품대금 결제 — 입금 신청 대기·취소 (금액은 상위 결제 폼에서 확정됨) #}
 {% set claim = settlement_pending_bank_claim %}
 {% set gross = st.gross_amount_krw %}
 
 <div class="hub-settlement-bank-panel">
-  <p class="small text-muted mb-2">
-    <span class="nav-ko"><strong>납품 대금</strong> · 계좌이체 — AI 크레딧 충전과 동일 계좌 안내입니다. 관리자 확인 시 이 프로젝트 정산에만 반영됩니다.</span>
-    <span class="nav-en" style="display:none"><strong>Delivery payment</strong> · bank transfer — same account details as AI credit top-up. Admin confirmation applies to this project only.</span>
-  </p>
-
   {% if claim %}
-  <div class="alert alert-info small mb-3">
+  <div class="alert alert-info small mb-0">
     <span class="nav-ko"><strong>입금 확인 대기</strong></span>
     <span class="nav-en" style="display:none"><strong>Pending verification</strong></span>
     · ₩{{ "{:,}".format(claim.amount_minor) }}
@@ -23,37 +17,9 @@
     </form>
     {% endif %}
   </div>
-  {% elif settlement_is_owner and settlement_status == 'awaiting_payment' %}
-  {% if bs.get('bank_transfer_notice_md_ko') or bs.get('bank_transfer_notice_md_en') %}
-  <div class="account-ai-credits-bank-inline markdown-body small mb-3">
-    <div class="nav-ko">{{ (bs.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
-    <div class="nav-en" style="display:none">{{ (bs.get('bank_transfer_notice_md_en') or bs.get('bank_transfer_notice_md_ko') or '')|md_html }}</div>
-  </div>
-  {% endif %}
-  <p class="small mb-2 font-monospace">
-    <span data-i18n="settlement.transferAmountDue">입금할 금액</span>:
-    <strong>₩{{ "{:,}".format(gross) }}</strong>
+  {% elif gross %}
+  <p class="small text-muted mb-0 font-monospace">
+    <span data-i18n="settlement.transferAmountDue">입금할 금액</span>: <strong>₩{{ "{:,}".format(gross) }}</strong>
   </p>
-  <form method="post" action="{{ base }}/bank-claim" class="row g-2 align-items-start small">
-    <div class="col-md-4">
-      <label class="form-label small mb-0" data-i18n="billing.depositor">입금자명</label>
-      <input type="text" name="depositor_name" class="form-control form-control-sm" required maxlength="200"
-             value="{{ user.full_name|e if user else '' }}"/>
-    </div>
-    <div class="col-md-3">
-      <label class="form-label small mb-0" data-i18n="billing.transferDate">입금일</label>
-      <input type="date" name="transfer_date" class="form-control form-control-sm"/>
-    </div>
-    <div class="col-md-5">
-      <label class="form-label small mb-0" data-i18n="billing.memberNote">메모 (선택)</label>
-      <input type="text" name="member_note" class="form-control form-control-sm" maxlength="500"
-             placeholder="RFP #{{ st.request_id }}"/>
-    </div>
-    <div class="col-12">
-      <button type="submit" class="btn btn-sm btn-primary" data-i18n="settlement.bankClaimSubmit">입금 신청 제출</button>
-    </div>
-  </form>
-  {% else %}
-  <p class="small text-muted mb-0" data-i18n="settlement.bankAwaitingOwner">요청자가 입금 신청을 제출하면 관리자가 확인합니다.</p>
   {% endif %}
 </div>

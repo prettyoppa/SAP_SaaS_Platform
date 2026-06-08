@@ -315,7 +315,37 @@ function showGlobalBusy(meta) {
 document.addEventListener('DOMContentLoaded', () => {
   initCurrencyAndEnterGuards(document);
   initHubDeliverableVisibilityControls(document);
+  initHubSettlementProcessHelp(document);
 });
+
+/** 납품대금 결제 — 정해진 절차 ? popover */
+function initHubSettlementProcessHelp(root) {
+  const scope = root && root.querySelectorAll ? root : document;
+  scope.querySelectorAll('.hub-settlement-intro-process').forEach((wrap) => {
+    const btn = wrap.querySelector('.hub-settlement-process-help-btn');
+    const contentRoot = wrap.querySelector('.hub-settlement-process-popover-content');
+    if (!btn || !contentRoot || btn.dataset.settlementHelpBound === '1') return;
+    btn.dataset.settlementHelpBound = '1';
+    function pickHtml() {
+      const enVisible = document.querySelector('.nav-en') && document.querySelector('.nav-en').style.display !== 'none';
+      const block = contentRoot.querySelector(enVisible ? '.nav-en' : '.nav-ko') || contentRoot.querySelector('.nav-ko');
+      return block ? block.innerHTML : '';
+    }
+    if (typeof bootstrap !== 'undefined' && bootstrap.Popover) {
+      const pop = new bootstrap.Popover(btn, {
+        html: true,
+        sanitize: false,
+        trigger: 'hover focus',
+        placement: 'auto',
+        customClass: 'hub-settlement-process-popover',
+        content: pickHtml(),
+      });
+      document.addEventListener('app:language-changed', () => {
+        pop.setContent({ '.popover-body': pickHtml() });
+      });
+    }
+  });
+}
 
 /** FS·개발코드 summary 내 요청자 공개 토글 — 클릭 시 단계 접기/펼치기 방지 */
 function initHubDeliverableVisibilityControls(root) {
