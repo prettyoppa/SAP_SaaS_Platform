@@ -207,7 +207,9 @@ ABAP Report/Function 모듈 작성 지시는 쓰지 말고, 외부 코드·스�
         ir.fs_status = "ready"
         ir.fs_generated_at = datetime.utcnow()
         ir.fs_error = None
-        on_fs_generation_succeeded(ir)
+        on_fs_generation_succeeded(
+            ir, db=db, request_kind="integration", request_id=int(ir_id)
+        )
         db.commit()
         append_integration_job_log(ir_id, "fs_job_log", "FS 저장 완료")
         from .kb_request_flow import schedule_request_kb_flow
@@ -330,7 +332,9 @@ def run_integration_deliverable_job(ir_id: int, billing_user_id: int) -> None:
         ir.delivered_code_generated_at = datetime.utcnow()
         ir.delivered_code_error = None
         clear_delivered_code_working_copy(ir)
-        on_dev_code_generation_succeeded(ir)
+        on_dev_code_generation_succeeded(
+            ir, db=db, request_kind="integration", request_id=int(ir_id)
+        )
         db.commit()
         append_integration_job_log(ir_id, "delivered_job_log", "구현 산출물 저장 완료")
         from .kb_request_flow import schedule_request_kb_flow

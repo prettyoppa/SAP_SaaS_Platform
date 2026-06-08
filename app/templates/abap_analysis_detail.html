@@ -413,8 +413,8 @@
             {% else %}
             <span class="badge bg-secondary ms-1" data-i18n="hub.fsWait">대기</span>
             {% endif %}
-            {% if can_toggle_fs_requester_visibility|default(false) %}
-            {% with visibility_stage='fs', visibility_checked=fs_visible_to_requester|default(false), visibility_toggle_suffix='-' ~ (row.id|string) %}
+            {% if show_fs_requester_visibility_control|default(false) %}
+            {% with visibility_stage='fs', visibility_checked=fs_visible_to_requester|default(false), visibility_locked=requester_visibility_locked|default(false), visibility_toggle_suffix='-' ~ (row.id|string) %}
             {% include 'partials/hub_deliverable_requester_visibility_toggle.html' %}
             {% endwith %}
             {% endif %}
@@ -436,8 +436,8 @@
             {% elif can_view_dev_code|default(can_view_deliverables|default(true)) and (ana_has_delivered_zip|default(false) or delivered_package|default(none) or delivered_code_html|default('')) %}
             <span class="badge bg-success ms-1" data-i18n="hub.dcReady">납품 코드 준비됨</span>
             {% endif %}
-            {% if can_toggle_dev_code_requester_visibility|default(false) %}
-            {% with visibility_stage='devcode', visibility_checked=dev_code_visible_to_requester|default(false), visibility_toggle_suffix='dc-' ~ (row.id|string) %}
+            {% if show_dev_code_requester_visibility_control|default(false) %}
+            {% with visibility_stage='devcode', visibility_checked=dev_code_visible_to_requester|default(false), visibility_locked=requester_visibility_locked|default(false), visibility_toggle_suffix='dc-' ~ (row.id|string) %}
             {% include 'partials/hub_deliverable_requester_visibility_toggle.html' %}
             {% endwith %}
             {% endif %}

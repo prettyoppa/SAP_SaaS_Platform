@@ -209,8 +209,11 @@ def apply_hub_deliverables_visibility(
 ) -> None:
     """허브 템플릿용 can_view_deliverables / can_operate_delivery 및 민감 필드 마스킹."""
     from .request_deliverables_release import (
+        dev_code_deliverable_ready,
         dev_code_withheld_from_requester,
+        fs_deliverable_ready,
         fs_withheld_from_requester,
+        owner_is_matched_consultant_on_request,
         requester_visibility_post_url,
         user_can_toggle_dev_code_requester_visibility,
         user_can_toggle_fs_requester_visibility,
@@ -253,21 +256,58 @@ def apply_hub_deliverables_visibility(
     ctx["can_view_fs"] = can_view_fs
     ctx["can_view_dev_code"] = can_view_dc
     ctx["can_operate_delivery"] = can_operate
+    visibility_locked = owner_is_matched_consultant_on_request(
+        db,
+        owner_user_id=owner_user_id,
+        request_kind=request_kind,
+        request_id=request_id,
+    )
+    ctx["requester_visibility_locked"] = visibility_locked
     ctx["fs_withheld_from_requester"] = fs_withheld_from_requester(
-        user, owner_user_id=owner_user_id, entity=entity
+        user,
+        owner_user_id=owner_user_id,
+        entity=entity,
+        db=db,
+        request_kind=request_kind,
+        request_id=request_id,
     )
     ctx["dev_code_withheld_from_requester"] = dev_code_withheld_from_requester(
-        user, owner_user_id=owner_user_id, entity=entity
+        user,
+        owner_user_id=owner_user_id,
+        entity=entity,
+        db=db,
+        request_kind=request_kind,
+        request_id=request_id,
     )
-    ctx["fs_visible_to_requester"] = bool(getattr(entity, "fs_visible_to_requester", False))
-    ctx["dev_code_visible_to_requester"] = bool(
+    ctx["fs_visible_to_requester"] = True if visibility_locked else bool(
+        getattr(entity, "fs_visible_to_requester", False)
+    )
+    ctx["dev_code_visible_to_requester"] = True if visibility_locked else bool(
         getattr(entity, "dev_code_visible_to_requester", False)
     )
-    ctx["can_toggle_fs_requester_visibility"] = user_can_toggle_fs_requester_visibility(
-        db, user, request_kind=request_kind, request_id=request_id, entity=entity
+    can_toggle_fs = user_can_toggle_fs_requester_visibility(
+        db,
+        user,
+        request_kind=request_kind,
+        request_id=request_id,
+        owner_user_id=owner_user_id,
+        entity=entity,
     )
-    ctx["can_toggle_dev_code_requester_visibility"] = user_can_toggle_dev_code_requester_visibility(
-        db, user, request_kind=request_kind, request_id=request_id, entity=entity
+    can_toggle_dc = user_can_toggle_dev_code_requester_visibility(
+        db,
+        user,
+        request_kind=request_kind,
+        request_id=request_id,
+        owner_user_id=owner_user_id,
+        entity=entity,
+    )
+    ctx["can_toggle_fs_requester_visibility"] = can_toggle_fs
+    ctx["can_toggle_dev_code_requester_visibility"] = can_toggle_dc
+    ctx["show_fs_requester_visibility_control"] = can_toggle_fs or (
+        visibility_locked and fs_deliverable_ready(entity)
+    )
+    ctx["show_dev_code_requester_visibility_control"] = can_toggle_dc or (
+        visibility_locked and dev_code_deliverable_ready(entity)
     )
     ctx["requester_visibility_post_url"] = requester_visibility_post_url(
         request_kind=request_kind, request_id=int(request_id)

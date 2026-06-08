@@ -91,7 +91,9 @@ def reconcile_abap_analysis_delivery_status(
             row.fs_error = None
             if not getattr(row, "fs_generated_at", None):
                 row.fs_generated_at = datetime.utcnow()
-            on_fs_generation_succeeded(row)
+            on_fs_generation_succeeded(
+                row, db=db, request_kind="analysis", request_id=int(row.id)
+            )
             changed = True
         elif abap_analysis_job_stale(row, "fs_job_log", minutes=fs_stale_minutes):
             row.fs_status = "failed"
@@ -109,7 +111,9 @@ def reconcile_abap_analysis_delivery_status(
             row.delivered_code_error = None
             if not getattr(row, "delivered_code_generated_at", None):
                 row.delivered_code_generated_at = datetime.utcnow()
-            on_dev_code_generation_succeeded(row)
+            on_dev_code_generation_succeeded(
+                row, db=db, request_kind="analysis", request_id=int(row.id)
+            )
             changed = True
         elif abap_analysis_job_stale(row, "delivered_job_log", minutes=dc_stale_minutes):
             row.delivered_code_status = "failed"
@@ -298,7 +302,9 @@ def run_abap_analysis_fs_job(analysis_id: int, billing_user_id: int) -> None:
             row.fs_status = "ready"
             row.fs_generated_at = datetime.utcnow()
             row.fs_error = None
-            on_fs_generation_succeeded(row)
+            on_fs_generation_succeeded(
+                row, db=db, request_kind="analysis", request_id=int(analysis_id)
+            )
         else:
             row.fs_status = "failed"
             row.fs_error = fs_error
@@ -408,7 +414,9 @@ def run_abap_analysis_delivered_code_job(analysis_id: int, billing_user_id: int)
             row.delivered_code_generated_at = datetime.utcnow()
             row.delivered_code_error = None
             clear_delivered_code_working_copy(row)
-            on_dev_code_generation_succeeded(row)
+            on_dev_code_generation_succeeded(
+                row, db=db, request_kind="analysis", request_id=int(analysis_id)
+            )
         else:
             row.delivered_code_status = "failed"
             row.delivered_code_error = gen_error

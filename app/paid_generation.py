@@ -192,7 +192,9 @@ def run_fs_generation_job(rfp_id: int, billing_user_id: int) -> None:
             rfp.fs_status = "ready"
             rfp.fs_generated_at = datetime.utcnow()
             rfp.fs_error = None
-            on_fs_generation_succeeded(rfp)
+            on_fs_generation_succeeded(
+                rfp, db=db, request_kind="rfp", request_id=int(rfp_id)
+            )
         else:
             rfp.fs_status = "failed"
             rfp.fs_error = fs_error
@@ -328,7 +330,9 @@ def run_delivered_code_job(rfp_id: int, billing_user_id: int) -> None:
             rfp.delivered_code_generated_at = datetime.utcnow()
             rfp.delivered_code_error = None
             clear_delivered_code_working_copy(rfp)
-            on_dev_code_generation_succeeded(rfp)
+            on_dev_code_generation_succeeded(
+                rfp, db=db, request_kind="rfp", request_id=int(rfp_id)
+            )
         else:
             rfp.delivered_code_status = "failed"
             rfp.delivered_code_error = gen_error

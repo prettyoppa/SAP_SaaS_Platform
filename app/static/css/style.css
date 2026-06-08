@@ -4149,16 +4149,28 @@ html[data-theme="light"] .abap-chat-log .abap-msg-bubble--them.chat-md-body pre 
 }
 .interview-summary-header .hub-deliverable-visibility-switch {
   min-height: 0;
-  padding-left: 2.35rem;
+  padding-left: 3.1rem;
+  font-size: 0.875rem;
 }
 .interview-summary-header .hub-deliverable-visibility-switch .form-check-input {
   cursor: pointer;
-  margin-top: 0.15rem;
+  margin-top: 0.05rem;
+  width: 2.75em;
+  height: 1.4em;
+}
+.interview-summary-header .hub-deliverable-visibility-switch .form-check-input:disabled {
+  cursor: default;
+  opacity: 1;
 }
 .interview-summary-header .hub-deliverable-visibility-switch .form-check-label {
-  font-size: 0.78rem;
-  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
   cursor: pointer;
+}
+.interview-summary-header .hub-deliverable-visibility-switch .form-check-input:disabled ~ .form-check-label {
+  cursor: default;
+  color: var(--text);
 }
 .abap-float-chat-panel {
   position: relative;

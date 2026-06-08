@@ -80,12 +80,76 @@ def reset_dev_code_requester_visibility(entity: Any) -> None:
         entity.dev_code_visible_to_requester = False
 
 
-def on_fs_generation_succeeded(entity: Any) -> None:
-    reset_fs_requester_visibility(entity)
+def owner_is_matched_consultant_on_request(
+    db: Session,
+    *,
+    owner_user_id: int,
+    request_kind: str,
+    request_id: int,
+) -> bool:
+    """요청자와 매칭 컨설턴트가 동일 계정(본인 의뢰·본인 납품)인 경우."""
+    try:
+        owner_id = int(owner_user_id)
+    except (TypeError, ValueError):
+        return False
+    return consultant_is_matched_on_request(
+        db,
+        consultant_user_id=owner_id,
+        request_kind=request_kind,
+        request_id=int(request_id),
+    )
 
 
-def on_dev_code_generation_succeeded(entity: Any) -> None:
-    reset_dev_code_requester_visibility(entity)
+def _should_auto_release_to_requester(
+    db: Session | None,
+    entity: Any,
+    *,
+    request_kind: str | None,
+    request_id: int | None,
+) -> bool:
+    if not db or not request_kind or request_id is None:
+        return False
+    owner_id = getattr(entity, "user_id", None)
+    if owner_id is None:
+        return False
+    return owner_is_matched_consultant_on_request(
+        db,
+        owner_user_id=int(owner_id),
+        request_kind=request_kind,
+        request_id=int(request_id),
+    )
+
+
+def on_fs_generation_succeeded(
+    entity: Any,
+    *,
+    db: Session | None = None,
+    request_kind: str | None = None,
+    request_id: int | None = None,
+) -> None:
+    if _should_auto_release_to_requester(
+        db, entity, request_kind=request_kind, request_id=request_id
+    ):
+        if hasattr(entity, "fs_visible_to_requester"):
+            entity.fs_visible_to_requester = True
+    else:
+        reset_fs_requester_visibility(entity)
+
+
+def on_dev_code_generation_succeeded(
+    entity: Any,
+    *,
+    db: Session | None = None,
+    request_kind: str | None = None,
+    request_id: int | None = None,
+) -> None:
+    if _should_auto_release_to_requester(
+        db, entity, request_kind=request_kind, request_id=request_id
+    ):
+        if hasattr(entity, "dev_code_visible_to_requester"):
+            entity.dev_code_visible_to_requester = True
+    else:
+        reset_dev_code_requester_visibility(entity)
 
 
 def _is_owner(user, owner_user_id: int) -> bool:
@@ -132,6 +196,13 @@ def user_can_view_fs_deliverable_content(
     if _is_owner(user, owner_user_id):
         if not fs_deliverable_ready(entity):
             return True
+        if owner_is_matched_consultant_on_request(
+            db,
+            owner_user_id=owner_user_id,
+            request_kind=request_kind,
+            request_id=request_id,
+        ):
+            return True
         return bool(getattr(entity, "fs_visible_to_requester", False))
     return False
 
@@ -154,6 +225,13 @@ def user_can_view_dev_code_deliverable_content(
     if _is_owner(user, owner_user_id):
         if not dev_code_deliverable_ready(entity):
             return True
+        if owner_is_matched_consultant_on_request(
+            db,
+            owner_user_id=owner_user_id,
+            request_kind=request_kind,
+            request_id=request_id,
+        ):
+            return True
         return bool(getattr(entity, "dev_code_visible_to_requester", False))
     return False
 
@@ -163,8 +241,18 @@ def fs_withheld_from_requester(
     *,
     owner_user_id: int,
     entity: Any | None,
+    db: Session | None = None,
+    request_kind: str | None = None,
+    request_id: int | None = None,
 ) -> bool:
     if not _is_owner(user, owner_user_id):
+        return False
+    if db and request_kind and request_id is not None and owner_is_matched_consultant_on_request(
+        db,
+        owner_user_id=owner_user_id,
+        request_kind=request_kind,
+        request_id=request_id,
+    ):
         return False
     return fs_deliverable_ready(entity) and not bool(getattr(entity, "fs_visible_to_requester", False))
 
@@ -174,8 +262,18 @@ def dev_code_withheld_from_requester(
     *,
     owner_user_id: int,
     entity: Any | None,
+    db: Session | None = None,
+    request_kind: str | None = None,
+    request_id: int | None = None,
 ) -> bool:
     if not _is_owner(user, owner_user_id):
+        return False
+    if db and request_kind and request_id is not None and owner_is_matched_consultant_on_request(
+        db,
+        owner_user_id=owner_user_id,
+        request_kind=request_kind,
+        request_id=request_id,
+    ):
         return False
     return dev_code_deliverable_ready(entity) and not bool(
         getattr(entity, "dev_code_visible_to_requester", False)
@@ -188,8 +286,16 @@ def user_can_toggle_fs_requester_visibility(
     *,
     request_kind: str,
     request_id: int,
+    owner_user_id: int,
     entity: Any | None,
 ) -> bool:
+    if owner_is_matched_consultant_on_request(
+        db,
+        owner_user_id=owner_user_id,
+        request_kind=request_kind,
+        request_id=request_id,
+    ):
+        return False
     return user_can_operate_request_deliverables(
         db, user, request_kind=request_kind, request_id=request_id
     ) and fs_deliverable_ready(entity)
@@ -201,8 +307,16 @@ def user_can_toggle_dev_code_requester_visibility(
     *,
     request_kind: str,
     request_id: int,
+    owner_user_id: int,
     entity: Any | None,
 ) -> bool:
+    if owner_is_matched_consultant_on_request(
+        db,
+        owner_user_id=owner_user_id,
+        request_kind=request_kind,
+        request_id=request_id,
+    ):
+        return False
     return user_can_operate_request_deliverables(
         db, user, request_kind=request_kind, request_id=request_id
     ) and dev_code_deliverable_ready(entity)
@@ -257,16 +371,34 @@ def apply_requester_visibility_toggle(
     visible: bool,
 ) -> str | None:
     """Returns error message or None on success."""
+    owner_id = getattr(entity, "user_id", None)
+    if owner_id is not None and owner_is_matched_consultant_on_request(
+        db,
+        owner_user_id=int(owner_id),
+        request_kind=request_kind,
+        request_id=request_id,
+    ):
+        return "forbidden"
     stage_key = (stage or "").strip().lower()
     if stage_key == "fs":
         if not user_can_toggle_fs_requester_visibility(
-            db, user, request_kind=request_kind, request_id=request_id, entity=entity
+            db,
+            user,
+            request_kind=request_kind,
+            request_id=request_id,
+            owner_user_id=int(owner_id),
+            entity=entity,
         ):
             return "forbidden"
         entity.fs_visible_to_requester = bool(visible)
     elif stage_key in ("devcode", "dev_code", "dc"):
         if not user_can_toggle_dev_code_requester_visibility(
-            db, user, request_kind=request_kind, request_id=request_id, entity=entity
+            db,
+            user,
+            request_kind=request_kind,
+            request_id=request_id,
+            owner_user_id=int(owner_id),
+            entity=entity,
         ):
             return "forbidden"
         entity.dev_code_visible_to_requester = bool(visible)
