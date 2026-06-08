@@ -143,7 +143,12 @@ from ..offer_inquiry_service import (
     withdraw_request_offer,
 )
 from ..request_offer_lifecycle import request_has_deliverables
-from ..request_hub_access import apply_hub_deliverables_visibility, user_can_view_request_deliverables
+from ..request_deliverables_release import apply_requester_visibility_toggle, user_may_download_dev_code_assets
+from ..request_hub_access import (
+    apply_hub_deliverables_visibility,
+    menu_abap_detail_url,
+    user_can_view_request_deliverables,
+)
 from ..request_offer_visibility import visible_request_offers_for_viewer
 from ..rfp_download_names import (
     content_disposition_attachment,
@@ -1491,18 +1496,6 @@ def _prepare_abap_analysis_detail_ctx(
         request_id=int(row.id),
         owner_user_id=int(row.user_id),
     )
-    fs_download_flags = fs_download_hub_ctx(
-        db,
-        user,
-        request_kind="analysis",
-        request_id=int(row.id),
-        owner_user_id=int(row.user_id),
-        fs_status=row.fs_status,
-        fs_text=row.fs_text,
-        code_asset_unlocked=code_asset_unlocked,
-        download_base=f"/abap-analysis/{row.id}/fs/download",
-    )
-
     req_ctx = _requirement_display_ctx(row, "abap", row.id)
 
     ana_ist = (getattr(row, "interview_status", None) or "pending").strip()
@@ -1648,7 +1641,6 @@ def _prepare_abap_analysis_detail_ctx(
         == "1",
         "offer_inquiry_reply_err": (request.query_params.get("offer_inquiry_reply_err") or "").strip(),
         "ana_fs_html": ana_fs_html,
-        **fs_download_flags,
         **_abap_analysis_hub_delivered_fields(row),
         **fs_supplement_hub_template_ctx(
             db,
@@ -1798,6 +1790,19 @@ def _prepare_abap_analysis_detail_ctx(
         request_id=int(row.id),
         owner_user_id=int(row.user_id),
         paid_entity=row,
+    )
+    detail_ctx.update(
+        fs_download_hub_ctx(
+            db,
+            user,
+            request_kind="analysis",
+            request_id=int(row.id),
+            owner_user_id=int(row.user_id),
+            fs_status=row.fs_status,
+            fs_text=row.fs_text,
+            code_asset_unlocked=detail_ctx.get("fs_code_asset_unlocked", False),
+            download_base=f"/abap-analysis/{row.id}/fs/download",
+        )
     )
     _hub_phase_eff = _hub_phase or "proposal"
     detail_ctx["offer_member_inquiry"] = build_offer_member_inquiry_ctx(
@@ -2002,6 +2007,45 @@ def abap_analysis_generation_status(req_id: int, request: Request, db: Session =
     )
 
 
+@router.post("/{req_id}/delivery/requester-visibility")
+def abap_analysis_requester_visibility_post(
+    req_id: int,
+    request: Request,
+    stage: str = Form(...),
+    visible: str = Form("0"),
+    hub_phase: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = _require_user(request, db)
+    row = _get_abap_row_readable(db, user, req_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    err = apply_requester_visibility_toggle(
+        db,
+        user,
+        entity=row,
+        request_kind="analysis",
+        request_id=int(req_id),
+        stage=stage,
+        visible=(visible or "").strip().lower() in ("1", "true", "on", "yes"),
+    )
+    if err:
+        raise HTTPException(status_code=403 if err == "forbidden" else 400, detail=err)
+    phase = (hub_phase or "").strip() or ("fs" if (stage or "").strip().lower() == "fs" else "devcode")
+    from ..request_deliverables_release import visibility_toggle_redirect_url
+
+    return RedirectResponse(
+        url=visibility_toggle_redirect_url(
+            user=user,
+            owner_user_id=int(row.user_id),
+            request_kind="analysis",
+            request_id=int(req_id),
+            phase=phase,
+        ),
+        status_code=303,
+    )
+
+
 @router.get("/{req_id}/fs/download")
 def abap_analysis_fs_download(
     req_id: int,
@@ -2028,6 +2072,7 @@ def abap_analysis_fs_download(
         request_kind="analysis",
         request_id=int(req_id),
         owner_user_id=int(row.user_id),
+        entity=row,
         fs_status=row.fs_status,
         fs_text=display_fs,
         program_id=getattr(row, "program_id", None),
@@ -2044,12 +2089,13 @@ def abap_analysis_delivered_code_download(req_id: int, request: Request, db: Ses
     row = _get_abap_row_readable(db, user, req_id)
     if not row:
         return RedirectResponse(url="/abap-analysis", status_code=302)
-    if not user_may_copy_download_request_assets(
+    if not user_may_download_dev_code_assets(
         db,
         user,
         request_kind="analysis",
         request_id=req_id,
         owner_user_id=int(row.user_id),
+        entity=row,
     ):
         return RedirectResponse(url="/abap-analysis", status_code=302)
     if not rfp_delivered_body_ready(row):

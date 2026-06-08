@@ -133,8 +133,10 @@ class RFP(Base):
     fs_consultant_addendum = Column(Text, nullable=True)
     # 관리자용: 생성 백그라운드 작업 진행 로그(텍스트, 단순 줄 단위 축적)
     fs_job_log = Column(Text, nullable=True)
+    fs_visible_to_requester = Column(Boolean, default=False, nullable=False)
     delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
     delivered_code_text = Column(Text, nullable=True)
+    dev_code_visible_to_requester = Column(Boolean, default=False, nullable=False)
     # JSON: program_id, slots[], implementation_guide_md, se38_implementation_guide_md, test_scenarios_md
     delivered_code_payload = Column(Text, nullable=True)
     # 컨설턴트 작업실 전용 JSON 복사본(공식 납품 payload와 분리)
@@ -262,8 +264,10 @@ class IntegrationRequest(Base):
     fs_error = Column(Text, nullable=True)
     fs_consultant_addendum = Column(Text, nullable=True)
     fs_job_log = Column(Text, nullable=True)
+    fs_visible_to_requester = Column(Boolean, default=False, nullable=False)
     delivered_code_status = Column(String, default="none")  # none | generating | ready | failed
     delivered_code_text = Column(Text, nullable=True)
+    dev_code_visible_to_requester = Column(Boolean, default=False, nullable=False)
     delivered_code_payload = Column(Text, nullable=True)  # JSON: 파일 슬롯 + 가이드·테스트 (연동 납품)
     delivered_code_working_payload = Column(Text, nullable=True)
     delivered_code_generated_at = Column(DateTime, nullable=True)
@@ -400,8 +404,10 @@ class AbapAnalysisRequest(Base):
     fs_error = Column(Text, nullable=True)
     fs_consultant_addendum = Column(Text, nullable=True)
     fs_job_log = Column(Text, nullable=True)
+    fs_visible_to_requester = Column(Boolean, default=False, nullable=False)
     delivered_code_status = Column(String, default="none", nullable=False)
     delivered_code_text = Column(Text, nullable=True)
+    dev_code_visible_to_requester = Column(Boolean, default=False, nullable=False)
     delivered_code_payload = Column(Text, nullable=True)
     delivered_code_working_payload = Column(Text, nullable=True)
     delivered_code_generated_at = Column(DateTime, nullable=True)

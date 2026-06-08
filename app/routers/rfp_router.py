@@ -4,7 +4,7 @@ import mimetypes
 import os
 import zipfile
 from datetime import datetime
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
@@ -22,6 +22,7 @@ from ..delivered_code_package import (
     rfp_delivered_body_ready,
 )
 from ..offer_member_inquiry_hub import build_offer_member_inquiry_ctx, member_inquiry_redirect_url
+from ..request_deliverables_release import apply_requester_visibility_toggle
 from ..offer_inquiry_service import (
     apply_request_offer_match_action,
     inquiries_by_offer_id,
@@ -1144,17 +1145,6 @@ def _collect_rfp_unified_hub_ctx(
         request_id=rfp_id,
         owner_user_id=int(rfp.user_id),
     )
-    fs_download_flags = fs_download_hub_ctx(
-        db,
-        user,
-        request_kind="rfp",
-        request_id=int(rfp.id),
-        owner_user_id=int(rfp.user_id),
-        fs_status=rfp.fs_status,
-        fs_text=rfp.fs_text,
-        code_asset_unlocked=code_asset_unlocked,
-        download_base=f"/rfp/{rfp.id}/fs/download",
-    )
 
     hub_rfp_ai_chat_enabled = user_may_use_request_ai_inquiry(
         db,
@@ -1180,7 +1170,6 @@ def _collect_rfp_unified_hub_ctx(
         "rfp": rfp,
         "owner": owner,
         "code_asset_unlocked": code_asset_unlocked,
-        **fs_download_flags,
         "delete_blocked_reason": delete_blocked,
         "subscription_quota_flash": subscription_quota_flash,
         "hub_phase_open": display_phase,
@@ -1375,6 +1364,19 @@ def _collect_rfp_unified_hub_ctx(
         request_id=int(rfp.id),
         owner_user_id=int(rfp.user_id),
         paid_entity=rfp,
+    )
+    ctx.update(
+        fs_download_hub_ctx(
+            db,
+            user,
+            request_kind="rfp",
+            request_id=int(rfp.id),
+            owner_user_id=int(rfp.user_id),
+            fs_status=rfp.fs_status,
+            fs_text=rfp.fs_text,
+            code_asset_unlocked=ctx.get("fs_code_asset_unlocked", False),
+            download_base=f"/rfp/{rfp.id}/fs/download",
+        )
     )
     from ..delivery_workspace_access import apply_hub_delivery_workspace_ctx
 
@@ -1909,6 +1911,47 @@ def rfp_paid_generation_status(rfp_id: int, request: Request, db: Session = Depe
     )
 
 
+@router.post("/rfp/{rfp_id}/delivery/requester-visibility")
+def rfp_requester_visibility_post(
+    rfp_id: int,
+    request: Request,
+    stage: str = Form(...),
+    visible: str = Form("0"),
+    hub_phase: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
+    if not rfp:
+        raise HTTPException(status_code=404, detail="Not found")
+    err = apply_requester_visibility_toggle(
+        db,
+        user,
+        entity=rfp,
+        request_kind="rfp",
+        request_id=int(rfp_id),
+        stage=stage,
+        visible=(visible or "").strip().lower() in ("1", "true", "on", "yes"),
+    )
+    if err:
+        raise HTTPException(status_code=403 if err == "forbidden" else 400, detail=err)
+    phase = (hub_phase or "").strip() or ("fs" if (stage or "").strip().lower() == "fs" else "devcode")
+    from ..request_deliverables_release import visibility_toggle_redirect_url
+
+    return RedirectResponse(
+        url=visibility_toggle_redirect_url(
+            user=user,
+            owner_user_id=int(rfp.user_id),
+            request_kind="rfp",
+            request_id=int(rfp_id),
+            phase=phase,
+        ),
+        status_code=303,
+    )
+
+
 @router.get("/rfp/{rfp_id}/fs/download")
 def rfp_fs_download(
     rfp_id: int,
@@ -1922,14 +1965,6 @@ def rfp_fs_download(
     rfp = rfp_for_owner_or_admin(db, user=user, rfp_id=rfp_id, load_messages=False)
     if not rfp or not user_can_access_fs_hub(
         user, rfp, db=db, request_kind="rfp", request_id=int(rfp_id)
-    ):
-        return RedirectResponse(url="/", status_code=302)
-    if not user_may_copy_download_request_assets(
-        db,
-        user,
-        request_kind="rfp",
-        request_id=rfp_id,
-        owner_user_id=int(rfp.user_id),
     ):
         return RedirectResponse(url="/", status_code=302)
     display_fs = resolved_delivery_fs_for_member_view(
@@ -1946,6 +1981,7 @@ def rfp_fs_download(
         request_kind="rfp",
         request_id=int(rfp_id),
         owner_user_id=int(rfp.user_id),
+        entity=rfp,
         fs_status=rfp.fs_status,
         fs_text=display_fs,
         program_id=getattr(rfp, "program_id", None),
@@ -1966,12 +2002,15 @@ def rfp_delivered_code_download(rfp_id: int, request: Request, db: Session = Dep
         user, rfp, db=db, request_kind="rfp", request_id=int(rfp_id)
     ):
         return RedirectResponse(url="/", status_code=302)
-    if not user_may_copy_download_request_assets(
+    from ..request_deliverables_release import user_may_download_dev_code_assets
+
+    if not user_may_download_dev_code_assets(
         db,
         user,
         request_kind="rfp",
         request_id=rfp_id,
         owner_user_id=int(rfp.user_id),
+        entity=rfp,
     ):
         return RedirectResponse(url="/", status_code=302)
     if not rfp_delivered_body_ready(rfp):

@@ -1,0 +1,14 @@
+{# visibility_stage: fs | devcode; visibility_checked: bool; requester_visibility_post_url; hub_phase_open optional #}
+{% if requester_visibility_post_url %}
+<form method="post" action="{{ requester_visibility_post_url }}" class="hub-deliverable-visibility-form d-inline-flex align-items-center gap-1 ms-auto me-1" data-no-busy="true" onclick="event.stopPropagation();">
+  <input type="hidden" name="hub_phase" value="{{ hub_phase_open|default('') }}" />
+  <input type="hidden" name="stage" value="{{ visibility_stage }}" />
+  <input type="hidden" name="visible" value="0" />
+  <div class="form-check form-switch mb-0 small hub-deliverable-visibility-switch">
+    <input class="form-check-input" type="checkbox" role="switch" name="visible" value="1" id="reqVis{{ visibility_stage }}{{ visibility_toggle_suffix|default('') }}" {% if visibility_checked %}checked{% endif %} onchange="this.form.submit()" data-i18n-aria-label="hub.requesterVisibilityToggleAria" aria-label="요청자 공개" />
+    <label class="form-check-label text-nowrap" for="reqVis{{ visibility_stage }}{{ visibility_toggle_suffix|default('') }}">
+      <span class="nav-ko">요청자 공개</span><span class="nav-en" style="display:none">Share with requester</span>
+    </label>
+  </div>
+</form>
+{% endif %}

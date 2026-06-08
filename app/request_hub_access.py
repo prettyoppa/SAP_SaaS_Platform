@@ -181,9 +181,12 @@ def user_can_operate_request_deliverables(
     )
 
 
-_DELIVERABLES_MASK_KEYS = (
+_FS_MASK_KEYS = (
     "fs_html",
     "ana_fs_html",
+    "fs_supplements",
+)
+_DC_MASK_KEYS = (
     "delivered_code_html",
     "delivered_impl_guide_html",
     "delivered_test_scenarios_html",
@@ -191,6 +194,7 @@ _DELIVERABLES_MASK_KEYS = (
     "has_delivered_preview",
     "ana_has_delivered_zip",
 )
+_DELIVERABLES_MASK_KEYS = _FS_MASK_KEYS + _DC_MASK_KEYS
 
 
 def apply_hub_deliverables_visibility(
@@ -204,6 +208,17 @@ def apply_hub_deliverables_visibility(
     paid_entity: Any | None,
 ) -> None:
     """허브 템플릿용 can_view_deliverables / can_operate_delivery 및 민감 필드 마스킹."""
+    from .request_deliverables_release import (
+        dev_code_withheld_from_requester,
+        fs_withheld_from_requester,
+        requester_visibility_post_url,
+        user_can_toggle_dev_code_requester_visibility,
+        user_can_toggle_fs_requester_visibility,
+        user_can_view_dev_code_deliverable_content,
+        user_can_view_fs_deliverable_content,
+    )
+
+    entity = paid_entity
     can_view = user_can_view_request_deliverables(
         db,
         user,
@@ -218,32 +233,80 @@ def apply_hub_deliverables_visibility(
         request_kind=request_kind,
         request_id=request_id,
     )
+    can_view_fs = user_can_view_fs_deliverable_content(
+        db,
+        user,
+        request_kind=request_kind,
+        request_id=request_id,
+        owner_user_id=owner_user_id,
+        entity=entity,
+    )
+    can_view_dc = user_can_view_dev_code_deliverable_content(
+        db,
+        user,
+        request_kind=request_kind,
+        request_id=request_id,
+        owner_user_id=owner_user_id,
+        entity=entity,
+    )
     ctx["can_view_deliverables"] = can_view
+    ctx["can_view_fs"] = can_view_fs
+    ctx["can_view_dev_code"] = can_view_dc
     ctx["can_operate_delivery"] = can_operate
+    ctx["fs_withheld_from_requester"] = fs_withheld_from_requester(
+        user, owner_user_id=owner_user_id, entity=entity
+    )
+    ctx["dev_code_withheld_from_requester"] = dev_code_withheld_from_requester(
+        user, owner_user_id=owner_user_id, entity=entity
+    )
+    ctx["fs_visible_to_requester"] = bool(getattr(entity, "fs_visible_to_requester", False))
+    ctx["dev_code_visible_to_requester"] = bool(
+        getattr(entity, "dev_code_visible_to_requester", False)
+    )
+    ctx["can_toggle_fs_requester_visibility"] = user_can_toggle_fs_requester_visibility(
+        db, user, request_kind=request_kind, request_id=request_id, entity=entity
+    )
+    ctx["can_toggle_dev_code_requester_visibility"] = user_can_toggle_dev_code_requester_visibility(
+        db, user, request_kind=request_kind, request_id=request_id, entity=entity
+    )
+    ctx["requester_visibility_post_url"] = requester_visibility_post_url(
+        request_kind=request_kind, request_id=int(request_id)
+    )
+    ctx["fs_code_asset_unlocked"] = can_view_fs
+    ctx["dc_code_asset_unlocked"] = can_view_dc
     ent = ctx.get("as_built_entry_dict") or {}
     ctx["as_built_section_visible"] = bool(ent.get("path"))
+
+    def _mask_keys(keys: tuple[str, ...]) -> None:
+        for key in keys:
+            if key not in ctx:
+                continue
+            if key == "delivered_package":
+                ctx[key] = None
+            elif key == "fs_supplements":
+                ctx[key] = []
+            elif key.startswith("has_") or key.startswith("ana_has_"):
+                ctx[key] = False
+            elif "html" in key:
+                ctx[key] = ""
+            else:
+                ctx[key] = None
+
+    if not can_view_fs:
+        _mask_keys(_FS_MASK_KEYS)
+    if not can_view_dc:
+        _mask_keys(_DC_MASK_KEYS)
     if can_view:
         return
     ctx["as_built_entry_dict"] = {}
     ctx["as_built_can_upload"] = False
-    for key in _DELIVERABLES_MASK_KEYS:
-        if key not in ctx:
-            continue
-        if key == "delivered_package":
-            ctx[key] = None
-        elif key.startswith("has_") or key.startswith("ana_has_"):
-            ctx[key] = False
-        elif "html" in key:
-            ctx[key] = ""
-        else:
-            ctx[key] = None
+    _mask_keys(_DELIVERABLES_MASK_KEYS)
     ctx["fs_busy"] = False
     ctx["dc_busy"] = False
     ctx["gen_busy"] = False
     ctx["ana_fs_busy"] = False
     ctx["ana_dc_busy"] = False
     ctx["ana_gen_busy"] = False
-    ctx["fs_supplements"] = []
 
 
 def request_has_matched_offer(db: Session, *, request_kind: str, request_id: int) -> bool:

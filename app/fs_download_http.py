@@ -6,7 +6,8 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from .agent_display import prepare_member_facing_proposal_markdown
-from .code_asset_access import user_may_copy_download_request_assets, user_may_download_fs_markdown
+from .code_asset_access import user_may_download_fs_markdown
+from .request_deliverables_release import user_may_download_fs_assets
 from .proposal_export import (
     ProposalPdfGenerationFailed,
     ProposalPdfUnavailable,
@@ -32,6 +33,7 @@ def fs_download_http_response(
     request_kind: str,
     request_id: int,
     owner_user_id: int,
+    entity,
     fs_status: str | None,
     fs_text: str | None,
     program_id: str | None,
@@ -40,12 +42,13 @@ def fs_download_http_response(
     not_ready_redirect_url: str,
     md_denied_redirect_url: str,
 ) -> Response | RedirectResponse:
-    if not user_may_copy_download_request_assets(
+    if not user_may_download_fs_assets(
         db,
         user,
         request_kind=request_kind,
         request_id=int(request_id),
         owner_user_id=int(owner_user_id),
+        entity=entity,
     ):
         return RedirectResponse(url="/", status_code=302)
     if (fs_status or "").strip() != "ready" or not (fs_text or "").strip():

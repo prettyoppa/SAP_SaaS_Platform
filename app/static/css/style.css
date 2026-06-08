@@ -4144,6 +4144,22 @@ html[data-theme="light"] .abap-chat-log .abap-msg-bubble--them.chat-md-body pre 
 .offer-member-inquiry-panel .offer-inquiry-privacy-note {
   font-size: 0.75rem;
 }
+.interview-summary-header .hub-deliverable-visibility-form {
+  flex-shrink: 0;
+}
+.interview-summary-header .hub-deliverable-visibility-switch {
+  min-height: 0;
+  padding-left: 2.35rem;
+}
+.interview-summary-header .hub-deliverable-visibility-switch .form-check-input {
+  cursor: pointer;
+  margin-top: 0.15rem;
+}
+.interview-summary-header .hub-deliverable-visibility-switch .form-check-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+}
 .abap-float-chat-panel {
   position: relative;
   /* 우하단 고정 스택: 너비·높이 증가 시 왼쪽·위로 확장 (좌상단 드래그로 조절) */

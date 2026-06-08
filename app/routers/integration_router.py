@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import Any
 from urllib.parse import quote, urlencode
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, Form, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
@@ -64,6 +64,7 @@ from ..devtype_catalog import (
     integration_impl_labels_map,
 )
 from ..offer_member_inquiry_hub import build_offer_member_inquiry_ctx, member_inquiry_redirect_url
+from ..request_deliverables_release import apply_requester_visibility_toggle, user_may_download_dev_code_assets
 from ..offer_inquiry_service import (
     CONSOLE_OFFER_CONFIRM_MESSAGE_KO,
     CONSOLE_OFFER_CONFIRM_MESSAGE_EN,
@@ -2249,18 +2250,6 @@ def _collect_integration_unified_hub_ctx(
         request_id=req_id,
         owner_user_id=int(ir.user_id),
     )
-    fs_download_flags = fs_download_hub_ctx(
-        db,
-        user,
-        request_kind="integration",
-        request_id=int(ir.id),
-        owner_user_id=int(ir.user_id),
-        fs_status=ir.fs_status,
-        fs_text=ir.fs_text,
-        code_asset_unlocked=code_asset_unlocked,
-        download_base=f"/integration/{ir.id}/fs/download",
-    )
-
     hub_int_ai_chat_enabled = user_may_use_request_ai_inquiry(
         db,
         user,
@@ -2275,7 +2264,6 @@ def _collect_integration_unified_hub_ctx(
         "ir": ir,
         "rfp": ir,
         "code_asset_unlocked": code_asset_unlocked,
-        **fs_download_flags,
         "iv_submit_base": f"/integration/{req_id}",
         "owner": owner,
         "delete_blocked_reason": delete_blocked,
@@ -2454,6 +2442,19 @@ def _collect_integration_unified_hub_ctx(
         owner_user_id=int(ir.user_id),
         paid_entity=ir,
     )
+    ctx.update(
+        fs_download_hub_ctx(
+            db,
+            user,
+            request_kind="integration",
+            request_id=int(ir.id),
+            owner_user_id=int(ir.user_id),
+            fs_status=ir.fs_status,
+            fs_text=ir.fs_text,
+            code_asset_unlocked=ctx.get("fs_code_asset_unlocked", False),
+            download_base=f"/integration/{ir.id}/fs/download",
+        )
+    )
     return ctx
 
 
@@ -2519,6 +2520,51 @@ def integration_generation_status(req_id: int, request: Request, db: Session = D
     )
 
 
+@router.post("/integration/{req_id}/delivery/requester-visibility")
+def integration_requester_visibility_post(
+    req_id: int,
+    request: Request,
+    stage: str = Form(...),
+    visible: str = Form("0"),
+    hub_phase: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = auth.get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    q = apply_integration_hub_read_access(
+        db.query(models.IntegrationRequest).filter(models.IntegrationRequest.id == req_id),
+        user,
+    )
+    ir = q.first()
+    if not ir:
+        raise HTTPException(status_code=404, detail="Not found")
+    err = apply_requester_visibility_toggle(
+        db,
+        user,
+        entity=ir,
+        request_kind="integration",
+        request_id=int(req_id),
+        stage=stage,
+        visible=(visible or "").strip().lower() in ("1", "true", "on", "yes"),
+    )
+    if err:
+        raise HTTPException(status_code=403 if err == "forbidden" else 400, detail=err)
+    phase = (hub_phase or "").strip() or ("fs" if (stage or "").strip().lower() == "fs" else "devcode")
+    from ..request_deliverables_release import visibility_toggle_redirect_url
+
+    return RedirectResponse(
+        url=visibility_toggle_redirect_url(
+            user=user,
+            owner_user_id=int(ir.user_id),
+            request_kind="integration",
+            request_id=int(req_id),
+            phase=phase,
+        ),
+        status_code=303,
+    )
+
+
 @router.get("/integration/{req_id}/fs/download")
 def integration_fs_download(
     req_id: int,
@@ -2550,6 +2596,7 @@ def integration_fs_download(
         request_kind="integration",
         request_id=int(req_id),
         owner_user_id=int(ir.user_id),
+        entity=ir,
         fs_status=ir.fs_status,
         fs_text=display_fs,
         program_id=getattr(ir, "program_id", None),
@@ -2573,12 +2620,13 @@ def integration_delivered_code_download(req_id: int, request: Request, db: Sessi
     ir = q.first()
     if not ir:
         return RedirectResponse(url="/", status_code=302)
-    if not user_may_copy_download_request_assets(
+    if not user_may_download_dev_code_assets(
         db,
         user,
         request_kind="integration",
         request_id=req_id,
         owner_user_id=int(ir.user_id),
+        entity=ir,
     ):
         return RedirectResponse(url="/", status_code=302)
     if not integration_delivered_body_ready(ir):

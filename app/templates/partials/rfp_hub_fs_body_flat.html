@@ -1,10 +1,8 @@
 <div class="interview-summary-body pt-0">
-  {% if not can_view_deliverables|default(true) %}
-    {% if user and user.is_consultant and not user.is_admin %}
+  {% if user and user.is_consultant and not user.is_admin and not can_view_deliverables|default(true) %}
     {% include 'partials/hub_deliverables_no_access.html' %}
-    {% else %}
-    {% include 'partials/hub_fs_empty_hint.html' %}
-    {% endif %}
+  {% elif fs_withheld_from_requester|default(false) %}
+    {% include 'partials/hub_requester_deliverable_withheld.html' %}
   {% else %}
   {% if fs_stat == 'failed' %}
   <div class="alert alert-danger small mb-3">
@@ -32,7 +30,7 @@
     {% include 'partials/hub_fs_download_buttons.html' %}
   </div>
   <div class="proposal-card mb-0">
-    <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ fs_html | safe }}</div>
+    <div class="proposal-body proposal-prose{% if not fs_code_asset_unlocked|default(code_asset_unlocked|default(false)) %} code-asset-locked{% endif %}">{{ fs_html | safe }}</div>
   </div>
   {% endif %}
   {% endif %}

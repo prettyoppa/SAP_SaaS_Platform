@@ -406,12 +406,19 @@
             <span class="badge bg-info text-dark ms-1" data-i18n="common.generating">생성 중</span>
             {% elif can_view_deliverables|default(true) and ana_fs_stat|default('none') == 'failed' %}
             <span class="badge bg-danger ms-1" data-i18n="hub.fsFailed">실패</span>
-            {% elif can_view_deliverables|default(true) and ana_fs_stat|default('none') == 'ready' and ana_fs_html|default('') %}
+            {% elif ana_fs_stat|default('none') == 'ready' and fs_withheld_from_requester|default(false) %}
+            <span class="badge bg-secondary ms-1" data-i18n="hub.fsAwaitingRelease">검토 중</span>
+            {% elif can_view_fs|default(can_view_deliverables|default(true)) and ana_fs_stat|default('none') == 'ready' and ana_fs_html|default('') %}
             <span class="badge bg-success ms-1" data-i18n="hub.fsReady">준비됨</span>
             {% else %}
             <span class="badge bg-secondary ms-1" data-i18n="hub.fsWait">대기</span>
             {% endif %}
-            <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+            {% if can_toggle_fs_requester_visibility|default(false) %}
+            {% with visibility_stage='fs', visibility_checked=fs_visible_to_requester|default(false), visibility_toggle_suffix='-' ~ (row.id|string) %}
+            {% include 'partials/hub_deliverable_requester_visibility_toggle.html' %}
+            {% endwith %}
+            {% endif %}
+            <span class="rfp-hub-phase-chevron ms-auto" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
           </summary>
           <div class="rfp-hub-phase-body">
             {% include 'partials/abap_hub_fs_admin_bar.html' %}
@@ -424,10 +431,17 @@
             <span class="fw-semibold">5. <span data-i18n="hub.phaseOnlyDevCode">개발코드</span></span>
             {% if can_view_deliverables|default(true) and ana_dc_busy|default(false) %}
             <span class="badge bg-info text-dark ms-1" data-i18n="hub.dcGen">납품 코드 생성 중</span>
-            {% elif can_view_deliverables|default(true) and (ana_has_delivered_zip|default(false) or delivered_package|default(none) or delivered_code_html|default('')) %}
+            {% elif ana_dc_stat|default('none') == 'ready' and dev_code_withheld_from_requester|default(false) %}
+            <span class="badge bg-secondary ms-1" data-i18n="hub.fsAwaitingRelease">검토 중</span>
+            {% elif can_view_dev_code|default(can_view_deliverables|default(true)) and (ana_has_delivered_zip|default(false) or delivered_package|default(none) or delivered_code_html|default('')) %}
             <span class="badge bg-success ms-1" data-i18n="hub.dcReady">납품 코드 준비됨</span>
             {% endif %}
-            <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
+            {% if can_toggle_dev_code_requester_visibility|default(false) %}
+            {% with visibility_stage='devcode', visibility_checked=dev_code_visible_to_requester|default(false), visibility_toggle_suffix='dc-' ~ (row.id|string) %}
+            {% include 'partials/hub_deliverable_requester_visibility_toggle.html' %}
+            {% endwith %}
+            {% endif %}
+            <span class="rfp-hub-phase-chevron ms-auto" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
           </summary>
           <div class="rfp-hub-phase-body">
             {% include 'partials/abap_hub_dc_body.html' %}

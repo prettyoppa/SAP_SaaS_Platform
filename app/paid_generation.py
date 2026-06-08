@@ -186,10 +186,13 @@ def run_fs_generation_job(rfp_id: int, billing_user_id: int) -> None:
         if not rfp:
             return
         if fs_status == "ready":
+            from .request_deliverables_release import on_fs_generation_succeeded
+
             rfp.fs_text = fs_text
             rfp.fs_status = "ready"
             rfp.fs_generated_at = datetime.utcnow()
             rfp.fs_error = None
+            on_fs_generation_succeeded(rfp)
         else:
             rfp.fs_status = "failed"
             rfp.fs_error = fs_error
@@ -317,12 +320,15 @@ def run_delivered_code_job(rfp_id: int, billing_user_id: int) -> None:
         if not rfp:
             return
         if gen_ok:
+            from .request_deliverables_release import on_dev_code_generation_succeeded
+
             rfp.delivered_code_text = legacy_md
             rfp.delivered_code_payload = json.dumps(pkg, ensure_ascii=False) if pkg else None
             rfp.delivered_code_status = "ready"
             rfp.delivered_code_generated_at = datetime.utcnow()
             rfp.delivered_code_error = None
             clear_delivered_code_working_copy(rfp)
+            on_dev_code_generation_succeeded(rfp)
         else:
             rfp.delivered_code_status = "failed"
             rfp.delivered_code_error = gen_error

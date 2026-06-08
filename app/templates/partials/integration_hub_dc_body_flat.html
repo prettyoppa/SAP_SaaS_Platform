@@ -1,10 +1,8 @@
 <div class="interview-summary-body pt-0">
-  {% if not can_view_deliverables|default(true) %}
-    {% if user and user.is_consultant and not user.is_admin %}
+  {% if user and user.is_consultant and not user.is_admin and not can_view_deliverables|default(true) %}
     {% include 'partials/hub_deliverables_no_access.html' %}
-    {% else %}
-    <p class="text-muted small mb-0">납품 코드가 아직 없습니다.</p>
-    {% endif %}
+  {% elif dev_code_withheld_from_requester|default(false) %}
+    {% include 'partials/hub_requester_deliverable_withheld.html' %}
   {% else %}
   {% if dc_stat == 'failed' %}
   <div class="alert alert-danger small mb-3">
@@ -27,7 +25,7 @@
   {% if delivered_package and delivered_package.slots %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
     <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · 파일별 산출</h5>
-    {% if code_asset_unlocked|default(false) %}
+    {% if dc_code_asset_unlocked|default(code_asset_unlocked|default(false)) %}
     <a href="/integration/{{ ir.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">
       <i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)
@@ -41,7 +39,7 @@
   {% if delivered_impl_guide_html %}
   <details class="mb-3 border rounded" open style="border-color:var(--border)!important;background:var(--surface2);">
     <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">구현·운영 가이드</summary>
-    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
+    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not dc_code_asset_unlocked|default(code_asset_unlocked|default(false)) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
       {{ delivered_impl_guide_html | safe }}
     </div>
   </details>
@@ -50,7 +48,7 @@
   {% if delivered_test_scenarios_html %}
   <details class="mb-3 border rounded" style="border-color:var(--border)!important;background:var(--surface2);">
     <summary class="px-3 py-2 small fw-semibold" style="cursor:pointer;">테스트 시나리오</summary>
-    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
+    <div class="proposal-body proposal-prose border-top px-3 py-2 small{% if not dc_code_asset_unlocked|default(code_asset_unlocked|default(false)) %} code-asset-locked{% endif %}" style="border-color:var(--border)!important;">
       {{ delivered_test_scenarios_html | safe }}
     </div>
   </details>
@@ -65,7 +63,7 @@
   <h6 class="small text-uppercase text-muted mb-2 mt-1">설정·문서</h6>
   {% for sl in delivered_package.slots %}
   {% if sl.role in doc_roles %}
-  <div class="reference-code-program-box border rounded mb-3 overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
+  <div class="reference-code-program-box border rounded mb-3 overflow-hidden{% if not dc_code_asset_unlocked|default(code_asset_unlocked|default(false)) %} code-asset-locked{% endif %}"
        style="border-color:var(--border)!important;background:var(--surface2);">
     <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
          style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
@@ -84,7 +82,7 @@
   <h6 class="small text-uppercase text-muted mb-2">실행·모듈 코드</h6>
   {% for sl in delivered_package.slots %}
   {% if sl.role not in doc_roles %}
-  <div class="reference-code-program-box border rounded mb-3 overflow-hidden{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}"
+  <div class="reference-code-program-box border rounded mb-3 overflow-hidden{% if not dc_code_asset_unlocked|default(code_asset_unlocked|default(false)) %} code-asset-locked{% endif %}"
        style="border-color:var(--border)!important;background:var(--surface2);">
     <div class="reference-code-program-head px-3 py-2 border-bottom d-flex flex-wrap align-items-baseline gap-2"
          style="border-color:var(--border)!important;background:rgba(0,0,0,.08);">
@@ -102,7 +100,7 @@
   {% elif delivered_code_html %}
   <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <h5 class="mb-0 me-auto small text-uppercase text-muted">연동 납품 · 단일 문서 (분리 복구 불가)</h5>
-    {% if code_asset_unlocked|default(false) %}
+    {% if dc_code_asset_unlocked|default(code_asset_unlocked|default(false)) %}
     <a href="/integration/{{ ir.id }}/delivered-code/download" class="btn btn-sm btn-outline-primary"
        download data-no-busy="true">
       <i class="fa-solid fa-file-zipper me-1"></i>납품 패키지 다운로드 (.zip)
@@ -113,7 +111,7 @@
   </div>
   <p class="small text-muted mb-2">파일별 슬롯으로 나누지 못한 경우입니다. ZIP의 <code class="small">DELIVERED.md</code> 또는 아래 본문을 확인하세요.</p>
   <div class="proposal-card mb-0">
-    <div class="proposal-body proposal-prose{% if not code_asset_unlocked|default(false) %} code-asset-locked{% endif %}">{{ delivered_code_html | safe }}</div>
+    <div class="proposal-body proposal-prose{% if not dc_code_asset_unlocked|default(code_asset_unlocked|default(false)) %} code-asset-locked{% endif %}">{{ delivered_code_html | safe }}</div>
   </div>
   {% elif fs_stat == 'ready' and not dc_busy %}
   <p class="text-muted small mb-0">구현 산출물은 FS 준비 후 관리자가 생성 요청하면 이 영역에 표시됩니다.</p>
