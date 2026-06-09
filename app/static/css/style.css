@@ -2832,12 +2832,25 @@ html[data-theme="dark"] .hub-settlement-phase-icon {
 }
 .hub-settlement-process-help-btn {
   line-height: 1;
-  vertical-align: -0.1em;
+  vertical-align: -0.12em;
   text-decoration: none !important;
+  font-size: 1.08em;
+  opacity: 1;
+}
+html[data-theme="dark"] .hub-settlement-process-help-btn {
+  color: #93c5fd !important;
+}
+html[data-theme="light"] .hub-settlement-process-help-btn {
+  color: #2563eb !important;
 }
 .hub-settlement-process-help-btn:hover,
 .hub-settlement-process-help-btn:focus {
-  color: var(--text) !important;
+  color: var(--primary) !important;
+  filter: brightness(1.12);
+}
+html[data-theme="dark"] .hub-settlement-process-help-btn:hover,
+html[data-theme="dark"] .hub-settlement-process-help-btn:focus {
+  color: #bfdbfe !important;
 }
 .popover.hub-settlement-process-popover {
   max-width: min(22rem, calc(100vw - 2rem));
@@ -2845,9 +2858,15 @@ html[data-theme="dark"] .hub-settlement-phase-icon {
 .popover.hub-settlement-process-popover .popover-body {
   font-size: 0.8125rem;
   line-height: 1.45;
+  color: #1e293b;
 }
 .popover.hub-settlement-process-popover .popover-body ol {
   margin-bottom: 0.5rem;
+}
+.popover.hub-settlement-process-popover .popover-body .hub-settlement-process-note {
+  color: #334155;
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 .proposal-page.py-5 {
   padding-top: 1.75rem !important;
