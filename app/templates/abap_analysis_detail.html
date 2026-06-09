@@ -2,7 +2,7 @@
 {% block title %}{% if row.title and row.title.strip() %}{{ row.title.strip() }} – SAP ABAP 분석·개선{% else %}SAP ABAP 분석·개선 {{ row.id|request_no('ANA') }}{% endif %} – SAP 개발 파트너{% endblock %}
 
 {% block content %}
-<div class="proposal-page py-5">
+<div class="proposal-page py-5 abap-unified-hub">
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-lg-9">
@@ -103,6 +103,7 @@
             {% if row.is_draft %}
             <span class="badge bg-secondary" data-i18n="badge.draft">임시저장</span>
             {% endif %}
+            <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
           </summary>
           <div class="rfp-hub-phase-body">
             <div class="proposal-card mb-4" id="abap-request-block">
@@ -187,6 +188,7 @@
             {% else %}
             <span class="badge bg-success" data-i18n="detail.analysisOkBadge">분석 완료</span>
             {% endif %}
+            <span class="rfp-hub-phase-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
           </summary>
           <div class="rfp-hub-phase-body">
         {% if analysis.get('error') %}
