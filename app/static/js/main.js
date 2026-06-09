@@ -327,8 +327,10 @@ function initHubSettlementProcessHelp(root) {
     if (!btn || !contentRoot || btn.dataset.settlementHelpBound === '1') return;
     btn.dataset.settlementHelpBound = '1';
     function pickHtml() {
-      const enVisible = document.querySelector('.nav-en') && document.querySelector('.nav-en').style.display !== 'none';
-      const block = contentRoot.querySelector(enVisible ? '.nav-en' : '.nav-ko') || contentRoot.querySelector('.nav-ko');
+      const lang = document.documentElement.getAttribute('data-lang') || 'ko';
+      const block =
+        contentRoot.querySelector(lang === 'en' ? '.nav-en' : '.nav-ko') ||
+        contentRoot.querySelector('.nav-ko');
       return block ? block.innerHTML : '';
     }
     if (typeof bootstrap !== 'undefined' && bootstrap.Popover) {
