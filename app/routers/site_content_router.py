@@ -31,7 +31,7 @@ from ..kb_public_content import (
     strip_leading_title_from_body_md,
     texts_overlap,
 )
-from .interview_router import _markdown_to_html
+from ..site_markdown_html import site_markdown_to_html as _markdown_to_html
 
 router = APIRouter(tags=["site_content"])
 
