@@ -2890,6 +2890,20 @@ html[data-theme="dark"] .hub-settlement-process-help-btn:focus {
   font-size: 0.8125rem;
   line-height: 1.5;
 }
+
+/* 홈(/) 공지 팝업 */
+.home-notice-popup-modal .modal-body {
+  max-height: min(60vh, 28rem);
+  overflow-y: auto;
+}
+.home-notice-popup-modal .home-notice-popup-title {
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+.home-notice-popup-modal .home-notice-popup-body {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
 .proposal-page.py-5 {
   padding-top: 1.75rem !important;
   padding-bottom: 1.75rem !important;

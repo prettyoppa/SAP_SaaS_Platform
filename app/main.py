@@ -201,6 +201,7 @@ def _run_migrations():
         ("notices", "title_en", "TEXT", "TEXT"),
         ("notices", "content_en", "TEXT", "TEXT"),
         ("notices", "updated_at", "DATETIME", "TIMESTAMP"),
+        ("notices", "show_home_popup", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false"),
         ("faqs", "question_en", "TEXT", "TEXT"),
         ("faqs", "answer_en", "TEXT", "TEXT"),
         ("rfp_fs_supplements", "request_kind", "VARCHAR(32) DEFAULT 'rfp'", "VARCHAR(32) DEFAULT 'rfp'"),
@@ -1086,6 +1087,9 @@ def index(request: Request):
             .limit(5)
             .all()
         )
+        from .notice_popup import get_home_popup_notice
+
+        home_popup_notice = get_home_popup_notice(_db)
         faqs = (
             _db.query(models.FAQ)
             .filter(models.FAQ.is_active == True)
@@ -1127,6 +1131,7 @@ def index(request: Request):
         "user": user,
         "settings": settings,
         "notices": notices,
+        "home_popup_notice": home_popup_notice,
         "faqs": faqs,
         "reviews": reviews,
         "reviews_rating_meta": reviews_rating_meta,

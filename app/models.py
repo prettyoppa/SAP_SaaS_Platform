@@ -497,6 +497,8 @@ class Notice(Base):
     content_en = Column(Text, nullable=True)
     sort_order = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True)
+    # 홈(/) 접속 시 팝업 — is_active 이고 본 플래그인 공지 중 sort_order·등록일 기준 1건
+    show_home_popup = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

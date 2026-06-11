@@ -48,6 +48,8 @@ const TRANSLATIONS = {
     /* Home tabs */
     "home.tab.notice": "Notices", "home.tab.review": "Inquiry / Review",
     "home.notice.empty": "No notices yet.", "home.faq.empty": "No FAQs yet.",
+    "home.popup.hideToday": "Don't show today",
+    "home.popup.close": "Close",
     "home.notice.all": "All notices", "home.faq.all": "All FAQs",
     "home.review.empty": "No posts to show.",
     "home.review.write": "Write a Review", "home.review.login": "Login to Write",
@@ -659,6 +661,8 @@ const TRANSLATIONS = {
     /* Home tabs */
     "home.tab.notice": "공지사항", "home.tab.review": "문의/리뷰",
     "home.notice.empty": "등록된 공지사항이 없습니다.", "home.faq.empty": "등록된 FAQ가 없습니다.",
+    "home.popup.hideToday": "오늘 하루 안보기",
+    "home.popup.close": "닫기",
     "home.notice.all": "공지사항 전체 목록", "home.faq.all": "FAQ 전체 목록",
     "home.review.empty": "등록된 글이 없습니다.",
     "home.review.write": "후기 작성", "home.review.login": "로그인 후 작성",

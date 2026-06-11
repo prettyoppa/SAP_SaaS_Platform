@@ -1300,6 +1300,10 @@ def admin_notices(request: Request, db: Session = Depends(get_db)):
     })
 
 
+def _form_bool(raw: str) -> bool:
+    return (raw or "").strip().lower() in ("1", "on", "true", "yes")
+
+
 @router.post("/notices/add")
 def admin_notice_add(
     request: Request,
@@ -1308,6 +1312,7 @@ def admin_notice_add(
     content: str = Form(""),
     content_en: str = Form(""),
     sort_order: int = Form(0),
+    show_home_popup: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = _require_admin(request, db)
@@ -1322,6 +1327,7 @@ def admin_notice_add(
             content=(content or "").strip(),
             content_en=ce,
             sort_order=max(0, int(sort_order)),
+            show_home_popup=_form_bool(show_home_popup),
         )
     )
     db.commit()
@@ -1370,6 +1376,7 @@ def admin_notice_update(
     content: str = Form(""),
     content_en: str = Form(""),
     sort_order: int = Form(0),
+    show_home_popup: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = _require_admin(request, db)
@@ -1382,6 +1389,7 @@ def admin_notice_update(
         n.content = (content or "").strip()
         n.content_en = (content_en or "").strip() or None
         n.sort_order = max(0, int(sort_order))
+        n.show_home_popup = _form_bool(show_home_popup)
         db.commit()
     return RedirectResponse(url="/admin/notices", status_code=302)
 
