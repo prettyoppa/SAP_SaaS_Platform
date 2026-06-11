@@ -1391,7 +1391,7 @@ def admin_notice_update(
         n.sort_order = max(0, int(sort_order))
         n.show_home_popup = _form_bool(show_home_popup)
         db.commit()
-    return RedirectResponse(url="/admin/notices", status_code=302)
+    return RedirectResponse(url=f"/admin/notices?edit={notice_id}", status_code=303)
 
 
 @router.post("/notices/{notice_id}/toggle")
@@ -1518,7 +1518,7 @@ def admin_faq_update(
         f.answer_en = (answer_en or "").strip() or None
         f.sort_order = max(0, int(sort_order))
         db.commit()
-    return RedirectResponse(url="/admin/faqs", status_code=302)
+    return RedirectResponse(url=f"/admin/faqs?edit={faq_id}", status_code=303)
 
 
 @router.post("/faqs/{faq_id}/toggle")

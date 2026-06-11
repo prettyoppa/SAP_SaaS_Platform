@@ -4,7 +4,18 @@ from __future__ import annotations
 
 import markdown
 
-_SITE_MD_EXTENSIONS = ["fenced_code", "tables", "nl2br"]
+_SITE_MD_EXTENSIONS = [
+    "fenced_code",
+    "tables",
+    "nl2br",
+    "pymdownx.tasklist",
+    "pymdownx.tilde",
+]
+_SITE_MD_EXTENSION_CONFIGS = {
+    "pymdownx.tasklist": {
+        "custom_checkbox": False,
+    },
+}
 
 
 def site_markdown_to_html(md: str | None) -> str:
@@ -12,4 +23,8 @@ def site_markdown_to_html(md: str | None) -> str:
     raw = (md or "").strip()
     if not raw:
         return ""
-    return markdown.markdown(raw, extensions=_SITE_MD_EXTENSIONS)
+    return markdown.markdown(
+        raw,
+        extensions=_SITE_MD_EXTENSIONS,
+        extension_configs=_SITE_MD_EXTENSION_CONFIGS,
+    )

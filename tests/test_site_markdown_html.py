@@ -14,3 +14,11 @@ def test_heading():
     html = site_markdown_to_html("## Section\n\nParagraph.")
     assert "<h2>Section</h2>" in html
     assert "<p>Paragraph.</p>" in html
+
+
+def test_task_list():
+    html = site_markdown_to_html("- [ ] unchecked\n- [x] checked")
+    assert 'class="task-list"' in html
+    assert 'type="checkbox" disabled/> unchecked' in html
+    assert 'type="checkbox" disabled checked/> checked' in html
+    assert "[ ]" not in html

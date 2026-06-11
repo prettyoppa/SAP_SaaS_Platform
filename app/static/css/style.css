@@ -2929,6 +2929,20 @@ html[data-theme="dark"] .hub-settlement-process-help-btn:focus {
 .home-notice-popup-modal .markdown-body li {
   margin-bottom: 0.3rem;
 }
+.home-notice-popup-modal .markdown-body ul.task-list {
+  list-style: none;
+  padding-left: 0;
+}
+.home-notice-popup-modal .markdown-body .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.home-notice-popup-modal .markdown-body .task-list-item input[type="checkbox"] {
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+  pointer-events: none;
+}
 .home-notice-popup-modal .markdown-body strong {
   font-weight: 600;
   color: var(--text);
@@ -5256,6 +5270,20 @@ html[data-theme="dark"] .navbar-custom .nav-request-console-bubble::before {
 .site-article-body.markdown-body li {
   margin-bottom: 0.35rem;
   color: var(--text);
+}
+.site-article-body.markdown-body ul.task-list {
+  list-style: none;
+  padding-left: 0;
+}
+.site-article-body.markdown-body .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.site-article-body.markdown-body .task-list-item input[type="checkbox"] {
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+  pointer-events: none;
 }
 .site-article-body.markdown-body ul,
 .site-article-body.markdown-body ol {
