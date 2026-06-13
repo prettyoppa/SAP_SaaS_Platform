@@ -129,9 +129,21 @@ def get_user_from_token(token: str, db: Session) -> Optional[models.User]:
     return user
 
 
+def _user_bound_to_session(db: Session, user: models.User) -> Optional[models.User]:
+    """미들웨어에서 expunge된 User를 요청 DB 세션에 재연결."""
+    from sqlalchemy.orm import object_session
+
+    if object_session(user) is db:
+        return user
+    bound = db.get(models.User, int(user.id))
+    if bound is None or not bound.is_active:
+        return None
+    return bound
+
+
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[models.User]:
-    if hasattr(request.state, "current_user"):
-        return request.state.current_user
+    if hasattr(request.state, "current_user") and request.state.current_user is not None:
+        return _user_bound_to_session(db, request.state.current_user)
     token = request.cookies.get("access_token")
     if not token:
         return None

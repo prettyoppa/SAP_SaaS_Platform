@@ -619,7 +619,7 @@ const TRANSLATIONS = {
 
   ko: {
     /* Brand */
-    "brand.name": "Catchy Lab - SAP Dev. Partner",
+    "brand.name": "Catch Lab - SAP 개발 파트너",
     /* Nav */
     "nav.home": "홈", "nav.dashboard": "대시보드", "nav.newRfp": "RFP",
     "nav.integration": "연동 개발",

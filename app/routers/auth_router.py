@@ -1541,7 +1541,6 @@ def account_profile_edit_get(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login?next=/account/edit", status_code=302)
-    db.refresh(user)
     tzc = _time_zone_choices()
     preferred_lang_value, billing_currency_value = _profile_lang_currency_from_user(user)
     return templates.TemplateResponse(
