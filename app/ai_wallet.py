@@ -259,9 +259,9 @@ def build_wallet_topup_history_rows(
     limit: int = 50,
 ) -> list[dict]:
     """계좌이체 입금 신청(PaymentClaim) + PortOne 카드 충전(PaymentTransaction)을 시간순으로 합쳐 표시."""
+    from bisect import bisect_right
     from datetime import datetime
 
-    from .ai_usage_recorder import aggregate_usage_for_user
     from . import models
     from .payment_purpose import PURPOSE_AI_WALLET_TOPUP
 
@@ -295,6 +295,33 @@ def build_wallet_topup_history_rows(
         events.append((ts, "portone_card", t))
     events.sort(key=lambda x: (x[0], x[1], getattr(x[2], "id", 0)))
 
+    usage_times: list[datetime] = []
+    usage_prefix_micro: list[int] = []
+    usage_cum = 0
+    for created_at, micro in (
+        db.query(
+            models.AiUsageEvent.created_at,
+            models.AiUsageEvent.estimated_cost_usd_micro,
+        )
+        .filter(models.AiUsageEvent.user_id == int(user_id))
+        .order_by(
+            models.AiUsageEvent.created_at.asc(),
+            models.AiUsageEvent.id.asc(),
+        )
+        .all()
+    ):
+        usage_times.append(created_at)
+        usage_cum += int(micro or 0)
+        usage_prefix_micro.append(usage_cum)
+
+    def _usage_micro_until(ts: datetime) -> int:
+        if not usage_times:
+            return 0
+        idx = bisect_right(usage_times, ts) - 1
+        if idx < 0:
+            return 0
+        return usage_prefix_micro[idx]
+
     cum_topup_krw = 0
     cum_topup_usd_cents = 0
     built: list[dict] = []
@@ -304,9 +331,9 @@ def build_wallet_topup_history_rows(
             contrib_krw = topup_contribution_krw(claim)
             cum_topup_krw += contrib_krw
             until_ts = claim.created_at
-            agg = aggregate_usage_for_user(db, int(user_id), until=until_ts)
-            cum_usage_krw = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
-            cum_usage_usd_cents = usd_cents_from_usd_micro(int(agg.get("total_usd_micro") or 0))
+            usage_micro = _usage_micro_until(until_ts)
+            cum_usage_krw = krw_from_usage_usd_micro(usage_micro, usd_krw_rate)
+            cum_usage_usd_cents = usd_cents_from_usd_micro(usage_micro)
             if display_usd:
                 cum_topup_usd_cents += krw_to_usd_cents(contrib_krw, usd_krw_rate)
             row = {
@@ -328,9 +355,9 @@ def build_wallet_topup_history_rows(
             cur = (txn.currency or "KRW").strip().upper()
             credit_krw = portone_txn_credit_krw(txn, usd_krw_rate)
             cum_topup_krw += credit_krw
-            agg = aggregate_usage_for_user(db, int(user_id), until=ts)
-            cum_usage_krw = krw_from_usage_usd_micro(int(agg.get("total_usd_micro") or 0), usd_krw_rate)
-            cum_usage_usd_cents = usd_cents_from_usd_micro(int(agg.get("total_usd_micro") or 0))
+            usage_micro = _usage_micro_until(ts)
+            cum_usage_krw = krw_from_usage_usd_micro(usage_micro, usd_krw_rate)
+            cum_usage_usd_cents = usd_cents_from_usd_micro(usage_micro)
             paid_at = txn.paid_at or ts
             if display_usd:
                 if cur == "USD":

@@ -260,6 +260,39 @@ def log_gemini_generate_content(
     )
 
 
+def _usage_event_filters(
+    user_id: int,
+    *,
+    since=None,
+    until=None,
+) -> list[Any]:
+    filt: list[Any] = [models.AiUsageEvent.user_id == int(user_id)]
+    if since is not None:
+        filt.append(models.AiUsageEvent.created_at >= since)
+    if until is not None:
+        filt.append(models.AiUsageEvent.created_at <= until)
+    return filt
+
+
+def sum_usage_usd_micro_for_user(
+    db,
+    user_id: int,
+    *,
+    since=None,
+    until=None,
+) -> int:
+    """DB에 저장된 AiUsageEvent 합계(micro USD) — SQL SUM."""
+    from sqlalchemy import func
+
+    filt = _usage_event_filters(user_id, since=since, until=until)
+    total = (
+        db.query(func.coalesce(func.sum(models.AiUsageEvent.estimated_cost_usd_micro), 0))
+        .filter(*filt)
+        .scalar()
+    )
+    return int(total or 0)
+
+
 def aggregate_usage_for_user(
     db,
     user_id: int,
@@ -267,23 +300,42 @@ def aggregate_usage_for_user(
     since=None,
     until=None,
 ) -> dict[str, Any]:
-    """Admin 대시보드용 집계."""
-    q = db.query(models.AiUsageEvent).filter(models.AiUsageEvent.user_id == int(user_id))
-    if since is not None:
-        q = q.filter(models.AiUsageEvent.created_at >= since)
-    if until is not None:
-        q = q.filter(models.AiUsageEvent.created_at <= until)
-    rows = q.order_by(models.AiUsageEvent.created_at.asc()).all()
-    total_micro = sum(int(r.estimated_cost_usd_micro or 0) for r in rows)
+    """Admin·회원 화면용 집계 — DB SUM/GROUP BY, 최근 200건만 별도 조회."""
+    from sqlalchemy import func
+
+    filt = _usage_event_filters(user_id, since=since, until=until)
+    total_micro = sum_usage_usd_micro_for_user(db, user_id, since=since, until=until)
+    event_count = int(
+        db.query(func.count(models.AiUsageEvent.id)).filter(*filt).scalar() or 0
+    )
     by_stage: dict[str, int] = {}
-    for r in rows:
-        st = (r.stage or "other").strip()
-        by_stage[st] = by_stage.get(st, 0) + int(r.estimated_cost_usd_micro or 0)
+    for stage, micro in (
+        db.query(
+            models.AiUsageEvent.stage,
+            func.sum(models.AiUsageEvent.estimated_cost_usd_micro),
+        )
+        .filter(*filt)
+        .group_by(models.AiUsageEvent.stage)
+        .all()
+    ):
+        st = (stage or "other").strip()
+        by_stage[st] = int(micro or 0)
+    recent = (
+        db.query(models.AiUsageEvent)
+        .filter(*filt)
+        .order_by(
+            models.AiUsageEvent.created_at.desc(),
+            models.AiUsageEvent.id.desc(),
+        )
+        .limit(200)
+        .all()
+    )
+    recent.reverse()
     return {
-        "event_count": len(rows),
+        "event_count": event_count,
         "total_usd_micro": total_micro,
         "by_stage_micro": by_stage,
-        "rows": rows[-200:],
+        "rows": recent,
     }
 
 
@@ -342,12 +394,32 @@ def member_usage_log_rows(
     *,
     usd_krw_rate: float,
     limit: int = 100,
+    event_count: int | None = None,
 ) -> tuple[list[dict[str, Any]], int, int]:
     """회원 화면용 호출 로그(최신순) + (표시 가능 토큰 합, 이벤트 수)."""
+    from sqlalchemy import func
+
     from .ai_wallet import krw_from_usage_usd_micro
 
-    agg = aggregate_usage_for_user(db, int(user_id))
-    events = list(reversed(list(agg.get("rows") or [])))[: max(1, int(limit))]
+    uid = int(user_id)
+    lim = max(1, int(limit))
+    events = (
+        db.query(models.AiUsageEvent)
+        .filter(models.AiUsageEvent.user_id == uid)
+        .order_by(
+            models.AiUsageEvent.created_at.desc(),
+            models.AiUsageEvent.id.desc(),
+        )
+        .limit(lim)
+        .all()
+    )
+    if event_count is None:
+        event_count = int(
+            db.query(func.count(models.AiUsageEvent.id))
+            .filter(models.AiUsageEvent.user_id == uid)
+            .scalar()
+            or 0
+        )
     rows: list[dict[str, Any]] = []
     token_sum = 0
     for ev in events:
@@ -377,4 +449,4 @@ def member_usage_log_rows(
                 "usd": format_usd_from_micro(micro),
             }
         )
-    return rows, token_sum, int(agg.get("event_count") or 0)
+    return rows, token_sum, int(event_count)
