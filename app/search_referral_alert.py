@@ -198,15 +198,9 @@ def schedule_search_referral_check(request: Request) -> None:
     user_agent = request.headers.get("user-agent")
 
     skip_admin = False
-    token = request.cookies.get("access_token")
-    if token:
-        db = SessionLocal()
-        try:
-            u = auth.get_user_from_token(token, db)
-            if u and getattr(u, "is_admin", False):
-                skip_admin = True
-        finally:
-            db.close()
+    u = getattr(request.state, "current_user", None)
+    if u and getattr(u, "is_admin", False):
+        skip_admin = True
 
     def _run() -> None:
         try:

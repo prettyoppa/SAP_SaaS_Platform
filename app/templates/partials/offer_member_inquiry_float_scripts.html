@@ -1,4 +1,5 @@
 {% if offer_member_inquiry is defined and offer_member_inquiry and offer_member_inquiry.enabled %}
+{% include 'partials/abap_float_chat_resize_script.html' %}
 <script>
 (function () {
   var fid = {{ offer_member_inquiry.float_id | tojson }};

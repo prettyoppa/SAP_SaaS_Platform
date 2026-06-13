@@ -27,6 +27,31 @@ def markdown_typing_lines(md: str) -> list[str]:
     return out if out else [""]
 
 
+def markdown_to_plain_text(md: str, *, single_line: bool = False) -> str:
+    """목록·타일용 — 마크다운 기호 제거 평문(풀 HTML 렌더 생략)."""
+    lines_out: list[str] = []
+    for raw in (md or "").splitlines():
+        s = raw.strip()
+        if not s:
+            if not single_line:
+                lines_out.append("")
+            continue
+        s = re.sub(r"^#{1,6}\s+", "", s)
+        s = re.sub(r"^[-*+]\s+(?:\[[ xX]\]\s*)?", "", s)
+        s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
+        s = re.sub(r"__(.+?)__", r"\1", s)
+        s = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"\1", s)
+        s = re.sub(r"`([^`]+)`", r"\1", s)
+        s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)
+        s = re.sub(r"^\d+\.\s+", "", s)
+        lines_out.append(s.strip())
+    while lines_out and not lines_out[-1]:
+        lines_out.pop()
+    if single_line:
+        return " ".join(ln for ln in lines_out if ln).strip()
+    return "\n".join(lines_out).strip()
+
+
 def home_guide_has_text(md: str) -> bool:
     return any((ln or "").strip() for ln in markdown_typing_lines(md))
 

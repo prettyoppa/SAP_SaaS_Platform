@@ -2904,6 +2904,9 @@ html[data-theme="dark"] .hub-settlement-process-help-btn:focus {
   font-size: 0.9375rem;
   line-height: 1.55;
 }
+.home-notice-popup-modal .home-notice-popup-body-plain {
+  white-space: pre-wrap;
+}
 .home-notice-popup-modal .markdown-body h1,
 .home-notice-popup-modal .markdown-body h2,
 .home-notice-popup-modal .markdown-body h3 {

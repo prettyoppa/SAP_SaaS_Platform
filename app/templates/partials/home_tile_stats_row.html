@@ -7,8 +7,8 @@
         <span class="nav-ko">납품</span><span class="nav-en" style="display:none">Delivered</span>
       </div>
     </a>
-    <a href="{{ stage_links.proposal }}" class="home-tile-stat-chip home-tile-stat-chip--link home-tile-stat-chip--proposal{% if proposal_offer_badges.get(offer_channel) %} home-tile-stat-chip--offer{% endif %}" role="listitem" data-no-busy="true">
-      {% if proposal_offer_badges.get(offer_channel) %}
+    <a href="{{ stage_links.proposal }}" class="home-tile-stat-chip home-tile-stat-chip--link home-tile-stat-chip--proposal{% if request.state.nav_proposal_offer_badges.get(offer_channel) %} home-tile-stat-chip--offer{% endif %}" role="listitem" data-no-busy="true">
+      {% if request.state.nav_proposal_offer_badges.get(offer_channel) %}
       <span class="home-tile-stat-offer-dot" aria-hidden="true"></span>
       {% endif %}
       <div class="home-tile-stat-num">{{ counts.proposal }}</div>

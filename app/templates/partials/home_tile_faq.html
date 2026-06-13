@@ -15,8 +15,8 @@
       {% for faq in faqs %}
       <a href="/faqs/{{ faq.id }}" class="home-faq-row d-flex align-items-center gap-2 text-decoration-none text-reset">
         <i class="fa-solid fa-chevron-right fa-xs text-muted flex-shrink-0"></i>
-        <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-ko">{{ faq.question|md_html }}</span>
-        <span class="small text-truncate flex-grow-1 site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((faq.question_en or faq.question) or '')|md_html }}</span>
+        <span class="small text-truncate flex-grow-1 i18n-ko">{{ faq.question|md_plain }}</span>
+        <span class="small text-truncate flex-grow-1 i18n-en" style="display:none">{{ ((faq.question_en or faq.question) or '')|md_plain }}</span>
       </a>
       {% endfor %}
     </div>

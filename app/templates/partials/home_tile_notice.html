@@ -14,8 +14,8 @@
       {% for n in notices %}
       <a href="/notices/{{ n.id }}" class="notice-item notice-item-link text-decoration-none d-block text-reset">
         <span class="notice-badge" data-i18n="home.noticeBadge">공지</span>
-        <span class="notice-title site-md-title-inline markdown-body i18n-ko">{{ n.title|md_html }}</span>
-        <span class="notice-title site-md-title-inline markdown-body i18n-en" style="display:none">{{ ((n.title_en or n.title) or '')|md_html }}</span>
+        <span class="notice-title i18n-ko">{{ n.title|md_plain }}</span>
+        <span class="notice-title i18n-en" style="display:none">{{ ((n.title_en or n.title) or '')|md_plain }}</span>
         <span class="notice-date text-muted small">{{ n.created_at|local_dt_span('date_dots') }}</span>
       </a>
       {% endfor %}

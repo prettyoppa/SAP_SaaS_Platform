@@ -128,15 +128,10 @@ def notice_public_list(
     list_rows: list[dict[str, Any]] = []
     for i, n in enumerate(rows):
         display_num = total - offset - i
-        title_ko_html = _markdown_to_html(n.title or "")
-        title_en_md = (getattr(n, "title_en", None) or "").strip() or (n.title or "")
-        title_en_html = _markdown_to_html(title_en_md)
         list_rows.append(
             {
                 "notice": n,
                 "num": display_num,
-                "title_html": title_ko_html,
-                "title_en_html": title_en_html,
             }
         )
 
@@ -191,15 +186,10 @@ def faq_public_list(
     list_rows = []
     for i, f in enumerate(rows):
         display_num = total - offset - i
-        q_ko_html = _markdown_to_html(f.question or "")
-        q_en_md = (getattr(f, "question_en", None) or "").strip() or (f.question or "")
-        q_en_html = _markdown_to_html(q_en_md)
         list_rows.append(
             {
                 "faq": f,
                 "num": display_num,
-                "title_html": q_ko_html,
-                "title_en_html": q_en_html,
             }
         )
 

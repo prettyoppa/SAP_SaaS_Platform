@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Iterable
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -715,39 +715,87 @@ def offer_inquiry_needs_consultant_reply(db: Session, offer_id: int) -> bool:
     return int(rows[-1].author_user_id) != int(of.consultant_user_id)
 
 
+_ACTIVE_OFFER_STATUSES = ("offered", "matched")
+
+
+def _pending_inquiry_reply_offer_ids_batch(
+    db: Session, offers: Iterable[tuple[int, int]]
+) -> set[int]:
+    """(offer_id, consultant_user_id) 목록 → 답변 대기 offer id (문의 2쿼리 배치)."""
+    rows = [(int(oid), int(cid)) for oid, cid in offers]
+    if not rows:
+        return set()
+    consultant_by_offer = {oid: cid for oid, cid in rows}
+    offer_ids = list(consultant_by_offer.keys())
+    grouped = inquiries_by_offer_id(db, offer_ids)
+    out: set[int] = set()
+    for oid in offer_ids:
+        inq = grouped.get(oid) or []
+        if not inq:
+            continue
+        if int(inq[-1].author_user_id) != consultant_by_offer[oid]:
+            out.add(oid)
+    return out
+
+
+def _any_pending_inquiry_reply_batch(db: Session, offers: Iterable[tuple[int, int]]) -> bool:
+    """배치 조회 — 첫 pending 발견 시 즉시 True."""
+    rows = [(int(oid), int(cid)) for oid, cid in offers]
+    if not rows:
+        return False
+    consultant_by_offer = {oid: cid for oid, cid in rows}
+    offer_ids = list(consultant_by_offer.keys())
+    grouped = inquiries_by_offer_id(db, offer_ids)
+    for oid in offer_ids:
+        inq = grouped.get(oid) or []
+        if inq and int(inq[-1].author_user_id) != consultant_by_offer[oid]:
+            return True
+    return False
+
+
 def pending_inquiry_reply_offer_ids_for_consultant(db: Session, consultant_user_id: int) -> set[int]:
     """답변 대기 중인 오퍼 id 집합."""
     offers = (
-        db.query(models.RequestOffer.id)
+        db.query(models.RequestOffer.id, models.RequestOffer.consultant_user_id)
         .filter(
             models.RequestOffer.consultant_user_id == int(consultant_user_id),
-            models.RequestOffer.status.in_(("offered", "matched")),
+            models.RequestOffer.status.in_(_ACTIVE_OFFER_STATUSES),
         )
         .all()
     )
-    out: set[int] = set()
-    for (oid,) in offers:
-        if offer_inquiry_needs_consultant_reply(db, int(oid)):
-            out.add(int(oid))
-    return out
+    return _pending_inquiry_reply_offer_ids_batch(db, offers)
 
 
 def pending_inquiry_reply_offer_ids_all(db: Session) -> set[int]:
     """전체 오퍼 중 회원 문의에 컨설턴트 답이 필요한 offer id (관리자 요청 Console 등)."""
     offers = (
-        db.query(models.RequestOffer.id)
-        .filter(models.RequestOffer.status.in_(("offered", "matched")))
+        db.query(models.RequestOffer.id, models.RequestOffer.consultant_user_id)
+        .filter(models.RequestOffer.status.in_(_ACTIVE_OFFER_STATUSES))
         .all()
     )
-    out: set[int] = set()
-    for (oid,) in offers:
-        if offer_inquiry_needs_consultant_reply(db, int(oid)):
-            out.add(int(oid))
-    return out
+    return _pending_inquiry_reply_offer_ids_batch(db, offers)
 
 
 def consultant_has_any_pending_inquiry_reply(db: Session, consultant_user_id: int) -> bool:
-    return bool(pending_inquiry_reply_offer_ids_for_consultant(db, consultant_user_id))
+    offers = (
+        db.query(models.RequestOffer.id, models.RequestOffer.consultant_user_id)
+        .filter(
+            models.RequestOffer.consultant_user_id == int(consultant_user_id),
+            models.RequestOffer.status.in_(_ACTIVE_OFFER_STATUSES),
+        )
+        .all()
+    )
+    return _any_pending_inquiry_reply_batch(db, offers)
+
+
+def admin_has_any_pending_inquiry_reply(db: Session) -> bool:
+    """관리자 nav — 답변 대기 오퍼 존재 여부만 (전체 id 순회 생략)."""
+    offers = (
+        db.query(models.RequestOffer.id, models.RequestOffer.consultant_user_id)
+        .filter(models.RequestOffer.status.in_(_ACTIVE_OFFER_STATUSES))
+        .all()
+    )
+    return _any_pending_inquiry_reply_batch(db, offers)
 
 
 def inquiries_by_offer_id(db: Session, offer_ids: list[int]) -> dict[int, list[models.RequestOfferInquiry]]:

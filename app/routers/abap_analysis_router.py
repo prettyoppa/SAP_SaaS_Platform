@@ -65,7 +65,6 @@ from ..menu_landing import (
     menu_landing_url,
     parse_slashed_date,
     standard_menu_bucket_meta,
-    user_proposal_pending_offer_badges,
 )
 from ..as_built_deliverable import as_built_hub_template_ctx, as_built_llm_digest
 from ..project_settlement import settlement_hub_ctx
@@ -890,9 +889,6 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
             )
 
     bucket_meta = standard_menu_bucket_meta()
-    proposal_offer_badges = (
-        user_proposal_pending_offer_badges(db, user.id) if user else {"rfp": False, "analysis": False, "integration": False}
-    )
 
     return templates.TemplateResponse(
         request,
@@ -915,7 +911,6 @@ def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
             "filtered_menu_rows": filtered_rows if user else [],
             "show_request_owner": show_request_owner,
             "menu_landing_form_action": "/abap-analysis",
-            "proposal_offer_badges": proposal_offer_badges,
         },
     )
 

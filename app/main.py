@@ -16,7 +16,6 @@ from .database import SessionLocal, db_target_log_line, engine
 from .email_smtp import email_verification_enabled, log_smtp_startup_checks
 from .form_errors import humanize_validation_errors, request_accepts_html, safe_back_url
 from . import auth, models
-from .review_ratings_util import rating_aggregates_for_reviews
 from .rfp_landing import DEFAULT_SERVICE_ABAP_INTRO_MD_KO
 from .menu_landing import (
     DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO,
@@ -25,7 +24,7 @@ from .menu_landing import (
 )
 from .offer_inquiry_service import (
     consultant_has_any_pending_inquiry_reply,
-    pending_inquiry_reply_offer_ids_all,
+    admin_has_any_pending_inquiry_reply,
 )
 from .home_counts import home_tile_counts
 from .menu_landing import home_tile_stage_links
@@ -943,20 +942,18 @@ async def nav_proposal_offer_badges_middleware(request: Request, call_next):
     nav_console_pending_inquiry = False
     request.state.subscription_plan_display_ko = None
     request.state.subscription_plan_display_en = None
-    token = request.cookies.get("access_token")
-    if token:
+    u = getattr(request.state, "current_user", None)
+    if u:
         db = SessionLocal()
         try:
-            u = auth.get_user_from_token(token, db)
-            if u:
-                badges = user_proposal_pending_offer_badges(db, u.id)
-                if getattr(u, "is_admin", False):
-                    nav_console_pending_inquiry = bool(pending_inquiry_reply_offer_ids_all(db))
-                elif getattr(u, "is_consultant", False):
-                    nav_console_pending_inquiry = consultant_has_any_pending_inquiry_reply(db, u.id)
-                sp_ko, sp_en = user_subscription_plan_display_names(db, u)
-                request.state.subscription_plan_display_ko = sp_ko
-                request.state.subscription_plan_display_en = sp_en
+            badges = user_proposal_pending_offer_badges(db, u.id)
+            if getattr(u, "is_admin", False):
+                nav_console_pending_inquiry = admin_has_any_pending_inquiry_reply(db)
+            elif getattr(u, "is_consultant", False):
+                nav_console_pending_inquiry = consultant_has_any_pending_inquiry_reply(db, u.id)
+            sp_ko, sp_en = user_subscription_plan_display_names(db, u)
+            request.state.subscription_plan_display_ko = sp_ko
+            request.state.subscription_plan_display_en = sp_en
         finally:
             db.close()
     request.state.nav_proposal_offer_badges = badges
@@ -981,21 +978,13 @@ async def language_hint_middleware(request: Request, call_next):
     from .i18n_hint import initial_lang_from_request
 
     preferred = ""
-    request.state.is_logged_in = False
-    token = request.cookies.get("access_token")
-    if token:
-        db = SessionLocal()
-        try:
-            u = auth.get_user_from_token(token, db)
-            if u and (getattr(u, "preferred_lang", "") or "").strip().lower() in ("ko", "en"):
-                preferred = (u.preferred_lang or "").strip().lower()
-                request.state.is_logged_in = True
-        finally:
-            db.close()
+    u = getattr(request.state, "current_user", None)
+    if u and (getattr(u, "preferred_lang", "") or "").strip().lower() in ("ko", "en"):
+        preferred = (u.preferred_lang or "").strip().lower()
     if not preferred:
         preferred = initial_lang_from_request(request)
     request.state.initial_lang = preferred
-    request.state.lang_guest_hint = not request.state.is_logged_in
+    request.state.lang_guest_hint = not getattr(request.state, "is_logged_in", False)
     return await call_next(request)
 
 
@@ -1009,6 +998,13 @@ async def no_store_html_for_logged_in_views(request: Request, call_next):
         response.headers["Pragma"] = "no-cache"
         response.headers["Vary"] = "Cookie"
     return response
+
+
+@app.middleware("http")
+async def current_user_middleware(request: Request, call_next):
+    from .request_middleware import current_user_middleware as _load_user
+
+    return await _load_user(request, call_next)
 
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -1049,14 +1045,14 @@ app.include_router(as_built_router.router)
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     from .database import SessionLocal as _SL
+    from .site_settings_locale import enrich_site_settings, load_home_settings_dict
+
     _db = _SL()
     reviews: list = []
-    reviews_rating_meta: dict = {}
+    user = getattr(request.state, "current_user", None)
     try:
-        user = auth.get_current_user(request, _db)
         home_counts = None
         home_tile_stage_links_ctx: dict[str, dict[str, str]] | None = None
-        proposal_offer_badges = {"rfp": False, "analysis": False, "integration": False}
         if user:
             try:
                 home_counts = home_tile_counts(
@@ -1065,7 +1061,6 @@ def index(request: Request):
                     is_admin=bool(user.is_admin),
                     consultant_matched=consultant_menu_matched_scope(user),
                 )
-                proposal_offer_badges = user_proposal_pending_offer_badges(_db, user.id)
                 home_tile_stage_links_ctx = {
                     "rfp": home_tile_stage_links("rfp"),
                     "analysis": home_tile_stage_links("analysis"),
@@ -1075,11 +1070,7 @@ def index(request: Request):
                 _log.exception("home_tile_counts failed user_id=%s", getattr(user, "id", None))
                 home_counts = None
                 home_tile_stage_links_ctx = None
-        raw_settings = _db.query(models.SiteSettings).all()
-        settings = {s.key: s.value for s in raw_settings}
-        from .site_settings_locale import enrich_site_settings
-
-        settings = enrich_site_settings(_db, settings, scope="home")
+        settings = enrich_site_settings(_db, load_home_settings_dict(_db), scope="home")
         notices = (
             _db.query(models.Notice)
             .filter(models.Notice.is_active == True)
@@ -1094,6 +1085,7 @@ def index(request: Request):
             _db.query(models.FAQ)
             .filter(models.FAQ.is_active == True)
             .order_by(models.FAQ.sort_order.asc(), models.FAQ.created_at.asc())
+            .limit(5)
             .all()
         )
         _rcc = (
@@ -1123,7 +1115,6 @@ def index(request: Request):
             .limit(10)
             .all()
         )
-        reviews_rating_meta = rating_aggregates_for_reviews(_db, [r.id for r in reviews])
     finally:
         _db.close()
     return templates.TemplateResponse(request, "index.html", {
@@ -1134,10 +1125,8 @@ def index(request: Request):
         "home_popup_notice": home_popup_notice,
         "faqs": faqs,
         "reviews": reviews,
-        "reviews_rating_meta": reviews_rating_meta,
         "home_counts": home_counts,
         "home_tile_stage_links": home_tile_stage_links_ctx,
-        "proposal_offer_badges": proposal_offer_badges,
     })
 
 

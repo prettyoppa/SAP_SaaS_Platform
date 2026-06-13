@@ -85,6 +85,18 @@ def enrich_site_settings(
     return out
 
 
+def load_home_settings_dict(db: Session) -> dict[str, str]:
+    """홈(/)에 필요한 SiteSettings만 조회."""
+    from . import models
+
+    rows = (
+        db.query(models.SiteSettings)
+        .filter(models.SiteSettings.key.like("home_%"))
+        .all()
+    )
+    return {s.key: s.value for s in rows}
+
+
 def load_site_settings_enriched(db: Session, *, scope: str | None = None) -> dict[str, str]:
     from . import models
 

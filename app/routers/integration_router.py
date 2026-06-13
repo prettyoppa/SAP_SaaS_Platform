@@ -43,7 +43,6 @@ from ..menu_landing import (
     parse_slashed_date,
     standard_menu_bucket_meta,
     request_ids_with_unmatched_offers_only,
-    user_proposal_pending_offer_badges,
 )
 from ..request_engagement import (
     activate_request_engagement,
@@ -1442,9 +1441,6 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
                 setattr(row, "pulse_offer_bg", selected_bucket == "proposal" and ho)
 
     bucket_meta = standard_menu_bucket_meta()
-    proposal_offer_badges = (
-        user_proposal_pending_offer_badges(db, user.id) if user else {"rfp": False, "analysis": False, "integration": False}
-    )
     return templates.TemplateResponse(
         request,
         "services_abap.html",
@@ -1465,7 +1461,6 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
             "svc_abap_date_to_raw": date_to_raw or "",
             "show_rfp_owner": show_rfp_owner,
             "bucket_meta": bucket_meta,
-            "proposal_offer_badges": proposal_offer_badges,
             "proposal_offer_notice_count": proposal_offer_notice_count,
         },
     )
@@ -1541,9 +1536,6 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
                 setattr(row, "pulse_offer_bg", selected_bucket == "proposal" and ho)
 
     bucket_meta = standard_menu_bucket_meta()
-    proposal_offer_badges = (
-        user_proposal_pending_offer_badges(db, user.id) if user else {"rfp": False, "analysis": False, "integration": False}
-    )
     return templates.TemplateResponse(
         request,
         "integration_landing.html",
@@ -1565,7 +1557,6 @@ def integration_landing(request: Request, db: Session = Depends(get_db)):
             "filtered_menu_rows": filtered_rows if user else [],
             "show_request_owner": show_request_owner,
             "menu_landing_form_action": "/integration",
-            "proposal_offer_badges": proposal_offer_badges,
             "proposal_offer_notice_count": proposal_offer_notice_count,
             **_integration_impl_ui_ctx(db),
         },

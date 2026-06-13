@@ -63,7 +63,7 @@ _DEFAULT_GROUP = (
 
 _EN_OVERRIDE_CACHE: dict[str, str] | None = None
 _EN_OVERRIDE_CACHE_AT: float = 0.0
-_REVALIDATE_SEC = 60.0
+_REVALIDATE_SEC = 300.0
 
 
 def load_i18n_baseline() -> dict[str, dict[str, str]]:

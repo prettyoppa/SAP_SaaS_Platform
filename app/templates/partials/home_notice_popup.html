@@ -6,16 +6,16 @@
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header border-bottom">
-        <h5 class="modal-title markdown-body home-notice-popup-title" id="homeNoticePopupTitle">
-          <span class="nav-ko">{{ home_popup_notice.title|md_html }}</span>
-          <span class="nav-en" style="display:none">{{ ((home_popup_notice.title_en or home_popup_notice.title) or '')|md_html }}</span>
+        <h5 class="modal-title home-notice-popup-title" id="homeNoticePopupTitle">
+          <span class="nav-ko">{{ home_popup_notice.title|md_plain }}</span>
+          <span class="nav-en" style="display:none">{{ ((home_popup_notice.title_en or home_popup_notice.title) or '')|md_plain }}</span>
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
                 data-i18n-aria-label="app.confirmCloseAria"></button>
       </div>
-      <div class="modal-body markdown-body home-notice-popup-body">
-        <div class="nav-ko">{{ (home_popup_notice.content or '')|md_html }}</div>
-        <div class="nav-en" style="display:none">{{ ((home_popup_notice.content_en or home_popup_notice.content) or '')|md_html }}</div>
+      <div class="modal-body home-notice-popup-body home-notice-popup-body-plain">
+        <div class="nav-ko">{{ (home_popup_notice.content or '')|md_plain(false) }}</div>
+        <div class="nav-en" style="display:none">{{ ((home_popup_notice.content_en or home_popup_notice.content) or '')|md_plain(false) }}</div>
       </div>
       <div class="modal-footer border-top flex-wrap gap-2 justify-content-end">
         <button type="button" class="btn btn-outline-secondary btn-sm" id="homeNoticePopupHideDay">
@@ -30,5 +30,5 @@
     </div>
   </div>
 </div>
-<script src="/static/js/home_notice_popup.js?v=20260529popup"></script>
+<script src="/static/js/home_notice_popup.js?v=20260529popup" defer></script>
 {% endif %}

@@ -142,6 +142,17 @@ def _md_html_filter(s) -> Markup:
 templates.env.filters["md_html"] = _md_html_filter
 
 
+def _md_plain_filter(s, single_line: bool = True) -> Markup:
+    """타일·목록·팝업 — 마크다운 HTML 대신 이스케이프된 평문."""
+    from .home_hero_guide import markdown_to_plain_text
+
+    plain = markdown_to_plain_text(str(s or ""), single_line=bool(single_line))
+    return Markup(escape(plain))
+
+
+templates.env.filters["md_plain"] = _md_plain_filter
+
+
 def _home_guide_typing_lines_filter(s) -> list[str]:
     from .home_hero_guide import markdown_typing_lines
 

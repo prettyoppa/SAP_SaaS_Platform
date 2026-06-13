@@ -130,6 +130,8 @@ def get_user_from_token(token: str, db: Session) -> Optional[models.User]:
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[models.User]:
+    if hasattr(request.state, "current_user"):
+        return request.state.current_user
     token = request.cookies.get("access_token")
     if not token:
         return None
