@@ -57,8 +57,8 @@ def _rfp_base_query(
     consultant_matched: bool = False,
     viewer=None,
 ):
-    """관리자: 전체 RFP(+owner·messages); 일반: 본인만; 컨설턴트 메뉴: 본인+매칭 건."""
-    q = db.query(models.RFP).options(joinedload(models.RFP.messages))
+    """관리자: 전체 RFP(+owner); 일반: 본인만; 컨설턴트 메뉴: 본인+매칭 건. messages는 배치 조회."""
+    q = db.query(models.RFP)
     if admin:
         q = q.options(joinedload(models.RFP.owner))
         if viewer is not None:
@@ -84,6 +84,20 @@ def _rfp_base_query(
             )
         )
     return q.filter(models.RFP.user_id == user_id)
+
+
+def rfp_ids_with_interview_messages(db: Session, rfp_ids: list[int]) -> set[int]:
+    """RFP 인터뷰 이력 존재 여부 — messages eager load 대신 1회 IN 쿼리."""
+    if not rfp_ids:
+        return set()
+    return {
+        int(r[0])
+        for r in db.query(models.RFPMessage.rfp_id)
+        .filter(models.RFPMessage.rfp_id.in_([int(i) for i in rfp_ids]))
+        .distinct()
+        .all()
+        if r[0] is not None
+    }
 
 
 def _apply_title_and_created_filters(q, *, title_q: str | None, date_from: date | None, date_to: date | None):
@@ -117,9 +131,11 @@ def rfp_landing_aggregate(
         viewer=viewer,
     )
     rfps = q.order_by(models.RFP.created_at.desc()).all()
+    msg_ids = rfp_ids_with_interview_messages(db, [int(r.id) for r in rfps])
     buckets: dict[str, list[models.RFP]] = {k: [] for k in BUCKET_ORDER}
     for rfp in rfps:
-        buckets.setdefault(rfp_landing_bucket(rfp), []).append(rfp)
+        b = rfp_landing_bucket(rfp, has_interview_messages=int(rfp.id) in msg_ids)
+        buckets.setdefault(b, []).append(rfp)
     counts = {k: len(buckets[k]) for k in BUCKET_ORDER}
     return counts, buckets
 
@@ -129,7 +145,7 @@ def workflow_linked_rfp_bucket(rfp: models.RFP) -> str:
     return rfp_landing_bucket(rfp)
 
 
-def rfp_landing_bucket(rfp: models.RFP) -> str:
+def rfp_landing_bucket(rfp: models.RFP, *, has_interview_messages: bool | None = None) -> str:
     """
     상호 배타 단계(우선순위 위→아래).
 
@@ -151,7 +167,9 @@ def rfp_landing_bucket(rfp: models.RFP) -> str:
         return "proposal"
     if rfp.status == "draft":
         return "draft"
-    if rfp.messages and len(rfp.messages) > 0:
+    if has_interview_messages is None:
+        has_interview_messages = bool(rfp.messages and len(rfp.messages) > 0)
+    if has_interview_messages:
         return "analysis"
     return "in_progress"
 
@@ -191,4 +209,9 @@ def filtered_rfp_list_for_landing(
     rfps = q.order_by(models.RFP.created_at.desc()).all()
     if bucket == "all":
         return rfps
-    return [rfp for rfp in rfps if rfp_landing_bucket(rfp) == bucket]
+    msg_ids = rfp_ids_with_interview_messages(db, [int(r.id) for r in rfps])
+    return [
+        rfp
+        for rfp in rfps
+        if rfp_landing_bucket(rfp, has_interview_messages=int(rfp.id) in msg_ids) == bucket
+    ]

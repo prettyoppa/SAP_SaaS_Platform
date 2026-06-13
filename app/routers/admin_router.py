@@ -1280,6 +1280,14 @@ async def admin_settings_save(request: Request, db: Session = Depends(get_db)):
         else:
             db.add(models.SiteSettings(key=key, value=val))
     db.commit()
+    try:
+        from ..site_settings_locale import fill_missing_en_site_settings
+
+        fill_missing_en_site_settings(db)
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception("fill_missing_en_site_settings after admin settings save")
     return RedirectResponse(url="/admin/settings?saved=1", status_code=302)
 
 

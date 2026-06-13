@@ -832,9 +832,9 @@ async def abap_form_request_validation_response(request: Request, db: Session):
 def abap_analysis_list(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
 
-    raw_settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    from ..site_settings_locale import enrich_site_settings
+    from ..site_settings_locale import enrich_site_settings, load_service_analysis_settings_dict
 
+    raw_settings = load_service_analysis_settings_dict(db)
     raw_settings["service_analysis_intro_md_ko"] = (
         (raw_settings.get("service_analysis_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ANALYSIS_INTRO_MD_KO
     )

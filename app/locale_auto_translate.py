@@ -34,6 +34,14 @@ def _read_cache(db: Session, cache_key: str) -> str:
     return (row.value or "").strip() if row else ""
 
 
+def read_cached_translation(db: Session, ko: str, *, namespace: str) -> str:
+    """저장된 locale_auto_en 캐시만 조회(Gemini 호출 없음)."""
+    source = (ko or "").strip()
+    if not source:
+        return ""
+    return _read_cache(db, _cache_setting_key(namespace, source))
+
+
 def _write_cache(db: Session, cache_key: str, translated: str) -> None:
     row = db.query(models.SiteSettings).filter(models.SiteSettings.key == cache_key).first()
     if row:

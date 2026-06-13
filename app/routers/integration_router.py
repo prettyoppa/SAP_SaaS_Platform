@@ -1371,9 +1371,9 @@ def request_console_offer_submit(
 @router.get("/services/abap", response_class=HTMLResponse)
 def services_abap_page(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
-    raw = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    from ..site_settings_locale import enrich_site_settings
+    from ..site_settings_locale import enrich_site_settings, load_service_abap_settings_dict
 
+    raw = load_service_abap_settings_dict(db)
     raw["service_abap_intro_md_ko"] = (
         (raw.get("service_abap_intro_md_ko") or "").strip() or DEFAULT_SERVICE_ABAP_INTRO_MD_KO
     )
@@ -1470,9 +1470,9 @@ def services_abap_page(request: Request, db: Session = Depends(get_db)):
 def integration_landing(request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user(request, db)
 
-    raw_settings = {s.key: s.value for s in db.query(models.SiteSettings).all()}
-    from ..site_settings_locale import enrich_site_settings
+    from ..site_settings_locale import enrich_site_settings, load_service_integration_settings_dict
 
+    raw_settings = load_service_integration_settings_dict(db)
     raw_settings["service_integration_intro_md_ko"] = (
         (raw_settings.get("service_integration_intro_md_ko") or "").strip()
         or DEFAULT_SERVICE_INTEGRATION_INTRO_MD_KO

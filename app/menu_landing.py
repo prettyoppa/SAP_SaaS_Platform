@@ -21,6 +21,7 @@ from .rfp_landing import (
     TILE_ORDER_WITH_ALL,
     VALID_URL_BUCKETS,
     parse_slashed_date,
+    rfp_ids_with_interview_messages,
     rfp_landing_bucket,
 )
 
@@ -160,7 +161,9 @@ def abap_analysis_menu_bucket(row: models.AbapAnalysisRequest) -> str:
     return "analysis"
 
 
-def _integration_request_landing_bucket(ir: models.IntegrationRequest) -> str:
+def _integration_request_landing_bucket(
+    ir: models.IntegrationRequest, *, has_interview_messages: bool | None = None
+) -> str:
     """연동 요청(IntegrationRequest) 본문 필드만으로 단계 분류 — rfp_landing_bucket과 동일 우선순위."""
     fs_s = ((getattr(ir, "fs_status", None) or "none").strip().lower() or "none")
     dc_s = ((getattr(ir, "delivered_code_status", None) or "none").strip().lower() or "none")
@@ -176,8 +179,10 @@ def _integration_request_landing_bucket(ir: models.IntegrationRequest) -> str:
         return "draft"
     if (getattr(ir, "interview_status", None) or "") == "generating_proposal":
         return "analysis"
-    msgs = getattr(ir, "interview_messages", None) or []
-    if msgs and len(msgs) > 0:
+    if has_interview_messages is None:
+        msgs = getattr(ir, "interview_messages", None) or []
+        has_interview_messages = bool(msgs and len(msgs) > 0)
+    if has_interview_messages:
         return "analysis"
     return "in_progress"
 
@@ -189,15 +194,24 @@ def _max_landing_bucket(a: str, b: str) -> str:
     return a if ia <= ib else b
 
 
-def integration_menu_bucket(ir: models.IntegrationRequest) -> str:
+def integration_menu_bucket(
+    ir: models.IntegrationRequest,
+    *,
+    has_interview_messages: bool | None = None,
+    workflow_rfp: models.RFP | None = None,
+    workflow_rfp_has_messages: bool | None = None,
+) -> str:
     """
     연동 요청 버킷(RFP 타일 라벨과 동일 이름).
     FS·납품 코드는 연동 요청 레코드에 저장되므로, 과거 RFP 연결이 있어도 IR 단계와 병합한다.
     """
-    b_ir = _integration_request_landing_bucket(ir)
-    wr = getattr(ir, "workflow_rfp", None)
+    b_ir = _integration_request_landing_bucket(ir, has_interview_messages=has_interview_messages)
+    wr = workflow_rfp if workflow_rfp is not None else getattr(ir, "workflow_rfp", None)
     if wr is not None:
-        return _max_landing_bucket(b_ir, rfp_landing_bucket(wr))
+        return _max_landing_bucket(
+            b_ir,
+            rfp_landing_bucket(wr, has_interview_messages=workflow_rfp_has_messages),
+        )
     return b_ir
 
 
@@ -209,14 +223,9 @@ def _abap_analysis_base_query(
     consultant_matched: bool = False,
     viewer=None,
 ):
-    q = (
-        db.query(models.AbapAnalysisRequest)
-        .options(
-            joinedload(models.AbapAnalysisRequest.owner),
-            joinedload(models.AbapAnalysisRequest.workflow_rfp).joinedload(models.RFP.messages),
-        )
-    )
+    q = db.query(models.AbapAnalysisRequest)
     if admin:
+        q = q.options(joinedload(models.AbapAnalysisRequest.owner))
         if viewer is not None:
             q = filter_query_exclude_test_owners(
                 q,
@@ -227,7 +236,7 @@ def _abap_analysis_base_query(
             )
         return q
     if consultant_matched:
-        return q.filter(
+        return q.options(joinedload(models.AbapAnalysisRequest.owner)).filter(
             or_(
                 models.AbapAnalysisRequest.user_id == user_id,
                 abap_analysis_consultant_read_scope(user_id),
@@ -313,12 +322,9 @@ def _integration_base_query(
     consultant_matched: bool = False,
     viewer=None,
 ):
-    q = db.query(models.IntegrationRequest).options(
-        joinedload(models.IntegrationRequest.owner),
-        joinedload(models.IntegrationRequest.interview_messages),
-        joinedload(models.IntegrationRequest.workflow_rfp).joinedload(models.RFP.messages),
-    )
+    q = db.query(models.IntegrationRequest)
     if admin:
+        q = q.options(joinedload(models.IntegrationRequest.owner))
         if viewer is not None:
             q = filter_query_exclude_test_owners(
                 q,
@@ -330,7 +336,7 @@ def _integration_base_query(
         return q
     if consultant_matched:
         ro = models.RequestOffer
-        return q.filter(
+        return q.options(joinedload(models.IntegrationRequest.owner)).filter(
             or_(
                 models.IntegrationRequest.user_id == user_id,
                 exists().where(
@@ -342,6 +348,36 @@ def _integration_base_query(
             )
         )
     return q.filter(models.IntegrationRequest.user_id == user_id)
+
+
+def _integration_menu_bucket_context(
+    db: Session, rows: list[models.IntegrationRequest]
+) -> dict[str, object]:
+    ir_msg = integration_ids_with_interview_messages(db, [int(r.id) for r in rows])
+    wr_ids = list({int(r.workflow_rfp_id) for r in rows if getattr(r, "workflow_rfp_id", None)})
+    wr_by_id: dict[int, models.RFP] = {}
+    wr_msg: set[int] = set()
+    if wr_ids:
+        wr_by_id = {
+            int(r.id): r for r in db.query(models.RFP).filter(models.RFP.id.in_(wr_ids)).all()
+        }
+        wr_msg = rfp_ids_with_interview_messages(db, wr_ids)
+    return {"ir_msg": ir_msg, "wr_by_id": wr_by_id, "wr_msg": wr_msg}
+
+
+def _integration_menu_bucket_with_context(
+    row: models.IntegrationRequest, ctx: dict[str, object]
+) -> str:
+    wr = None
+    if getattr(row, "workflow_rfp_id", None):
+        wr = ctx["wr_by_id"].get(int(row.workflow_rfp_id))  # type: ignore[union-attr]
+    wr_msg = ctx["wr_msg"]  # type: ignore[assignment]
+    return integration_menu_bucket(
+        row,
+        has_interview_messages=int(row.id) in ctx["ir_msg"],  # type: ignore[operator]
+        workflow_rfp=wr,
+        workflow_rfp_has_messages=(int(wr.id) in wr_msg) if wr else None,  # type: ignore[operator]
+    )
 
 
 def _apply_integration_filters(q, *, title_q: str | None, date_from: date | None, date_to: date | None):
@@ -372,9 +408,10 @@ def integration_menu_aggregate(
         viewer=viewer,
     )
     rows = q.order_by(models.IntegrationRequest.created_at.desc()).all()
+    ctx = _integration_menu_bucket_context(db, rows)
     buckets: dict[str, list[models.IntegrationRequest]] = {k: [] for k in BUCKET_ORDER}
     for row in rows:
-        b = integration_menu_bucket(row)
+        b = _integration_menu_bucket_with_context(row, ctx)
         if b in buckets:
             buckets[b].append(row)
     counts = {k: len(buckets[k]) for k in BUCKET_ORDER}
@@ -404,7 +441,8 @@ def filtered_integration_menu_rows(
     rows = q.order_by(models.IntegrationRequest.created_at.desc()).all()
     if bucket == "all":
         return rows
-    return [row for row in rows if integration_menu_bucket(row) == bucket]
+    ctx = _integration_menu_bucket_context(db, rows)
+    return [row for row in rows if _integration_menu_bucket_with_context(row, ctx) == bucket]
 
 
 def request_ids_with_unmatched_offers_only(
@@ -443,6 +481,45 @@ def request_ids_with_unmatched_offers_only(
     return offered - matched
 
 
+def integration_ids_with_interview_messages(db: Session, integration_ids: list[int]) -> set[int]:
+    if not integration_ids:
+        return set()
+    return {
+        int(r[0])
+        for r in db.query(models.IntegrationInterviewMessage.integration_request_id)
+        .filter(
+            models.IntegrationInterviewMessage.integration_request_id.in_(
+                [int(i) for i in integration_ids]
+            )
+        )
+        .distinct()
+        .all()
+        if r[0] is not None
+    }
+
+
+def _proposal_bucket_rfp_ids(db: Session, rfps: list[models.RFP]) -> list[int]:
+    if not rfps:
+        return []
+    msg_ids = rfp_ids_with_interview_messages(db, [int(r.id) for r in rfps])
+    return [
+        int(r.id)
+        for r in rfps
+        if rfp_landing_bucket(r, has_interview_messages=int(r.id) in msg_ids) == "proposal"
+    ]
+
+
+def _proposal_bucket_integration_ids(db: Session, rows: list[models.IntegrationRequest]) -> list[int]:
+    if not rows:
+        return []
+    ctx = _integration_menu_bucket_context(db, rows)
+    return [
+        int(ir.id)
+        for ir in rows
+        if _integration_menu_bucket_with_context(ir, ctx) == "proposal"
+    ]
+
+
 def user_proposal_pending_offer_badges(db: Session, user_id: int) -> dict[str, bool]:
     """본인 소유 '제안' 버킷 요청 중, 매칭 없이 offered 오퍼만 있는 경우 메뉴 빨간점."""
 
@@ -450,7 +527,7 @@ def user_proposal_pending_offer_badges(db: Session, user_id: int) -> dict[str, b
         return {"rfp": False, "analysis": False, "integration": False}
 
     rfps = db.query(models.RFP).filter(models.RFP.user_id == user_id).all()
-    rfp_ids = [r.id for r in rfps if rfp_landing_bucket(r) == "proposal"]
+    rfp_ids = _proposal_bucket_rfp_ids(db, rfps)
 
     analyses = (
         db.query(models.AbapAnalysisRequest)
@@ -468,7 +545,7 @@ def user_proposal_pending_offer_badges(db: Session, user_id: int) -> dict[str, b
         .filter(models.IntegrationRequest.user_id == user_id)
         .all()
     )
-    int_ids = [r.id for r in ints if integration_menu_bucket(r) == "proposal"]
+    int_ids = _proposal_bucket_integration_ids(db, ints)
 
     def _has(kind: str, ids: list[int]) -> bool:
         return bool(request_ids_with_unmatched_offers_only(db, kind, ids))
