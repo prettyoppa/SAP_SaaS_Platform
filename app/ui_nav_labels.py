@@ -81,6 +81,7 @@ BUCKET_LABEL_EN: dict[str, str] = {
 }
 
 I18N_NAV_CANONICAL_EN: dict[str, str] = {
+    "brand.name": "Catchy Lab - SAP Development Partner",
     "nav.menuRequestConsole": "Console",
     "nav.menuNewDevelopment": "Develop",
     "nav.menuAnalysisImprove": "Improve",
