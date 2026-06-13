@@ -2891,18 +2891,145 @@ html[data-theme="dark"] .hub-settlement-process-help-btn:focus {
   line-height: 1.5;
 }
 
-/* 홈(/) 공지 팝업 */
-.home-notice-popup-modal .modal-body {
-  max-height: min(60vh, 28rem);
+/* 홈(/) 공지 팝업 — 최대 2건, 130% 스케일 */
+body.home-notice-popup-open {
+  overflow: hidden;
+}
+.home-notice-popup-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.home-notice-popup-layer.is-open {
+  display: flex;
+}
+.home-notice-popup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 0;
+}
+html[data-theme="dark"] .home-notice-popup-backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+.home-notice-popup-stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1.5rem;
+  pointer-events: none;
+}
+.home-notice-popup-stage--single {
+  max-width: 650px;
+}
+.home-notice-popup-stage--dual {
+  max-width: min(calc(100vw - 2rem), calc(650px * 2 + 1.5rem));
+  justify-content: space-between;
+}
+.home-notice-popup-card {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 650px;
+  max-height: min(92vh, 48rem);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.22);
+  background: var(--surface);
+  color: var(--text);
+}
+html[data-theme="dark"] .home-notice-popup-card {
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.45);
+}
+.home-notice-popup-stage--dual .home-notice-popup-card {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.home-notice-popup-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.15rem 1.4rem;
+  border-bottom: 2px solid var(--primary);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.24) 0%, rgba(99, 102, 241, 0.08) 100%);
+}
+html[data-theme="light"] .home-notice-popup-header {
+  background: linear-gradient(135deg, #eef2ff 0%, #dbeafe 52%, #f0f9ff 100%);
+}
+html[data-theme="dark"] .home-notice-popup-header {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.38) 0%, rgba(36, 39, 54, 0.98) 100%);
+}
+.home-notice-popup-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding: 1rem 1.4rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.home-notice-popup-modal .home-notice-popup-body,
+.home-notice-popup-card .home-notice-popup-body {
+  max-height: min(60vh, 36.5rem);
   overflow-y: auto;
+  padding: 1.35rem 1.4rem;
+  background: var(--surface2);
 }
-.home-notice-popup-modal .home-notice-popup-title {
-  font-size: 1.05rem;
+html[data-theme="light"] .home-notice-popup-card .home-notice-popup-body {
+  background: #f8fafc;
+}
+html[data-theme="dark"] .home-notice-popup-card .home-notice-popup-body {
+  background: #1e2130;
+}
+.home-notice-popup-modal .home-notice-popup-title,
+.home-notice-popup-card .home-notice-popup-title {
+  margin: 0;
+  font-size: 1.37rem;
   line-height: 1.35;
+  font-weight: 700;
+  color: var(--text);
 }
-.home-notice-popup-modal .home-notice-popup-body {
-  font-size: 0.9375rem;
+.home-notice-popup-modal .home-notice-popup-body,
+.home-notice-popup-card .home-notice-popup-body {
+  font-size: 1.22rem;
   line-height: 1.55;
+}
+@media (max-width: 991.98px) {
+  .home-notice-popup-stage--dual {
+    flex-direction: column;
+    align-items: center;
+    max-height: 92vh;
+    overflow-y: auto;
+    pointer-events: auto;
+  }
+  .home-notice-popup-stage--dual .home-notice-popup-card {
+    flex: 0 0 auto;
+    max-width: 650px;
+  }
+}
+@media (max-width: 575.98px) {
+  .home-notice-popup-layer {
+    padding: 0.5rem;
+  }
+  .home-notice-popup-card {
+    max-height: min(94vh, 48rem);
+  }
+  .home-notice-popup-header,
+  .home-notice-popup-footer,
+  .home-notice-popup-card .home-notice-popup-body {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 .home-notice-popup-modal .home-notice-popup-body-plain {
   white-space: pre-wrap;

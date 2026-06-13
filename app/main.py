@@ -1088,9 +1088,9 @@ def index(request: Request):
             .limit(5)
             .all()
         )
-        from .notice_popup import get_home_popup_notice
+        from .notice_popup import get_home_popup_notices
 
-        home_popup_notice = get_home_popup_notice(_db)
+        home_popup_notices = get_home_popup_notices(_db)
         faqs = (
             _db.query(models.FAQ)
             .filter(models.FAQ.is_active == True)
@@ -1132,7 +1132,7 @@ def index(request: Request):
         "user": user,
         "settings": settings,
         "notices": notices,
-        "home_popup_notice": home_popup_notice,
+        "home_popup_notices": home_popup_notices,
         "faqs": faqs,
         "reviews": reviews,
         "home_counts": home_counts,

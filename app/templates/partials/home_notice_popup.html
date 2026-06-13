@@ -1,34 +1,41 @@
-{# 홈(/) 전용 — home_popup_notice 가 있을 때만 include #}
-{% if home_popup_notice %}
-<div class="modal fade home-notice-popup-modal" id="homeNoticePopupModal" tabindex="-1"
-     aria-labelledby="homeNoticePopupTitle" aria-hidden="true"
-     data-notice-id="{{ home_popup_notice.id }}">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header border-bottom">
-        <h5 class="modal-title home-notice-popup-title" id="homeNoticePopupTitle">
-          <span class="nav-ko">{{ home_popup_notice.title|md_plain }}</span>
-          <span class="nav-en" style="display:none">{{ ((home_popup_notice.title_en or home_popup_notice.title) or '')|md_plain }}</span>
+{# 홈(/) 전용 — home_popup_notices 최대 2건 #}
+{% if home_popup_notices %}
+<div class="home-notice-popup-layer" id="homeNoticePopupLayer" hidden
+     data-popup-count="{{ home_popup_notices|length }}">
+  <div class="home-notice-popup-backdrop" aria-hidden="true"></div>
+  <div class="home-notice-popup-stage home-notice-popup-stage--{{ 'dual' if home_popup_notices|length > 1 else 'single' }}">
+    {% for notice in home_popup_notices %}
+    <div class="home-notice-popup-card home-notice-popup-modal" role="dialog" aria-modal="true"
+         data-notice-id="{{ notice.id }}"
+         aria-labelledby="homeNoticePopupTitle-{{ notice.id }}">
+      <div class="home-notice-popup-header">
+        <h5 class="home-notice-popup-title" id="homeNoticePopupTitle-{{ notice.id }}">
+          <span class="nav-ko">{{ notice.title|md_plain }}</span>
+          <span class="nav-en" style="display:none">{{ ((notice.title_en or notice.title) or '')|md_plain }}</span>
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
-                data-i18n-aria-label="app.confirmCloseAria"></button>
+        <button type="button" class="btn-close home-notice-popup-dismiss" aria-label="Close"
+                data-i18n-aria-label="app.confirmCloseAria"
+                data-notice-id="{{ notice.id }}"></button>
       </div>
-      <div class="modal-body home-notice-popup-body home-notice-popup-body-plain">
-        <div class="nav-ko">{{ (home_popup_notice.content or '')|md_plain(false) }}</div>
-        <div class="nav-en" style="display:none">{{ ((home_popup_notice.content_en or home_popup_notice.content) or '')|md_plain(false) }}</div>
+      <div class="home-notice-popup-body home-notice-popup-body-plain">
+        <div class="nav-ko">{{ (notice.content or '')|md_plain(false) }}</div>
+        <div class="nav-en" style="display:none">{{ ((notice.content_en or notice.content) or '')|md_plain(false) }}</div>
       </div>
-      <div class="modal-footer border-top flex-wrap gap-2 justify-content-end">
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="homeNoticePopupHideDay">
+      <div class="home-notice-popup-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm home-notice-popup-hide-day"
+                data-notice-id="{{ notice.id }}">
           <span class="nav-ko" data-i18n="home.popup.hideToday">오늘 하루 안보기</span>
           <span class="nav-en" style="display:none" data-i18n="home.popup.hideToday">Don't show today</span>
         </button>
-        <button type="button" class="btn btn-primary btn-sm" id="homeNoticePopupClose" data-bs-dismiss="modal">
+        <button type="button" class="btn btn-primary btn-sm home-notice-popup-close"
+                data-notice-id="{{ notice.id }}">
           <span class="nav-ko" data-i18n="home.popup.close">닫기</span>
           <span class="nav-en" style="display:none" data-i18n="home.popup.close">Close</span>
         </button>
       </div>
     </div>
+    {% endfor %}
   </div>
 </div>
-<script src="/static/js/home_notice_popup.js?v=20260529popup" defer></script>
+<script src="/static/js/home_notice_popup.js?v=20260529popup2" defer></script>
 {% endif %}
