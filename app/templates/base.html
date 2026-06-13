@@ -7,12 +7,16 @@
   {% block head_meta %}{% endblock %}
   <link rel="icon" type="image/png" id="site-favicon" href="/static/img/catch_lab_sap_dev_hub_logo.png?v=20260428cat" sizes="32x32" />
   <link rel="apple-touch-icon" id="site-apple-icon" href="/static/img/catch_lab_sap_dev_hub_logo.png?v=20260428cat" />
-  <link href="/static/vendor/bootstrap-5.3.3/css/bootstrap.min.css?v=20260512" rel="stylesheet"/>
-  <link href="/static/vendor/fontawesome-free-6.5.1/css/all.min.css?v=20260512" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="/static/css/style.css?v=20260529aichatcode" rel="stylesheet"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preload" href="/static/vendor/fontawesome-free-6.5.1/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin/>
+  <link rel="preload" href="/static/vendor/fontawesome-free-6.5.1/webfonts/fa-regular-400.woff2" as="font" type="font/woff2" crossorigin/>
+  <link href="/static/vendor/bootstrap-5.3.3/css/bootstrap.min.css?v=20260512" rel="stylesheet"/>
+  <link href="/static/vendor/fontawesome-free-6.5.1/css/all.min.css?v=20260512" rel="stylesheet"/>
+  <link href="/static/css/fa-font-display-swap.css?v=20260529" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'"/>
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/></noscript>
+  <link href="/static/css/style.css?v=20260529aichatcode" rel="stylesheet"/>
   <!-- 테마 깜빡임 방지: CSS 로드 전에 테마·파비콘 적용 -->
   <script>
     (function() {

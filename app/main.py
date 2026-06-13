@@ -989,6 +989,16 @@ async def language_hint_middleware(request: Request, call_next):
 
 
 @app.middleware("http")
+async def static_vendor_cache_middleware(request: Request, call_next):
+    """vendor CSS/woff2 — 장기 캐시(아이콘·Bootstrap 재다운로드 방지)."""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/vendor/") or path == "/static/css/fa-font-display-swap.css":
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
+@app.middleware("http")
 async def no_store_html_for_logged_in_views(request: Request, call_next):
     """HTML이 Cookie별(로그인 사용자별)로 캐시되면 다른 계정 화면이 섞여 보일 수 있어 비활성화."""
     response = await call_next(request)
