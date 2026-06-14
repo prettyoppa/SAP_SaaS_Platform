@@ -16,6 +16,24 @@ from ..templates_config import templates
 router = APIRouter(tags=["preview-ia"])
 
 _PREVIEW_ROOT = "/preview/ia"
+# Railway 배포 확인용 — /preview/ia/_meta 에서 marker 확인
+PREVIEW_IA_DEPLOY_MARKER = "20260614-r1"
+
+
+@router.get("/preview/ia/_meta")
+def preview_ia_deploy_meta():
+    return {
+        "ok": True,
+        "preview_ia": True,
+        "marker": PREVIEW_IA_DEPLOY_MARKER,
+        "routes": [
+            "/preview/ia",
+            "/preview/ia/client",
+            "/preview/ia/client/new",
+            "/preview/ia/consultant",
+        ],
+    }
+
 
 
 def _mock_client_requests():
