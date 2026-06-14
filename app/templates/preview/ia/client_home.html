@@ -1,0 +1,105 @@
+{% extends "preview/ia/base.html" %}
+{% block preview_title %}내 의뢰함{% endblock %}
+{% block preview_content %}
+<div class="container preview-ia-page">
+  <div class="preview-ia-page-head d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+    <div>
+      <p class="preview-ia-eyebrow mb-1">
+        <span class="nav-ko">의뢰자</span>
+        <span class="nav-en" style="display:none">Client</span>
+      </p>
+      <h1 class="preview-ia-page-title mb-1">
+        <span class="nav-ko">내 의뢰함</span>
+        <span class="nav-en" style="display:none">My requests</span>
+      </h1>
+      <p class="text-muted small mb-0">
+        <span class="nav-ko">진행 중인 SAP 개발 의뢰만 모아 봅니다. 메뉴 3개(신규·분석·연동) 대신 <strong>한곳</strong>에서 관리하는 시안입니다.</span>
+        <span class="nav-en" style="display:none">All your SAP requests in <strong>one place</strong> — instead of three top-level menus.</span>
+      </p>
+    </div>
+    <a href="{{ preview_root }}/client/new" class="btn btn-primary">
+      <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>
+      <span class="nav-ko">새 의뢰</span>
+      <span class="nav-en" style="display:none">New request</span>
+    </a>
+  </div>
+
+  {% if summary and user %}
+  <div class="row g-2 mb-4 preview-ia-summary">
+    <div class="col-4 col-md-3">
+      <div class="preview-ia-stat">
+        <div class="preview-ia-stat-num">{{ summary.total }}</div>
+        <div class="preview-ia-stat-label">
+          <span class="nav-ko">전체</span><span class="nav-en" style="display:none">Total</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-4 col-md-3">
+      <div class="preview-ia-stat preview-ia-stat--accent">
+        <div class="preview-ia-stat-num">{{ summary.active }}</div>
+        <div class="preview-ia-stat-label">
+          <span class="nav-ko">진행·제안</span><span class="nav-en" style="display:none">Active</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-4 col-md-3">
+      <div class="preview-ia-stat">
+        <div class="preview-ia-stat-num">{{ summary.draft }}</div>
+        <div class="preview-ia-stat-label">
+          <span class="nav-ko">임시저장</span><span class="nav-en" style="display:none">Drafts</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% elif not user %}
+  <div class="alert alert-info small mb-4">
+    <span class="nav-ko">아래 목록은 <strong>시안용 예시</strong>입니다. <a href="/login?next=/preview/ia/client">로그인</a>하면 실제 건수 요약을 붙일 수 있습니다.</span>
+    <span class="nav-en" style="display:none">Sample list below. <a href="/login?next=/preview/ia/client">Log in</a> to attach your real counts.</span>
+  </div>
+  {% endif %}
+
+  <div class="preview-ia-list">
+    {% for r in requests %}
+    <a href="{{ r.href }}" class="preview-ia-request-card{% if r.demo %} preview-ia-request-card--demo{% endif %}">
+      <div class="preview-ia-request-main">
+        <span class="preview-ia-request-type">
+          <span class="nav-ko">{{ r.type_ko }}</span>
+          <span class="nav-en" style="display:none">{{ r.type_en }}</span>
+        </span>
+        <h2 class="preview-ia-request-title">
+          <span class="nav-ko">{{ r.title_ko }}</span>
+          <span class="nav-en" style="display:none">{{ r.title_en }}</span>
+        </h2>
+      </div>
+      <div class="preview-ia-request-meta text-end">
+        <span class="preview-ia-status-badge">
+          <span class="nav-ko">{{ r.status_ko }}</span>
+          <span class="nav-en" style="display:none">{{ r.status_en }}</span>
+        </span>
+        <div class="small text-muted mt-1">
+          <span class="nav-ko">{{ r.updated_ko }}</span>
+          <span class="nav-en" style="display:none">{{ r.updated_en }}</span>
+        </div>
+      </div>
+      {% if r.demo %}
+      <span class="preview-ia-demo-tag">DEMO</span>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if user and stage_links %}
+  <details class="preview-ia-legacy-links mt-4 small text-muted">
+    <summary>
+      <span class="nav-ko">기존 사이트 바로가기 (비교용)</span>
+      <span class="nav-en" style="display:none">Jump to live site (compare)</span>
+    </summary>
+    <ul class="mt-2 mb-0">
+      <li><a href="/services/abap">신규 개발 / Develop</a></li>
+      <li><a href="/abap-analysis">분석·개선 / Improve</a></li>
+      <li><a href="/integration">연동 / Connect</a></li>
+    </ul>
+  </details>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "preview/ia/base.html" %}
+{% block preview_title %}받은 의뢰{% endblock %}
+{% block preview_content %}
+<div class="container preview-ia-page">
+  <div class="preview-ia-page-head d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+    <div>
+      <p class="preview-ia-eyebrow mb-1">
+        <span class="nav-ko">SAP 전문가</span>
+        <span class="nav-en" style="display:none">Expert</span>
+      </p>
+      <h1 class="preview-ia-page-title mb-1">
+        <span class="nav-ko">받은 의뢰</span>
+        <span class="nav-en" style="display:none">Incoming requests</span>
+      </h1>
+      <p class="text-muted small mb-0">
+        <span class="nav-ko">신규·분석·연동 메뉴 없이 <strong>한 inbox</strong>에서 오퍼할 수 있는 시안입니다.</span>
+        <span class="nav-en" style="display:none">One <strong>inbox</strong> for offers — no separate Develop / Improve / Connect menus.</span>
+      </p>
+    </div>
+    {% if is_consultant %}
+    <a href="{{ console_url }}" class="btn btn-primary">
+      <i class="fa-solid fa-inbox me-1" aria-hidden="true"></i>
+      <span class="nav-ko">실제 요청 콘솔 열기</span>
+      <span class="nav-en" style="display:none">Open live console</span>
+    </a>
+    {% else %}
+    <a href="/account/edit" class="btn btn-outline-primary">
+      <span class="nav-ko">컨설턴트 신청</span>
+      <span class="nav-en" style="display:none">Apply as consultant</span>
+    </a>
+    {% endif %}
+  </div>
+
+  {% if not is_consultant %}
+  <div class="alert alert-warning small mb-4">
+    <span class="nav-ko">컨설턴트 권한이 없으면 실제 콘솔은 열리지 않습니다. 아래는 UI 시안용 예시 목록입니다.</span>
+    <span class="nav-en" style="display:none">Without consultant access the live console stays locked. Sample inbox below.</span>
+  </div>
+  {% endif %}
+
+  <div class="preview-ia-list">
+    {% for item in inbox %}
+    <div class="preview-ia-request-card preview-ia-request-card--static{% if item.demo %} preview-ia-request-card--demo{% endif %}">
+      <div class="preview-ia-request-main">
+        <span class="preview-ia-request-type">
+          <span class="nav-ko">{{ item.menu_ko }}</span>
+          <span class="nav-en" style="display:none">{{ item.menu_en }}</span>
+        </span>
+        <h2 class="preview-ia-request-title">
+          <span class="nav-ko">{{ item.title_ko }}</span>
+          <span class="nav-en" style="display:none">{{ item.title_en }}</span>
+        </h2>
+      </div>
+      <div class="preview-ia-request-meta text-end">
+        <div class="small text-muted">
+          <span class="nav-ko">{{ item.budget_ko }}</span>
+          <span class="nav-en" style="display:none">{{ item.budget_en }}</span>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary mt-2" disabled>
+          <span class="nav-ko">오퍼 보내기</span>
+          <span class="nav-en" style="display:none">Send offer</span>
+        </button>
+      </div>
+      {% if item.demo %}
+      <span class="preview-ia-demo-tag">DEMO</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if is_consultant %}
+  <p class="small text-muted mt-4">
+    <span class="nav-ko">실제 오퍼·매칭·FS는 <a href="{{ console_url }}">요청 콘솔</a>에서 계속 사용합니다.</span>
+    <span class="nav-en" style="display:none">Offers, matching, and FS still run in the <a href="{{ console_url }}">request console</a>.</span>
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

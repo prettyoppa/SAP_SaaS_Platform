@@ -36,6 +36,7 @@ from .routers import admin_router, review_router, integration_router, integratio
 from .routers import site_content_router, seo_router, legal_content_router
 from .routers import (
     portone_router,
+    preview_ia_router,
     project_settlement_router,
     paid_admin_router,
     proposal_supplements_router,
@@ -1051,6 +1052,7 @@ app.include_router(proposal_decisions_router.router)
 app.include_router(billing_router.router)
 app.include_router(ai_wallet_router.router)
 app.include_router(as_built_router.router)
+app.include_router(preview_ia_router.router)
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):

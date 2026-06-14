@@ -1,0 +1,62 @@
+{% extends "preview/ia/base.html" %}
+{% block preview_title %}새 의뢰{% endblock %}
+{% block preview_content %}
+<div class="container preview-ia-page preview-ia-page--narrow">
+  <a href="{{ preview_root }}/client" class="small text-decoration-none mb-3 d-inline-block">
+    <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>
+    <span class="nav-ko">내 의뢰함</span>
+    <span class="nav-en" style="display:none">My requests</span>
+  </a>
+  <h1 class="preview-ia-page-title mb-2">
+    <span class="nav-ko">어떤 도움이 필요하세요?</span>
+    <span class="nav-en" style="display:none">What do you need help with?</span>
+  </h1>
+  <p class="text-muted mb-4">
+    <span class="nav-ko">업무 용어 대신 <strong>결과</strong> 기준으로 고르는 2단계 시안입니다. 선택하면 <strong>기존 실제 플로우</strong>로 이어집니다.</span>
+    <span class="nav-en" style="display:none">Pick by <strong>outcome</strong>, not internal jargon. Each option opens the <strong>live</strong> flow.</span>
+  </p>
+
+  <div class="preview-ia-picker-grid">
+    <a href="/services/abap" class="preview-ia-picker-card">
+      <div class="preview-ia-picker-icon"><i class="fa-solid fa-code" aria-hidden="true"></i></div>
+      <h2 class="h5">
+        <span class="nav-ko">새 SAP 프로그램 만들기</span>
+        <span class="nav-en" style="display:none">Build a new SAP program</span>
+      </h2>
+      <p class="small text-muted mb-0">
+        <span class="nav-ko">리포트·화면·배치 등 신규 ABAP 개발</span>
+        <span class="nav-en" style="display:none">New ABAP — reports, screens, batch, etc.</span>
+      </p>
+    </a>
+    <a href="/abap-analysis" class="preview-ia-picker-card">
+      <div class="preview-ia-picker-icon preview-ia-picker-icon--2"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i></div>
+      <h2 class="h5">
+        <span class="nav-ko">기존 ABAP 점검·고치기</span>
+        <span class="nav-en" style="display:none">Review or fix existing ABAP</span>
+      </h2>
+      <p class="small text-muted mb-0">
+        <span class="nav-ko">성능·오류·리팩터링·코드 리뷰</span>
+        <span class="nav-en" style="display:none">Performance, bugs, refactoring, review</span>
+      </p>
+    </a>
+    <a href="/integration" class="preview-ia-picker-card">
+      <div class="preview-ia-picker-icon preview-ia-picker-icon--3"><i class="fa-solid fa-plug" aria-hidden="true"></i></div>
+      <h2 class="h5">
+        <span class="nav-ko">다른 시스템과 연결</span>
+        <span class="nav-en" style="display:none">Connect to another system</span>
+      </h2>
+      <p class="small text-muted mb-0">
+        <span class="nav-ko">API·IDoc·RFC 등 연동 개발</span>
+        <span class="nav-en" style="display:none">API, IDoc, RFC integrations</span>
+      </p>
+    </a>
+  </div>
+
+  {% if not user %}
+  <p class="small text-muted mt-4 text-center">
+    <span class="nav-ko"><a href="/register">회원가입</a> 후 의뢰를 저장할 수 있습니다.</span>
+    <span class="nav-en" style="display:none"><a href="/register">Sign up</a> to save your requests.</span>
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

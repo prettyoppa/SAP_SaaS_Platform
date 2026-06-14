@@ -1,0 +1,83 @@
+{% extends "preview/ia/base.html" %}
+{% block preview_title %}역할 선택{% endblock %}
+{% block preview_content %}
+<section class="preview-ia-hero">
+  <div class="container">
+    <p class="preview-ia-eyebrow">
+      <span class="nav-ko">처음 방문하셨나요?</span>
+      <span class="nav-en" style="display:none">First time here?</span>
+    </p>
+    <h1 class="preview-ia-hero-title">
+      <span class="nav-ko">무엇을 도와드릴까요?</span>
+      <span class="nav-en" style="display:none">What would you like to do?</span>
+    </h1>
+    <p class="preview-ia-hero-lead text-muted">
+      <span class="nav-ko">SAP 개발 업무 종류를 외울 필요 없이, <strong>역할</strong>만 고르면 됩니다.</span>
+      <span class="nav-en" style="display:none">Pick your <strong>role</strong> — no need to learn our internal menu names first.</span>
+    </p>
+
+    <div class="row g-3 g-lg-4 preview-ia-role-grid">
+      <div class="col-md-6">
+        <a href="{{ preview_root }}/client" class="preview-ia-role-card preview-ia-role-card--client text-decoration-none">
+          <div class="preview-ia-role-icon"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i></div>
+          <h2 class="h4 preview-ia-role-title">
+            <span class="nav-ko">SAP 개발을 맡기고 싶어요</span>
+            <span class="nav-en" style="display:none">I need SAP development done</span>
+          </h2>
+          <p class="preview-ia-role-desc">
+            <span class="nav-ko">AI 인터뷰 → 제안서 → (원하면) 전문가 납품까지 한곳에서.</span>
+            <span class="nav-en" style="display:none">AI interview → proposal → optional expert delivery, in one place.</span>
+          </p>
+          <span class="preview-ia-role-cta">
+            <span class="nav-ko">의뢰자 화면 보기</span>
+            <span class="nav-en" style="display:none">View client hub</span>
+            <i class="fa-solid fa-arrow-right ms-1" aria-hidden="true"></i>
+          </span>
+        </a>
+      </div>
+      <div class="col-md-6">
+        <a href="{{ preview_root }}/consultant" class="preview-ia-role-card preview-ia-role-card--expert text-decoration-none">
+          <div class="preview-ia-role-icon"><i class="fa-solid fa-user-tie" aria-hidden="true"></i></div>
+          <h2 class="h4 preview-ia-role-title">
+            <span class="nav-ko">SAP 전문가로 일하고 싶어요</span>
+            <span class="nav-en" style="display:none">I work as an SAP expert</span>
+          </h2>
+          <p class="preview-ia-role-desc">
+            <span class="nav-ko">회원 의뢰를 보고 오퍼 · FS · 납품 코드 · 정산까지.</span>
+            <span class="nav-en" style="display:none">Browse member requests — offers, specs, code, settlement.</span>
+          </p>
+          <span class="preview-ia-role-cta">
+            <span class="nav-ko">전문가 화면 보기</span>
+            <span class="nav-en" style="display:none">View expert hub</span>
+            <i class="fa-solid fa-arrow-right ms-1" aria-hidden="true"></i>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <div class="preview-ia-trust row g-3 mt-2">
+      <div class="col-md-4">
+        <div class="preview-ia-trust-item">
+          <i class="fa-solid fa-shield-halved text-primary me-2" aria-hidden="true"></i>
+          <span class="nav-ko">SAP 공식 제품이 아닌 독립 플랫폼</span>
+          <span class="nav-en" style="display:none">Independent platform — not an SAP product</span>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="preview-ia-trust-item">
+          <i class="fa-solid fa-robot text-primary me-2" aria-hidden="true"></i>
+          <span class="nav-ko">AI 크레딧으로 인터뷰·제안서 체험</span>
+          <span class="nav-en" style="display:none">Try interviews &amp; proposals with AI credits</span>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="preview-ia-trust-item">
+          <i class="fa-solid fa-handshake text-primary me-2" aria-hidden="true"></i>
+          <span class="nav-ko">원할 때만 전문가 매칭</span>
+          <span class="nav-en" style="display:none">Expert matching only when you want it</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
