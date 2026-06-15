@@ -205,7 +205,7 @@ def preview_ia_switch_role(role: str):
 
 
 _PREVIEW_IA2_ROOT = "/preview/ia2"
-PREVIEW_IA2_DEPLOY_MARKER = "20260614-ia2-r1"
+PREVIEW_IA2_DEPLOY_MARKER = "20260614-ia2-r2"
 
 
 @router.get("/preview/ia2/_meta")
