@@ -41,12 +41,15 @@
 
 {% block content %}
 
-{% include "partials/home_hero_ia2.html" %}
-
-<section class="section-light py-2 home-hero-guide-section">
+<!-- Hero -->
+<section class="hero-section hero-compact">
   <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-12 col-xl-10">
+    <div class="row hero-home-split align-items-start gx-3 gy-0">
+      <div class="col-12 hero-home-split__hero">
+        {% include "partials/home_hero_left.html" %}
+      </div>
+
+      <div class="col-12 hero-home-split__guide">
         {% include "partials/home_hero_guide_panel.html" %}
       </div>
     </div>
