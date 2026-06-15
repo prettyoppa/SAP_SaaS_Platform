@@ -1632,6 +1632,265 @@ html[data-theme="light"] .hero-section.hero-compact {
   }
 }
 
+/* ── Home hero ia2 (bubble conversation) ────────────────────────── */
+.hero-section.home-hero-ia2 {
+  padding: 2rem 0 2.5rem !important;
+  min-height: 0;
+}
+.home-hero-guide-section {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.75rem !important;
+}
+.ia2-hero-grid {
+  display: grid;
+  gap: 2rem;
+  align-items: center;
+}
+@media (min-width: 992px) {
+  .ia2-hero-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+  }
+}
+.ia2-hero-visual {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 1rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(160deg, rgba(99, 102, 241, 0.08) 0%, rgba(20, 184, 166, 0.06) 100%);
+  border: 1px solid var(--border);
+}
+@media (min-width: 992px) {
+  .ia2-hero-visual {
+    max-width: none;
+    margin: 0;
+    padding: 1.25rem 1.35rem 1.5rem;
+  }
+}
+.ia2-bubbles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.ia2-bubble {
+  width: 100%;
+  padding: 0.85rem 1rem 1rem;
+  border-radius: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+  position: relative;
+}
+html[data-theme="dark"] .ia2-bubble {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+.ia2-bubble:nth-child(1) { animation: ia2-bubble-in 0.5s ease-out both; }
+.ia2-bubble:nth-child(2) { animation: ia2-bubble-in 0.5s ease-out 0.12s both; }
+.ia2-bubble:nth-child(3) { animation: ia2-bubble-in 0.5s ease-out 0.24s both; }
+@keyframes ia2-bubble-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ia2-bubble--thought {
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.5);
+  background: var(--surface2);
+  margin-left: 1.25rem;
+}
+.ia2-bubble--speech::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: 1.75rem;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+  border-top-color: var(--surface);
+  border-bottom: none;
+}
+.ia2-bubble--thought::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 2rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+}
+.ia2-bubble-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.ia2-bubble-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #fff;
+  background: linear-gradient(145deg, #6366f1, #4f46e5);
+  flex-shrink: 0;
+}
+.ia2-bubble-type {
+  font-size: 0.8rem;
+  color: var(--primary-light);
+  opacity: 0.85;
+}
+.ia2-bubble-type--thought {
+  color: #94a3b8;
+}
+.ia2-bubble-text {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text);
+  font-weight: 500;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+.ia2-person-stage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2rem;
+  padding-top: 0.5rem;
+}
+.ia2-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.ia2-person--user {
+  flex-shrink: 0;
+}
+.ia2-person--expert {
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.ia2-person-ring {
+  position: absolute;
+  width: 5rem;
+  height: 5rem;
+  top: -0.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border: 2px dashed rgba(99, 102, 241, 0.4);
+  animation: ia2-ring-spin 14s linear infinite;
+  pointer-events: none;
+}
+@keyframes ia2-ring-spin {
+  to { transform: translateX(-50%) rotate(360deg); }
+}
+.ia2-person-avatar {
+  width: 4.25rem;
+  height: 4.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  color: #fff;
+  background: linear-gradient(145deg, #6366f1 0%, #4f46e5 100%);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+  position: relative;
+  z-index: 1;
+}
+.ia2-person-avatar--expert {
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.2rem;
+  background: linear-gradient(145deg, #64748b, #475569);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+.ia2-person-label {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ia2-person-badge {
+  margin-top: 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.ia2-invite-icon {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.5rem;
+  font-size: 0.85rem;
+  color: #14b8a6;
+  background: var(--surface);
+  border-radius: 50%;
+  padding: 0.2rem;
+}
+.ia2-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #14b8a6;
+  margin-bottom: 0.5rem;
+}
+.ia2-hero-title {
+  font-size: clamp(1.45rem, 3.5vw, 2rem);
+  font-weight: 700;
+  line-height: 1.35;
+  margin-bottom: 1rem;
+}
+.ia2-hero-lead {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-bottom: 1.25rem;
+}
+.ia2-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.ia2-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.ia2-step-num {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary-light);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ia2-bubble,
+  .ia2-person-ring {
+    animation: none;
+  }
+}
+
 /* 히어로 사용 안내 카드 — 높이 고정(코딩 데모·동영상 내부 스크롤) */
 .home-guide-card {
   --home-guide-card-height: 14.75rem;
