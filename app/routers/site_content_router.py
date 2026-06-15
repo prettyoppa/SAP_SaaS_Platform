@@ -31,6 +31,12 @@ from ..kb_public_content import (
     strip_leading_title_from_body_md,
     texts_overlap,
 )
+from ..seo_indexing import (
+    faq_has_indexable_answer,
+    kb_has_indexable_body_en,
+    kb_has_indexable_body_ko,
+    notice_has_indexable_body,
+)
 from ..site_markdown_html import site_markdown_to_html as _markdown_to_html
 
 router = APIRouter(tags=["site_content"])
@@ -148,6 +154,7 @@ def notice_public_list(
             "total_pages": total_pages,
             "list_rows": list_rows,
             "page_nums": _pagination_window(page, total_pages),
+            "seo_noindex": total == 0,
         },
     )
 
@@ -206,6 +213,7 @@ def faq_public_list(
             "total_pages": total_pages,
             "list_rows": list_rows,
             "page_nums": _pagination_window(page, total_pages),
+            "seo_noindex": total == 0,
         },
     )
 
@@ -249,6 +257,7 @@ def notice_public_detail(notice_id: int, request: Request, db: Session = Depends
             "body_html": body_html,
             "body_html_en": body_html_en,
             "meta_title": meta_title,
+            "seo_noindex": not notice_has_indexable_body(n),
         },
     )
 
@@ -283,6 +292,7 @@ def faq_public_detail(faq_id: int, request: Request, db: Session = Depends(get_d
             "answer_html": answer_html,
             "answer_html_en": answer_html_en,
             "meta_title": meta_title,
+            "seo_noindex": not faq_has_indexable_answer(f),
         },
     )
 
@@ -459,6 +469,10 @@ def _kb_public_detail_response(
             "hreflang_en": alt_en,
             "show_excerpt": show_excerpt,
             "excerpt_text": excerpt,
+            "seo_noindex": (
+                (loc == "en" and not kb_has_indexable_body_en(a))
+                or (loc == "ko" and not kb_has_indexable_body_ko(a))
+            ),
         },
     )
 

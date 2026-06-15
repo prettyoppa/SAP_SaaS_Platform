@@ -15,6 +15,12 @@ from .. import models
 from ..database import get_db
 from ..llms_txt import llms_txt_for_request
 from ..offer_inquiry_service import site_public_origin
+from ..seo_indexing import (
+    faq_has_indexable_answer,
+    kb_has_indexable_body_en,
+    kb_has_indexable_body_ko,
+    notice_has_indexable_body,
+)
 
 router = APIRouter(tags=["seo"])
 _log = logging.getLogger("uvicorn.error")
@@ -25,8 +31,8 @@ _DISALLOW_PREFIXES = (
     "/api",
     "/account",
     "/rfp/",
-    "/abap-analysis/",
-    "/integration/",
+    "/abap-analysis",
+    "/integration",
     "/request-console",
     "/login",
     "/register",
@@ -36,14 +42,14 @@ _DISALLOW_PREFIXES = (
     "/codelib",
     "/reviews",
     "/dev/",
+    "/preview/",
 )
 
+# 공개 SEO 랜딩 (회원 전용 메뉴 허브 /abap-analysis · /integration 은 제외)
 _PUBLIC_LANDING_PATHS = (
     "/",
     "/about",
     "/services/abap",
-    "/abap-analysis",
-    "/integration",
     "/notices",
     "/faqs",
     "/kb",
@@ -128,11 +134,7 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
         (f"{origin}/", today, "weekly", "1.0"),
         (f"{origin}/about", today, "monthly", "0.9"),
         (f"{origin}/services/abap", today, "weekly", "0.85"),
-        (f"{origin}/abap-analysis", today, "weekly", "0.85"),
-        (f"{origin}/integration", today, "weekly", "0.85"),
         (f"{origin}/kb", today, "daily", "0.85"),
-        (f"{origin}/notices", today, "weekly", "0.7"),
-        (f"{origin}/faqs", today, "weekly", "0.7"),
         (f"{origin}/terms", today, "yearly", "0.4"),
         (f"{origin}/privacy", today, "yearly", "0.4"),
     ]
@@ -145,7 +147,10 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
         .order_by(models.Notice.created_at.desc(), models.Notice.id.desc())
         .all()
     )
-    for n in notices:
+    indexable_notices = [n for n in notices if notice_has_indexable_body(n)]
+    if indexable_notices:
+        entries.append(_sitemap_url_block(f"{origin}/notices", today, "weekly", "0.7"))
+    for n in indexable_notices:
         lm = _lastmod_iso(getattr(n, "updated_at", None) or n.created_at) or today
         entries.append(
             _sitemap_url_block(
@@ -162,7 +167,10 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
         .order_by(models.FAQ.created_at.desc(), models.FAQ.id.desc())
         .all()
     )
-    for f in faqs:
+    indexable_faqs = [f for f in faqs if faq_has_indexable_answer(f)]
+    if indexable_faqs:
+        entries.append(_sitemap_url_block(f"{origin}/faqs", today, "weekly", "0.7"))
+    for f in indexable_faqs:
         lm = _lastmod_iso(getattr(f, "updated_at", None) or f.created_at) or today
         entries.append(
             _sitemap_url_block(
@@ -189,19 +197,18 @@ def _build_sitemap_entries(origin: str, db: Session) -> list[str]:
         .order_by(models.KnowledgeArticle.updated_at.desc(), models.KnowledgeArticle.id.desc())
         .all()
     )
-    from ..kb_i18n import kb_has_public_english
-
     for a in articles:
         lm = _lastmod_iso(getattr(a, "updated_at", None) or a.published_at or a.created_at) or today
-        entries.append(
-            _sitemap_url_block(
-                f"{origin}/kb/{a.slug}",
-                lm,
-                "monthly",
-                "0.8",
+        if kb_has_indexable_body_ko(a):
+            entries.append(
+                _sitemap_url_block(
+                    f"{origin}/kb/{a.slug}",
+                    lm,
+                    "monthly",
+                    "0.8",
+                )
             )
-        )
-        if kb_has_public_english(a):
+        if kb_has_indexable_body_en(a):
             entries.append(
                 _sitemap_url_block(
                     f"{origin}/en/kb/{a.slug}",
@@ -234,8 +241,7 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
         fallback = [
             _sitemap_url_block(f"{origin}/", today, "weekly", "1.0"),
             _sitemap_url_block(f"{origin}/about", today, "monthly", "0.9"),
+            _sitemap_url_block(f"{origin}/services/abap", today, "weekly", "0.85"),
             _sitemap_url_block(f"{origin}/kb", today, "daily", "0.85"),
-            _sitemap_url_block(f"{origin}/notices", today, "weekly", "0.7"),
-            _sitemap_url_block(f"{origin}/faqs", today, "weekly", "0.7"),
         ]
         return _sitemap_xml_response(fallback)

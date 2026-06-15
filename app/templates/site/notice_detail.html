@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ meta_title }} · 공지사항{% endblock %}
 {% block head_meta %}
+{% include "partials/seo_robots_noindex.html" %}
+{% if not seo_noindex %}
 <meta name="description" content="{{ meta_title|e }} 공지 상세 페이지입니다." />
 <link rel="canonical" href="{{ request.url|e }}" />
 <meta property="og:type" content="article" />
@@ -20,6 +22,7 @@
   "mainEntityOfPage": "{{ request.url|e }}"
 }
 </script>
+{% endif %}
 {% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">

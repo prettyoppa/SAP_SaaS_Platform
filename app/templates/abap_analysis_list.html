@@ -1,12 +1,8 @@
 {% extends "base.html" %}
 {% block title %}SAP ABAP 분석·개선 – SAP 개발 파트너{% endblock %}
 {% block head_meta %}
-{% set seo_title_ko = "SAP ABAP 분석·개선 | SAP 개발 파트너" %}
-{% set seo_title_en = "Improve | SAP Development Partner" %}
-{% set seo_desc_ko = "기존 ABAP 코드 분석·진단 및 개선 제안. AI와 컨설턴트 협업 SaaS." %}
-{% set seo_desc_en = "Analyze existing ABAP code and get improvement proposals with AI and consultants." %}
-{% set seo_path = "/abap-analysis" %}
-{% include "partials/seo_head_public.html" %}
+<meta name="robots" content="noindex, follow" />
+<link rel="canonical" href="{{ (request.base_url|string).rstrip('/') }}/services/abap" />
 {% endblock %}
 
 {% block content %}

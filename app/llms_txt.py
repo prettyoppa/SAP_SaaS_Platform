@@ -24,8 +24,6 @@ def build_llms_txt(origin: str) -> str:
 - Home: {base}/
 - About / product identity: {base}/about
 - New ABAP development (RFP): {base}/services/abap
-- ABAP analysis & improvement: {base}/abap-analysis
-- Integration development: {base}/integration
 - Knowledge gallery (published articles): {base}/kb
 - Notices: {base}/notices
 - FAQ: {base}/faqs
@@ -35,6 +33,7 @@ def build_llms_txt(origin: str) -> str:
 
 ## What is NOT public (login required)
 
+- Member request hubs: /abap-analysis, /integration (login for your request list)
 - Member requests, interview transcripts, proposals, FS, delivered code, billing, admin
 
 ## Keywords

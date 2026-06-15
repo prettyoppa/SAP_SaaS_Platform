@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ meta_title }}{% if page_locale == 'en' %} · Knowledge Gallery{% else %} · 지식갤러리{% endif %}{% endblock %}
 {% block head_meta %}
+{% include "partials/seo_robots_noindex.html" %}
+{% if not seo_noindex %}
 {% if meta_description and meta_description|trim %}
 <meta name="description" content="{{ meta_description|trim|e }}" />
 {% endif %}
@@ -29,12 +31,13 @@
   "@type": "Article",
   "headline": "{{ meta_title|e }}",
   "description": "{{ (meta_description or excerpt_text or '')|e }}",
-  "inLanguage": "{{ page_locale|e }}",
-  "datePublished": "{{ article.published_at.isoformat() if article and article.published_at else '' }}",
-  "dateModified": "{{ (article.updated_at or article.published_at or article.created_at).isoformat() if article and (article.updated_at or article.published_at or article.created_at) else '' }}",
+  "inLanguage": "{{ page_locale|e }}"{% if article and article.published_at %},
+  "datePublished": "{{ article.published_at.isoformat() }}"{% endif %}{% if article and (article.updated_at or article.published_at or article.created_at) %},
+  "dateModified": "{{ (article.updated_at or article.published_at or article.created_at).isoformat() }}"{% endif %},
   "mainEntityOfPage": "{{ (canonical_url or request.url)|e }}"
 }
 </script>
+{% endif %}
 {% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">

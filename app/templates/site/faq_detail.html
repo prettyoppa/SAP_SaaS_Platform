@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ meta_title }} · FAQ{% endblock %}
 {% block head_meta %}
+{% include "partials/seo_robots_noindex.html" %}
+{% if not seo_noindex %}
 <meta name="description" content="{{ meta_title|e }} FAQ 상세 페이지입니다." />
 <link rel="canonical" href="{{ request.url|e }}" />
 <meta property="og:type" content="article" />
@@ -24,6 +26,7 @@
   }]
 }
 </script>
+{% endif %}
 {% endblock %}
 {% block content %}
 <div class="site-content-page py-4 py-md-5">
