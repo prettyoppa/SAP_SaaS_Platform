@@ -202,3 +202,32 @@ def preview_ia_switch_role(role: str):
     if role == "consultant":
         return RedirectResponse(url=f"{_PREVIEW_ROOT}/consultant", status_code=302)
     return RedirectResponse(url=f"{_PREVIEW_ROOT}/client", status_code=302)
+
+
+_PREVIEW_IA2_ROOT = "/preview/ia2"
+PREVIEW_IA2_DEPLOY_MARKER = "20260614-ia2-r1"
+
+
+@router.get("/preview/ia2/_meta")
+def preview_ia2_deploy_meta():
+    return {
+        "ok": True,
+        "preview_ia2": True,
+        "marker": PREVIEW_IA2_DEPLOY_MARKER,
+        "routes": ["/preview/ia2"],
+    }
+
+
+@router.get("/preview/ia2", response_class=HTMLResponse)
+def preview_ia2_landing(request: Request):
+    user = getattr(request.state, "current_user", None)
+    return templates.TemplateResponse(
+        request,
+        "preview/ia2/landing.html",
+        {
+            "user": user,
+            "preview_root": _PREVIEW_IA2_ROOT,
+            "preview_role": "ia2",
+            "ia1_root": _PREVIEW_ROOT,
+        },
+    )

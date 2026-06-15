@@ -1,0 +1,117 @@
+{% extends "preview/ia2/base.html" %}
+{% block preview_title %}스트레스 없는 SAP 개발 요청{% endblock %}
+{% block preview_content %}
+<section class="ia2-hero" aria-labelledby="ia2-hero-heading">
+  <div class="container">
+    <div class="ia2-hero-grid">
+      <div class="ia2-hero-scene" aria-hidden="true">
+        <div class="ia2-scene-glow"></div>
+
+        <article class="ia2-bubble ia2-bubble--q1 ia2-bubble--speech" style="--ia2-delay: 0s">
+          <i class="fa-solid fa-comment-dots ia2-bubble-icon" aria-hidden="true"></i>
+          <p class="ia2-bubble-text nav-ko mb-0">왜 운영 중에 작은 ABAP 개발 하나 요청하려면, 프로젝트 때보다 더 비싸고 복잡할까요?</p>
+          <p class="ia2-bubble-text nav-en mb-0" style="display:none">Why does a small ABAP change in production feel pricier and more complex than during a project?</p>
+        </article>
+
+        <article class="ia2-bubble ia2-bubble--q2 ia2-bubble--thought" style="--ia2-delay: 0.4s">
+          <i class="fa-solid fa-cloud ia2-bubble-icon ia2-bubble-icon--thought" aria-hidden="true"></i>
+          <p class="ia2-bubble-text nav-ko mb-0">간단한 리포트 수정 요청인데, 왜 기획서 쓰고 조율하는 데만 몇 주가 걸릴까요?</p>
+          <p class="ia2-bubble-text nav-en mb-0" style="display:none">A simple report tweak—why do specs and coordination alone take weeks?</p>
+        </article>
+
+        <article class="ia2-bubble ia2-bubble--q3 ia2-bubble--speech" style="--ia2-delay: 0.8s">
+          <i class="fa-solid fa-comment-dots ia2-bubble-icon" aria-hidden="true"></i>
+          <p class="ia2-bubble-text nav-ko mb-0">쪼개진 유지보수 예산으로 ABAP 추가 개발 요청하기 눈치 보이셨나요?</p>
+          <p class="ia2-bubble-text nav-en mb-0" style="display:none">Ever hesitated to ask for ABAP work because maintenance budgets are split thin?</p>
+        </article>
+
+        <div class="ia2-person ia2-person--user">
+          <div class="ia2-person-ring"></div>
+          <div class="ia2-person-avatar" title="">
+            <i class="fa-solid fa-user" aria-hidden="true"></i>
+          </div>
+          <span class="ia2-person-label nav-ko">SAP 담당자</span>
+          <span class="ia2-person-label nav-en" style="display:none">SAP owner</span>
+          <div class="ia2-person-thought" aria-hidden="true">
+            <i class="fa-solid fa-ellipsis"></i>
+          </div>
+        </div>
+
+        <div class="ia2-person ia2-person--expert ia2-person--muted">
+          <div class="ia2-person-avatar ia2-person-avatar--expert">
+            <i class="fa-solid fa-user-tie" aria-hidden="true"></i>
+          </div>
+          <span class="ia2-person-badge nav-ko">초청 전용</span>
+          <span class="ia2-person-badge nav-en" style="display:none">Invite only</span>
+          <div class="ia2-invite-bubble">
+            <i class="fa-solid fa-envelope-open-text" aria-hidden="true"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="ia2-hero-copy">
+        <p class="ia2-eyebrow">
+          <span class="nav-ko">운영 SAP · 소규모 개발</span>
+          <span class="nav-en" style="display:none">Run SAP · small changes</span>
+        </p>
+        <h1 id="ia2-hero-heading" class="ia2-hero-title">
+          <span class="nav-ko">SAP 개발 요청, 더 이상 지체하지 말고 <span class="text-gradient">Catchy Lab</span>에서 쉽고 빠르게 해결하세요.</span>
+          <span class="nav-en" style="display:none">Don't delay SAP development—solve it <strong>fast and easily</strong> on <span class="text-gradient">Catchy Lab</span>.</span>
+        </h1>
+        <p class="ia2-hero-lead">
+          <span class="nav-ko">회원가입만으로 검증된 전문가 그룹의 시스템을 활용한 <strong>「스트레스 없는 SAP 개발 요청」</strong>이 시작됩니다.</span>
+          <span class="nav-en" style="display:none">Sign up to start <strong>stress-free SAP requests</strong> on our vetted expert group's platform.</span>
+        </p>
+
+        <div class="ia2-hero-actions d-flex flex-wrap gap-2">
+          {% if user %}
+          <a href="/preview/ia/client/new" class="btn btn-primary btn-lg">
+            <i class="fa-solid fa-pen-to-square me-2" aria-hidden="true"></i>
+            <span class="nav-ko">개발 요청 시작</span>
+            <span class="nav-en" style="display:none">Start a request</span>
+          </a>
+          {% else %}
+          <a href="/register" class="btn btn-primary btn-lg">
+            <i class="fa-solid fa-user-plus me-2" aria-hidden="true"></i>
+            <span class="nav-ko">무료 회원가입</span>
+            <span class="nav-en" style="display:none">Sign up free</span>
+          </a>
+          <a href="/login?next=/preview/ia/client/new" class="btn btn-outline-light btn-lg">
+            <span class="nav-ko">로그인</span>
+            <span class="nav-en" style="display:none">Log in</span>
+          </a>
+          {% endif %}
+        </div>
+
+        <ol class="ia2-steps list-unstyled mt-4 mb-0">
+          <li class="ia2-step">
+            <span class="ia2-step-num">1</span>
+            <span class="nav-ko">가입 후 요청 유형만 고르기</span>
+            <span class="nav-en" style="display:none">Sign up, pick request type</span>
+          </li>
+          <li class="ia2-step">
+            <span class="ia2-step-num">2</span>
+            <span class="nav-ko">AI 인터뷰로 요구사항 정리</span>
+            <span class="nav-en" style="display:none">AI interview captures needs</span>
+          </li>
+          <li class="ia2-step">
+            <span class="ia2-step-num">3</span>
+            <span class="nav-ko">제안서 확인 · (원하면) 전문가 매칭</span>
+            <span class="nav-en" style="display:none">Review proposal · optional expert match</span>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ia2-note section-light py-4">
+  <div class="container">
+    <div class="ia2-note-card">
+      <i class="fa-solid fa-lightbulb text-warning me-2" aria-hidden="true"></i>
+      <span class="nav-ko"><strong>시안 방향:</strong> 홈·가입은 <strong>의뢰자(일반 회원)</strong> 중심. 컨설턴트는 의뢰 건 기반 <strong>초청 가입</strong>으로 유도 — 상단 메뉴에 「전문가 가입」을 두지 않습니다.</span>
+      <span class="nav-en" style="display:none"><strong>Prototype intent:</strong> Home and signup focus on <strong>requesters</strong>. Experts join via <strong>invite</strong> tied to requests—not a public consultant signup path.</span>
+    </div>
+  </div>
+</section>
+{% endblock %}

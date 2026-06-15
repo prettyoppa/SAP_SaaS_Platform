@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="{{ request.state.initial_lang|default('ko') }}" data-lang="{{ request.state.initial_lang|default('ko') }}" data-initial-lang="{{ request.state.initial_lang|default('ko') }}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex, nofollow" />
+  <title>{% block preview_title %}<span class="nav-ko">홈 히어로 시안</span><span class="nav-en" style="display:none">Home hero preview</span>{% endblock %} · Catch Lab</title>
+  <link rel="icon" type="image/png" href="/static/img/catch_lab_sap_dev_hub_logo.png?v=20260428cat" />
+  <link href="/static/vendor/bootstrap-5.3.3/css/bootstrap.min.css?v=20260512" rel="stylesheet"/>
+  <link href="/static/vendor/fontawesome-free-6.5.1/css/all.min.css?v=20260512" rel="stylesheet"/>
+  <link href="/static/css/fa-font-display-swap.css?v=20260529" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="/static/css/style.css?v=20260529aichatcode" rel="stylesheet"/>
+  <link href="/static/css/preview-ia2.css?v=20260614ia2" rel="stylesheet"/>
+  <style id="lang-anti-flicker">
+    html[data-effective-lang="ko"] .nav-en { display: none !important; }
+    html[data-effective-lang="en"] .nav-ko { display: none !important; }
+    html[data-effective-lang="en"] .nav-en { display: revert !important; }
+  </style>
+  <script>
+    (function () {
+      var t = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      var lang = localStorage.getItem('lang') || document.documentElement.getAttribute('data-initial-lang') || 'ko';
+      if (lang !== 'en' && lang !== 'ko') lang = 'ko';
+      document.documentElement.setAttribute('data-effective-lang', lang);
+      document.documentElement.lang = lang;
+    })();
+  </script>
+</head>
+<body class="preview-ia2-body">
+  <div class="preview-ia2-banner" role="status">
+    <div class="container preview-ia2-banner-inner">
+      <span class="preview-ia2-banner-badge">PREVIEW IA2</span>
+      <span class="nav-ko">홈 히어로 시안 · <a href="/" class="preview-ia2-banner-link">실제 홈</a> · <a href="{{ ia1_root }}" class="preview-ia2-banner-link">IA1 시안</a></span>
+      <span class="nav-en" style="display:none">Home hero prototype · <a href="/" class="preview-ia2-banner-link">Live home</a> · <a href="{{ ia1_root }}" class="preview-ia2-banner-link">IA1</a></span>
+    </div>
+  </div>
+
+  <nav class="navbar navbar-expand-lg navbar-custom preview-ia2-nav">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center" href="{{ preview_root }}">
+        <img src="/static/img/catch_lab_sap_dev_hub_logo.png?v=20260428cat" alt="" class="navbar-brand-logo brand-logo-light-only me-2" height="28" decoding="async" />
+        <img src="/static/img/catch_lab_sap_dev_hub_logo_dark.png?v=20260428cat" alt="" class="navbar-brand-logo brand-logo-dark-only me-2" height="28" decoding="async" />
+        <span class="brand-ko">Catch Lab · 히어로 시안</span>
+        <span class="brand-en nav-en" style="display:none">Catch Lab · Hero preview</span>
+      </a>
+      <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+        <div class="lang-toggle">
+          <button type="button" class="lang-btn" onclick="setLang('en')">EN</button>
+          <span class="lang-sep">|</span>
+          <button type="button" class="lang-btn" onclick="setLang('ko')">한국어</button>
+        </div>
+        {% if user %}
+        <a href="/preview/ia/client/new" class="btn btn-primary btn-sm">
+          <span class="nav-ko">새 의뢰</span><span class="nav-en" style="display:none">New request</span>
+        </a>
+        {% else %}
+        <a href="/register" class="btn btn-primary btn-sm">
+          <span class="nav-ko">무료 회원가입</span><span class="nav-en" style="display:none">Sign up free</span>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <main class="preview-ia2-main">
+    {% block preview_content %}{% endblock %}
+  </main>
+
+  <footer class="footer preview-ia2-footer mt-auto">
+    <div class="container text-center small text-muted py-3">
+      <span class="nav-ko">전문가 가입은 초청·의뢰 연계 방식 검토 중 (시안)</span>
+      <span class="nav-en" style="display:none">Expert onboarding: invite-led model under review (prototype)</span>
+    </div>
+  </footer>
+
+  <script src="/static/vendor/bootstrap-5.3.3/js/bootstrap.bundle.min.js?v=20260512" defer></script>
+  <script src="/static/js/i18n.js?v=20260529" defer></script>
+  <script src="/static/js/main.js?v=20260529" defer></script>
+</body>
+</html>
