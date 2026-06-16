@@ -20,7 +20,7 @@ from ..templates_config import templates
 
 router = APIRouter(tags=["ia-landing"])
 
-IA_LANDING_DEPLOY_MARKER = "20260616-ia-r1"
+IA_LANDING_DEPLOY_MARKER = "20260616-ia-r3"
 
 
 @router.get("/ia/_meta")
@@ -48,7 +48,6 @@ def ia_landing(request: Request, db: Session = Depends(get_db)):
             "user": None,
             "seo_noindex": True,
             "google_oauth_enabled": google_oauth_configured(),
-            "kakao_oauth_enabled": kakao_oauth_configured(),
             "oauth_next": "/",
             "oauth_error": oauth_error,
         },

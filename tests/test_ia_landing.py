@@ -11,8 +11,8 @@ def test_ia_landing_returns_200_for_guest():
     r = client.get("/ia")
     assert r.status_code == 200
     assert "Catchy Lab" in r.text
-    assert "구글 로그인" in r.text or "Google" in r.text
-    assert "회원 가입" in r.text or "Sign up" in r.text
+    assert "구글로 시작하기" in r.text or "Continue with Google" in r.text
+    assert "카카오" not in r.text
 
 
 def test_ia_meta():
