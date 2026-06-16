@@ -43,6 +43,8 @@ _DISALLOW_PREFIXES = (
     "/reviews",
     "/dev/",
     "/preview/",
+    "/ia",
+    "/auth/oauth/",
 )
 
 # 공개 SEO 랜딩 (회원 전용 메뉴 허브 /abap-analysis · /integration 은 제외)
