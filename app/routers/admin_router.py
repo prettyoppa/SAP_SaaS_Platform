@@ -997,23 +997,6 @@ def admin_user_subscription_save(
     return RedirectResponse(url=f"/admin/users/{user_id}/subscription?saved=1", status_code=302)
 
 
-@router.post("/users/{user_id}/purge-now")
-def admin_user_purge_now(user_id: int, request: Request, db: Session = Depends(get_db)):
-    """탈퇴 유예 중인 계정을 즉시 영구 삭제(관리자)."""
-    actor = _require_admin(request, db)
-    if not actor:
-        return RedirectResponse(url="/", status_code=302)
-    target = db.query(models.User).filter(models.User.id == user_id).first()
-    if not target:
-        return RedirectResponse(url="/admin/users", status_code=302)
-    if target.id == actor.id:
-        return RedirectResponse(url="/admin/users?err=self", status_code=302)
-    if not getattr(target, "pending_account_deletion", False):
-        return RedirectResponse(url="/admin/users?err=not_pending", status_code=302)
-    lifecycle_purge_user(db, target.id)
-    return RedirectResponse(url="/admin/users?deleted=1", status_code=302)
-
-
 @router.post("/users/{user_id}/delete")
 def admin_user_delete(user_id: int, request: Request, db: Session = Depends(get_db)):
     actor = _require_admin(request, db)

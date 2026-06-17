@@ -27,11 +27,6 @@
       <i class="fa-solid fa-check me-2"></i>사용자와 연관 데이터를 삭제했습니다.
     </div>
     {% endif %}
-    {% if err == 'not_pending' %}
-    <div class="alert alert-warning mb-3">
-      <i class="fa-solid fa-triangle-exclamation me-2"></i>탈퇴 유예 중인 계정만 즉시 영구 삭제할 수 있습니다.
-    </div>
-    {% endif %}
     {% if err == 'self' %}
     <div class="alert alert-warning mb-3">
       <i class="fa-solid fa-triangle-exclamation me-2"></i>현재 로그인한 관리자 본인 계정은 삭제할 수 없습니다.
@@ -162,7 +157,6 @@
               </th>
               <th class="admin-users-actions-col">탈퇴</th>
               <th class="admin-users-actions-col">삭제</th>
-              <th class="admin-users-actions-col">유예 즉시</th>
             </tr>
           </thead>
           <tbody>
@@ -278,16 +272,6 @@
                 <form method="post" action="/admin/users/{{ u.id }}/delete" class="d-inline"
                       data-app-confirm="이 계정과 연관 데이터(RFP, 코드, 이용후기 등)를 모두 삭제할까요? 되돌릴 수 없습니다.">
                   <button type="submit" class="btn btn-sm btn-danger btn-admin-user-delete">삭제</button>
-                </form>
-                {% endif %}
-              </td>
-              <td class="admin-users-actions-col">
-                {% if u.id == user.id or not u.pending_account_deletion %}
-                <span class="text-muted small">—</span>
-                {% else %}
-                <form method="post" action="/admin/users/{{ u.id }}/purge-now" class="d-inline"
-                      data-app-confirm="탈퇴 유예 중인 이 계정을 지금 영구 삭제할까요? 되돌릴 수 없습니다.">
-                  <button type="submit" class="btn btn-sm btn-warning text-dark">유예 즉시</button>
                 </form>
                 {% endif %}
               </td>
