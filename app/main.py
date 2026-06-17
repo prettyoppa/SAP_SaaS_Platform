@@ -1061,29 +1061,38 @@ def index(request: Request):
     from .database import SessionLocal as _SL
     from .site_settings_locale import enrich_site_settings, load_home_settings_dict
 
+    user = getattr(request.state, "current_user", None)
+    if not user:
+        _db = _SL()
+        try:
+            from .guest_landing import render_guest_landing
+
+            oauth_error = (request.query_params.get("oauth_error") or "").strip()
+            return render_guest_landing(request, _db, oauth_error=oauth_error)
+        finally:
+            _db.close()
+
     _db = _SL()
     reviews: list = []
-    user = getattr(request.state, "current_user", None)
     try:
         home_counts = None
         home_tile_stage_links_ctx: dict[str, dict[str, str]] | None = None
-        if user:
-            try:
-                home_counts = home_tile_counts(
-                    _db,
-                    user.id,
-                    is_admin=bool(user.is_admin),
-                    consultant_matched=consultant_menu_matched_scope(user),
-                )
-                home_tile_stage_links_ctx = {
-                    "rfp": home_tile_stage_links("rfp"),
-                    "analysis": home_tile_stage_links("analysis"),
-                    "integration": home_tile_stage_links("integration"),
-                }
-            except Exception:
-                _log.exception("home_tile_counts failed user_id=%s", getattr(user, "id", None))
-                home_counts = None
-                home_tile_stage_links_ctx = None
+        try:
+            home_counts = home_tile_counts(
+                _db,
+                user.id,
+                is_admin=bool(user.is_admin),
+                consultant_matched=consultant_menu_matched_scope(user),
+            )
+            home_tile_stage_links_ctx = {
+                "rfp": home_tile_stage_links("rfp"),
+                "analysis": home_tile_stage_links("analysis"),
+                "integration": home_tile_stage_links("integration"),
+            }
+        except Exception:
+            _log.exception("home_tile_counts failed user_id=%s", getattr(user, "id", None))
+            home_counts = None
+            home_tile_stage_links_ctx = None
         settings = enrich_site_settings(_db, load_home_settings_dict(_db), scope="home")
         notices = (
             _db.query(models.Notice)

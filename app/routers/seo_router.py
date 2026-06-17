@@ -43,7 +43,6 @@ _DISALLOW_PREFIXES = (
     "/reviews",
     "/dev/",
     "/preview/",
-    "/ia",
     "/auth/oauth/",
 )
 

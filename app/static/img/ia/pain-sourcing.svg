@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" fill="none" aria-hidden="true">
+  <!-- 담당자 — 여러 컨설턴트·에이전트 사이에서 선택·소통의 어려움 -->
+  <circle cx="44" cy="52" r="14" fill="#FEF3C7" stroke="#D97706" stroke-width="1.8"/>
+  <circle cx="156" cy="52" r="14" fill="#FEF3C7" stroke="#D97706" stroke-width="1.8"/>
+  <circle cx="100" cy="68" r="16" fill="#FFFBEB" stroke="#F59E0B" stroke-width="2"/>
+  <circle cx="95" cy="66" r="1.6" fill="#92400E"/>
+  <circle cx="105" cy="66" r="1.6" fill="#92400E"/>
+  <path d="M95 72 Q100 69 105 72" stroke="#D97706" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <rect x="88" y="28" width="24" height="14" rx="4" fill="#FDE68A" stroke="#F59E0B" stroke-width="1.5"/>
+  <text x="100" y="38" text-anchor="middle" font-size="7" font-weight="700" fill="#B45309" font-family="system-ui">Agent</text>
+  <path d="M58 52 L82 62" stroke="#FBBF24" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"/>
+  <path d="M142 52 L118 62" stroke="#FBBF24" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"/>
+  <path d="M100 44 L100 52" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round"/>
+  <text x="100" y="98" text-anchor="middle" font-size="9" font-weight="600" fill="#B45309" font-family="system-ui,sans-serif">누구를 · 어떻게?</text>
+</svg>

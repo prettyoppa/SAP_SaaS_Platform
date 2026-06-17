@@ -306,7 +306,7 @@
   <span class="fab-action__label nav-ko">AI 크레딧 충전</span>
   <span class="fab-action__label nav-en" style="display:none">Top up credits</span>
 </a>
-{% elif _fab_path == '/' %}
+{% elif _fab_path == '/' and not guest_landing_page|default(false) %}
 <a href="/register" class="fab-action fab-action--start" data-i18n-title="wallet.fabStartTitle" title="무료로 시작하기">
   <i class="fa-solid fa-rocket" aria-hidden="true"></i>
   <span class="fab-action__label nav-ko">무료로 시작하기</span>

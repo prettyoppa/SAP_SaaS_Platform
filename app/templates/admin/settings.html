@@ -82,6 +82,29 @@
           </div>
         </div>
 
+        <!-- 비로그인 홈 상세 -->
+        <div class="col-12">
+          <div class="admin-content-card">
+            <h6 class="mb-3 text-warning"><i class="fa-solid fa-door-open me-2"></i>비로그인 홈 상세</h6>
+            <p class="small text-muted mb-3">
+              <span class="nav-ko"><strong>/</strong> 비로그인 방문자에게 히어로 아래 스크롤 상세 영역으로 표시됩니다. 로그인 후 홈은 기존 회원 대시보드입니다.</span>
+              <span class="nav-en" style="display:none">Shown below the hero on <strong>/</strong> for guests. Logged-in users still see the member home dashboard.</span>
+            </p>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" role="switch" id="ia_guest_detail_enabled"
+                     name="ia_guest_detail_enabled" value="1"
+                     {% if settings.get('ia_guest_detail_enabled', '1') != '0' %}checked{% endif %}/>
+              <label class="form-check-label small" for="ia_guest_detail_enabled">
+                <span class="nav-ko">상세 섹션 표시</span>
+                <span class="nav-en" style="display:none">Show detail section</span>
+              </label>
+            </div>
+            {% with ko_value=settings.get('ia_guest_detail_md_ko', ''), en_value=settings.get('ia_guest_detail_md_en', ''), label_ko='상세 본문 (Markdown)', label_en='Detail body (Markdown)', ko_name='ia_guest_detail_md_ko', en_name='ia_guest_detail_md_en', input_type='textarea', rows=16, placeholder_ko='## Catchy Lab이란?\n\n- SAP 개발 요청…', placeholder_en='## What is Catchy Lab?\n\n- SAP development requests…', hint_ko='제목·굵게·목록·이미지 URL 등 Markdown 지원 (서비스 소개 페이지와 동일 규칙)', hint_en='Markdown: headings, lists, images — same rules as service landing pages.' %}
+            {% include 'admin/partials/home_hero_bilingual_field.html' %}
+            {% endwith %}
+          </div>
+        </div>
+
         <!-- 신규 개발(SAP ABAP) 랜딩 소개 -->
         <div class="col-12">
           <div class="admin-content-card">

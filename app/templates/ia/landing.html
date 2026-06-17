@@ -1,12 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Catchy Lab — SAP 개발 요청{% endblock %}
 {% block head_meta %}
-{% include "partials/seo_robots_noindex.html" %}
+{% set seo_title_ko = "Catchy Lab — SAP 개발 요청" %}
+{% set seo_title_en = "Catchy Lab — SAP Development Requests" %}
+{% set seo_desc_ko = "SAP 개발 AI 에이전트로 요청서를 빠르게 완성하고, 검증된 전문 인력과 합리적인 비용으로 구현까지 지원받으세요." %}
+{% set seo_desc_en = "Complete SAP development requests fast with AI agents and connect with vetted specialists at fair cost through delivery." %}
+{% set seo_path = "/" %}
+{% include "partials/seo_head_public.html" %}
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
-<link href="/static/css/ia-landing.css?v=20260616ia3" rel="stylesheet"/>
+<link href="/static/css/ia-landing.css?v=20260617guest1" rel="stylesheet"/>
 {% endblock %}
-
 {% block content %}
 <section class="ia-landing-hero" aria-labelledby="ia-landing-heading">
   <div class="container ia-landing-container">
@@ -18,45 +22,60 @@
     </div>
     {% endif %}
 
-    <div class="ia-landing-grid">
-      <div class="ia-landing-main">
-        <div class="ia-landing-hook">
-          <p class="ia-landing-hook-q nav-ko ia-reveal ia-reveal-1">
-            SAP 개발 요청에서 구현까지<br class="d-none d-md-inline"/>
-            <span class="ia-landing-em">복잡하고 비싸다</span>고 생각하세요?
+    <div class="ia-landing-stack">
+      <div class="ia-landing-hook">
+        <p class="ia-landing-hook-q nav-ko ia-reveal ia-reveal-1">
+          SAP 개발 요청에서 구현까지 <span class="ia-landing-em">복잡하고 비싸다</span>고 생각하세요?
+        </p>
+        <p class="ia-landing-hook-q nav-en ia-reveal ia-reveal-1" style="display:none">
+          Think SAP development—from request to delivery—is <span class="ia-landing-em">complex and costly</span>?
+        </p>
+        <p class="ia-landing-hook-a nav-ko ia-reveal ia-reveal-2">
+          <span class="text-gradient ia-landing-brand-glow">Catchy Lab</span>이 솔루션을 제공합니다.
+        </p>
+        <p class="ia-landing-hook-a nav-en ia-reveal ia-reveal-2" style="display:none">
+          <span class="text-gradient ia-landing-brand-glow">Catchy Lab</span> is your solution.
+        </p>
+      </div>
+
+      <div class="ia-landing-body ia-reveal ia-reveal-3">
+        <div class="ia-landing-lead-wrap">
+          <p class="ia-landing-lead nav-ko" id="ia-landing-heading">
+            SAP 개발, 프로그램 하나인데, 또는 소규모 개발인데, 이런 고민 하고 계신가요?
           </p>
-          <p class="ia-landing-hook-q nav-en ia-reveal ia-reveal-1" style="display:none">
-            Think SAP development—from request to delivery—is<br class="d-none d-md-inline"/>
-            <span class="ia-landing-em">complex and costly</span>?
-          </p>
-          <p class="ia-landing-hook-a nav-ko ia-reveal ia-reveal-2">
-            <span class="text-gradient ia-landing-brand-glow">Catchy Lab</span>이 솔루션을 제공합니다.
-          </p>
-          <p class="ia-landing-hook-a nav-en ia-reveal ia-reveal-2" style="display:none">
-            <span class="text-gradient ia-landing-brand-glow">Catchy Lab</span> is your solution.
+          <p class="ia-landing-lead nav-en" style="display:none">
+            SAP development—a single program or modest scope—do you have these concerns?
           </p>
         </div>
 
-        <div class="ia-landing-body ia-reveal ia-reveal-3">
-          <p class="ia-landing-lead nav-ko">
-            SAP 단일 프로그램이나 소규모 신규 개발에
-          </p>
-          <p class="ia-landing-lead nav-en" style="display:none">
-            For a single SAP program or modest-scale new development,
-          </p>
+        <div class="ia-pain-cards" role="list">
+          <article class="ia-pain-card ia-pain-card--1" role="listitem">
+            <div class="ia-pain-card__media">
+              <img src="/static/img/ia/pain-request.png?v=20260616r4" alt="" class="ia-pain-card__bg" width="1536" height="1024" loading="lazy" decoding="async"/>
+              <div class="ia-pain-card__shade" aria-hidden="true"></div>
+              <p class="ia-pain-card__title nav-ko">요청서 작성</p>
+              <p class="ia-pain-card__title nav-en" style="display:none">Request drafting</p>
+            </div>
+          </article>
+          <article class="ia-pain-card ia-pain-card--2" role="listitem">
+            <div class="ia-pain-card__media">
+              <img src="/static/img/ia/pain-sourcing.png?v=20260616r4" alt="" class="ia-pain-card__bg" width="1024" height="682" loading="lazy" decoding="async"/>
+              <div class="ia-pain-card__shade" aria-hidden="true"></div>
+              <p class="ia-pain-card__title nav-ko">복잡한 소싱 절차</p>
+              <p class="ia-pain-card__title nav-en" style="display:none">Complex sourcing</p>
+            </div>
+          </article>
+          <article class="ia-pain-card ia-pain-card--3" role="listitem">
+            <div class="ia-pain-card__media">
+              <img src="/static/img/ia/pain-cost.png?v=20260616r4" alt="" class="ia-pain-card__bg" width="1536" height="1024" loading="lazy" decoding="async"/>
+              <div class="ia-pain-card__shade" aria-hidden="true"></div>
+              <p class="ia-pain-card__title nav-ko">높은 비용</p>
+              <p class="ia-pain-card__title nav-en" style="display:none">High cost</p>
+            </div>
+          </article>
+        </div>
 
-          <div class="ia-pain-tags" role="list" aria-label="Pain points">
-            <span class="ia-pain-tag ia-pain-tag--1 nav-ko" role="listitem">요청서 작성</span>
-            <span class="ia-pain-tag ia-pain-tag--1 nav-en" style="display:none" role="listitem">Request drafting</span>
-            <span class="ia-pain-tag ia-pain-tag--2 nav-ko" role="listitem">복잡한 소싱 절차</span>
-            <span class="ia-pain-tag ia-pain-tag--2 nav-en" style="display:none" role="listitem">Complex sourcing</span>
-            <span class="ia-pain-tag ia-pain-tag--3 nav-ko" role="listitem">높은 비용</span>
-            <span class="ia-pain-tag ia-pain-tag--3 nav-en" style="display:none" role="listitem">High cost</span>
-          </div>
-
-          <p class="ia-landing-question nav-ko">때문에 고민이신가요?</p>
-          <p class="ia-landing-question nav-en" style="display:none">— are these holding you back?</p>
-
+        <div class="ia-landing-copy-block">
           <p class="ia-landing-copy nav-ko">
             20년 이상 경력 전문가 그룹의 노하우를 학습한 SAP 개발 AI 에이전트 기반으로 쉽고 빠르게 요청서를 완성하고 개발을 의뢰하세요.
           </p>
@@ -72,31 +91,148 @@
           </p>
         </div>
       </div>
-
-      <aside class="ia-landing-aside ia-reveal ia-reveal-4" id="ia-landing-heading">
-        <div class="ia-landing-actions">
-          {% if google_oauth_enabled %}
-          <a href="/auth/oauth/google?next={{ oauth_next|urlencode }}" class="ia-google-start-btn">
-            <span class="ia-google-start-btn__icon">{% include "partials/ia_google_g_logo.svg.html" %}</span>
-            <span class="ia-google-start-btn__label nav-ko">구글로 시작하기</span>
-            <span class="ia-google-start-btn__label nav-en" style="display:none">Continue with Google</span>
-          </a>
-          {% else %}
-          <button type="button" class="ia-google-start-btn ia-google-start-btn--disabled" disabled title="GOOGLE_OAUTH_CLIENT_ID not configured">
-            <span class="ia-google-start-btn__icon">{% include "partials/ia_google_g_logo.svg.html" %}</span>
-            <span class="ia-google-start-btn__label nav-ko">구글로 시작하기</span>
-            <span class="ia-google-start-btn__label nav-en" style="display:none">Continue with Google</span>
-          </button>
-          <p class="ia-landing-oauth-hint small text-muted nav-ko mb-0 mt-3">
-            구글 로그인은 OAuth 환경 변수 설정 후 활성화됩니다.
-          </p>
-          <p class="ia-landing-oauth-hint small text-muted nav-en mb-0 mt-3" style="display:none">
-            Google sign-in activates after OAuth env vars are set.
-          </p>
-          {% endif %}
-        </div>
-      </aside>
     </div>
   </div>
 </section>
+
+{% if guest_detail_visible %}
+<section class="ia-landing-detail" aria-labelledby="ia-landing-detail-heading">
+  <div class="container ia-landing-container">
+    <h2 class="visually-hidden" id="ia-landing-detail-heading">
+      <span class="nav-ko">서비스 상세</span>
+      <span class="nav-en" style="display:none">Service details</span>
+    </h2>
+    <div class="ia-landing-detail__body markdown-body-lite nav-ko">
+      {{ guest_detail_html_ko | safe }}
+    </div>
+    <div class="ia-landing-detail__body markdown-body-lite nav-en" style="display:none">
+      {{ guest_detail_html_en | safe }}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<div class="ia-float-actions">
+  <button type="button" class="ia-start-fab" id="iaStartFab" aria-expanded="false" aria-controls="iaStartSheetPanel">
+    <span class="nav-ko">무료로 시작하기</span>
+    <span class="nav-en" style="display:none">Start free</span>
+  </button>
+</div>
+
+<div class="ia-start-sheet" id="iaStartSheet" hidden>
+  <div class="ia-start-sheet__backdrop" data-ia-sheet-close tabindex="-1" aria-hidden="true"></div>
+  <div class="ia-start-sheet__panel" id="iaStartSheetPanel" role="dialog" aria-modal="true" aria-labelledby="iaStartSheetTitle" tabindex="-1">
+    <div class="ia-start-sheet__handle" aria-hidden="true"></div>
+    <h2 class="ia-start-sheet__title nav-ko" id="iaStartSheetTitle">시작 방법을 선택하세요</h2>
+    <h2 class="ia-start-sheet__title nav-en" style="display:none">Choose how to start</h2>
+
+    <div class="ia-start-sheet__options">
+      <div class="ia-sheet-option-wrap">
+        {% if google_oauth_enabled %}
+        <a href="/auth/oauth/google?next={{ oauth_next|urlencode }}" class="ia-sheet-option ia-sheet-option--featured">
+          <span class="ia-sheet-option__icon" aria-hidden="true">{% include "partials/ia_google_g_logo.svg.html" %}</span>
+          <span class="ia-sheet-option__body">
+            <span class="ia-sheet-option__label nav-ko">구글로 간편 시작하기</span>
+            <span class="ia-sheet-option__label nav-en" style="display:none">Quick start with Google</span>
+            <span class="ia-sheet-option__badge nav-ko">가장 빠름</span>
+            <span class="ia-sheet-option__badge nav-en" style="display:none">Fastest</span>
+          </span>
+          <i class="fa-solid fa-chevron-right ia-sheet-option__chevron" aria-hidden="true"></i>
+        </a>
+        {% else %}
+        <button type="button" class="ia-sheet-option ia-sheet-option--featured ia-sheet-option--disabled" disabled title="GOOGLE_OAUTH_CLIENT_ID not configured">
+          <span class="ia-sheet-option__icon" aria-hidden="true">{% include "partials/ia_google_g_logo.svg.html" %}</span>
+          <span class="ia-sheet-option__body">
+            <span class="ia-sheet-option__label nav-ko">구글로 간편 시작하기</span>
+            <span class="ia-sheet-option__label nav-en" style="display:none">Quick start with Google</span>
+          </span>
+        </button>
+        {% endif %}
+        <p class="ia-sheet-note nav-ko">
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+          구글 가입은 이메일만 자동 등록됩니다. SMS 알림은 가입 후 <strong>계정 &gt; 휴대폰</strong>에서 인증하면 받을 수 있어요.
+        </p>
+        <p class="ia-sheet-note nav-en" style="display:none">
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+          Google sign-up registers your email only. Verify your phone under <strong>Account &gt; Phone</strong> after joining to receive SMS alerts.
+        </p>
+      </div>
+
+      <a href="/register" class="ia-sheet-option">
+        <span class="ia-sheet-option__icon ia-sheet-option__icon--fa" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>
+        <span class="ia-sheet-option__body">
+          <span class="ia-sheet-option__label nav-ko">이메일로 신규 가입</span>
+          <span class="ia-sheet-option__label nav-en" style="display:none">Sign up with email</span>
+          <span class="ia-sheet-option__hint nav-ko">휴대폰 인증으로 SMS 알림 설정 가능</span>
+          <span class="ia-sheet-option__hint nav-en" style="display:none">Phone verification enables SMS alerts</span>
+        </span>
+        <i class="fa-solid fa-chevron-right ia-sheet-option__chevron" aria-hidden="true"></i>
+      </a>
+
+      <a href="/login" class="ia-sheet-option ia-sheet-option--ghost">
+        <span class="ia-sheet-option__icon ia-sheet-option__icon--fa" aria-hidden="true"><i class="fa-solid fa-right-to-bracket"></i></span>
+        <span class="ia-sheet-option__body">
+          <span class="ia-sheet-option__label nav-ko">이미 계정이 있어요 · 로그인</span>
+          <span class="ia-sheet-option__label nav-en" style="display:none">Already have an account · Log in</span>
+        </span>
+        <i class="fa-solid fa-chevron-right ia-sheet-option__chevron" aria-hidden="true"></i>
+      </a>
+    </div>
+
+    <button type="button" class="ia-start-sheet__close" data-ia-sheet-close aria-label="Close">
+      <span class="nav-ko">닫기</span>
+      <span class="nav-en" style="display:none">Close</span>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var fab = document.getElementById('iaStartFab');
+  var sheet = document.getElementById('iaStartSheet');
+  var panel = document.getElementById('iaStartSheetPanel');
+  if (!fab || !sheet || !panel) return;
+
+  var lastFocus = null;
+
+  function openSheet() {
+    lastFocus = document.activeElement;
+    sheet.hidden = false;
+    requestAnimationFrame(function () {
+      sheet.classList.add('is-open');
+    });
+    fab.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('ia-sheet-open');
+    panel.focus();
+  }
+
+  function closeSheet() {
+    sheet.classList.remove('is-open');
+    fab.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('ia-sheet-open');
+    window.setTimeout(function () {
+      if (!sheet.classList.contains('is-open')) sheet.hidden = true;
+    }, 280);
+    if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+  }
+
+  fab.addEventListener('click', function () {
+    if (sheet.classList.contains('is-open')) closeSheet();
+    else openSheet();
+  });
+
+  sheet.querySelectorAll('[data-ia-sheet-close]').forEach(function (el) {
+    el.addEventListener('click', closeSheet);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sheet.classList.contains('is-open')) {
+      e.preventDefault();
+      closeSheet();
+    }
+  });
+})();
+</script>
 {% endblock %}

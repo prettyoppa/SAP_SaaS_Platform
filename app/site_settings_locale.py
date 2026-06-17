@@ -22,6 +22,7 @@ LOCALE_SETTING_PAIRS: list[tuple[str, str, str]] = [
     ("service_abap_intro_md_ko", "service_abap_intro_md_en", "SAP ABAP service landing intro (Markdown)"),
     ("service_analysis_intro_md_ko", "service_analysis_intro_md_en", "ABAP analysis service landing intro (Markdown)"),
     ("service_integration_intro_md_ko", "service_integration_intro_md_en", "Integration service landing intro (Markdown)"),
+    ("ia_guest_detail_md_ko", "ia_guest_detail_md_en", "Guest homepage detail section (Markdown)"),
     ("rfp_writing_tip", "rfp_writing_tip_en", "RFP writing tips box"),
     ("terms_markdown_ko", "terms_markdown_en", "Terms of service (Markdown)"),
     ("privacy_markdown_ko", "privacy_markdown_en", "Privacy policy (Markdown)"),

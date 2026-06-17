@@ -46,10 +46,10 @@ def _public_base_url(request: Request) -> str:
 def _safe_next_path(raw: str | None) -> str:
     p = (raw or "").strip()
     if not p.startswith("/") or p.startswith("//"):
-        return "/ia"
+        return "/"
     if "://" in p:
-        return "/ia"
-    return p or "/ia"
+        return "/"
+    return p or "/"
 
 
 def google_oauth_configured() -> bool:
@@ -313,7 +313,7 @@ async def complete_google_oauth(
 ) -> RedirectResponse:
     parsed = parse_oauth_state(state or "")
     if not parsed or parsed[0] != "google":
-        return _oauth_error_redirect("/ia", "state")
+        return _oauth_error_redirect("/", "state")
     _, next_path = parsed
     if not code:
         return _oauth_error_redirect(next_path, "cancelled")
@@ -343,7 +343,7 @@ async def complete_kakao_oauth(
 ) -> RedirectResponse:
     parsed = parse_oauth_state(state or "")
     if not parsed or parsed[0] != "kakao":
-        return _oauth_error_redirect("/ia", "state")
+        return _oauth_error_redirect("/", "state")
     _, next_path = parsed
     if not code:
         return _oauth_error_redirect(next_path, "cancelled")

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" fill="none" aria-hidden="true">
+  <!-- 높은 용역료에 놀라는 모습 -->
+  <circle cx="100" cy="42" r="18" fill="#FEF2F2" stroke="#EF4444" stroke-width="2"/>
+  <circle cx="92" cy="40" r="2.2" fill="#991B1B"/>
+  <circle cx="108" cy="40" r="2.2" fill="#991B1B"/>
+  <ellipse cx="100" cy="48" rx="5" ry="4" fill="none" stroke="#DC2626" stroke-width="1.8"/>
+  <rect x="62" y="68" width="76" height="36" rx="6" fill="#fff" stroke="#FECACA" stroke-width="2"/>
+  <text x="100" y="88" text-anchor="middle" font-size="13" font-weight="800" fill="#DC2626" font-family="system-ui,sans-serif">₩ ???</text>
+  <text x="100" y="100" text-anchor="middle" font-size="8" font-weight="600" fill="#F87171" font-family="system-ui,sans-serif">용역 견적</text>
+  <path d="M128 32 L136 24 M136 32 L128 24" stroke="#EF4444" stroke-width="2" stroke-linecap="round"/>
+  <path d="M72 32 L64 24 M64 32 L72 24" stroke="#EF4444" stroke-width="2" stroke-linecap="round"/>
+</svg>
