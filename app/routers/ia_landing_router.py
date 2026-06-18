@@ -44,7 +44,7 @@ def ia_landing_alias(request: Request, db: Session = Depends(get_db)):
 @router.get("/auth/oauth/google")
 def oauth_google_start(request: Request, next: str = "/"):
     if not google_oauth_configured():
-        return RedirectResponse(url="/?oauth_error=disabled", status_code=302)
+        return RedirectResponse(url="/login?oauth_error=disabled", status_code=302)
     return RedirectResponse(url=google_authorize_url(request, next), status_code=302)
 
 
@@ -61,7 +61,7 @@ async def oauth_google_callback(
 @router.get("/auth/oauth/kakao")
 def oauth_kakao_start(request: Request, next: str = "/"):
     if not kakao_oauth_configured():
-        return RedirectResponse(url="/?oauth_error=disabled", status_code=302)
+        return RedirectResponse(url="/login?oauth_error=disabled", status_code=302)
     return RedirectResponse(url=kakao_authorize_url(request, next), status_code=302)
 
 

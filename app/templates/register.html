@@ -574,14 +574,8 @@ const regLangKo = document.getElementById('regLangKo');
 const regLangEn = document.getElementById('regLangEn');
 const regCurKrw = document.getElementById('regCurKrw');
 const regCurUsd = document.getElementById('regCurUsd');
-const initialLang = (document.documentElement.getAttribute('data-initial-lang') || 'en').toLowerCase();
-if (initialLang === 'en') {
-  if (regLangEn) regLangEn.checked = true;
-  if (regCurUsd) regCurUsd.checked = true;
-} else {
-  if (regLangKo) regLangKo.checked = true;
-  if (regCurKrw) regCurKrw.checked = true;
-}
+if (regLangKo) regLangKo.checked = true;
+if (regCurKrw) regCurKrw.checked = true;
 function isRegConsultant() {
   return !!(accountTypeConsultant && accountTypeConsultant.checked);
 }

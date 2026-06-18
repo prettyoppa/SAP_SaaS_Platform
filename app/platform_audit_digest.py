@@ -25,8 +25,9 @@ logger = logging.getLogger(__name__)
 SETTING_EMAIL = "audit_digest_email_enabled"
 SETTING_SMS = "audit_digest_sms_enabled"
 SETTING_LAST_SENT = "audit_digest_last_sent_at"
+SETTING_LAST_EVENT_ID = "audit_digest_last_event_id"
 
-AUDIT_DIGEST_SETTING_KEYS = (SETTING_EMAIL, SETTING_SMS, SETTING_LAST_SENT)
+AUDIT_DIGEST_SETTING_KEYS = (SETTING_EMAIL, SETTING_SMS, SETTING_LAST_SENT, SETTING_LAST_EVENT_ID)
 
 
 def _setting(db: Session, key: str) -> str:
@@ -67,13 +68,37 @@ def _format_last_sent(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def pending_events(db: Session, since: datetime | None) -> list[models.PlatformAuditEvent]:
+def _parse_last_event_id(raw: str) -> int:
+    try:
+        return max(0, int((raw or "").strip()))
+    except ValueError:
+        return 0
+
+
+def _effective_last_event_id(db: Session) -> int:
+    """이미 전송한 마지막 이벤트 id. 레거시 시각 워터마크가 있으면 1회 부트스트랩."""
+    from sqlalchemy import func
+
+    stored = _parse_last_event_id(_setting(db, SETTING_LAST_EVENT_ID))
+    if stored > 0:
+        return stored
+    since = _parse_last_sent(_setting(db, SETTING_LAST_SENT))
+    if since is None:
+        return 0
+    legacy_max = (
+        db.query(func.max(models.PlatformAuditEvent.id))
+        .filter(models.PlatformAuditEvent.created_at <= since)
+        .scalar()
+    )
+    return int(legacy_max or 0)
+
+
+def pending_events(db: Session, after_event_id: int = 0) -> list[models.PlatformAuditEvent]:
     q = db.query(models.PlatformAuditEvent).order_by(
-        models.PlatformAuditEvent.created_at.asc(),
         models.PlatformAuditEvent.id.asc(),
     )
-    if since is not None:
-        q = q.filter(models.PlatformAuditEvent.created_at > since)
+    if after_event_id > 0:
+        q = q.filter(models.PlatformAuditEvent.id > after_event_id)
     return q.all()
 
 
@@ -143,8 +168,8 @@ def run_audit_digest(db: Session) -> int:
     if not digest_email_enabled(db) and not digest_sms_enabled(db):
         return 0
 
-    since = _parse_last_sent(_setting(db, SETTING_LAST_SENT))
-    events = pending_events(db, since)
+    after_id = _effective_last_event_id(db)
+    events = pending_events(db, after_id)
     if not events:
         return 0
 
@@ -164,9 +189,9 @@ def run_audit_digest(db: Session) -> int:
         except Exception:
             logger.exception("audit digest sms failed")
 
-    watermark = max(evt.created_at for evt in events if evt.created_at)
-    if watermark is None:
-        watermark = datetime.utcnow()
+    last_id = max(int(evt.id) for evt in events)
+    watermark = max((evt.created_at for evt in events if evt.created_at), default=datetime.utcnow())
+    _set_setting(db, SETTING_LAST_EVENT_ID, str(last_id))
     _set_setting(db, SETTING_LAST_SENT, _format_last_sent(watermark))
     db.commit()
     return len(events)

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from .. import models, auth, r2_storage
 from ..account_lifecycle import deletion_grace_days, refresh_admin_flag_for_user
 from ..database import get_db
+from ..request_utils import is_https_request
 from ..email_smtp import (
     email_verification_enabled,
     send_account_deletion_started_email,
@@ -72,7 +73,7 @@ def _delete_auth_cookie(response: RedirectResponse, request: Request) -> None:
         "access_token",
         path="/",
         samesite="lax",
-        secure=request.url.scheme == "https",
+        secure=is_https_request(request),
     )
 
 
@@ -227,7 +228,7 @@ def _ui_lang_cookie_args(request: Request, lang: str | None) -> dict:
         "max_age": 86400 * 400,
         "path": "/",
         "samesite": "lax",
-        "secure": request.url.scheme == "https",
+        "secure": is_https_request(request),
     }
 
 
@@ -246,7 +247,7 @@ def _access_token_cookie_args(request: Request, token: str) -> dict:
         "max_age": 86400,
         "path": "/",
         "samesite": "lax",
-        "secure": request.url.scheme == "https",
+        "secure": is_https_request(request),
     }
 
 
@@ -265,7 +266,7 @@ def _viewer_tz_cookie_args(request: Request, tz: str | None) -> dict:
         "max_age": 86400 * 400,
         "path": "/",
         "samesite": "lax",
-        "secure": request.url.scheme == "https",
+        "secure": is_https_request(request),
     }
 
 
@@ -274,7 +275,7 @@ def _delete_viewer_tz_cookie(response: RedirectResponse, request: Request) -> No
         _VIEWER_TZ_COOKIE,
         path="/",
         samesite="lax",
-        secure=request.url.scheme == "https",
+        secure=is_https_request(request),
     )
 
 
@@ -1309,7 +1310,7 @@ async def register(
         consultant_application_pending=(account_type_norm == "consultant"),
         consultant_profile_file_path=consultant_profile_path,
         consultant_profile_file_name=consultant_profile_name,
-        preferred_lang=_normalize_lang(preferred_lang or _initial_lang_from_request(request)),
+        preferred_lang=_normalize_lang(preferred_lang or "ko"),
         billing_currency=_normalize_billing_currency(billing_currency),
     )
     db.add(new_user)

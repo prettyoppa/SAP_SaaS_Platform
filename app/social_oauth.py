@@ -17,6 +17,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
 from . import auth, models
+from .request_utils import is_https_request
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -203,6 +204,7 @@ def _issue_login_response(
 ) -> RedirectResponse:
     token = auth.create_access_token({"sub": user.email})
     response = RedirectResponse(url=redirect_url, status_code=302)
+    secure = is_https_request(request)
     response.set_cookie(
         key="access_token",
         value=token,
@@ -210,7 +212,7 @@ def _issue_login_response(
         max_age=86400,
         path="/",
         samesite="lax",
-        secure=request.url.scheme == "https",
+        secure=secure,
     )
     lang = getattr(user, "preferred_lang", None) or "ko"
     if lang not in ("ko", "en"):
@@ -222,7 +224,7 @@ def _issue_login_response(
         max_age=86400 * 400,
         path="/",
         samesite="lax",
-        secure=request.url.scheme == "https",
+        secure=secure,
     )
     tz = (getattr(user, "timezone", None) or "").strip()
     if tz:
@@ -233,14 +235,18 @@ def _issue_login_response(
             max_age=86400 * 400,
             path="/",
             samesite="lax",
-            secure=request.url.scheme == "https",
+            secure=secure,
         )
+    logger.info("OAuth login ok user_id=%s email=%s redirect=%s secure_cookie=%s", user.id, user.email, redirect_url, secure)
     return response
 
 
 def _oauth_error_redirect(next_path: str, code: str) -> RedirectResponse:
-    sep = "&" if "?" in next_path else "?"
-    return RedirectResponse(url=f"{next_path}{sep}oauth_error={code}", status_code=302)
+    dest = (next_path or "").strip() or "/"
+    if dest == "/":
+        return RedirectResponse(url=f"/login?oauth_error={code}", status_code=302)
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(url=f"{dest}{sep}oauth_error={code}", status_code=302)
 
 
 def find_or_create_oauth_member(

@@ -98,10 +98,32 @@
           </div>
           {% endif %}
           {% if oauth_error %}
-          <div class="alert alert-warning d-flex align-items-center" role="alert">
-            <i class="fa-solid fa-triangle-exclamation me-2"></i>
-            <span class="nav-ko">구글 로그인에 실패했습니다. 잠시 후 다시 시도하거나 이메일로 로그인해 주세요.</span>
-            <span class="nav-en" style="display:none">Google sign-in failed. Try again or sign in with email.</span>
+          <div class="alert alert-warning d-flex align-items-start" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2 mt-1"></i>
+            <div>
+              {% if oauth_error == 'account' %}
+              <span class="nav-ko">이 계정으로는 로그인할 수 없습니다. 비활성·탈퇴 유예 상태이거나 가입이 차단되었을 수 있습니다.</span>
+              <span class="nav-en" style="display:none">This account cannot sign in. It may be inactive or pending deletion.</span>
+              {% elif oauth_error == 'email' %}
+              <span class="nav-ko">구글 계정에서 이메일을 가져오지 못했습니다. 구글 프로필에 이메일이 있는지 확인해 주세요.</span>
+              <span class="nav-en" style="display:none">Could not read email from Google. Check your Google profile email.</span>
+              {% elif oauth_error == 'token' %}
+              <span class="nav-ko">구글 인증에 실패했습니다. <strong>PUBLIC_BASE_URL</strong>·OAuth 리다이렉트 URI 설정을 확인한 뒤 다시 시도해 주세요.</span>
+              <span class="nav-en" style="display:none">Google authentication failed. Verify PUBLIC_BASE_URL and OAuth redirect URI, then try again.</span>
+              {% elif oauth_error == 'disabled' %}
+              <span class="nav-ko">구글 로그인이 아직 설정되지 않았습니다.</span>
+              <span class="nav-en" style="display:none">Google sign-in is not configured yet.</span>
+              {% elif oauth_error == 'cancelled' %}
+              <span class="nav-ko">구글 로그인이 취소되었습니다.</span>
+              <span class="nav-en" style="display:none">Google sign-in was cancelled.</span>
+              {% elif oauth_error == 'state' %}
+              <span class="nav-ko">로그인 세션이 만료되었습니다. 다시 시도해 주세요.</span>
+              <span class="nav-en" style="display:none">Sign-in session expired. Please try again.</span>
+              {% else %}
+              <span class="nav-ko">구글 로그인에 실패했습니다. 잠시 후 다시 시도하거나 이메일로 로그인해 주세요.</span>
+              <span class="nav-en" style="display:none">Google sign-in failed. Try again or use email sign-in.</span>
+              {% endif %}
+            </div>
           </div>
           {% endif %}
 

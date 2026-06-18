@@ -70,23 +70,27 @@ class PlatformAuditDigestTests(unittest.TestCase):
         self.assertLessEqual(len(body), 900)
 
     @patch("app.platform_audit_digest._set_setting")
-    @patch("app.platform_audit_digest._setting", return_value="")
+    @patch("app.platform_audit_digest._effective_last_event_id", return_value=0)
     @patch("app.platform_audit_digest._notify_admins_sms")
     @patch("app.platform_audit_digest._notify_admins_email")
     @patch("app.platform_audit_digest.pending_events")
     @patch("app.platform_audit_digest.digest_sms_enabled", return_value=False)
     @patch("app.platform_audit_digest.digest_email_enabled", return_value=True)
     def test_run_digest_sends_email_and_updates_watermark(
-        self, _email_on, _sms_on, mock_pending, mock_email, mock_sms, _setting, _set
+        self, _email_on, _sms_on, mock_pending, mock_email, mock_sms, _after_id, _set
     ):
         db = MagicMock()
         evt = _evt("m@x.com", EVENT_MEMBER_REGISTERED)
+        evt.id = 42
         mock_pending.return_value = [evt]
         n = run_audit_digest(db)
         self.assertEqual(n, 1)
         mock_email.assert_called_once()
         mock_sms.assert_not_called()
         db.commit.assert_called()
+        id_updates = [c for c in _set.call_args_list if c[0][1] == "audit_digest_last_event_id"]
+        self.assertTrue(id_updates)
+        self.assertEqual(id_updates[-1][0][2], "42")
 
     @patch("app.platform_audit_digest.pending_events")
     @patch("app.platform_audit_digest.digest_sms_enabled", return_value=False)
