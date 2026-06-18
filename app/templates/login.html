@@ -7,9 +7,7 @@
     <div class="row justify-content-center">
       <div class="col-md-5 col-lg-4">
         <div class="auth-card">
-          <div class="auth-logo">
-            <i class="fa-solid fa-cube"></i>
-          </div>
+          {% include "partials/auth_brand_logo.html" %}
           <h2 class="auth-title" data-i18n="login.title">Welcome Back</h2>
           <p class="auth-sub text-muted" data-i18n="login.sub">Sign in to your SAP Dev Hub account</p>
 
@@ -97,6 +95,25 @@
           <div class="alert alert-success small d-flex align-items-center" role="alert">
             <i class="fa-solid fa-circle-check me-2"></i>
             <span>비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.</span>
+          </div>
+          {% endif %}
+          {% if oauth_error %}
+          <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+            <span class="nav-ko">구글 로그인에 실패했습니다. 잠시 후 다시 시도하거나 이메일로 로그인해 주세요.</span>
+            <span class="nav-en" style="display:none">Google sign-in failed. Try again or sign in with email.</span>
+          </div>
+          {% endif %}
+
+          {% if google_oauth_enabled %}
+          <a href="/auth/oauth/google?next={{ (login_next or '/')|urlencode }}" class="btn auth-google-btn w-100 btn-lg mb-0">
+            {% include "partials/ia_google_g_logo.svg.html" %}
+            <span class="nav-ko">구글로 로그인하기</span>
+            <span class="nav-en" style="display:none">Sign in with Google</span>
+          </a>
+          <div class="auth-divider" aria-hidden="true">
+            <span class="nav-ko">또는</span>
+            <span class="nav-en" style="display:none">or</span>
           </div>
           {% endif %}
 

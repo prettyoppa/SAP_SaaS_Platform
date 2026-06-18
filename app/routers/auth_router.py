@@ -490,6 +490,14 @@ def _parse_new_password(raw: str | None) -> tuple[str | None, str | None]:
     return s, None
 
 
+def _login_template_context(**extra) -> dict:
+    from ..social_oauth import google_oauth_configured
+
+    ctx: dict = {"google_oauth_enabled": google_oauth_configured()}
+    ctx.update(extra)
+    return ctx
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(
     request: Request,
@@ -526,7 +534,10 @@ def login_page(
         ctx["password_reset_sent"] = True
     if request.query_params.get("reset_done") == "1":
         ctx["password_reset_done"] = True
-    return templates.TemplateResponse(request, "login.html", ctx)
+    oauth_err = (request.query_params.get("oauth_error") or "").strip()
+    if oauth_err:
+        ctx["oauth_error"] = oauth_err
+    return templates.TemplateResponse(request, "login.html", _login_template_context(**ctx))
 
 
 @router.post("/login")
@@ -541,7 +552,7 @@ def login(
         nx = _safe_login_redirect_next((next_path or "").strip())
         if nx:
             kw["login_next"] = nx
-        return kw
+        return _login_template_context(**kw)
 
     email_norm = _normalize_email_strict(email)
     if not email_norm:
