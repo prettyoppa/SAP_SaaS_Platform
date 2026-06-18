@@ -9,7 +9,7 @@
 {% include "partials/seo_head_public.html" %}
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
-<link href="/static/css/ia-landing.css?v=20260617guest1" rel="stylesheet"/>
+<link href="/static/css/ia-landing.css?v=20260529guest2" rel="stylesheet"/>
 {% endblock %}
 {% block content %}
 <section class="ia-landing-hero" aria-labelledby="ia-landing-heading">
@@ -95,22 +95,7 @@
   </div>
 </section>
 
-{% if guest_detail_visible %}
-<section class="ia-landing-detail" aria-labelledby="ia-landing-detail-heading">
-  <div class="container ia-landing-container">
-    <h2 class="visually-hidden" id="ia-landing-detail-heading">
-      <span class="nav-ko">서비스 상세</span>
-      <span class="nav-en" style="display:none">Service details</span>
-    </h2>
-    <div class="ia-landing-detail__body markdown-body-lite nav-ko">
-      {{ guest_detail_html_ko | safe }}
-    </div>
-    <div class="ia-landing-detail__body markdown-body-lite nav-en" style="display:none">
-      {{ guest_detail_html_en | safe }}
-    </div>
-  </div>
-</section>
-{% endif %}
+{% include "partials/ia_guest_guide.html" %}
 
 <div class="ia-float-actions">
   <button type="button" class="ia-start-fab" id="iaStartFab" aria-expanded="false" aria-controls="iaStartSheetPanel">
@@ -232,6 +217,10 @@
       e.preventDefault();
       closeSheet();
     }
+  });
+
+  document.querySelectorAll('[data-ia-open-start]').forEach(function (btn) {
+    btn.addEventListener('click', openSheet);
   });
 })();
 </script>

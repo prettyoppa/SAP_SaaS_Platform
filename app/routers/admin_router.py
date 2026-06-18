@@ -1161,8 +1161,6 @@ SITE_SETTING_KEYS = [
     ("service_abap_intro_md_ko", "신규 개발(SAP ABAP) 첫 페이지 소개 (Markdown)"),
     ("service_analysis_intro_md_ko", "분석·개선 첫 페이지 소개 (Markdown)"),
     ("service_integration_intro_md_ko", "연동 개발 첫 페이지 소개 (Markdown)"),
-    ("ia_guest_detail_enabled", "비로그인 홈 상세 섹션 표시 (1=표시)"),
-    ("ia_guest_detail_md_ko", "비로그인 홈 상세 (Markdown, KO)"),
 ]
 
 HOME_TILE_API_KEYS = [
@@ -1256,10 +1254,7 @@ async def admin_settings_save(request: Request, db: Session = Depends(get_db)):
     from ..home_hero_defaults import normalize_hero_title_storage
 
     for key, _ in SITE_SETTING_KEYS:
-        if key == "ia_guest_detail_enabled":
-            val = "1" if (form.get(key) or "").strip() == "1" else "0"
-        else:
-            val = (form.get(key) or "").strip()
+        val = (form.get(key) or "").strip()
         if key in ("home_hero_title", "home_hero_title_en"):
             val = normalize_hero_title_storage(val)
         existing = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
