@@ -38,10 +38,10 @@ def _setting(db: Session, key: str) -> str:
 def _set_setting(db: Session, key: str, value: str) -> None:
     row = db.query(models.SiteSettings).filter(models.SiteSettings.key == key).first()
     if row is None:
-        db.add(models.SiteSettings(key=key, value=value))
+        row = models.SiteSettings(key=key, value=value)
+        db.add(row)
     else:
         row.value = value
-    db.add(row)
 
 
 def digest_email_enabled(db: Session) -> bool:
@@ -173,6 +173,12 @@ def run_audit_digest(db: Session) -> int:
     if not events:
         return 0
 
+    last_id = max(int(evt.id) for evt in events)
+    watermark = max((evt.created_at for evt in events if evt.created_at), default=datetime.utcnow())
+    _set_setting(db, SETTING_LAST_EVENT_ID, str(last_id))
+    _set_setting(db, SETTING_LAST_SENT, _format_last_sent(watermark))
+    db.commit()
+
     subject = f"[SAP Dev Hub] 회원 주요 이벤트 ({len(events)}건)"
     email_body = build_digest_email_body(events)
     sms_body = build_digest_sms_body(events)
@@ -189,9 +195,4 @@ def run_audit_digest(db: Session) -> int:
         except Exception:
             logger.exception("audit digest sms failed")
 
-    last_id = max(int(evt.id) for evt in events)
-    watermark = max((evt.created_at for evt in events if evt.created_at), default=datetime.utcnow())
-    _set_setting(db, SETTING_LAST_EVENT_ID, str(last_id))
-    _set_setting(db, SETTING_LAST_SENT, _format_last_sent(watermark))
-    db.commit()
     return len(events)

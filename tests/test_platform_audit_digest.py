@@ -14,6 +14,8 @@ from app.platform_audit import (
     should_record_actor,
 )
 from app.platform_audit_digest import (
+    SETTING_LAST_EVENT_ID,
+    _set_setting,
     build_digest_email_body,
     build_digest_sms_body,
     group_events_by_actor,
@@ -76,8 +78,8 @@ class PlatformAuditDigestTests(unittest.TestCase):
     @patch("app.platform_audit_digest.pending_events")
     @patch("app.platform_audit_digest.digest_sms_enabled", return_value=False)
     @patch("app.platform_audit_digest.digest_email_enabled", return_value=True)
-    def test_run_digest_sends_email_and_updates_watermark(
-        self, _email_on, _sms_on, mock_pending, mock_email, mock_sms, _after_id, _set
+    def test_run_digest_commits_watermark_before_email(
+        self, _email_on, _sms_on, mock_pending, mock_email, mock_sms, _after_id, mock_set
     ):
         db = MagicMock()
         evt = _evt("m@x.com", EVENT_MEMBER_REGISTERED)
@@ -87,10 +89,19 @@ class PlatformAuditDigestTests(unittest.TestCase):
         self.assertEqual(n, 1)
         mock_email.assert_called_once()
         mock_sms.assert_not_called()
-        db.commit.assert_called()
-        id_updates = [c for c in _set.call_args_list if c[0][1] == "audit_digest_last_event_id"]
+        db.commit.assert_called_once()
+        id_updates = [c for c in mock_set.call_args_list if c[0][1] == SETTING_LAST_EVENT_ID]
         self.assertTrue(id_updates)
         self.assertEqual(id_updates[-1][0][2], "42")
+
+    def test_set_setting_creates_missing_row(self):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        _set_setting(db, SETTING_LAST_EVENT_ID, "99")
+        db.add.assert_called_once()
+        row = db.add.call_args[0][0]
+        self.assertEqual(row.key, SETTING_LAST_EVENT_ID)
+        self.assertEqual(row.value, "99")
 
     @patch("app.platform_audit_digest.pending_events")
     @patch("app.platform_audit_digest.digest_sms_enabled", return_value=False)

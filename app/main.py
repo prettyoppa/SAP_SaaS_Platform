@@ -430,6 +430,7 @@ def _seed_home_tile_settings():
         ("audit_digest_email_enabled", "1"),
         ("audit_digest_sms_enabled", "0"),
         ("audit_digest_last_sent_at", ""),
+        ("audit_digest_last_event_id", "0"),
     ]
     db: Session = SessionLocal()
     try:
