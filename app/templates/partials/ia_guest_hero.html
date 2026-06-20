@@ -9,11 +9,13 @@
     {% endif %}
 
     <div class="ia-landing-stack">
+      {% if user %}
       {% include "partials/ia_guide_section_divider.html" %}
       <div class="ia-guide-section-band" aria-hidden="true">
         <p class="ia-guide-section-band__label nav-ko">PROBLEM</p>
         <p class="ia-guide-section-band__label nav-en" style="display:none">PROBLEM</p>
       </div>
+      {% endif %}
 
       <div class="ia-landing-hook">
         <p class="ia-landing-hook-q nav-ko ia-reveal ia-reveal-1">
