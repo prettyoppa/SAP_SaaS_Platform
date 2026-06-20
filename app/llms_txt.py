@@ -21,7 +21,7 @@ def build_llms_txt(origin: str) -> str:
 
 ## Primary public URLs
 
-- Home: {base}/
+- Home (guest landing — 5-step guide, service scope, AI agents): {base}/
 - About / product identity: {base}/about
 - New ABAP development (RFP): {base}/services/abap
 - Knowledge gallery (published articles): {base}/kb
@@ -30,6 +30,13 @@ def build_llms_txt(origin: str) -> str:
 - Terms: {base}/terms
 - Privacy: {base}/privacy
 - Sitemap: {base}/sitemap.xml
+
+## Home page topics (indexable at /)
+
+- SAP development pain points: request drafting, sourcing, cost
+- Five-step workflow: request → AI interview → proposal → specialist offers → delivery
+- Request types: new ABAP development, ABAP analysis/improvement, SAP integration
+- Why Catchy Lab: AI-assisted requests, vetted specialists, transparent pricing
 
 ## What is NOT public (login required)
 

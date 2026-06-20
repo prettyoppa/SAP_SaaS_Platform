@@ -24,6 +24,11 @@ def test_guest_root_returns_landing():
     assert "fab-action--start" not in r.text
     assert "noindex" not in r.text.lower()
     assert 'rel="canonical"' in r.text
+    assert "application/ld+json" in r.text
+    assert "HowTo" in r.text
+    assert "ItemList" in r.text
+    assert "<h1" in r.text
+    assert 'id="ia-landing-heading"' in r.text
 
 
 def test_ia_redirects_to_root_for_guest():

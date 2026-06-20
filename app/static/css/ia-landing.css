@@ -68,6 +68,7 @@
   font-weight: 800;
   line-height: 1.32;
   letter-spacing: -0.035em;
+  margin-top: 0;
   margin-bottom: 0.85rem;
   color: var(--text);
   word-break: keep-all;

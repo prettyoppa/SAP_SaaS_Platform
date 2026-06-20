@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Catchy Lab — SAP 개발 요청{% endblock %}
 {% block head_meta %}
-{% set seo_title_ko = "Catchy Lab — SAP 개발 요청" %}
-{% set seo_title_en = "Catchy Lab — SAP Development Requests" %}
-{% set seo_desc_ko = "SAP 개발 AI 에이전트로 요청서를 빠르게 완성하고, 검증된 전문 인력과 합리적인 비용으로 구현까지 지원받으세요." %}
-{% set seo_desc_en = "Complete SAP development requests fast with AI agents and connect with vetted specialists at fair cost through delivery." %}
+{% set seo_title_ko = "Catchy Lab — SAP 개발 요청·AI 에이전트·전문가 매칭" %}
+{% set seo_title_en = "Catchy Lab — SAP Development Requests, AI Agents & Specialist Matching" %}
+{% set seo_desc_ko = "SAP 개발 AI 에이전트로 요청서·개발 제안서를 빠르게 완성하고, 검증된 SAP 전문가 오퍼를 비교·매칭합니다. 신규 ABAP, 분석·개선, 연동 개발 5단계 프로세스. 무료 가입으로 시작." %}
+{% set seo_desc_en = "AI agents draft SAP development requests and proposals; compare offers from vetted SAP specialists. New ABAP, analysis, and integration in a five-step workflow. Start free." %}
 {% set seo_path = "/" %}
 {% include "partials/seo_head_public.html" %}
+{% include "partials/seo_guest_home_jsonld.html" %}
 {% include "partials/ia_landing_assets.html" %}
 {% endblock %}
 {% block content %}

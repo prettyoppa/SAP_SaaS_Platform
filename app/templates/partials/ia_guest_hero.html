@@ -1,4 +1,4 @@
-<section class="ia-landing-hero" aria-labelledby="ia-landing-heading">
+<section class="ia-landing-hero"{% if not user %} aria-labelledby="ia-landing-heading"{% endif %}>
   <div class="container ia-landing-container">
     {% if oauth_error|default('') %}
     <div class="alert alert-warning ia-landing-alert" role="alert">
@@ -18,12 +18,21 @@
       {% endif %}
 
       <div class="ia-landing-hook">
-        <p class="ia-landing-hook-q nav-ko ia-reveal ia-reveal-1">
+        {% if user %}
+        <h2 class="ia-landing-hook-q nav-ko ia-reveal ia-reveal-1">
           SAP 개발 요청에서 구현까지 <span class="ia-landing-em">복잡하고 비싸다</span>고 생각하세요?
-        </p>
-        <p class="ia-landing-hook-q nav-en ia-reveal ia-reveal-1" style="display:none">
+        </h2>
+        <h2 class="ia-landing-hook-q nav-en ia-reveal ia-reveal-1" style="display:none">
           Think SAP development—from request to delivery—is <span class="ia-landing-em">complex and costly</span>?
-        </p>
+        </h2>
+        {% else %}
+        <h1 class="ia-landing-hook-q nav-ko ia-reveal ia-reveal-1" id="ia-landing-heading">
+          SAP 개발 요청에서 구현까지 <span class="ia-landing-em">복잡하고 비싸다</span>고 생각하세요?
+        </h1>
+        <h1 class="ia-landing-hook-q nav-en ia-reveal ia-reveal-1" style="display:none">
+          Think SAP development—from request to delivery—is <span class="ia-landing-em">complex and costly</span>?
+        </h1>
+        {% endif %}
         <p class="ia-landing-hook-a nav-ko ia-reveal ia-reveal-2">
           <span class="text-gradient ia-landing-brand-glow">Catchy Lab</span>이 솔루션을 제공합니다.
         </p>
@@ -34,7 +43,7 @@
 
       <div class="ia-landing-body ia-reveal ia-reveal-3">
         <div class="ia-landing-lead-wrap">
-          <p class="ia-landing-lead nav-ko" id="ia-landing-heading">
+          <p class="ia-landing-lead nav-ko">
             SAP 개발, 프로그램 하나인데, 또는 소규모 개발인데, 이런 고민 하고 계신가요?
           </p>
           <p class="ia-landing-lead nav-en" style="display:none">

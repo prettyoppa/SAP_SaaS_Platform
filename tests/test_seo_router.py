@@ -26,10 +26,12 @@ class SeoRouterTests(unittest.TestCase):
 
     def test_llms_txt_mentions_sap_and_about(self) -> None:
         body = build_llms_txt("https://sap.example.com")
+        public_section = body.split("## What is NOT public")[0]
         self.assertIn("SAP Development Partner", body)
         self.assertIn("/about", body)
         self.assertIn("NOT affiliated with SAP SE", body)
-        self.assertNotIn("/abap-analysis", body)
+        self.assertNotIn("/abap-analysis", public_section)
+        self.assertIn("Five-step workflow", body)
 
     def test_sitemap_omits_empty_faq_and_app_hubs(self) -> None:
         db = MagicMock()

@@ -1,0 +1,83 @@
+{# Guest home (/) — structured data for landing guide + service scope #}
+{% set _origin = (request.base_url|string).rstrip('/') %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "{{ _origin }}/#website",
+      "name": "Catchy Lab",
+      "alternateName": ["SAP Development Partner", "SAP 개발 파트너", "Catch Lab SAP Dev Hub"],
+      "url": "{{ _origin }}/",
+      "inLanguage": ["ko", "en"],
+      "description": {{ seo_desc_en|tojson }}
+    },
+    {
+      "@type": "Organization",
+      "name": "Catchy Lab",
+      "url": "{{ _origin }}/about",
+      "description": {{ seo_desc_en|tojson }}
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Catchy Lab — SAP Development Partner",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "url": "{{ _origin }}/",
+      "description": {{ seo_desc_en|tojson }},
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "KRW",
+        "description": "Free registration; trial AI credits for request drafting and proposal review"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "{{ _origin }}/#webpage",
+      "url": "{{ _origin }}/",
+      "name": {{ seo_title_en|tojson }},
+      "description": {{ seo_desc_en|tojson }},
+      "inLanguage": ["ko", "en"],
+      "isPartOf": { "@id": "{{ _origin }}/#website" }
+    },
+    {
+      "@type": "HowTo",
+      "name": "SAP development request to delivery with Catchy Lab",
+      "description": "Five steps from drafting a SAP development request through AI interview, proposal, specialist matching, and delivery.",
+      "step": [
+        { "@type": "HowToStep", "position": 1, "name": "Draft your request" },
+        { "@type": "HowToStep", "position": 2, "name": "AI interview" },
+        { "@type": "HowToStep", "position": 3, "name": "Proposal generation and release" },
+        { "@type": "HowToStep", "position": 4, "name": "SAP specialist offers and matching" },
+        { "@type": "HowToStep", "position": 5, "name": "Build and deliver" }
+      ]
+    },
+    {
+      "@type": "ItemList",
+      "name": "SAP development request types",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "New ABAP program development",
+          "url": "{{ _origin }}/services/abap"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Existing program error analysis and logic improvement",
+          "url": "{{ _origin }}/#service-scope"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "External tools invoked from SAP",
+          "url": "{{ _origin }}/#service-scope"
+        }
+      ]
+    }
+  ]
+}
+</script>
