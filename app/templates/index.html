@@ -37,6 +37,7 @@
   ]
 }
 </script>
+{% include "partials/ia_landing_assets.html" %}
 {% endblock %}
 
 {% block content %}
@@ -226,6 +227,10 @@
     {% endif %}
   </div>
 </section>
+
+<div class="ia-guest-landing-append">
+  {% include "partials/ia_guest_landing_content.html" %}
+</div>
 
 {% endblock %}
 

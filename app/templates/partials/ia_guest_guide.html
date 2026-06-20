@@ -153,10 +153,17 @@
       <p class="ia-guide-cta-band__text nav-en" style="display:none">
         Catchy Lab helps you scope requirements with AI interviews and compare offers from vetted SAP specialists.
       </p>
+      {% if not user %}
       <button type="button" class="ia-guide-cta-band__btn" data-ia-open-start>
         <span class="nav-ko">무료로 시작하기</span>
         <span class="nav-en" style="display:none">Start free</span>
       </button>
+      {% else %}
+      <a href="/rfp/new" class="ia-guide-cta-band__btn">
+        <span class="nav-ko">신규 개발 요청하기</span>
+        <span class="nav-en" style="display:none">New development request</span>
+      </a>
+      {% endif %}
     </div>
 
   </div>

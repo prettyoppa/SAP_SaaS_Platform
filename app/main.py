@@ -1075,6 +1075,7 @@ def index(request: Request):
 
     _db = _SL()
     reviews: list = []
+    service_intro_ctx: dict[str, str] = {}
     try:
         home_counts = None
         home_tile_stage_links_ctx: dict[str, dict[str, str]] | None = None
@@ -1095,6 +1096,9 @@ def index(request: Request):
             home_counts = None
             home_tile_stage_links_ctx = None
         settings = enrich_site_settings(_db, load_home_settings_dict(_db), scope="home")
+        from .service_landing_intro import service_landing_intro_context
+
+        service_intro_ctx = service_landing_intro_context(_db)
         notices = (
             _db.query(models.Notice)
             .filter(models.Notice.is_active == True)
@@ -1151,6 +1155,7 @@ def index(request: Request):
         "reviews": reviews,
         "home_counts": home_counts,
         "home_tile_stage_links": home_tile_stage_links_ctx,
+        **service_intro_ctx,
     })
 
 

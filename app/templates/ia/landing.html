@@ -7,95 +7,10 @@
 {% set seo_desc_en = "Complete SAP development requests fast with AI agents and connect with vetted specialists at fair cost through delivery." %}
 {% set seo_path = "/" %}
 {% include "partials/seo_head_public.html" %}
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
-<link href="/static/css/ia-landing.css?v=20260529guest25" rel="stylesheet"/>
+{% include "partials/ia_landing_assets.html" %}
 {% endblock %}
 {% block content %}
-<section class="ia-landing-hero" aria-labelledby="ia-landing-heading">
-  <div class="container ia-landing-container">
-    {% if oauth_error %}
-    <div class="alert alert-warning ia-landing-alert" role="alert">
-      <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>
-      <span class="nav-ko ia-oauth-err" data-oauth-err="{{ oauth_error }}">구글 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.</span>
-      <span class="nav-en ia-oauth-err" style="display:none" data-oauth-err="{{ oauth_error }}">Google sign-in failed. Please try again.</span>
-    </div>
-    {% endif %}
-
-    <div class="ia-landing-stack">
-      <div class="ia-landing-hook">
-        <p class="ia-landing-hook-q nav-ko ia-reveal ia-reveal-1">
-          SAP 개발 요청에서 구현까지 <span class="ia-landing-em">복잡하고 비싸다</span>고 생각하세요?
-        </p>
-        <p class="ia-landing-hook-q nav-en ia-reveal ia-reveal-1" style="display:none">
-          Think SAP development—from request to delivery—is <span class="ia-landing-em">complex and costly</span>?
-        </p>
-        <p class="ia-landing-hook-a nav-ko ia-reveal ia-reveal-2">
-          <span class="text-gradient ia-landing-brand-glow">Catchy Lab</span>이 솔루션을 제공합니다.
-        </p>
-        <p class="ia-landing-hook-a nav-en ia-reveal ia-reveal-2" style="display:none">
-          <span class="text-gradient ia-landing-brand-glow">Catchy Lab</span> is your solution.
-        </p>
-      </div>
-
-      <div class="ia-landing-body ia-reveal ia-reveal-3">
-        <div class="ia-landing-lead-wrap">
-          <p class="ia-landing-lead nav-ko" id="ia-landing-heading">
-            SAP 개발, 프로그램 하나인데, 또는 소규모 개발인데, 이런 고민 하고 계신가요?
-          </p>
-          <p class="ia-landing-lead nav-en" style="display:none">
-            SAP development—a single program or modest scope—do you have these concerns?
-          </p>
-        </div>
-
-        <div class="ia-pain-cards" role="list">
-          <article class="ia-pain-card ia-pain-card--1" role="listitem">
-            <div class="ia-pain-card__media">
-              <img src="/static/img/ia/pain-request.png?v=20260616r4" alt="" class="ia-pain-card__bg" width="1536" height="1024" loading="lazy" decoding="async"/>
-              <div class="ia-pain-card__shade" aria-hidden="true"></div>
-              <p class="ia-pain-card__title nav-ko">요청서 작성</p>
-              <p class="ia-pain-card__title nav-en" style="display:none">Request drafting</p>
-            </div>
-          </article>
-          <article class="ia-pain-card ia-pain-card--2" role="listitem">
-            <div class="ia-pain-card__media">
-              <img src="/static/img/ia/pain-sourcing.png?v=20260616r4" alt="" class="ia-pain-card__bg" width="1024" height="682" loading="lazy" decoding="async"/>
-              <div class="ia-pain-card__shade" aria-hidden="true"></div>
-              <p class="ia-pain-card__title nav-ko">복잡한 소싱 절차</p>
-              <p class="ia-pain-card__title nav-en" style="display:none">Complex sourcing</p>
-            </div>
-          </article>
-          <article class="ia-pain-card ia-pain-card--3" role="listitem">
-            <div class="ia-pain-card__media">
-              <img src="/static/img/ia/pain-cost.png?v=20260616r4" alt="" class="ia-pain-card__bg" width="1536" height="1024" loading="lazy" decoding="async"/>
-              <div class="ia-pain-card__shade" aria-hidden="true"></div>
-              <p class="ia-pain-card__title nav-ko">높은 비용</p>
-              <p class="ia-pain-card__title nav-en" style="display:none">High cost</p>
-            </div>
-          </article>
-        </div>
-
-        <div class="ia-landing-copy-block">
-          <p class="ia-landing-copy nav-ko">
-            20년 이상 경력 전문가 그룹의 노하우를 학습한 SAP 개발 AI 에이전트 기반으로 쉽고 빠르게 요청서를 완성하고 개발을 의뢰하세요.
-          </p>
-          <p class="ia-landing-copy nav-en" style="display:none">
-            With SAP development AI agents trained on expert groups with 20+ years of experience, complete your request quickly and commission development with confidence.
-          </p>
-
-          <p class="ia-landing-copy nav-ko">
-            Catchy Lab에서 합리적인 비용으로 검증된 전문 인력을 연결하고 성공적인 구현까지 체계적으로 지원합니다.
-          </p>
-          <p class="ia-landing-copy nav-en" style="display:none">
-            Catchy Lab connects vetted specialists at fair cost and supports you systematically through successful delivery.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-{% include "partials/ia_guest_guide.html" %}
+{% include "partials/ia_guest_landing_content.html" %}
 
 <div class="ia-float-actions">
   <button type="button" class="ia-start-fab" id="iaStartFab" aria-expanded="false" aria-controls="iaStartSheetPanel">

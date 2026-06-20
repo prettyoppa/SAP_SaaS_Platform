@@ -9,7 +9,7 @@ from .service_landing_intro import service_landing_intro_context
 from .social_oauth import google_oauth_configured
 from .templates_config import templates
 
-IA_LANDING_DEPLOY_MARKER = "20260529-guest-home-r2"
+IA_LANDING_DEPLOY_MARKER = "20260529-guest-home-r3"
 
 
 def guest_landing_context(
