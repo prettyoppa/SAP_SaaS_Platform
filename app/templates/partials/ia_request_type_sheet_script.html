@@ -1,0 +1,43 @@
+<script>
+(function () {
+  var sheet = document.getElementById('iaRequestTypeSheet');
+  var panel = document.getElementById('iaRequestTypeSheetPanel');
+  if (!sheet || !panel) return;
+
+  var lastFocus = null;
+
+  function openSheet() {
+    lastFocus = document.activeElement;
+    sheet.hidden = false;
+    requestAnimationFrame(function () {
+      sheet.classList.add('is-open');
+    });
+    document.body.classList.add('ia-sheet-open');
+    panel.focus();
+  }
+
+  function closeSheet() {
+    sheet.classList.remove('is-open');
+    document.body.classList.remove('ia-sheet-open');
+    window.setTimeout(function () {
+      if (!sheet.classList.contains('is-open')) sheet.hidden = true;
+    }, 280);
+    if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+  }
+
+  sheet.querySelectorAll('[data-ia-request-sheet-close]').forEach(function (el) {
+    el.addEventListener('click', closeSheet);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sheet.classList.contains('is-open')) {
+      e.preventDefault();
+      closeSheet();
+    }
+  });
+
+  document.querySelectorAll('[data-ia-open-request-picker]').forEach(function (btn) {
+    btn.addEventListener('click', openSheet);
+  });
+})();
+</script>

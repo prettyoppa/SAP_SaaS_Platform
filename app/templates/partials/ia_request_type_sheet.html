@@ -1,0 +1,48 @@
+<div class="ia-start-sheet ia-request-type-sheet" id="iaRequestTypeSheet" hidden>
+  <div class="ia-start-sheet__backdrop" data-ia-request-sheet-close tabindex="-1" aria-hidden="true"></div>
+  <div class="ia-start-sheet__panel ia-start-sheet__panel--picker" id="iaRequestTypeSheetPanel" role="dialog" aria-modal="true" aria-labelledby="iaRequestTypeSheetTitle" tabindex="-1">
+    <div class="ia-start-sheet__handle" aria-hidden="true"></div>
+    <h2 class="ia-start-sheet__title nav-ko" id="iaRequestTypeSheetTitle">어떤 도움이 필요하세요?</h2>
+    <h2 class="ia-start-sheet__title nav-en" style="display:none">What do you need help with?</h2>
+    <p class="ia-request-type-sheet__lead nav-ko">업무 용어 대신 <strong>결과</strong> 기준으로 고르세요. 선택하면 해당 요청 폼으로 이동합니다.</p>
+    <p class="ia-request-type-sheet__lead nav-en" style="display:none">Pick by <strong>outcome</strong>, not internal jargon. Each option opens the matching request form.</p>
+
+    <div class="ia-start-sheet__options">
+      <a href="/rfp/new" class="ia-sheet-option">
+        <span class="ia-sheet-option__icon ia-sheet-option__icon--fa ia-sheet-option__icon--dev" aria-hidden="true"><i class="fa-solid fa-code"></i></span>
+        <span class="ia-sheet-option__body">
+          <span class="ia-sheet-option__label nav-ko">새 SAP 프로그램 만들기</span>
+          <span class="ia-sheet-option__label nav-en" style="display:none">Build a new SAP program</span>
+          <span class="ia-sheet-option__hint nav-ko">리포트·화면·배치 등 신규 ABAP 개발</span>
+          <span class="ia-sheet-option__hint nav-en" style="display:none">New ABAP — reports, screens, batch, etc.</span>
+        </span>
+        <i class="fa-solid fa-chevron-right ia-sheet-option__chevron" aria-hidden="true"></i>
+      </a>
+      <a href="/abap-analysis/new" class="ia-sheet-option">
+        <span class="ia-sheet-option__icon ia-sheet-option__icon--fa ia-sheet-option__icon--analysis" aria-hidden="true"><i class="fa-solid fa-hospital"></i></span>
+        <span class="ia-sheet-option__body">
+          <span class="ia-sheet-option__label nav-ko">기존 ABAP 점검·고치기</span>
+          <span class="ia-sheet-option__label nav-en" style="display:none">Review or fix existing ABAP</span>
+          <span class="ia-sheet-option__hint nav-ko">성능·오류·리팩터링·코드 리뷰</span>
+          <span class="ia-sheet-option__hint nav-en" style="display:none">Performance, bugs, refactoring, review</span>
+        </span>
+        <i class="fa-solid fa-chevron-right ia-sheet-option__chevron" aria-hidden="true"></i>
+      </a>
+      <a href="/integration/new" class="ia-sheet-option">
+        <span class="ia-sheet-option__icon ia-sheet-option__icon--fa ia-sheet-option__icon--integration" aria-hidden="true"><i class="fa-solid fa-link"></i></span>
+        <span class="ia-sheet-option__body">
+          <span class="ia-sheet-option__label nav-ko">다른 시스템과 연결</span>
+          <span class="ia-sheet-option__label nav-en" style="display:none">Connect to another system</span>
+          <span class="ia-sheet-option__hint nav-ko">API·IDoc·RFC 등 연동 개발</span>
+          <span class="ia-sheet-option__hint nav-en" style="display:none">API, IDoc, RFC integrations</span>
+        </span>
+        <i class="fa-solid fa-chevron-right ia-sheet-option__chevron" aria-hidden="true"></i>
+      </a>
+    </div>
+
+    <button type="button" class="ia-start-sheet__close" data-ia-request-sheet-close aria-label="Close">
+      <span class="nav-ko">닫기</span>
+      <span class="nav-en" style="display:none">Close</span>
+    </button>
+  </div>
+</div>

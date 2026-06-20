@@ -2315,11 +2315,36 @@ html[data-theme="light"] .ia-guide-card__link {
 }
 
 .ia-guest-landing-append {
-  margin-top: 0;
+  margin-top: 7.5rem;
 }
 
 .ia-guest-landing-append .ia-landing-hero {
-  padding-top: 2.5rem;
+  padding-top: 0;
+}
+
+.ia-start-sheet__panel--picker {
+  width: min(100%, 32rem);
+  max-height: min(88vh, 38rem);
+}
+
+.ia-request-type-sheet__lead {
+  margin: -0.35rem 0 1rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--muted);
+}
+
+.ia-sheet-option__icon--dev {
+  color: var(--primary);
+}
+
+.ia-sheet-option__icon--analysis {
+  color: #34d399;
+}
+
+.ia-sheet-option__icon--integration {
+  color: #fbbf24;
 }
 
 .ia-guide-cta-band__btn:hover {
