@@ -2314,6 +2314,14 @@ html[data-theme="light"] .ia-guide-card__link {
   appearance: none;
 }
 
+.ia-landing-stack > .ia-guide-section-divider {
+  margin-top: 0.35rem;
+}
+
+.ia-landing-stack > .ia-guide-section-band {
+  margin-bottom: 1.75rem;
+}
+
 .ia-guest-landing-append {
   margin-top: 7.5rem;
 }
