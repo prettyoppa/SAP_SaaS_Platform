@@ -5,10 +5,11 @@ from __future__ import annotations
 from fastapi import Request
 from sqlalchemy.orm import Session
 
+from .service_landing_intro import service_landing_intro_context
 from .social_oauth import google_oauth_configured
 from .templates_config import templates
 
-IA_LANDING_DEPLOY_MARKER = "20260617-guest-home-r1"
+IA_LANDING_DEPLOY_MARKER = "20260529-guest-home-r2"
 
 
 def guest_landing_context(
@@ -18,7 +19,7 @@ def guest_landing_context(
     oauth_error: str = "",
     oauth_next: str = "/",
 ) -> dict:
-    return {
+    ctx = {
         "request": request,
         "user": None,
         "guest_landing_page": True,
@@ -26,6 +27,8 @@ def guest_landing_context(
         "oauth_next": oauth_next,
         "oauth_error": (oauth_error or "").strip(),
     }
+    ctx.update(service_landing_intro_context(db))
+    return ctx
 
 
 def render_guest_landing(

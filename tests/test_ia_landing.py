@@ -12,7 +12,12 @@ def test_guest_root_returns_landing():
     assert r.status_code == 200
     assert "ia-landing-hero" in r.text
     assert "ia-guest-guide" in r.text
-    assert "ia-guide-steps" in r.text
+    assert "ia-guide-step-rows" in r.text
+    assert "ia-guide-section-band" in r.text
+    assert "ia-guide-section-divider" in r.text
+    assert "ia-guide-card__intro" in r.text
+    assert "markdown-body-lite" in r.text
+    assert 'id="faq"' not in r.text
     assert "ia-landing-detail" not in r.text
     assert "Catchy Lab" in r.text
     assert "무료로 시작하기" in r.text or "Start free" in r.text

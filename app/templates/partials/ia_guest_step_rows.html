@@ -1,0 +1,403 @@
+{# 비로그인 홈 — 5단계 (RFP-3 샘플 기반 목업) #}
+<div class="ia-guide-step-rows" role="list">
+
+  <article class="ia-guide-step-row" role="listitem">
+    <div class="ia-guide-step-row__copy">
+      <div class="ia-guide-step-row__head">
+        <span class="ia-guide-step-row__icon" aria-hidden="true"><i class="fa-solid fa-file-pen"></i></span>
+        <div class="ia-guide-step-row__heading">
+          <span class="ia-guide-step-row__num">01.</span>
+          <h3 class="ia-guide-step-row__title nav-ko">요청서 작성</h3>
+          <h3 class="ia-guide-step-row__title nav-en" style="display:none">Draft your request</h3>
+        </div>
+      </div>
+      <ul class="ia-guide-step-row__points nav-ko">
+        <li>SAP를 잘 몰라도, IT 용어가 익숙하지 않아도 괜찮습니다.</li>
+        <li>말로 설명하듯 자연스럽게 적어도 충분합니다.</li>
+        <li>먼저 시작해 보세요. Catchy Lab의 AI 에이전트가 옆에서 안내합니다.</li>
+        <li>가입 시 지급되는 체험 AI 크레딧만으로도 요청서 작성부터 Development Proposal 확인까지 시작해 볼 수 있습니다.</li>
+      </ul>
+      <ul class="ia-guide-step-row__points nav-en" style="display:none">
+        <li>You do not need to be an SAP or IT expert.</li>
+        <li>Write naturally, as if you were explaining the work out loud.</li>
+        <li>Catchy Lab AI agents stay with you and guide you along the way.</li>
+        <li>Trial AI credits at sign-up are enough to draft your request and review a Development Proposal.</li>
+      </ul>
+    </div>
+    <div class="ia-guide-step-row__preview" aria-hidden="true">
+      <div class="ia-mock ia-mock--with-ai">
+        <div class="ia-mock__chrome">
+          <span class="ia-mock__dot"></span><span class="ia-mock__dot"></span><span class="ia-mock__dot"></span>
+          <span class="ia-mock__chrome-title">RFP-3 · <span class="nav-ko">신규 요청</span><span class="nav-en" style="display:none">New request</span></span>
+        </div>
+        <div class="ia-mock__body">
+          <div class="ia-mock__field">
+            <span class="ia-mock__label nav-ko">요청 제목 <span class="ia-mock__req">*</span></span>
+            <span class="ia-mock__label nav-en" style="display:none">Title <span class="ia-mock__req">*</span></span>
+            <div class="ia-mock__input ia-mock__input--lg">Sales Order Mass Create(판매오더 대량 생성)</div>
+          </div>
+          <div class="ia-mock__row">
+            <div class="ia-mock__field">
+              <span class="ia-mock__label nav-ko">프로그램 ID <span class="ia-mock__req">*</span></span>
+              <span class="ia-mock__label nav-en" style="display:none">Program ID <span class="ia-mock__req">*</span></span>
+              <div class="ia-mock__input ia-mock__mono">ZSD_MASSOCRE</div>
+            </div>
+            <div class="ia-mock__field">
+              <span class="ia-mock__label">SAP <span class="nav-ko">모듈</span><span class="nav-en" style="display:none">modules</span></span>
+              <div class="ia-mock__chips">
+                <span class="ia-mock__chip ia-mock__chip--on">SD</span>
+                <span class="ia-mock__chip">MM</span>
+              </div>
+            </div>
+          </div>
+          <div class="ia-mock__field">
+            <span class="ia-mock__label nav-ko">개발 유형 <span class="ia-mock__req">*</span></span>
+            <span class="ia-mock__label nav-en" style="display:none">Development type <span class="ia-mock__req">*</span></span>
+            <div class="ia-mock__chips">
+              <span class="ia-mock__chip ia-mock__chip--on nav-ko">데이터 업로드</span>
+              <span class="ia-mock__chip ia-mock__chip--on nav-en" style="display:none">Data upload</span>
+              <span class="ia-mock__chip nav-ko">Report / ALV</span>
+              <span class="ia-mock__chip nav-en" style="display:none">Report / ALV</span>
+            </div>
+          </div>
+          <div class="ia-mock__field">
+            <span class="ia-mock__label nav-ko">요구사항 본문</span>
+            <span class="ia-mock__label nav-en" style="display:none">Requirements</span>
+            <div class="ia-mock__textarea nav-ko">엑셀 업로드로 판매오더를 대량 생성하고, 오류 행은 ALV에 표시·재처리할 수 있는 프로그램이 필요합니다.</div>
+            <div class="ia-mock__textarea nav-en" style="display:none">Mass-create sales orders from Excel upload; show error rows in ALV for reprocessing.</div>
+          </div>
+          <div class="ia-mock__field">
+            <span class="ia-mock__label nav-ko">첨부 · 참고 ABAP</span>
+            <span class="ia-mock__label nav-en" style="display:none">Attachments · reference ABAP</span>
+            <div class="ia-mock__chips ia-mock__chips--attach">
+              <span class="ia-mock__chip ia-mock__chip--attach"><i class="fa-solid fa-paperclip" aria-hidden="true"></i> upload_template.xlsx</span>
+              <span class="ia-mock__chip ia-mock__chip--attach"><i class="fa-solid fa-code" aria-hidden="true"></i> ZREF_MASS.abap</span>
+            </div>
+          </div>
+        </div>
+        <div class="ia-mock__ai-float">
+          <div class="ia-mock__ai-panel nav-ko">작성 중인 내용을 맥락으로 답합니다.</div>
+          <div class="ia-mock__ai-panel nav-en" style="display:none">Answers use what you are drafting as context.</div>
+          <span class="ia-mock__ai-launcher">
+            <i class="fa-solid fa-comments" aria-hidden="true"></i>
+            <span class="nav-ko">AI 에게 문의</span>
+            <span class="nav-en" style="display:none">Ask AI</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="ia-guide-step-row ia-guide-step-row--reverse" role="listitem">
+    <div class="ia-guide-step-row__copy">
+      <div class="ia-guide-step-row__head">
+        <span class="ia-guide-step-row__icon" aria-hidden="true"><i class="fa-solid fa-comments"></i></span>
+        <div class="ia-guide-step-row__heading">
+          <span class="ia-guide-step-row__num">02.</span>
+          <h3 class="ia-guide-step-row__title nav-ko">AI 인터뷰</h3>
+          <h3 class="ia-guide-step-row__title nav-en" style="display:none">AI interview</h3>
+        </div>
+      </div>
+      <ul class="ia-guide-step-row__points nav-ko">
+        <li>AI 에이전트가 요청서와 기 학습한 유사 개발 사례를 비교·분석합니다.</li>
+        <li>누락 요건, 예외 처리, 권한·데이터 흐름을 질문합니다.</li>
+        <li>답을 모으면 개발 범위가 정리되고, 제안서 생성의 기반이 됩니다.</li>
+        <li>SAP 전문가에게 보내기 전에, 놓치기 쉬운 실무 요건을 미리 짚어 줍니다.</li>
+        <li>질문은 짧게 답하면 되고, 대화할수록 요청서가 더 선명해집니다.</li>
+        <li>인터뷰만 진행해 봐도 범위와 우선순위 감이 잡혀, 의뢰 여부를 판단하기 쉬워집니다.</li>
+      </ul>
+      <ul class="ia-guide-step-row__points nav-en" style="display:none">
+        <li>AI agents compare your request with similar development cases the platform has already learned.</li>
+        <li>They ask about missing requirements, edge cases, authorization, and data flows.</li>
+        <li>Your answers clarify scope and feed proposal generation.</li>
+        <li>Before you talk to a consultant, it surfaces practical requirements you might overlook.</li>
+        <li>Answer briefly—each reply sharpens your request as the conversation continues.</li>
+        <li>Even an interview-only run helps you sense scope and priorities before you commit.</li>
+      </ul>
+    </div>
+    <div class="ia-guide-step-row__preview" aria-hidden="true">
+      <div class="ia-mock">
+        <div class="ia-mock__chrome">
+          <span class="ia-mock__dot"></span><span class="ia-mock__dot"></span><span class="ia-mock__dot"></span>
+          <span class="ia-mock__chrome-title">RFP-3 · AI <span class="nav-ko">인터뷰</span><span class="nav-en" style="display:none">Interview</span></span>
+        </div>
+        <div class="ia-mock__body ia-mock__body--chat">
+          <div class="ia-mock__summary nav-ko">요청: Sales Order Mass Create(판매오더 대량 생성) <span class="ia-mock__chip ia-mock__chip--on ia-mock__chip--xs">SD</span></div>
+          <div class="ia-mock__summary nav-en" style="display:none">Request: Sales Order Mass Create <span class="ia-mock__chip ia-mock__chip--on ia-mock__chip--xs">SD</span></div>
+          <div class="ia-mock__suggest">
+            <p class="ia-mock__suggest-q nav-ko">업로드 파일 형식(Excel/CSV)과 필수 컬럼·오더 유형은 어떻게 정의하나요?</p>
+            <p class="ia-mock__suggest-q nav-en" style="display:none">What upload format (Excel/CSV) and required columns or order types apply?</p>
+            <div class="ia-mock__suggest-votes">
+              <span class="ia-mock__vote ia-mock__vote--on"><i class="fa-solid fa-thumbs-up"></i></span>
+              <span class="ia-mock__vote"><i class="fa-solid fa-thumbs-down"></i></span>
+            </div>
+          </div>
+          <div class="ia-mock__suggest">
+            <p class="ia-mock__suggest-q nav-ko">일부 행만 실패할 때 전체 롤백인가요, 성공 건만 커밋인가요?</p>
+            <p class="ia-mock__suggest-q nav-en" style="display:none">On partial failures: full rollback or commit successful rows only?</p>
+            <div class="ia-mock__suggest-votes">
+              <span class="ia-mock__vote"><i class="fa-solid fa-thumbs-up"></i></span>
+              <span class="ia-mock__vote ia-mock__vote--on"><i class="fa-solid fa-thumbs-down"></i></span>
+            </div>
+          </div>
+          <div class="ia-mock__suggest">
+            <p class="ia-mock__suggest-q nav-ko">생성된 판매오더 번호를 ALV·다운로드 파일에 어떻게 반환할까요?</p>
+            <p class="ia-mock__suggest-q nav-en" style="display:none">How should created sales order numbers appear in ALV or export?</p>
+            <div class="ia-mock__suggest-votes">
+              <span class="ia-mock__vote"><i class="fa-solid fa-thumbs-up"></i></span>
+              <span class="ia-mock__vote"><i class="fa-solid fa-thumbs-down"></i></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="ia-guide-step-row ia-guide-step-row--wide-preview" role="listitem">
+    <div class="ia-guide-step-row__copy">
+      <div class="ia-guide-step-row__head">
+        <span class="ia-guide-step-row__icon" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></span>
+        <div class="ia-guide-step-row__heading">
+          <span class="ia-guide-step-row__num">03.</span>
+          <h3 class="ia-guide-step-row__title nav-ko">개발 제안서 생성 후 배포</h3>
+          <h3 class="ia-guide-step-row__title nav-en" style="display:none">Proposal generation &amp; release</h3>
+        </div>
+      </div>
+      <ul class="ia-guide-step-row__points nav-ko">
+        <li>요청서와 인터뷰 결과를 바탕으로 Development Proposal이 자동 생성됩니다.</li>
+        <li>내용이 부족하거나 다르면 요청·인터뷰를 보완한 뒤 제안서를 다시 생성할 수 있습니다.</li>
+        <li>범위·산출물·우선순위를 확인하고 개발 의뢰를 진행하면 검증된 SAP 전문가 그룹에 과제가 공개됩니다.</li>
+        <li>요청 내용은 Catchy Lab 플랫폼 안에서만 공유되며, 매칭 전에는 외부에 공개되지 않습니다.</li>
+      </ul>
+      <ul class="ia-guide-step-row__points nav-en" style="display:none">
+        <li>A Development Proposal is generated automatically from your request and interview answers.</li>
+        <li>If something is missing or off, refine the request or interview and regenerate the proposal.</li>
+        <li>Review scope, deliverables, and priorities—then open the job to our vetted SAP expert group.</li>
+        <li>Your request stays inside Catchy Lab and is not shared externally before you match.</li>
+      </ul>
+    </div>
+    <div class="ia-guide-step-row__preview" aria-hidden="true">
+      <div class="ia-mock-split">
+        <div class="ia-mock ia-mock--busy ia-mock-split__cell">
+          <div class="ia-mock__busy-bg"></div>
+          <div class="ia-mock__busy-card">
+            <div class="ia-mock__busy-spinner" aria-hidden="true">
+              <span class="ia-mock__busy-ring"></span>
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <p class="ia-mock__busy-title nav-ko">처리 중입니다…</p>
+            <p class="ia-mock__busy-title nav-en" style="display:none">Processing…</p>
+            <ul class="ia-mock__busy-agents nav-ko">
+              <li>「요구분석」 에이전트가 지금까지의 인터뷰 답변을 구조화해 반영하고 있습니다</li>
+              <li>「제안서」 에이전트가 Development Proposal 초안을 작성하고 있습니다</li>
+              <li>「제안검수」 에이전트가 제안서 품질을 검토하고 있습니다</li>
+            </ul>
+            <ul class="ia-mock__busy-agents nav-en" style="display:none">
+              <li>「Requirements」 Agent is structuring your interview answers for downstream use</li>
+              <li>「Proposal」 Agent is drafting the Development Proposal</li>
+              <li>「Review」 Agent is reviewing proposal quality</li>
+            </ul>
+            <p class="ia-mock__busy-hint">RFP-3 · Sales Order Mass Create</p>
+          </div>
+        </div>
+        <div class="ia-mock ia-mock-split__cell">
+          <div class="ia-mock__chrome">
+            <span class="ia-mock__dot"></span><span class="ia-mock__dot"></span><span class="ia-mock__dot"></span>
+            <span class="ia-mock__chrome-title">Development Proposal · RFP-3</span>
+          </div>
+          <div class="ia-mock__body ia-mock__body--proposal ia-mock__proposal-prose nav-ko">
+            <h4 class="ia-mock__proposal-h2">1. 개발 개요</h4>
+            <p class="ia-mock__proposal-star">프로그램명: <strong>ZSD_MASSOCRE</strong></p>
+            <p class="ia-mock__proposal-star">개발 목적 및 배경</p>
+            <p class="ia-mock__proposal-p">영업팀은 고객 PO를 접수한 뒤 SAP에 판매오더(SO)를 건별로 수기 입력하고 있습니다. 물량이 몰리는 시기에는 하루 반나절 이상 소요되고, 수기 입력 오류로 재작업이 발생합니다.</p>
+            <p class="ia-mock__proposal-p">본 프로그램은 한 화면에서 다수의 주문 데이터를 입력·검증한 뒤 SAP 판매오더를 자동 생성하여, 처리 시간을 단축하고 데이터 정확도를 높이는 것을 목표로 합니다.</p>
+            <p class="ia-mock__proposal-star">기대 효과 (비즈니스 관점)</p>
+            <ul class="ia-mock__list ia-mock__list--prose">
+              <li><strong>업무 효율 대폭 향상</strong> — SO 대량 생성 자동화로 수기 대비 처리 시간 최대 80% 단축</li>
+              <li><strong>데이터 정확도 제고</strong> — SAP 표준 검증 로직 적용으로 입력 오류·재작업 최소화</li>
+              <li><strong>영업 생산성 향상</strong> — 입력 업무 감소로 고객 대응·전략 업무에 집중</li>
+            </ul>
+          </div>
+          <div class="ia-mock__body ia-mock__body--proposal ia-mock__proposal-prose nav-en" style="display:none">
+            <h4 class="ia-mock__proposal-h2">1. Development overview</h4>
+            <p class="ia-mock__proposal-star">Program: <strong>ZSD_MASSOCRE</strong></p>
+            <p class="ia-mock__proposal-star">Purpose &amp; background</p>
+            <p class="ia-mock__proposal-p">The sales team manually enters customer POs into SAP sales orders one by one. Peak periods take half a day or more and manual errors drive rework.</p>
+            <p class="ia-mock__proposal-p">This program validates multiple order lines on one screen and auto-creates SAP sales orders to cut processing time and improve data accuracy.</p>
+            <p class="ia-mock__proposal-star">Expected business impact</p>
+            <ul class="ia-mock__list ia-mock__list--prose">
+              <li><strong>Major efficiency gain</strong> — up to 80% faster than manual SO entry</li>
+              <li><strong>Higher data accuracy</strong> — SAP validation reduces errors and rework</li>
+              <li><strong>Sales productivity</strong> — less data entry, more customer and strategy work</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="ia-guide-step-row ia-guide-step-row--reverse" role="listitem">
+    <div class="ia-guide-step-row__copy">
+      <div class="ia-guide-step-row__head">
+        <span class="ia-guide-step-row__icon" aria-hidden="true"><i class="fa-solid fa-handshake"></i></span>
+        <div class="ia-guide-step-row__heading">
+          <span class="ia-guide-step-row__num">04.</span>
+          <h3 class="ia-guide-step-row__title nav-ko">SAP 전문인력 오퍼·매칭</h3>
+          <h3 class="ia-guide-step-row__title nav-en" style="display:none">SAP specialist offers &amp; matching</h3>
+        </div>
+      </div>
+      <ul class="ia-guide-step-row__points nav-ko">
+        <li>검증된 SAP 전문가 한 명 이상이 상세 경력 프로필과 함께 오퍼를 제출합니다.</li>
+        <li>오퍼 알림은 요청자의 이메일·SMS(수신 동의 시)로 전송됩니다.</li>
+        <li>플랫폼에서 프로필을 확인하고 문의·응답할 수 있습니다.</li>
+        <li>비교 후 한 명을 선택해 매칭하면 담당자에게 알림이 갑니다.</li>
+        <li>진행 방향이 맞지 않으면 매칭을 변경할 수 있습니다.</li>
+      </ul>
+      <ul class="ia-guide-step-row__points nav-en" style="display:none">
+        <li>One or more vetted SAP specialists submit offers with detailed career profiles.</li>
+        <li>Notifications go to your email and SMS when you have opted in.</li>
+        <li>Review profiles and exchange messages on the platform.</li>
+        <li>Compare options and match with one consultant—they are notified right away.</li>
+        <li>Change the match later if the fit is not right.</li>
+      </ul>
+    </div>
+    <div class="ia-guide-step-row__preview" aria-hidden="true">
+      <div class="ia-mock">
+        <div class="ia-mock__chrome">
+          <span class="ia-mock__dot"></span><span class="ia-mock__dot"></span><span class="ia-mock__dot"></span>
+          <span class="ia-mock__chrome-title nav-ko">오퍼 현황</span>
+          <span class="ia-mock__chrome-title nav-en" style="display:none">Offers</span>
+        </div>
+        <div class="ia-mock__body ia-mock__body--offers ia-mock__body--offers-real">
+          <div class="ia-mock__offer-item">
+            <div class="ia-mock__offer-main">
+              <span class="ia-mock__email ia-mock__blur">consultant.a@example.com</span>
+              <span class="ia-mock__sep">·</span>
+              <span class="nav-ko">김○○ · ABC 컨설팅</span>
+              <span class="nav-en" style="display:none">Kim ○○ · ABC Consulting</span>
+              <span class="ia-mock__status ia-mock__status--match">
+                <i class="fa-solid fa-hand-holding-hand" aria-hidden="true"></i>
+                <span class="nav-ko">매칭</span><span class="nav-en" style="display:none">Matched</span>
+              </span>
+              <span class="ia-mock__msg"><i class="fa-solid fa-envelope" aria-hidden="true"></i> 4</span>
+              <span class="ia-mock__consent nav-ko">이메일 <em>동의</em> · SMS <em class="ia-mock__off">미동의</em></span>
+              <span class="ia-mock__consent nav-en" style="display:none">Email <em>On</em> · SMS <em class="ia-mock__off">Off</em></span>
+            </div>
+            <div class="ia-mock__offer-foot">
+              <span>2026. 05. 09. 05:35</span>
+              <span class="ia-mock__btn ia-mock__btn--sm"><i class="fa-solid fa-file-word ia-mock__fa-word" aria-hidden="true"></i> <span class="nav-ko">프로필</span><span class="nav-en" style="display:none">Profile</span></span>
+            </div>
+          </div>
+          <div class="ia-mock__offer-item">
+            <div class="ia-mock__offer-main">
+              <span class="ia-mock__email ia-mock__blur">user.b@partner.example</span>
+              <span class="ia-mock__sep">·</span>
+              <span class="nav-ko">이○○ · XYZ 파트너</span>
+              <span class="nav-en" style="display:none">Lee ○○ · XYZ Partners</span>
+              <span class="ia-mock__status ia-mock__status--offer">
+                <i class="fa-solid fa-hand-holding" aria-hidden="true"></i>
+                <span class="nav-ko">오퍼</span><span class="nav-en" style="display:none">Offer</span>
+              </span>
+              <span class="ia-mock__msg"><i class="fa-solid fa-envelope" aria-hidden="true"></i> 1</span>
+              <span class="ia-mock__consent nav-ko">이메일 <em>동의</em> · SMS <em>동의</em></span>
+              <span class="ia-mock__consent nav-en" style="display:none">Email <em>On</em> · SMS <em>On</em></span>
+            </div>
+            <div class="ia-mock__offer-foot">
+              <span>2026. 05. 09. 04:08</span>
+              <span class="ia-mock__btn ia-mock__btn--sm"><i class="fa-solid fa-file-pdf ia-mock__fa-pdf" aria-hidden="true"></i> <span class="nav-ko">프로필</span><span class="nav-en" style="display:none">Profile</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="ia-guide-step-row ia-guide-step-row--wide-preview" role="listitem">
+    <div class="ia-guide-step-row__copy">
+      <div class="ia-guide-step-row__head">
+        <span class="ia-guide-step-row__icon" aria-hidden="true"><i class="fa-solid fa-truck"></i></span>
+        <div class="ia-guide-step-row__heading">
+          <span class="ia-guide-step-row__num">05.</span>
+          <h3 class="ia-guide-step-row__title nav-ko">구현·납품</h3>
+          <h3 class="ia-guide-step-row__title nav-en" style="display:none">Build &amp; deliver</h3>
+        </div>
+      </div>
+      <ul class="ia-guide-step-row__points nav-ko">
+        <li>매칭된 전문가는 Catchy Lab 허브에서 AI 에이전트의 도움으로 기능명세서(FS)와 개발 코드 초안을 작성할 수 있습니다.</li>
+        <li>전문가는 자신의 경험과 지식으로 FS를 보완하고 코드를 발전시킬 수 있습니다.</li>
+        <li>요청자는 언제든 FS를 함께 검토합니다.</li>
+        <li>최종 납품·적용을 위해서는 전문가의 현장 방문 또는 VPN 등 고객사 시스템 접속이 필요할 수 있습니다.</li>
+      </ul>
+      <ul class="ia-guide-step-row__points nav-en" style="display:none">
+        <li>Your matched specialist can draft the functional spec (FS) and code in the hub with AI agents.</li>
+        <li>They refine the FS and evolve the code with their own expertise.</li>
+        <li>You can review the FS together at any time.</li>
+        <li>Final delivery may require an on-site visit or VPN access to your systems.</li>
+      </ul>
+    </div>
+    <div class="ia-guide-step-row__preview" aria-hidden="true">
+      <div class="ia-mock-split ia-mock-split--delivery">
+        <div class="ia-mock ia-mock-split__cell">
+          <div class="ia-mock__chrome">
+            <span class="ia-mock__dot"></span><span class="ia-mock__dot"></span><span class="ia-mock__dot"></span>
+            <span class="ia-mock__chrome-title">RFP-14 · <span class="nav-ko">기능명세서 (FS)</span><span class="nav-en" style="display:none">Functional spec (FS)</span></span>
+          </div>
+          <div class="ia-mock__body ia-mock__body--delivery-pane ia-mock__proposal-prose nav-ko">
+            <h4 class="ia-mock__proposal-h2">1. 목적·범위·전제</h4>
+            <p class="ia-mock__fs-h3">1.1. 목적</p>
+            <p class="ia-mock__proposal-p">본 명세는 표준·자체 개발 SAP 테이블·프로그램의 소스코드 및 정의서를 일괄 다운로드하는 <strong>ZSDSRCTAB_DL</strong> 프로그램 구현 요건을 정의합니다. 개발·운영 업무에 필요한 기술 정보를 일관된 형식으로 신속히 확보하는 것이 목적입니다.</p>
+            <p class="ia-mock__fs-h3">1.2. 범위</p>
+            <p class="ia-mock__proposal-p">본 프로그램은 다음 기능을 포함합니다.</p>
+            <ul class="ia-mock__list ia-mock__list--prose">
+              <li><strong>정보 유형 선택</strong> — 프로그램/테이블 유형 선택 및 유형별 입력·다운로드</li>
+              <li><strong>프로그램 정보 다운로드</strong> — 프로그램 ID 조회, 사용 테이블 자동 식별·표시</li>
+              <li><strong>소스·정의 산출</strong> — 메인·INCLUDE·텍스트 요소 ZIP, 선택 테이블 정의 Excel</li>
+            </ul>
+          </div>
+          <div class="ia-mock__body ia-mock__body--delivery-pane ia-mock__proposal-prose nav-en" style="display:none">
+            <h4 class="ia-mock__proposal-h2">1. Purpose, scope &amp; assumptions</h4>
+            <p class="ia-mock__fs-h3">1.1. Purpose</p>
+            <p class="ia-mock__proposal-p">This spec defines <strong>ZSDSRCTAB_DL</strong>, which downloads source and definition documents for standard and custom SAP tables and programs in a consistent format.</p>
+            <p class="ia-mock__fs-h3">1.2. Scope</p>
+            <ul class="ia-mock__list ia-mock__list--prose">
+              <li><strong>Type selection</strong> — program vs. table workflows</li>
+              <li><strong>Program download</strong> — ID lookup, used tables with checkboxes</li>
+              <li><strong>Deliverables</strong> — ZIP of sources/texts, Excel table definitions</li>
+            </ul>
+          </div>
+        </div>
+        <div class="ia-mock ia-mock-split__cell">
+          <div class="ia-mock__chrome">
+            <span class="ia-mock__dot"></span><span class="ia-mock__dot"></span><span class="ia-mock__dot"></span>
+            <span class="ia-mock__chrome-title">RFP-14 · <span class="nav-ko">개발코드</span><span class="nav-en" style="display:none">Delivered code</span></span>
+          </div>
+          <div class="ia-mock__body ia-mock__body--delivery-pane">
+            <div class="ia-mock__dc-head">
+              <span class="nav-ko">5. 개발코드</span>
+              <span class="nav-en" style="display:none">5. Delivered code</span>
+              <span class="ia-mock__dc-badge nav-ko">납품 코드 준비됨</span>
+              <span class="ia-mock__dc-badge nav-en" style="display:none">Code ready</span>
+            </div>
+            <p class="ia-mock__dc-sub nav-ko">납품 ABAP · 슬롯별 소스</p>
+            <p class="ia-mock__dc-sub nav-en" style="display:none">Delivered ABAP · per-slot source</p>
+            <p class="ia-mock__dc-files nav-ko">납품 ABAP (6개 파일)</p>
+            <p class="ia-mock__dc-files nav-en" style="display:none">Delivered ABAP (6 files)</p>
+            <div class="ia-mock__dc-tabs" role="tablist">
+              <span class="ia-mock__dc-tab ia-mock__dc-tab--on">zsdsrc_main.prog.abap <em>main_report</em></span>
+              <span class="ia-mock__dc-tab">zsdstab_top.prog.abap <em>top</em></span>
+              <span class="ia-mock__dc-tab">zsdstab_pbo.prog.abap <em>pbo</em></span>
+            </div>
+            <div class="ia-mock__code-view">
+              <div class="ia-mock__code-line"><span>1</span><code>REPORT ZSDSRCTAB_DL MESSAGE-ID SY.</code></div>
+              <div class="ia-mock__code-line"><span>2</span><code></code></div>
+              <div class="ia-mock__code-line"><span>3</span><code>INCLUDE ZSDSRCTAB_DL_TOP.    " TOP Include</code></div>
+              <div class="ia-mock__code-line"><span>4</span><code>INCLUDE ZSDSRCTAB_DL_PBO.    " PBO Include</code></div>
+              <div class="ia-mock__code-line"><span>5</span><code>INCLUDE ZSDSRCTAB_DL_PAI.    " PAI Include</code></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+</div>
